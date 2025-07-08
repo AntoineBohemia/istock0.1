@@ -121,12 +121,12 @@ export default function AddProductForm() {
           </div>
           <div className="flex gap-2">
             <Button type="button" variant="secondary">
-              Discard
+              Annuler
             </Button>
             <Button type="button" variant="outline">
-              Save Draft
+              Enregistrer le brouillon
             </Button>
-            <Button type="submit">Publish</Button>
+            <Button type="submit">Publier</Button>
           </div>
         </div>
         <div className="grid grid-cols-6 gap-4">
@@ -142,7 +142,7 @@ export default function AddProductForm() {
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Name</FormLabel>
+                        <FormLabel>Nom</FormLabel>
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
@@ -169,7 +169,7 @@ export default function AddProductForm() {
                       name="barcode"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Barcode</FormLabel>
+                          <FormLabel>QR Code</FormLabel>
                           <FormControl>
                             <Input {...field} />
                           </FormControl>
@@ -183,13 +183,13 @@ export default function AddProductForm() {
                     name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Description (Optional)</FormLabel>
+                        <FormLabel>Description (Optionnel)</FormLabel>
                         <FormControl>
                           <Textarea {...field} />
                         </FormControl>
                         <FormDescription>
-                          Set a description to the product for better
-                          visibility.
+                          Ajoutez une description au produit pour une meilleure
+                          clarté.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -201,18 +201,7 @@ export default function AddProductForm() {
             {/* -- Product images -- */}
             <Card>
               <CardHeader>
-                <CardTitle>Product Images</CardTitle>
-                <CardAction>
-                  <AddMediaFromUrl>
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="mt-0! h-auto p-0"
-                    >
-                      Add media from URL
-                    </Button>
-                  </AddMediaFromUrl>
-                </CardAction>
+                <CardTitle>Image du produit</CardTitle>
               </CardHeader>
               <CardContent>
                 <FormField
@@ -238,7 +227,7 @@ export default function AddProductForm() {
                           <div className="flex w-full flex-col gap-3">
                             <div className="flex items-center justify-between gap-2">
                               <h3 className="truncate text-sm font-medium">
-                                Uploaded Files ({files.length})
+                                Fichiers télchargés ({files.length})
                               </h3>
                               <Button
                                 type="button"
@@ -287,7 +276,7 @@ export default function AddProductForm() {
                               <ImageIcon className="size-4 opacity-60" />
                             </div>
                             <p className="mb-1.5 text-sm font-medium">
-                              Drop your images here
+                              Déposez vos images ici
                             </p>
                             <p className="text-muted-foreground text-xs">
                               PNG or JPG (max. 5MB)
@@ -302,7 +291,7 @@ export default function AddProductForm() {
                                 className="-ms-1 opacity-60"
                                 aria-hidden="true"
                               />
-                              Select images
+                              Sélectionner des images
                             </Button>
                           </div>
                         )}
@@ -325,7 +314,7 @@ export default function AddProductForm() {
             {/* -- Variants -- */}
             <Card className="pb-0">
               <CardHeader>
-                <CardTitle>Variants</CardTitle>
+                <CardTitle>Fournisseur</CardTitle>
               </CardHeader>
               <CardContent>
                 <FormField
@@ -374,10 +363,10 @@ export default function AddProductForm() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectGroup>
-                                <SelectItem value="size">Size</SelectItem>
-                                <SelectItem value="color">Color</SelectItem>
-                                <SelectItem value="weight">Weight</SelectItem>
-                                <SelectItem value="smell">Smell</SelectItem>
+                                <SelectItem value="taille">Taille</SelectItem>
+                                <SelectItem value="couleur">Couleur</SelectItem>
+                                <SelectItem value="poids">Poids</SelectItem>
+                                <SelectItem value="odeur">Odeur</SelectItem>
                               </SelectGroup>
                             </SelectContent>
                           </Select>
@@ -414,7 +403,7 @@ export default function AddProductForm() {
           <div className="col-span-2 space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Pricing</CardTitle>
+                <CardTitle>Niveau de stock</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -423,7 +412,7 @@ export default function AddProductForm() {
                     control={form.control}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Base Price</FormLabel>
+                        <FormLabel>Niveau de stock optimum </FormLabel>
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
@@ -436,7 +425,9 @@ export default function AddProductForm() {
                     control={form.control}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Discounted Price</FormLabel>
+                        <FormLabel>
+                          Niveau critique (minimum avant alerte)
+                        </FormLabel>
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
@@ -450,18 +441,20 @@ export default function AddProductForm() {
                       htmlFor="terms"
                       className="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                     >
-                      Charge tax on this product
+                      Ce produit est périssable
                     </label>
                   </div>
                   <hr />
                   <div className="flex items-center space-x-2">
                     <Switch id="airplane-mode" checked />
-                    <Label htmlFor="airplane-mode">In stock</Label>
+                    <Label htmlFor="airplane-mode">
+                      Activer le suivi du stock
+                    </Label>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            {/*<Card>
               <CardHeader>
                 <CardTitle>Status</CardTitle>
               </CardHeader>
@@ -501,7 +494,7 @@ export default function AddProductForm() {
                   )}
                 />
               </CardContent>
-            </Card>
+            </Card>*/}
             <Card>
               <CardHeader className="flex-row items-center justify-between">
                 <CardTitle>Categories</CardTitle>
