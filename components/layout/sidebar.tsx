@@ -82,10 +82,10 @@ export default function Sidebar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-(--radix-popper-anchor-width)">
                 <DropdownMenuItem>
-                  <span>Ecommerce</span>
+                  <span>SMPR</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem>
-                  <span>Web Analiytics</span>
+                  <span>SEIREN</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

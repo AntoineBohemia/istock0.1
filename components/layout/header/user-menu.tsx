@@ -1,4 +1,7 @@
-import { BadgeCheck, Bell, CreditCard, LogOut, Sparkles } from "lucide-react";
+"use client";
+
+import { useRouter } from "next/navigation";
+import { BadgeCheck, Bell, LogOut } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -10,8 +13,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { createClient } from "@/lib/supabase/client";
 
 export default function UserMenu() {
+  const router = useRouter();
+  const supabase = createClient();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -49,7 +62,7 @@ export default function UserMenu() {
         <DropdownMenuGroup>
           <DropdownMenuItem>
             <BadgeCheck />
-            Account
+            Mon Compte
           </DropdownMenuItem>
 
           <DropdownMenuItem>
@@ -58,9 +71,9 @@ export default function UserMenu() {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
+        <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
           <LogOut />
-          Log out
+          Se déconnecter
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

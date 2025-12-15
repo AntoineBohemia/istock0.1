@@ -1,0 +1,153 @@
+[
+  {
+    "id": 12342,
+    "price": "€200",
+    "type": "Entrée",
+    "status": "en attente",
+    "date": "23 juin 2023",
+    "image": "/produits/01.jpeg",
+    "product_name": "Peinture acrylique blanche 10L"
+  },
+  {
+    "id": 24342,
+    "price": "€15",
+    "type": "Entrée",
+    "status": "terminé",
+    "date": "11 juillet 2023",
+    "image": "/produits/02.jpeg",
+    "product_name": "Rouleau anti-goutte 180 mm"
+  },
+  {
+    "id": 32183,
+    "customer": {
+      "name": "Noé Bernard",
+      "email": "noe.bernard@example.com"
+    },
+    "price": "€45",
+    "type": "Retour",
+    "status": "en attente",
+    "date": "03 août 2023",
+    "image": "/produits/03.jpeg",
+    "product_name": "Apprêt universel 5L"
+  },
+  {
+    "id": 45542,
+    "price": "€90",
+    "type": "Entrée",
+    "status": "expédié",
+    "date": "15 septembre 2023",
+    "image": "/produits/04.jpeg",
+    "product_name": "Support rouleau télescopique"
+  },
+  {
+    "id": 54345,
+    "price": "€5",
+    "type": "Entrée",
+    "status": "livré",
+    "date": "09 octobre 2023",
+    "image": "/produits/05.jpeg",
+    "product_name": "Ruban de masquage 50m"
+  },
+  {
+    "id": 64257,
+    "customer": {
+      "name": "Ava Garnier",
+      "email": "ava.garnier@example.com"
+    },
+    "price": "€12",
+    "type": "Retour",
+    "status": "en attente",
+    "date": "21 novembre 2023",
+    "image": "/produits/06.jpeg",
+    "product_name": "Bac à peinture 10L"
+  },
+  {
+    "id": 74346,
+    "price": "€25",
+    "type": "Entrée",
+    "status": "terminé",
+    "date": "02 décembre 2023",
+    "image": "/produits/07.jpeg",
+    "product_name": "Mélangeur de peinture"
+  },
+  {
+    "id": 84322,
+    "price": "€30",
+    "type": "Entrée",
+    "status": "expédié",
+    "date": "18 janvier 2024",
+    "image": "/produits/01.jpeg",
+    "product_name": "Bâche de protection 4x5 m"
+  },
+  {
+    "id": 91452,
+    "customer": {
+      "name": "Lucas Dubois",
+      "email": "lucas.dubois@example.com"
+    },
+    "price": "€8",
+    "type": "Retour",
+    "status": "terminé",
+    "date": "27 février 2024",
+    "image": "/produits/02.jpeg",
+    "product_name": "Grille d'égouttage 25 cm"
+  },
+  {
+    "id": 10232,
+    "price": "€10",
+    "type": "Entrée",
+    "status": "livré",
+    "date": "10 mars 2024",
+    "image": "/produits/03.jpeg",
+    "product_name": "Spatule inox 15 cm"
+  },
+  {
+    "id": 11904,
+    "price": "€7",
+    "type": "Entrée",
+    "status": "en attente",
+    "date": "07 avril 2024",
+    "image": "/produits/04.jpeg",
+    "product_name": "Nettoyant pinceau 1L"
+  },
+  {
+    "id": 14672,
+    "customer": {
+      "name": "Isabelle Girard",
+      "email": "isabelle.girard@example.com"
+    },
+    "price": "€3",
+    "type": "Retour",
+    "status": "en attente",
+    "date": "05 mai 2024",
+    "image": "/produits/05.jpeg",
+    "product_name": "Silicone acrylique blanc"
+  },
+  {
+    "id": 12123,
+    "price": "€40",
+    "type": "Entrée",
+    "status": "expédié",
+    "date": "22 juin 2024",
+    "image": "/produits/06.jpeg",
+    "product_name": "Pistolet à cartouche"
+  },
+  {
+    "id": 15804,
+    "price": "€6",
+    "type": "Entrée",
+    "status": "livré",
+    "date": "13 juillet 2024",
+    "image": "/produits/07.jpeg",
+    "product_name": "Seau hermétique 20L"
+  },
+  {
+    "id": 15023,
+    "price": "€18",
+    "type": "Entrée",
+    "status": "terminé",
+    "date": "20 août 2024",
+    "image": "/produits/01.jpeg",
+    "product_name": "Couteau à enduire 25 cm"
+  }
+]

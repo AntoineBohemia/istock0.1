@@ -63,7 +63,7 @@ export default async function RootLayout({
               <GoogleAnalyticsInit />
             ) : null}
           </ActiveThemeProvider>
-          <Toaster />
+          <Toaster position="top-center" />
         </ThemeProvider>
       </body>
     </html>

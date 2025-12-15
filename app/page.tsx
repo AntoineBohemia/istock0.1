@@ -1,103 +1,256 @@
-import Image from "next/image";
+import Link from "next/link";
+import {
+  Calendar,
+  LayoutDashboard,
+  Package,
+  ShoppingCart,
+  Users,
+  LogIn,
+  UserPlus,
+  KeyRound,
+  AlertCircle,
+  ServerCrash,
+  ExternalLink,
+  Settings,
+} from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 
-export default function Home() {
+const publicRoutes = [
+  {
+    title: "Connexion",
+    href: "/login",
+    icon: LogIn,
+    description: "Page de connexion utilisateur",
+  },
+  {
+    title: "Inscription",
+    href: "/register",
+    icon: UserPlus,
+    description: "Créer un nouveau compte",
+  },
+  {
+    title: "Mot de passe oublié",
+    href: "/forgot-password",
+    icon: KeyRound,
+    description: "Réinitialiser le mot de passe",
+  },
+];
+
+const protectedRoutes = [
+  {
+    title: "Tableau de bord",
+    href: "/global",
+    icon: LayoutDashboard,
+    description: "Vue d'ensemble et statistiques globales",
+  },
+  /*{
+    title: "Calendrier",
+    href: "/calendar",
+    icon: Calendar,
+    description: "Gestion du calendrier et événements",
+  },*/
+  {
+    title: "Produits",
+    href: "/product",
+    icon: Package,
+    description: "Liste des produits",
+    children: [
+      { title: "Créer un produit", href: "/product/create" },
+      { title: "Détail produit", href: "/product/1" },
+    ],
+  },
+  {
+    title: "Commandes",
+    href: "/orders",
+    icon: ShoppingCart,
+    description: "Gestion des commandes",
+    children: [
+      { title: "Détail commande", href: "/orders/1" },
+      { title: "Entrée stock", href: "/orders/income/1" },
+      { title: "Sortie stock", href: "/orders/outcome/1" },
+    ],
+  },
+  {
+    title: "Utilisateurs",
+    href: "/users",
+    icon: Users,
+    description: "Gestion des utilisateurs",
+    children: [{ title: "Inventaire", href: "/users/inventory" }],
+  },
+  {
+    title: "Paramètres",
+    href: "/settings/categories",
+    icon: Settings,
+    description: "Configuration de l'application",
+    children: [{ title: "Catégories", href: "/settings/categories" }],
+  },
+];
+
+const errorRoutes = [
+  {
+    title: "Erreur 404",
+    href: "/error/404",
+    icon: AlertCircle,
+    description: "Page non trouvée",
+  },
+  {
+    title: "Erreur 500",
+    href: "/error/500",
+    icon: ServerCrash,
+    description: "Erreur serveur",
+  },
+];
+
+export default function DevPage() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="relative min-h-screen bg-background p-8">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+      <div className="max-w-4xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="text-center space-y-2 pb-8 border-b">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 text-sm font-medium mb-4">
+            Mode Développeur
+          </div>
+          <h1 className="text-4xl font-bold">iStock - Architecture</h1>
+          <p className="text-muted-foreground">
+            Navigation rapide vers toutes les pages de l&apos;application
+          </p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        {/* Public Routes */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-blue-500" />
+            <h2 className="text-xl font-semibold">Pages Publiques</h2>
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
+              Authentification
+            </span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {publicRoutes.map((route) => (
+              <Link
+                key={route.href}
+                href={route.href}
+                className="border rounded-lg p-4 hover:bg-muted/50 transition-colors group"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 rounded-md bg-blue-500/10 text-blue-500">
+                    <route.icon className="h-4 w-4" />
+                  </div>
+                  <span className="font-medium group-hover:underline">
+                    {route.title}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mb-2">
+                  {route.description}
+                </p>
+                <code className="text-xs bg-muted px-2 py-0.5 rounded">
+                  {route.href}
+                </code>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* Protected Routes */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-green-500" />
+            <h2 className="text-xl font-semibold">Pages Protégées</h2>
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
+              Connexion requise
+            </span>
+          </div>
+          <div className="grid gap-3">
+            {protectedRoutes.map((route) => (
+              <div
+                key={route.href}
+                className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="p-2 rounded-md bg-primary/10 text-primary">
+                    <route.icon className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Link
+                        href={route.href}
+                        className="font-medium hover:underline flex items-center gap-1"
+                      >
+                        {route.title}
+                        <ExternalLink className="h-3 w-3" />
+                      </Link>
+                      <code className="text-xs bg-muted px-2 py-1 rounded">
+                        {route.href}
+                      </code>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {route.description}
+                    </p>
+                    {route.children && (
+                      <div className="flex flex-wrap gap-2 pt-2">
+                        {route.children.map((child) => (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            className="inline-flex items-center gap-1 text-xs bg-secondary hover:bg-secondary/80 px-2 py-1 rounded transition-colors"
+                          >
+                            {child.title}
+                            <code className="text-muted-foreground">
+                              {child.href}
+                            </code>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Error Routes */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-red-500" />
+            <h2 className="text-xl font-semibold">Pages d&apos;Erreur</h2>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {errorRoutes.map((route) => (
+              <Link
+                key={route.href}
+                href={route.href}
+                className="border rounded-lg p-4 hover:bg-muted/50 transition-colors group"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 rounded-md bg-red-500/10 text-red-500">
+                    <route.icon className="h-4 w-4" />
+                  </div>
+                  <span className="font-medium group-hover:underline">
+                    {route.title}
+                  </span>
+                </div>
+                <code className="text-xs bg-muted px-2 py-0.5 rounded">
+                  {route.href}
+                </code>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer className="text-center text-sm text-muted-foreground pt-8 border-t">
+          <p>Cette page est visible uniquement en mode développement.</p>
+          <p className="mt-1">
+            Les pages protégées redirigent vers{" "}
+            <code className="bg-muted px-1 rounded">/login</code> si non
+            connecté.
+          </p>
+        </footer>
+      </div>
     </div>
   );
 }
