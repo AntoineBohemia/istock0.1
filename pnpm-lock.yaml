@@ -116,6 +116,9 @@ importers:
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
+      html5-qrcode:
+        specifier: ^2.3.8
+        version: 2.3.8
       i:
         specifier: ^0.3.7
         version: 0.3.7
@@ -134,6 +137,9 @@ importers:
       npm:
         specifier: ^11.5.2
         version: 11.5.2
+      qrcode.react:
+        specifier: ^4.2.0
+        version: 4.2.0(react@19.1.0)
       react:
         specifier: ^19.0.0
         version: 19.1.0
@@ -1372,6 +1378,9 @@ packages:
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
 
+  html5-qrcode@2.3.8:
+    resolution: {integrity: sha512-jsr4vafJhwoLVEDW3n1KvPnCCXWaQfRng0/EEYk1vNcQGcG/htAdhJX0be8YyqMoSz7+hZvOZSTAepsabiuhiQ==}
+
   i@0.3.7:
     resolution: {integrity: sha512-FYz4wlXgkQwIPqhzC5TdNMLSE5+GS1IIDJZY/1ZiEPCT2S3COUVZeT5OW4BmW4r5LHLQuOosSwsvnroG9GR59Q==}
     engines: {node: '>=0.4'}
@@ -1617,6 +1626,11 @@ packages:
 
   prop-types@15.8.1:
     resolution: {integrity: sha512-oj87CgZICdulUohogVAR7AjlC0327U4el4L6eAvOqCeudMDVU0NThNaV+b9Df4dXgSP1gXMTnPdhfe/2qDH5cg==}
+
+  qrcode.react@4.2.0:
+    resolution: {integrity: sha512-QpgqWi8rD9DsS9EP3z7BT+5lY5SFhsqGjpgW5DY/i3mK4M9DTBNz3ErMi8BWYEfI3L0d8GIbGmcdFAS1uIRGjA==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   react-day-picker@9.8.1:
     resolution: {integrity: sha512-kMcLrp3PfN/asVJayVv82IjF3iLOOxuH5TNFWezX6lS/T8iVRFPTETpHl3TUSTH99IDMZLubdNPJr++rQctkEw==}
@@ -2953,6 +2967,8 @@ snapshots:
 
   graceful-fs@4.2.11: {}
 
+  html5-qrcode@2.3.8: {}
+
   i@0.3.7: {}
 
   iceberg-js@0.8.1: {}
@@ -3095,6 +3111,10 @@ snapshots:
       loose-envify: 1.4.0
       object-assign: 4.1.1
       react-is: 16.13.1
+
+  qrcode.react@4.2.0(react@19.1.0):
+    dependencies:
+      react: 19.1.0
 
   react-day-picker@9.8.1(react@19.1.0):
     dependencies:
