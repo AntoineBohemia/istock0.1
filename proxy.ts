@@ -20,7 +20,7 @@ const DEFAULT_AUTHENTICATED_ROUTE = "/global";
 // Page de connexion
 const LOGIN_ROUTE = "/login";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   });
