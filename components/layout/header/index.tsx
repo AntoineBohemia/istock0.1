@@ -7,7 +7,7 @@ import { useSidebar } from "@/components/ui/sidebar";
 import Search from "@/components/layout/header/search";
 import UserMenu from "@/components/layout/header/user-menu";
 import ThemeSwitch from "@/components/layout/header/theme-switch";
-import Notifications from "@/components/layout/header/notifications";
+// import Notifications from "@/components/layout/header/notifications";
 import { Button } from "@/components/ui/button";
 //import { ThemeCustomizerPanel } from "@/components/theme-customizer";
 
@@ -26,7 +26,7 @@ export default function Header() {
           <PanelLeftIcon />
         </Button>
         <Search />
-        <Notifications />
+        {/* <Notifications /> */}
         {/*<ThemeCustomizerPanel />*/}
         <ThemeSwitch />
         <UserMenu />
