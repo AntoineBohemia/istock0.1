@@ -73,11 +73,12 @@ async function getTechnician(id: string) {
 
   const inventoryCount = inventory?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
-  // Récupérer le dernier restock
-  const { data: lastHistory } = await supabase
-    .from("technician_inventory_history")
+  // Récupérer le dernier approvisionnement (depuis stock_movements)
+  const { data: lastMovement } = await supabase
+    .from("stock_movements")
     .select("created_at")
     .eq("technician_id", id)
+    .eq("movement_type", "exit_technician")
     .order("created_at", { ascending: false })
     .limit(1)
     .single();
@@ -85,7 +86,7 @@ async function getTechnician(id: string) {
   return {
     ...technician,
     inventory_count: inventoryCount,
-    last_restock_at: lastHistory?.created_at || null,
+    last_restock_at: lastMovement?.created_at || null,
   };
 }
 
@@ -207,7 +208,7 @@ export default async function TechnicianDetailPage({
       <Tabs defaultValue="inventory" className="space-y-4">
         <TabsList>
           <TabsTrigger value="inventory">Inventaire actuel</TabsTrigger>
-          <TabsTrigger value="history">Historique des restocks</TabsTrigger>
+          <TabsTrigger value="history">Historique</TabsTrigger>
         </TabsList>
         <TabsContent value="inventory">
           <TechnicianInventory technicianId={id} />

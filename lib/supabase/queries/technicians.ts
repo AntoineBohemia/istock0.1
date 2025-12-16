@@ -247,7 +247,7 @@ export async function deleteTechnician(id: string): Promise<void> {
 }
 
 /**
- * Récupère l'historique des restocks d'un technicien
+ * Récupère l'historique des restocks d'un technicien (table technician_inventory_history)
  */
 export async function getTechnicianInventoryHistory(
   technicianId: string
@@ -265,4 +265,53 @@ export async function getTechnicianInventoryHistory(
   }
 
   return data || [];
+}
+
+export interface TechnicianStockMovement {
+  id: string;
+  product_id: string;
+  quantity: number;
+  movement_type: "exit_technician";
+  notes: string | null;
+  created_at: string;
+  product: {
+    id: string;
+    name: string;
+    sku: string | null;
+    image_url: string | null;
+  } | null;
+}
+
+/**
+ * Récupère les mouvements de stock liés à un technicien (sorties vers ce technicien)
+ */
+export async function getTechnicianStockMovements(
+  technicianId: string
+): Promise<TechnicianStockMovement[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("stock_movements")
+    .select(`
+      id,
+      product_id,
+      quantity,
+      movement_type,
+      notes,
+      created_at,
+      product:products(id, name, sku, image_url)
+    `)
+    .eq("technician_id", technicianId)
+    .eq("movement_type", "exit_technician")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(`Erreur lors de la récupération des mouvements: ${error.message}`);
+  }
+
+  // Transform the data to handle Supabase's array return for relations
+  return (data || []).map((item) => ({
+    ...item,
+    product: Array.isArray(item.product) ? item.product[0] : item.product,
+  })) as TechnicianStockMovement[];
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, History, Package } from "lucide-react";
+import Image from "next/image";
+import { Loader2, History, Package, ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -13,12 +14,6 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
   Table,
   TableBody,
   TableCell,
@@ -27,8 +22,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  getTechnicianInventoryHistory,
-  TechnicianInventoryHistoryEntry,
+  getTechnicianStockMovements,
+  TechnicianStockMovement,
 } from "@/lib/supabase/queries/technicians";
 
 interface TechnicianHistoryProps {
@@ -38,18 +33,18 @@ interface TechnicianHistoryProps {
 export default function TechnicianHistory({
   technicianId,
 }: TechnicianHistoryProps) {
-  const [history, setHistory] = useState<TechnicianInventoryHistoryEntry[]>([]);
+  const [movements, setMovements] = useState<TechnicianStockMovement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadHistory();
+    loadMovements();
   }, [technicianId]);
 
-  const loadHistory = async () => {
+  const loadMovements = async () => {
     setIsLoading(true);
     try {
-      const data = await getTechnicianInventoryHistory(technicianId);
-      setHistory(data);
+      const data = await getTechnicianStockMovements(technicianId);
+      setMovements(data);
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -60,6 +55,25 @@ export default function TechnicianHistory({
       setIsLoading(false);
     }
   };
+
+  // Group movements by date
+  const groupedMovements = movements.reduce(
+    (groups, movement) => {
+      const date = new Date(movement.created_at).toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+      if (!groups[date]) {
+        groups[date] = [];
+      }
+      groups[date].push(movement);
+      return groups;
+    },
+    {} as Record<string, TechnicianStockMovement[]>
+  );
+
+  const totalItems = movements.reduce((sum, m) => sum + m.quantity, 0);
 
   if (isLoading) {
     return (
@@ -74,87 +88,101 @@ export default function TechnicianHistory({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Historique des restocks</CardTitle>
+        <CardTitle>Historique des approvisionnements</CardTitle>
         <CardDescription>
-          {history.length === 0
-            ? "Aucun restock effectué"
-            : `${history.length} restock(s) enregistré(s)`}
+          {movements.length === 0
+            ? "Aucun approvisionnement effectué"
+            : `${movements.length} mouvement(s) - ${totalItems} item(s) au total`}
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {history.length === 0 ? (
+        {movements.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <History className="size-12 text-muted-foreground/50" />
             <p className="mt-4 text-muted-foreground">
-              Aucun historique de restock disponible.
+              Aucun historique d&apos;approvisionnement disponible.
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Les mouvements apparaîtront ici lorsque des produits seront
+              envoyés à ce technicien.
             </p>
           </div>
         ) : (
-          <Accordion type="single" collapsible className="w-full">
-            {history.map((entry, index) => (
-              <AccordionItem key={entry.id} value={entry.id}>
-                <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center gap-4">
-                    <div className="rounded-full bg-primary/10 p-2">
-                      <Package className="size-4 text-primary" />
-                    </div>
-                    <div className="text-left">
-                      <p className="font-medium">
-                        Restock du{" "}
-                        {new Date(entry.created_at).toLocaleDateString(
-                          "fr-FR",
-                          {
-                            day: "numeric",
-                            month: "long",
-                            year: "numeric",
-                          }
-                        )}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(entry.created_at).toLocaleTimeString(
-                          "fr-FR",
-                          {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          }
-                        )}{" "}
-                        -{" "}
-                        {entry.snapshot.total_items} item(s)
-                      </p>
-                    </div>
+          <div className="space-y-6">
+            {Object.entries(groupedMovements).map(([date, dateMovements]) => (
+              <div key={date}>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="rounded-full bg-primary/10 p-2">
+                    <Package className="size-4 text-primary" />
                   </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="rounded-md border ml-12">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Produit</TableHead>
-                          <TableHead>SKU</TableHead>
-                          <TableHead className="text-right">Quantité</TableHead>
+                  <div>
+                    <p className="font-medium">{date}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {dateMovements.reduce((sum, m) => sum + m.quantity, 0)}{" "}
+                      item(s)
+                    </p>
+                  </div>
+                </div>
+                <div className="rounded-md border ml-10">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Produit</TableHead>
+                        <TableHead>SKU</TableHead>
+                        <TableHead>Heure</TableHead>
+                        <TableHead>Notes</TableHead>
+                        <TableHead className="text-right">Quantité</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {dateMovements.map((movement) => (
+                        <TableRow key={movement.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <figure className="flex size-8 items-center justify-center rounded border bg-muted">
+                                {movement.product?.image_url ? (
+                                  <Image
+                                    src={movement.product.image_url}
+                                    width={32}
+                                    height={32}
+                                    alt={movement.product.name}
+                                    className="size-full rounded object-cover"
+                                  />
+                                ) : (
+                                  <ImageIcon className="size-4 text-muted-foreground" />
+                                )}
+                              </figure>
+                              <span className="font-medium">
+                                {movement.product?.name || "Produit supprimé"}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground font-mono text-xs">
+                            {movement.product?.sku || "-"}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">
+                            {new Date(movement.created_at).toLocaleTimeString(
+                              "fr-FR",
+                              {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              }
+                            )}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
+                            {movement.notes || "-"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Badge variant="secondary">+{movement.quantity}</Badge>
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {entry.snapshot.items.map((item, itemIndex) => (
-                          <TableRow key={itemIndex}>
-                            <TableCell className="font-medium">
-                              {item.product_name}
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {item.product_sku || "-"}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Badge variant="secondary">{item.quantity}</Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
             ))}
-          </Accordion>
+          </div>
         )}
       </CardContent>
     </Card>
