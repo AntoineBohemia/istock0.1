@@ -11,6 +11,7 @@ type PageRoutesItemType = {
   isDataBadge?: string;
   isNew?: boolean;
   newTab?: boolean;
+  isDynamicTechnicians?: boolean;
   items?: PageRoutesItemType;
 }[];
 
@@ -39,13 +40,10 @@ export const page_routes: PageRoutesType[] = [
         ],
       },
       {
-        title: "Techniciens",
+        title: "Liste des techniciens",
         href: "/users",
         icon: "Users",
-        items: [
-          { title: "Liste des techniciens", href: "/users" },
-          { title: "Inventaire technicien", href: "/users/inventory" },
-        ],
+        isDynamicTechnicians: true,
       },
       {
         title: "Flux de stock",

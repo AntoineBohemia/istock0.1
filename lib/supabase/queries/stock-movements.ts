@@ -288,6 +288,34 @@ export async function createExit(
     })
     .eq("id", productId);
 
+  // Si c'est une sortie vers un technicien, mettre à jour son inventaire
+  if (type === "exit_technician" && technicianId) {
+    // Vérifier si le technicien a déjà ce produit dans son inventaire
+    const { data: existingInventory } = await supabase
+      .from("technician_inventory")
+      .select("id, quantity")
+      .eq("technician_id", technicianId)
+      .eq("product_id", productId)
+      .single();
+
+    if (existingInventory) {
+      // Mettre à jour la quantité existante
+      await supabase
+        .from("technician_inventory")
+        .update({
+          quantity: existingInventory.quantity + quantity,
+        })
+        .eq("id", existingInventory.id);
+    } else {
+      // Créer une nouvelle entrée dans l'inventaire
+      await supabase.from("technician_inventory").insert({
+        technician_id: technicianId,
+        product_id: productId,
+        quantity: quantity,
+      });
+    }
+  }
+
   return movement;
 }
 
