@@ -35,7 +35,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
-import { createEntry, createExit } from "@/lib/supabase/queries/stock-movements";
+import { createEntry, createExit, MovementType, MOVEMENT_TYPE_LABELS } from "@/lib/supabase/queries/stock-movements";
+import { Technician } from "@/lib/supabase/queries/technicians";
 
 interface Product {
   id: string;
@@ -51,16 +52,31 @@ const EntrySchema = z.object({
   quantity: z.number().min(1, "La quantité doit être au moins 1"),
 });
 
+const EXIT_TYPES = [
+  { value: "exit_technician", label: "Sortie technicien" },
+  { value: "exit_anonymous", label: "Sortie anonyme" },
+  { value: "exit_loss", label: "Perte/Casse" },
+] as const;
+
 const ExitSchema = z.object({
   product_id: z.string().min(1, "Sélectionnez un produit"),
   quantity: z.number().min(1, "La quantité doit être au moins 1"),
-});
+  exit_type: z.enum(["exit_technician", "exit_anonymous", "exit_loss"]),
+  technician_id: z.string().optional(),
+}).refine(
+  (data) => data.exit_type !== "exit_technician" || (data.technician_id && data.technician_id.length > 0),
+  {
+    message: "Sélectionnez un technicien pour ce type de sortie",
+    path: ["technician_id"],
+  }
+);
 
 type EntryFormValues = z.infer<typeof EntrySchema>;
 type ExitFormValues = z.infer<typeof ExitSchema>;
 
 export function StockMovementCard() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedEntryProduct, setSelectedEntryProduct] = useState<Product | null>(null);
@@ -79,27 +95,42 @@ export function StockMovementCard() {
     defaultValues: {
       product_id: "",
       quantity: 1,
+      exit_type: "exit_technician",
+      technician_id: "",
     },
   });
 
+  const selectedExitType = exitForm.watch("exit_type");
+
   useEffect(() => {
-    async function loadProducts() {
+    async function loadData() {
       try {
         const supabase = createClient();
-        const { data, error } = await supabase
-          .from("products")
-          .select("id, name, sku, image_url, stock_current, price")
-          .order("name");
 
-        if (error) throw error;
-        setProducts(data || []);
+        // Charger les produits et les techniciens en parallèle
+        const [productsResponse, techniciansResponse] = await Promise.all([
+          supabase
+            .from("products")
+            .select("id, name, sku, image_url, stock_current, price")
+            .order("name"),
+          supabase
+            .from("technicians")
+            .select("id, first_name, last_name, email, phone, city, created_at")
+            .order("last_name"),
+        ]);
+
+        if (productsResponse.error) throw productsResponse.error;
+        if (techniciansResponse.error) throw techniciansResponse.error;
+
+        setProducts(productsResponse.data || []);
+        setTechnicians(techniciansResponse.data || []);
       } catch (error) {
-        console.error("Error loading products:", error);
+        console.error("Error loading data:", error);
       } finally {
         setIsLoading(false);
       }
     }
-    loadProducts();
+    loadData();
   }, []);
 
   const handleEntryProductChange = (productId: string) => {
@@ -150,8 +181,15 @@ export function StockMovementCard() {
         return;
       }
 
-      await createExit(data.product_id, data.quantity, "exit_anonymous");
-      toast.success(`Sortie de ${data.quantity} unités enregistrée`);
+      await createExit(
+        data.product_id,
+        data.quantity,
+        data.exit_type,
+        data.exit_type === "exit_technician" ? data.technician_id : undefined
+      );
+
+      const exitTypeLabel = EXIT_TYPES.find((t) => t.value === data.exit_type)?.label || "Sortie";
+      toast.success(`${exitTypeLabel} de ${data.quantity} unités enregistrée`);
       exitForm.reset();
       setSelectedExitProduct(null);
 
@@ -381,6 +419,64 @@ export function StockMovementCard() {
                       )}
                     </div>
                   </div>
+                )}
+
+                <FormField
+                  control={exitForm.control}
+                  name="exit_type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Type de sortie</FormLabel>
+                      <FormControl>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Sélectionner un type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {EXIT_TYPES.map((type) => (
+                              <SelectItem key={type.value} value={type.value}>
+                                {type.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {selectedExitType === "exit_technician" && (
+                  <FormField
+                    control={exitForm.control}
+                    name="technician_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Technicien</FormLabel>
+                        <FormControl>
+                          <Select
+                            value={field.value}
+                            onValueChange={field.onChange}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Sélectionner un technicien" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {technicians.map((tech) => (
+                                <SelectItem key={tech.id} value={tech.id}>
+                                  {tech.first_name} {tech.last_name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 )}
 
                 <FormField

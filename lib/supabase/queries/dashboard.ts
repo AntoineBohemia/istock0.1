@@ -385,6 +385,106 @@ export async function getGlobalStockEvolution(
 }
 
 /**
+ * Récupère l'évolution du stock d'un produit spécifique sur une période
+ */
+export async function getProductStockEvolution(
+  productId: string,
+  months: number = 6
+): Promise<StockEvolutionData[]> {
+  const supabase = createClient();
+
+  const startDate = new Date();
+  startDate.setMonth(startDate.getMonth() - months);
+  startDate.setDate(1);
+  startDate.setHours(0, 0, 0, 0);
+
+  // Récupérer le stock actuel du produit
+  const { data: product, error: productError } = await supabase
+    .from("products")
+    .select("stock_current")
+    .eq("id", productId)
+    .single();
+
+  if (productError) {
+    throw new Error(`Erreur lors de la récupération du produit: ${productError.message}`);
+  }
+
+  const currentStock = product?.stock_current || 0;
+
+  // Récupérer tous les mouvements du produit sur la période
+  const { data: movements, error } = await supabase
+    .from("stock_movements")
+    .select("quantity, movement_type, created_at")
+    .eq("product_id", productId)
+    .gte("created_at", startDate.toISOString())
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throw new Error(`Erreur lors de la récupération des mouvements: ${error.message}`);
+  }
+
+  // Grouper les mouvements par mois
+  const monthlyData: Record<string, { entries: number; exits: number }> = {};
+
+  movements?.forEach((movement) => {
+    const date = new Date(movement.created_at);
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+    if (!monthlyData[monthKey]) {
+      monthlyData[monthKey] = { entries: 0, exits: 0 };
+    }
+
+    if (movement.movement_type === "entry") {
+      monthlyData[monthKey].entries += movement.quantity;
+    } else {
+      monthlyData[monthKey].exits += movement.quantity;
+    }
+  });
+
+  // Calculer le stock par mois en remontant dans le temps
+  const stockByMonth: Record<string, number> = {};
+  const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+  stockByMonth[currentMonthKey] = currentStock;
+
+  for (let i = 0; i < months; i++) {
+    const date = new Date();
+    date.setMonth(date.getMonth() - i);
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+    if (i === 0) {
+      stockByMonth[monthKey] = currentStock;
+    } else {
+      const prevMonthDate = new Date();
+      prevMonthDate.setMonth(prevMonthDate.getMonth() - i + 1);
+      const prevMonthKey = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, "0")}`;
+
+      const prevMonthData = monthlyData[prevMonthKey] || { entries: 0, exits: 0 };
+      const prevStock = stockByMonth[prevMonthKey] || currentStock;
+
+      stockByMonth[monthKey] = prevStock - prevMonthData.entries + prevMonthData.exits;
+    }
+  }
+
+  // Construire le résultat dans l'ordre chronologique
+  const result: StockEvolutionData[] = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const date = new Date();
+    date.setMonth(date.getMonth() - i);
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    const monthData = monthlyData[monthKey] || { entries: 0, exits: 0 };
+
+    result.push({
+      date: monthKey,
+      totalStock: stockByMonth[monthKey] || 0,
+      entries: monthData.entries,
+      exits: monthData.exits,
+    });
+  }
+
+  return result;
+}
+
+/**
  * Récupère les statistiques des techniciens pour le dashboard
  */
 export async function getTechnicianStats(): Promise<{

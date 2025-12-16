@@ -47,6 +47,7 @@ import Icon from "../icon";
 import Logo from "@/components/layout/logo";
 import { Button } from "@/components/ui/button";
 import { useIsTablet } from "@/hooks/use-mobile";
+import TechniciansMenu from "@/components/layout/technicians-menu";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -103,7 +104,13 @@ export default function Sidebar() {
                 <SidebarMenu className="space-y-1">
                   {route.items.map((item, key) => (
                     <SidebarMenuItem key={key}>
-                      {item.items?.length ? (
+                      {item.isDynamicTechnicians ? (
+                        <TechniciansMenu
+                          title={item.title}
+                          href={item.href}
+                          icon={item.icon}
+                        />
+                      ) : item.items?.length ? (
                         <Fragment>
                           <div className="hidden group-data-[collapsible=icon]:block">
                             <DropdownMenu>

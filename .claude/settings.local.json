@@ -1,0 +1,11 @@
+{
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "supabase"
+  ],
+  "permissions": {
+    "allow": [
+      "Bash(claude mcp add:*)"
+    ]
+  }
+}
