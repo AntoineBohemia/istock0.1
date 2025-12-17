@@ -1,11 +1,19 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(claude mcp add:*)",
+      "Bash(pnpm run build:*)",
+      "mcp__supabase__list_tables",
+      "Bash(pnpm add:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "mcp__supabase__apply_migration",
+      "mcp__supabase__execute_sql",
+      "WebFetch(domain:evilcharts.com)"
+    ]
+  },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "supabase"
-  ],
-  "permissions": {
-    "allow": [
-      "Bash(claude mcp add:*)"
-    ]
-  }
+  ]
 }

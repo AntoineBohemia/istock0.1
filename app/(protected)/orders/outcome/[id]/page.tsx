@@ -3,9 +3,12 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import {
   ChevronLeft,
-  Download01,
+  Upload01,
   Package,
-  Truck01,
+  User01,
+  UserX01,
+  Trash01,
+  AlertTriangle,
   Image01,
 } from "@untitled-ui/icons-react";
 import { generateMeta } from "@/lib/utils";
@@ -15,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Table,
   TableBody,
@@ -24,6 +28,27 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+const EXIT_TYPE_CONFIG: Record<
+  string,
+  { label: string; variant: "info" | "secondary" | "destructive"; icon: React.ReactNode }
+> = {
+  exit_technician: {
+    label: "Sortie technicien",
+    variant: "info",
+    icon: <User01 className="size-4" />,
+  },
+  exit_anonymous: {
+    label: "Sortie anonyme",
+    variant: "secondary",
+    icon: <UserX01 className="size-4" />,
+  },
+  exit_loss: {
+    label: "Perte / Casse",
+    variant: "destructive",
+    icon: <Trash01 className="size-4" />,
+  },
+};
+
 export async function generateMetadata({
   params,
 }: {
@@ -31,9 +56,9 @@ export async function generateMetadata({
 }) {
   const { id } = await params;
   return generateMeta({
-    title: "Détail de l'entrée",
-    description: "Détails du mouvement d'entrée de stock",
-    canonical: `/orders/income/${id}`,
+    title: "Détail de la sortie",
+    description: "Détails du mouvement de sortie de stock",
+    canonical: `/orders/outcome/${id}`,
   });
 }
 
@@ -45,11 +70,12 @@ async function getMovement(id: string) {
     .select(
       `
       *,
-      product:products(id, name, sku, image_url, price, stock_current, supplier_name)
+      product:products(id, name, sku, image_url, price, stock_current),
+      technician:technicians(id, first_name, last_name, email, city)
     `
     )
     .eq("id", id)
-    .eq("movement_type", "entry")
+    .neq("movement_type", "entry")
     .single();
 
   if (error || !movement) {
@@ -59,11 +85,14 @@ async function getMovement(id: string) {
   const product = Array.isArray(movement.product)
     ? movement.product[0]
     : movement.product;
+  const technician = Array.isArray(movement.technician)
+    ? movement.technician[0]
+    : movement.technician;
 
-  return { ...movement, product };
+  return { ...movement, product, technician };
 }
 
-export default async function EntryDetailPage({
+export default async function OutcomeDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -75,7 +104,9 @@ export default async function EntryDetailPage({
     notFound();
   }
 
-  const entryDate = new Date(movement.created_at);
+  const exitDate = new Date(movement.created_at);
+  const exitType = movement.movement_type as string;
+  const config = EXIT_TYPE_CONFIG[exitType] || EXIT_TYPE_CONFIG.exit_anonymous;
   const unitPrice = movement.product?.price || 0;
   const totalValue = unitPrice * movement.quantity;
 
@@ -95,20 +126,20 @@ export default async function EntryDetailPage({
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Download01 className="size-5 text-green-600" />
+              <Upload01 className="size-5 text-red-600" />
               <CardTitle className="font-display text-2xl">
-                Entrée de stock
+                Sortie de stock
               </CardTitle>
             </div>
             <p className="text-muted-foreground text-sm">
-              {entryDate.toLocaleDateString("fr-FR", {
+              {exitDate.toLocaleDateString("fr-FR", {
                 weekday: "long",
                 day: "numeric",
                 month: "long",
                 year: "numeric",
               })}{" "}
               à{" "}
-              {entryDate.toLocaleTimeString("fr-FR", {
+              {exitDate.toLocaleTimeString("fr-FR", {
                 hour: "2-digit",
                 minute: "2-digit",
               })}
@@ -117,13 +148,53 @@ export default async function EntryDetailPage({
           <CardContent>
             <Separator className="mb-4" />
             <div className="space-y-4">
+              {/* Type de sortie */}
               <div className="space-y-2">
                 <h3 className="font-semibold flex items-center gap-2">
-                  <Truck01 className="size-4" />
-                  Fournisseur
+                  {config.icon}
+                  Type de sortie
                 </h3>
-                <p>{movement.product?.supplier_name || "Non spécifié"}</p>
+                <Badge variant={config.variant}>{config.label}</Badge>
               </div>
+
+              {/* Technicien */}
+              {movement.technician && exitType === "exit_technician" && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <User01 className="size-4" />
+                    Technicien
+                  </h3>
+                  <div className="flex items-center gap-3">
+                    <Avatar className="size-10">
+                      <AvatarFallback>
+                        {movement.technician.first_name[0]}
+                        {movement.technician.last_name[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">
+                        {movement.technician.first_name}{" "}
+                        {movement.technician.last_name}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {movement.technician.email}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Alerte perte */}
+              {exitType === "exit_loss" && (
+                <div className="flex items-start gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm">
+                  <AlertTriangle className="size-4 text-destructive shrink-0 mt-0.5" />
+                  <p className="text-destructive">
+                    Produit marqué comme perte ou casse.
+                  </p>
+                </div>
+              )}
+
+              {/* Notes */}
               {movement.notes && (
                 <div className="space-y-2">
                   <h3 className="font-semibold">Notes</h3>
@@ -139,12 +210,12 @@ export default async function EntryDetailPage({
         {/* Summary Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Résumé de l&apos;entrée</CardTitle>
+            <CardTitle>Résumé de la sortie</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex justify-between">
               <span>Quantité</span>
-              <Badge variant="success">+{movement.quantity} unités</Badge>
+              <Badge variant="destructive">-{movement.quantity} unités</Badge>
             </div>
             <div className="flex justify-between">
               <span>Prix unitaire</span>
@@ -157,8 +228,8 @@ export default async function EntryDetailPage({
             </div>
             <Separator />
             <div className="flex justify-between font-semibold">
-              <span>Valeur totale</span>
-              <span className="text-green-600">
+              <span>Valeur sortie</span>
+              <span className="text-red-600">
                 {totalValue.toLocaleString("fr-FR", {
                   style: "currency",
                   currency: "EUR",
@@ -174,7 +245,7 @@ export default async function EntryDetailPage({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="size-5" />
-            Produit réapprovisionné
+            Produit sorti
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -216,8 +287,8 @@ export default async function EntryDetailPage({
                     </div>
                   </div>
                 </TableCell>
-                <TableCell className="text-right font-semibold text-green-600">
-                  +{movement.quantity}
+                <TableCell className="text-right font-semibold text-red-600">
+                  -{movement.quantity}
                 </TableCell>
                 <TableCell className="text-right">
                   {unitPrice.toLocaleString("fr-FR", {
@@ -238,7 +309,14 @@ export default async function EntryDetailPage({
       </Card>
 
       {/* Actions */}
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {movement.technician && (
+          <Button variant="outline" asChild>
+            <Link href={`/users/${movement.technician.id}`}>
+              Voir le technicien
+            </Link>
+          </Button>
+        )}
         <Button variant="outline" asChild>
           <Link href={`/product/${movement.product?.id}`}>
             Voir le produit

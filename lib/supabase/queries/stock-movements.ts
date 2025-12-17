@@ -9,6 +9,7 @@ export interface StockMovement {
   movement_type: MovementType;
   technician_id: string | null;
   notes: string | null;
+  organization_id: string;
   created_at: string;
   product?: {
     id: string;
@@ -24,6 +25,7 @@ export interface StockMovement {
 }
 
 export interface StockMovementFilters {
+  organizationId?: string;
   productId?: string;
   technicianId?: string;
   movementType?: MovementType;
@@ -63,6 +65,7 @@ export async function getStockMovements(
 ): Promise<StockMovementsResult> {
   const supabase = createClient();
   const {
+    organizationId,
     productId,
     technicianId,
     movementType,
@@ -82,6 +85,11 @@ export async function getStockMovements(
     `,
       { count: "exact" }
     );
+
+  // Filtrer par organisation
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
 
   // Appliquer les filtres
   if (productId) {
@@ -159,6 +167,7 @@ export async function getProductMovements(
  * Crée une entrée de stock (augmente stock_current)
  */
 export async function createEntry(
+  organizationId: string,
   productId: string,
   quantity: number,
   notes?: string
@@ -173,6 +182,7 @@ export async function createEntry(
   const { data: movement, error: movementError } = await supabase
     .from("stock_movements")
     .insert({
+      organization_id: organizationId,
       product_id: productId,
       quantity,
       movement_type: "entry",
@@ -228,6 +238,7 @@ export async function createEntry(
  * Crée une sortie de stock (diminue stock_current)
  */
 export async function createExit(
+  organizationId: string,
   productId: string,
   quantity: number,
   type: "exit_technician" | "exit_anonymous" | "exit_loss",
@@ -266,6 +277,7 @@ export async function createExit(
   const { data: movement, error: movementError } = await supabase
     .from("stock_movements")
     .insert({
+      organization_id: organizationId,
       product_id: productId,
       quantity,
       movement_type: type,

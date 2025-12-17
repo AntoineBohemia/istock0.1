@@ -5,6 +5,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
 import ScanFab from "@/components/scan-fab";
+import OrganizationProvider from "@/components/organization-provider";
 
 export default async function AuthLayout({
   children,
@@ -17,15 +18,17 @@ export default async function AuthLayout({
     cookieStore.get("sidebar_state") === undefined;
 
   return (
-    <SidebarProvider defaultOpen={defaultOpen}>
-      <Sidebar />
-      <SidebarInset>
-        <Header />
-        <div className="@container/main p-4 xl:group-data-[theme-content-layout=centered]/layout:container xl:group-data-[theme-content-layout=centered]/layout:mx-auto xl:group-data-[theme-content-layout=centered]/layout:mt-8">
-          {children}
-        </div>
-      </SidebarInset>
-      <ScanFab />
-    </SidebarProvider>
+    <OrganizationProvider>
+      <SidebarProvider defaultOpen={defaultOpen}>
+        <Sidebar />
+        <SidebarInset>
+          <Header />
+          <div className="@container/main p-4 xl:group-data-[theme-content-layout=centered]/layout:container xl:group-data-[theme-content-layout=centered]/layout:mx-auto xl:group-data-[theme-content-layout=centered]/layout:mt-8">
+            {children}
+          </div>
+        </SidebarInset>
+        <ScanFab />
+      </SidebarProvider>
+    </OrganizationProvider>
   );
 }

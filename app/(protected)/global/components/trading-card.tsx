@@ -37,6 +37,7 @@ import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
 import { createEntry, createExit, MovementType, MOVEMENT_TYPE_LABELS } from "@/lib/supabase/queries/stock-movements";
 import { Technician } from "@/lib/supabase/queries/technicians";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 interface Product {
   id: string;
@@ -45,6 +46,7 @@ interface Product {
   image_url: string | null;
   stock_current: number;
   price: number | null;
+  organization_id: string;
 }
 
 const EntrySchema = z.object({
@@ -81,6 +83,7 @@ export function StockMovementCard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedEntryProduct, setSelectedEntryProduct] = useState<Product | null>(null);
   const [selectedExitProduct, setSelectedExitProduct] = useState<Product | null>(null);
+  const { currentOrganization } = useOrganizationStore();
 
   const entryForm = useForm<EntryFormValues>({
     resolver: zodResolver(EntrySchema),
@@ -111,11 +114,11 @@ export function StockMovementCard() {
         const [productsResponse, techniciansResponse] = await Promise.all([
           supabase
             .from("products")
-            .select("id, name, sku, image_url, stock_current, price")
+            .select("id, name, sku, image_url, stock_current, price, organization_id")
             .order("name"),
           supabase
             .from("technicians")
-            .select("id, first_name, last_name, email, phone, city, created_at")
+            .select("id, first_name, last_name, email, phone, city, organization_id, created_at")
             .order("last_name"),
         ]);
 
@@ -146,9 +149,10 @@ export function StockMovementCard() {
   };
 
   const onEntrySubmit = async (data: EntryFormValues) => {
+    if (!currentOrganization) return;
     setIsSubmitting(true);
     try {
-      await createEntry(data.product_id, data.quantity);
+      await createEntry(currentOrganization.id, data.product_id, data.quantity);
       toast.success(`Entrée de ${data.quantity} unités enregistrée`);
       entryForm.reset();
       setSelectedEntryProduct(null);
@@ -157,7 +161,8 @@ export function StockMovementCard() {
       const supabase = createClient();
       const { data: updatedProducts } = await supabase
         .from("products")
-        .select("id, name, sku, image_url, stock_current, price")
+        .select("id, name, sku, image_url, stock_current, price, organization_id")
+        .eq("organization_id", currentOrganization.id)
         .order("name");
       if (updatedProducts) setProducts(updatedProducts);
     } catch (error) {
@@ -170,6 +175,7 @@ export function StockMovementCard() {
   };
 
   const onExitSubmit = async (data: ExitFormValues) => {
+    if (!currentOrganization) return;
     setIsSubmitting(true);
     try {
       // Vérifier le stock disponible
@@ -182,6 +188,7 @@ export function StockMovementCard() {
       }
 
       await createExit(
+        currentOrganization.id,
         data.product_id,
         data.quantity,
         data.exit_type,
@@ -197,7 +204,8 @@ export function StockMovementCard() {
       const supabase = createClient();
       const { data: updatedProducts } = await supabase
         .from("products")
-        .select("id, name, sku, image_url, stock_current, price")
+        .select("id, name, sku, image_url, stock_current, price, organization_id")
+        .eq("organization_id", currentOrganization.id)
         .order("name");
       if (updatedProducts) setProducts(updatedProducts);
     } catch (error) {

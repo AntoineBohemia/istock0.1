@@ -15,6 +15,7 @@ export interface Product {
   supplier_name: string | null;
   is_perishable: boolean;
   track_stock: boolean;
+  organization_id: string;
   created_at: string;
   updated_at: string;
 }
@@ -24,6 +25,7 @@ export interface ProductWithCategory extends Product {
 }
 
 export interface ProductFilters {
+  organizationId?: string;
   search?: string;
   categoryId?: string;
   minPrice?: number;
@@ -42,6 +44,7 @@ export interface ProductsResult {
 }
 
 export interface CreateProductData {
+  organization_id: string;
   name: string;
   sku?: string | null;
   description?: string | null;
@@ -79,6 +82,7 @@ export async function getProducts(
 ): Promise<ProductsResult> {
   const supabase = createClient();
   const {
+    organizationId,
     search,
     categoryId,
     minPrice,
@@ -92,6 +96,11 @@ export async function getProducts(
   let query = supabase
     .from("products")
     .select("*, category:categories(*)", { count: "exact" });
+
+  // Filtrer par organisation
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
 
   // Appliquer les filtres
   if (search) {
@@ -181,6 +190,7 @@ export async function createProduct(data: CreateProductData): Promise<Product> {
   const sku = data.sku || generateSKU(data.name);
 
   const productData = {
+    organization_id: data.organization_id,
     name: data.name,
     sku,
     description: data.description || null,
@@ -317,7 +327,7 @@ export async function deleteProductImage(imageUrl: string): Promise<void> {
 /**
  * Récupère les statistiques des produits
  */
-export async function getProductsStats(): Promise<{
+export async function getProductsStats(organizationId?: string): Promise<{
   total: number;
   lowStock: number;
   outOfStock: number;
@@ -325,9 +335,15 @@ export async function getProductsStats(): Promise<{
 }> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("products")
     .select("stock_current, stock_min, price");
+
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(`Erreur lors de la récupération des statistiques: ${error.message}`);

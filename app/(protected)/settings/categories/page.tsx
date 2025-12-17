@@ -71,8 +71,10 @@ import {
   updateCategory,
   deleteCategory,
 } from "@/lib/supabase/queries/categories";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 export default function CategoriesPage() {
+  const { currentOrganization } = useOrganizationStore();
   const [categories, setCategories] = useState<CategoryWithChildren[]>([]);
   const [parentCategories, setParentCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -94,8 +96,9 @@ export default function CategoriesPage() {
   );
 
   const loadCategories = async () => {
+    if (!currentOrganization) return;
     try {
-      const tree = await getCategoriesTree();
+      const tree = await getCategoriesTree(currentOrganization.id);
       setCategories(tree);
       // Extraire les catégories parentes (niveau 0) de l'arborescence
       setParentCategories(tree.map(({ children, ...cat }) => cat));
@@ -108,7 +111,7 @@ export default function CategoriesPage() {
 
   useEffect(() => {
     loadCategories();
-  }, []);
+  }, [currentOrganization]);
 
   const toggleExpanded = (categoryId: string) => {
     setExpandedCategories((prev) => {
@@ -142,6 +145,11 @@ export default function CategoriesPage() {
   };
 
   const handleSubmit = async () => {
+    if (!currentOrganization) {
+      toast.error("Aucune organisation sélectionnée");
+      return;
+    }
+
     if (!categoryName.trim()) {
       toast.error("Le nom de la catégorie est requis");
       return;
@@ -158,7 +166,11 @@ export default function CategoriesPage() {
         );
         toast.success("Catégorie mise à jour avec succès");
       } else {
-        await createCategory(categoryName.trim(), categoryParentId || null);
+        await createCategory(
+          currentOrganization.id,
+          categoryName.trim(),
+          categoryParentId || undefined
+        );
         toast.success("Catégorie créée avec succès");
       }
       setIsDialogOpen(false);

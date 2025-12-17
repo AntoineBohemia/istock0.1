@@ -3,8 +3,10 @@
 import { Fragment, useEffect } from "react";
 import Link from "next/link";
 import { page_routes } from "@/lib/routes-config";
-import { ChevronRight, ChevronsUpDown } from "lucide-react";
+import { ChevronRight, ChevronsUpDown, Loader2, Check } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
+import { useSwitchOrganization } from "@/components/organization-provider";
 
 import {
   Collapsible,
@@ -54,6 +56,10 @@ export default function Sidebar() {
   const { setOpen, setOpenMobile, isMobile } = useSidebar();
   const isTablet = useIsTablet();
 
+  // Organisation
+  const { currentOrganization, organizations, isLoading } = useOrganizationStore();
+  const switchOrganization = useSwitchOrganization();
+
   useEffect(() => {
     if (isMobile) setOpenMobile(false);
   }, [pathname]);
@@ -74,20 +80,46 @@ export default function Sidebar() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton className="hover:text-foreground rounded-none group-data-[collapsible=icon]:px-0! hover:bg-[var(--primary)]/10">
-                  <Logo />
+                  {isLoading ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : currentOrganization?.logo_url ? (
+                    <img
+                      src={currentOrganization.logo_url}
+                      alt={currentOrganization.name}
+                      className="size-5 rounded object-cover"
+                    />
+                  ) : (
+                    <Logo />
+                  )}
                   <div className="truncate font-semibold group-data-[collapsible=icon]:hidden">
-                    SMPR
+                    {isLoading ? "..." : currentOrganization?.name || "Organisation"}
                   </div>
                   <ChevronsUpDown className="ml-auto group-data-[collapsible=icon]:hidden" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-(--radix-popper-anchor-width)">
-                <DropdownMenuItem>
-                  <span>SMPR</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <span>SEIREN</span>
-                </DropdownMenuItem>
+                <DropdownMenuLabel>Organisations</DropdownMenuLabel>
+                {organizations.map((org) => (
+                  <DropdownMenuItem
+                    key={org.id}
+                    onClick={() => {
+                      if (org.id !== currentOrganization?.id) {
+                        switchOrganization(org.id);
+                      }
+                    }}
+                    className="flex items-center justify-between"
+                  >
+                    <span>{org.name}</span>
+                    {org.id === currentOrganization?.id && (
+                      <Check className="size-4 text-primary" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+                {organizations.length === 0 && !isLoading && (
+                  <DropdownMenuItem disabled>
+                    <span className="text-muted-foreground">Aucune organisation</span>
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarMenuItem>

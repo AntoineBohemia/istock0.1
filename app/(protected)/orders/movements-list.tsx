@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -83,6 +84,7 @@ interface Technician {
 }
 
 export default function MovementsList() {
+  const router = useRouter();
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
@@ -92,6 +94,14 @@ export default function MovementsList() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+
+  const handleRowClick = (movement: StockMovement) => {
+    if (movement.movement_type === "entry") {
+      router.push(`/orders/income/${movement.id}`);
+    } else {
+      router.push(`/orders/outcome/${movement.id}`);
+    }
+  };
 
   // Filtres
   const [filterType, setFilterType] = useState<string>("all");
@@ -434,7 +444,11 @@ export default function MovementsList() {
               <TableBody>
                 {table.getRowModel().rows?.length ? (
                   table.getRowModel().rows.map((row) => (
-                    <TableRow key={row.id}>
+                    <TableRow
+                      key={row.id}
+                      onClick={() => handleRowClick(row.original)}
+                      className="cursor-pointer hover:bg-muted/50"
+                    >
                       {row.getVisibleCells().map((cell) => (
                         <TableCell key={cell.id}>
                           {flexRender(

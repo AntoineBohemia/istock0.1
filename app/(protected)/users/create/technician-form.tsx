@@ -31,6 +31,7 @@ import {
   createTechnician,
   updateTechnician,
 } from "@/lib/supabase/queries/technicians";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 const FormSchema = z.object({
   first_name: z.string().min(2, {
@@ -58,6 +59,7 @@ export default function TechnicianForm({
   initialData,
 }: TechnicianFormProps) {
   const router = useRouter();
+  const { currentOrganization } = useOrganizationStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<FormValues>({
@@ -72,6 +74,11 @@ export default function TechnicianForm({
   });
 
   async function onSubmit(data: FormValues) {
+    if (!currentOrganization) {
+      toast.error("Aucune organisation sélectionnée");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -80,7 +87,10 @@ export default function TechnicianForm({
         toast.success("Technicien mis à jour avec succès");
         router.push(`/users/${initialData.id}`);
       } else {
-        const technician = await createTechnician(data);
+        const technician = await createTechnician({
+          ...data,
+          organization_id: currentOrganization.id,
+        });
         toast.success("Technicien créé avec succès");
         router.push(`/users/${technician.id}`);
       }

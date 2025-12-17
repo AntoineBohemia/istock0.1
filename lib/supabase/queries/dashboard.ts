@@ -485,6 +485,301 @@ export async function getProductStockEvolution(
 }
 
 /**
+ * Récupère l'évolution du stock d'une catégorie (tous les produits de la catégorie) sur une période
+ */
+export async function getCategoryStockEvolution(
+  categoryId: string,
+  months: number = 6
+): Promise<StockEvolutionData[]> {
+  const supabase = createClient();
+
+  const startDate = new Date();
+  startDate.setMonth(startDate.getMonth() - months);
+  startDate.setDate(1);
+  startDate.setHours(0, 0, 0, 0);
+
+  // Récupérer tous les produits de la catégorie
+  const { data: products, error: productsError } = await supabase
+    .from("products")
+    .select("id, stock_current")
+    .eq("category_id", categoryId);
+
+  if (productsError) {
+    throw new Error(`Erreur lors de la récupération des produits: ${productsError.message}`);
+  }
+
+  if (!products || products.length === 0) {
+    // Retourner des données vides si pas de produits dans la catégorie
+    const result: StockEvolutionData[] = [];
+    for (let i = months - 1; i >= 0; i--) {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      result.push({
+        date: monthKey,
+        totalStock: 0,
+        entries: 0,
+        exits: 0,
+      });
+    }
+    return result;
+  }
+
+  const productIds = products.map((p) => p.id);
+  const currentTotalStock = products.reduce((sum, p) => sum + (p.stock_current || 0), 0);
+
+  // Récupérer tous les mouvements des produits de la catégorie sur la période
+  const { data: movements, error } = await supabase
+    .from("stock_movements")
+    .select("quantity, movement_type, created_at")
+    .in("product_id", productIds)
+    .gte("created_at", startDate.toISOString())
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throw new Error(`Erreur lors de la récupération des mouvements: ${error.message}`);
+  }
+
+  // Grouper les mouvements par mois
+  const monthlyData: Record<string, { entries: number; exits: number }> = {};
+
+  movements?.forEach((movement) => {
+    const date = new Date(movement.created_at);
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+    if (!monthlyData[monthKey]) {
+      monthlyData[monthKey] = { entries: 0, exits: 0 };
+    }
+
+    if (movement.movement_type === "entry") {
+      monthlyData[monthKey].entries += movement.quantity;
+    } else {
+      monthlyData[monthKey].exits += movement.quantity;
+    }
+  });
+
+  // Calculer le stock par mois en remontant dans le temps
+  const stockByMonth: Record<string, number> = {};
+  const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+  stockByMonth[currentMonthKey] = currentTotalStock;
+
+  for (let i = 0; i < months; i++) {
+    const date = new Date();
+    date.setMonth(date.getMonth() - i);
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+    if (i === 0) {
+      stockByMonth[monthKey] = currentTotalStock;
+    } else {
+      const prevMonthDate = new Date();
+      prevMonthDate.setMonth(prevMonthDate.getMonth() - i + 1);
+      const prevMonthKey = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, "0")}`;
+
+      const prevMonthData = monthlyData[prevMonthKey] || { entries: 0, exits: 0 };
+      const prevStock = stockByMonth[prevMonthKey] || currentTotalStock;
+
+      stockByMonth[monthKey] = prevStock - prevMonthData.entries + prevMonthData.exits;
+    }
+  }
+
+  // Construire le résultat dans l'ordre chronologique
+  const result: StockEvolutionData[] = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const date = new Date();
+    date.setMonth(date.getMonth() - i);
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    const monthData = monthlyData[monthKey] || { entries: 0, exits: 0 };
+
+    result.push({
+      date: monthKey,
+      totalStock: stockByMonth[monthKey] || 0,
+      entries: monthData.entries,
+      exits: monthData.exits,
+    });
+  }
+
+  return result;
+}
+
+/**
+ * Interface pour les données de breakdown hiérarchique
+ */
+export interface BreakdownItem {
+  id: string;
+  name: string;
+  type: "category" | "product";
+  stock: number;
+  depth: number;
+  children?: BreakdownItem[];
+}
+
+export interface MonthlyBreakdown {
+  date: string;
+  totalStock: number;
+  breakdown: BreakdownItem[];
+}
+
+/**
+ * Récupère le breakdown hiérarchique du stock pour une catégorie donnée
+ */
+export async function getCategoryBreakdown(
+  categoryId: string,
+  allCategories: { id: string; name: string; parent_id: string | null }[],
+  allProducts: { id: string; name: string; category_id: string | null; stock_current: number }[]
+): Promise<BreakdownItem[]> {
+  const breakdown: BreakdownItem[] = [];
+
+  // Trouver les sous-catégories directes
+  const directSubCategories = allCategories.filter((c) => c.parent_id === categoryId);
+
+  // Trouver les produits directs de cette catégorie
+  const directProducts = allProducts.filter((p) => p.category_id === categoryId);
+
+  // Fonction récursive pour calculer le stock total d'une catégorie
+  function getCategoryTotalStock(catId: string): number {
+    const subCats = allCategories.filter((c) => c.parent_id === catId);
+    const products = allProducts.filter((p) => p.category_id === catId);
+
+    let total = products.reduce((sum, p) => sum + (p.stock_current || 0), 0);
+
+    for (const subCat of subCats) {
+      total += getCategoryTotalStock(subCat.id);
+    }
+
+    return total;
+  }
+
+  // Fonction récursive pour construire le breakdown
+  function buildBreakdown(
+    catId: string,
+    depth: number
+  ): BreakdownItem[] {
+    const items: BreakdownItem[] = [];
+
+    // Sous-catégories
+    const subCats = allCategories.filter((c) => c.parent_id === catId);
+    for (const subCat of subCats) {
+      const subCatStock = getCategoryTotalStock(subCat.id);
+      const children = buildBreakdown(subCat.id, depth + 1);
+
+      items.push({
+        id: subCat.id,
+        name: subCat.name,
+        type: "category",
+        stock: subCatStock,
+        depth,
+        children: children.length > 0 ? children : undefined,
+      });
+    }
+
+    // Produits directs
+    const products = allProducts.filter((p) => p.category_id === catId);
+    for (const product of products) {
+      items.push({
+        id: product.id,
+        name: product.name,
+        type: "product",
+        stock: product.stock_current || 0,
+        depth,
+      });
+    }
+
+    return items;
+  }
+
+  return buildBreakdown(categoryId, 0);
+}
+
+/**
+ * Récupère le breakdown global (toutes les catégories racines)
+ */
+export async function getGlobalBreakdown(
+  categoriesTree: { id: string; name: string; parent_id: string | null }[],
+  allCategories: { id: string; name: string; parent_id: string | null }[],
+  allProducts: { id: string; name: string; category_id: string | null; stock_current: number }[]
+): Promise<BreakdownItem[]> {
+  const breakdown: BreakdownItem[] = [];
+
+  // Fonction pour calculer le stock total d'une catégorie
+  function getCategoryTotalStock(catId: string): number {
+    const subCats = allCategories.filter((c) => c.parent_id === catId);
+    const products = allProducts.filter((p) => p.category_id === catId);
+
+    let total = products.reduce((sum, p) => sum + (p.stock_current || 0), 0);
+
+    for (const subCat of subCats) {
+      total += getCategoryTotalStock(subCat.id);
+    }
+
+    return total;
+  }
+
+  // Fonction récursive pour construire le breakdown
+  function buildCategoryBreakdown(catId: string, depth: number): BreakdownItem[] {
+    const items: BreakdownItem[] = [];
+
+    const subCats = allCategories.filter((c) => c.parent_id === catId);
+    for (const subCat of subCats) {
+      const subCatStock = getCategoryTotalStock(subCat.id);
+      const children = buildCategoryBreakdown(subCat.id, depth + 1);
+
+      items.push({
+        id: subCat.id,
+        name: subCat.name,
+        type: "category",
+        stock: subCatStock,
+        depth,
+        children: children.length > 0 ? children : undefined,
+      });
+    }
+
+    const products = allProducts.filter((p) => p.category_id === catId);
+    for (const product of products) {
+      items.push({
+        id: product.id,
+        name: product.name,
+        type: "product",
+        stock: product.stock_current || 0,
+        depth,
+      });
+    }
+
+    return items;
+  }
+
+  // Catégories racines
+  const rootCategories = categoriesTree.filter((c) => c.parent_id === null);
+
+  for (const rootCat of rootCategories) {
+    const catStock = getCategoryTotalStock(rootCat.id);
+    const children = buildCategoryBreakdown(rootCat.id, 1);
+
+    breakdown.push({
+      id: rootCat.id,
+      name: rootCat.name,
+      type: "category",
+      stock: catStock,
+      depth: 0,
+      children: children.length > 0 ? children : undefined,
+    });
+  }
+
+  // Produits sans catégorie
+  const uncategorizedProducts = allProducts.filter((p) => p.category_id === null);
+  for (const product of uncategorizedProducts) {
+    breakdown.push({
+      id: product.id,
+      name: product.name,
+      type: "product",
+      stock: product.stock_current || 0,
+      depth: 0,
+    });
+  }
+
+  return breakdown;
+}
+
+/**
  * Récupère les statistiques des techniciens pour le dashboard
  */
 export async function getTechnicianStats(): Promise<{

@@ -7,6 +7,7 @@ export interface Technician {
   email: string;
   phone: string | null;
   city: string | null;
+  organization_id: string;
   created_at: string;
 }
 
@@ -47,6 +48,7 @@ export interface TechnicianInventoryHistoryEntry {
 }
 
 export interface CreateTechnicianData {
+  organization_id: string;
   first_name: string;
   last_name: string;
   email: string;
@@ -59,14 +61,20 @@ export interface UpdateTechnicianData extends Partial<CreateTechnicianData> {}
 /**
  * Récupère la liste des techniciens avec leur nombre d'items en inventaire
  */
-export async function getTechnicians(): Promise<TechnicianWithInventory[]> {
+export async function getTechnicians(organizationId?: string): Promise<TechnicianWithInventory[]> {
   const supabase = createClient();
 
   // Récupérer les techniciens
-  const { data: technicians, error: techError } = await supabase
+  let query = supabase
     .from("technicians")
     .select("*")
     .order("last_name", { ascending: true });
+
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { data: technicians, error: techError } = await query;
 
   if (techError) {
     throw new Error(`Erreur lors de la récupération des techniciens: ${techError.message}`);
@@ -180,6 +188,7 @@ export async function createTechnician(data: CreateTechnicianData): Promise<Tech
   const { data: technician, error } = await supabase
     .from("technicians")
     .insert({
+      organization_id: data.organization_id,
       first_name: data.first_name,
       last_name: data.last_name,
       email: data.email,

@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { createCategory, Category } from "@/lib/supabase/queries/categories";
 import { toast } from "sonner";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 interface AddNewCategoryProps {
   parentCategories?: Category[];
@@ -42,9 +43,15 @@ export default function AddNewCategory({
   const [name, setName] = useState("");
   const [parentId, setParentId] = useState<string | undefined>(defaultParentId);
   const [isLoading, setIsLoading] = useState(false);
+  const { currentOrganization } = useOrganizationStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!currentOrganization) {
+      toast.error("Aucune organisation sélectionnée");
+      return;
+    }
 
     if (!name.trim()) {
       toast.error("Le nom de la catégorie est requis");
@@ -55,8 +62,9 @@ export default function AddNewCategory({
 
     try {
       const newCategory = await createCategory(
+        currentOrganization.id,
         name.trim(),
-        isSubCategory ? parentId : null
+        isSubCategory ? parentId : undefined
       );
       toast.success(`Catégorie "${newCategory.name}" créée avec succès`);
       onCategoryCreated?.(newCategory);

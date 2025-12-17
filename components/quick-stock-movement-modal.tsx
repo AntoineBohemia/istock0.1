@@ -45,6 +45,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
 import { createEntry, createExit } from "@/lib/supabase/queries/stock-movements";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 interface QuickStockMovementModalProps {
   open: boolean;
@@ -82,6 +83,7 @@ export default function QuickStockMovementModal({
   onClose,
   productId,
 }: QuickStockMovementModalProps) {
+  const { currentOrganization } = useOrganizationStore();
   const [product, setProduct] = useState<Product | null>(null);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -152,13 +154,13 @@ export default function QuickStockMovementModal({
   }, [productId, open]);
 
   const onSubmit = async (data: FormValues) => {
-    if (!product) return;
+    if (!product || !currentOrganization) return;
 
     setIsSubmitting(true);
 
     try {
       if (data.direction === "entry") {
-        await createEntry(product.id, data.quantity, data.notes);
+        await createEntry(currentOrganization.id, product.id, data.quantity, data.notes);
         toast.success(
           `+${data.quantity} ${product.name} ajouté(s) au stock`
         );
@@ -182,6 +184,7 @@ export default function QuickStockMovementModal({
         }
 
         await createExit(
+          currentOrganization.id,
           product.id,
           data.quantity,
           exitType,

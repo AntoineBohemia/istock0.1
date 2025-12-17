@@ -56,6 +56,7 @@ import {
   updateProduct,
   uploadProductImage,
 } from "@/lib/supabase/queries/products";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 const FormSchema = z.object({
   name: z.string().min(2, {
@@ -86,6 +87,7 @@ export default function AddProductForm({
   initialData,
 }: AddProductFormProps) {
   const router = useRouter();
+  const { currentOrganization } = useOrganizationStore();
   const [parentCategories, setParentCategories] = useState<Category[]>([]);
   const [subCategories, setSubCategories] = useState<Category[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
@@ -118,8 +120,9 @@ export default function AddProductForm({
   // Charger les catégories parentes au montage
   useEffect(() => {
     async function loadCategories() {
+      if (!currentOrganization) return;
       try {
-        const categories = await getParentCategories();
+        const categories = await getParentCategories(currentOrganization.id);
         setParentCategories(categories);
       } catch (error) {
         toast.error("Erreur lors du chargement des catégories");
@@ -128,7 +131,7 @@ export default function AddProductForm({
       }
     }
     loadCategories();
-  }, []);
+  }, [currentOrganization]);
 
   // Charger les sous-catégories quand une catégorie parente est sélectionnée
   useEffect(() => {
@@ -181,6 +184,11 @@ export default function AddProductForm({
   });
 
   async function onSubmit(data: FormValues) {
+    if (!currentOrganization) {
+      toast.error("Aucune organisation sélectionnée");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -194,6 +202,7 @@ export default function AddProductForm({
       const finalCategoryId = data.sub_category_id || data.category_id || null;
 
       const productData = {
+        organization_id: currentOrganization.id,
         name: data.name,
         sku: data.sku || undefined,
         description: data.description || undefined,

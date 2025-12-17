@@ -92,6 +92,12 @@ export default function TechniciansMenu({ title, href, icon }: TechniciansMenuPr
             className="min-w-48 rounded-lg"
           >
             <DropdownMenuLabel>{title}</DropdownMenuLabel>
+            <DropdownMenuItem
+              className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10! active:bg-[var(--primary)]/10! font-medium"
+              asChild
+            >
+              <a href={href}>Liste des techniciens</a>
+            </DropdownMenuItem>
             <ScrollArea className="max-h-64">
               {isLoading ? (
                 <div className="flex items-center justify-center py-4">
@@ -100,7 +106,7 @@ export default function TechniciansMenu({ title, href, icon }: TechniciansMenuPr
               ) : (
                 technicians.map((tech) => (
                   <DropdownMenuItem
-                    className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10! active:bg-[var(--primary)]/10!"
+                    className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10! active:bg-[var(--primary)]/10! pl-6 text-muted-foreground"
                     asChild
                     key={tech.id}
                   >
@@ -135,6 +141,19 @@ export default function TechniciansMenu({ title, href, icon }: TechniciansMenuPr
         <CollapsibleContent>
           <ScrollArea className="max-h-48">
             <SidebarMenuSub>
+              {/* Liste des techniciens - premier élément */}
+              <SidebarMenuSubItem>
+                <SidebarMenuSubButton
+                  className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10 font-medium"
+                  isActive={pathname === href}
+                  asChild
+                >
+                  <Link href={href}>
+                    <span>Liste des techniciens</span>
+                  </Link>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+              {/* Techniciens individuels */}
               {isLoading ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="size-4 animate-spin text-muted-foreground" />
@@ -143,7 +162,7 @@ export default function TechniciansMenu({ title, href, icon }: TechniciansMenuPr
                 technicians.map((tech) => (
                   <SidebarMenuSubItem key={tech.id}>
                     <SidebarMenuSubButton
-                      className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10"
+                      className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10 pl-4 text-muted-foreground"
                       isActive={pathname === `/users/${tech.id}`}
                       asChild
                     >

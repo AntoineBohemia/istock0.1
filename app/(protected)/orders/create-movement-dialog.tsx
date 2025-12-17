@@ -48,6 +48,7 @@ import {
   createExit,
   MovementType,
 } from "@/lib/supabase/queries/stock-movements";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 const FormSchema = z.object({
   direction: z.enum(["entry", "exit"]),
@@ -90,6 +91,7 @@ export default function CreateMovementDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const { currentOrganization } = useOrganizationStore();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
@@ -152,11 +154,12 @@ export default function CreateMovementDialog({
   };
 
   const onSubmit = async (data: FormValues) => {
+    if (!currentOrganization) return;
     setIsSubmitting(true);
 
     try {
       if (data.direction === "entry") {
-        await createEntry(data.product_id, data.quantity, data.notes);
+        await createEntry(currentOrganization.id, data.product_id, data.quantity, data.notes);
         toast.success("Entrée de stock enregistrée");
       } else {
         const exitType = data.exit_type || "exit_anonymous";
@@ -171,6 +174,7 @@ export default function CreateMovementDialog({
         }
 
         await createExit(
+          currentOrganization.id,
           data.product_id,
           data.quantity,
           exitType,

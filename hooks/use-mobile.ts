@@ -4,11 +4,11 @@ const MOBILE_BREAKPOINT = 768;
 const TABLET_BREAKPOINT = 1200;
 
 export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(
-    undefined
-  );
+  const [isMobile, setIsMobile] = React.useState<boolean>(false);
+  const [hasMounted, setHasMounted] = React.useState(false);
 
   React.useEffect(() => {
+    setHasMounted(true);
     const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
     const onChange = () => {
       setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
@@ -18,15 +18,17 @@ export function useIsMobile() {
     return () => mql.removeEventListener("change", onChange);
   }, []);
 
-  return !!isMobile;
+  // Return false during SSR and initial render to match server
+  if (!hasMounted) return false;
+  return isMobile;
 }
 
 export function useIsTablet() {
-  const [isTablet, setIsTablet] = React.useState<boolean | undefined>(
-    undefined
-  );
+  const [isTablet, setIsTablet] = React.useState<boolean>(false);
+  const [hasMounted, setHasMounted] = React.useState(false);
 
   React.useEffect(() => {
+    setHasMounted(true);
     const mql = window.matchMedia(`(max-width: ${TABLET_BREAKPOINT - 1}px)`);
     const onChange = () => {
       setIsTablet(window.innerWidth < TABLET_BREAKPOINT);
@@ -36,5 +38,7 @@ export function useIsTablet() {
     return () => mql.removeEventListener("change", onChange);
   }, []);
 
-  return !!isTablet;
+  // Return false during SSR and initial render to match server
+  if (!hasMounted) return false;
+  return isTablet;
 }

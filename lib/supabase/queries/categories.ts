@@ -4,6 +4,7 @@ export interface Category {
   id: string;
   name: string;
   parent_id: string | null;
+  organization_id: string;
   created_at: string;
 }
 
@@ -14,13 +15,19 @@ export interface CategoryWithChildren extends Category {
 /**
  * Récupère toutes les catégories
  */
-export async function getCategories(): Promise<Category[]> {
+export async function getCategories(organizationId?: string): Promise<Category[]> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("categories")
     .select("*")
     .order("name", { ascending: true });
+
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(`Erreur lors de la récupération des catégories: ${error.message}`);
@@ -32,8 +39,8 @@ export async function getCategories(): Promise<Category[]> {
 /**
  * Récupère les catégories organisées en arborescence
  */
-export async function getCategoriesTree(): Promise<CategoryWithChildren[]> {
-  const categories = await getCategories();
+export async function getCategoriesTree(organizationId?: string): Promise<CategoryWithChildren[]> {
+  const categories = await getCategories(organizationId);
 
   const categoryMap = new Map<string, CategoryWithChildren>();
   const rootCategories: CategoryWithChildren[] = [];
@@ -59,14 +66,20 @@ export async function getCategoriesTree(): Promise<CategoryWithChildren[]> {
 /**
  * Récupère uniquement les catégories parentes (sans parent_id)
  */
-export async function getParentCategories(): Promise<Category[]> {
+export async function getParentCategories(organizationId?: string): Promise<Category[]> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("categories")
     .select("*")
     .is("parent_id", null)
     .order("name", { ascending: true });
+
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(`Erreur lors de la récupération des catégories parentes: ${error.message}`);
@@ -98,6 +111,7 @@ export async function getSubCategories(parentId: string): Promise<Category[]> {
  * Crée une nouvelle catégorie
  */
 export async function createCategory(
+  organizationId: string,
   name: string,
   parentId?: string | null
 ): Promise<Category> {
@@ -106,6 +120,7 @@ export async function createCategory(
   const { data, error } = await supabase
     .from("categories")
     .insert({
+      organization_id: organizationId,
       name,
       parent_id: parentId || null,
     })
