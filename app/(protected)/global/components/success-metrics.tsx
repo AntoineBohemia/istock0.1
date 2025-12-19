@@ -91,7 +91,9 @@ export function SuccessMetrics() {
                   </TooltipTrigger>
                   <TooltipContent>
                     <div className="text-center">
-                      <p>{tech.first_name} {tech.last_name}</p>
+                      <p>
+                        {tech.first_name} {tech.last_name}
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         {tech.last_restock
                           ? `Dernier restock: ${tech.days_since_restock}j`

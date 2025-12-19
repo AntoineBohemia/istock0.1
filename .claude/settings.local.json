@@ -9,7 +9,8 @@
       "Bash(ls:*)",
       "mcp__supabase__apply_migration",
       "mcp__supabase__execute_sql",
-      "WebFetch(domain:evilcharts.com)"
+      "WebFetch(domain:evilcharts.com)",
+      "WebFetch(domain:shadcnuikit.com)"
     ]
   },
   "enableAllProjectMcpServers": true,

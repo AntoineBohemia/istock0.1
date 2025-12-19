@@ -133,7 +133,7 @@ function HierarchicalTooltipContent({
   };
 
   return (
-    <div className="rounded-lg border bg-background p-3 shadow-lg min-w-[200px] max-w-[300px]">
+    <div className="rounded-lg border border-border/50 bg-muted p-3 shadow-lg min-w-[200px] max-w-[300px]">
       {/* Header avec la date */}
       <div className="mb-2 pb-2 border-b">
         <p className="text-sm font-medium">{data.monthLabel}</p>
@@ -606,25 +606,34 @@ export function BalanceSummeryChart() {
       </CardHeader>
       <CardContent className="relative">
         {selection === "all" && (
-          <div className="mb-8 grid gap-4 text-sm md:grid-cols-2 lg:max-w-(--breakpoint-sm) lg:grid-cols-4">
-            <div className="bg-muted space-y-2 rounded-md border p-4">
-              <div className="flex items-center gap-2">
-                <span
-                  className="size-3 rounded-full"
-                  style={{ backgroundColor: colorStock }}
-                ></span>
-                <span>Stock actuel</span>
+          <div className="mb-8 grid gap-3 text-sm md:grid-cols-2 lg:max-w-(--breakpoint-sm) lg:grid-cols-4">
+            <div className="rounded-xl border bg-gradient-to-br from-background to-muted/30 p-4">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <div
+                  className="size-2 rounded-full"
+                  style={{
+                    backgroundColor: colorStock,
+                    boxShadow: `0 0 0 4px hsl(var(--chart-1) / 0.15)`
+                  }}
+                />
+                <span className="text-xs font-medium uppercase tracking-wide">Stock actuel</span>
               </div>
-              <div className="text-xl font-semibold">
+              <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight">
                 {stats?.totalStock.toLocaleString("fr-FR")}
               </div>
             </div>
-            <div className="bg-muted space-y-2 rounded-md border p-4">
-              <div className="flex items-center gap-2">
-                <span className="size-3 rounded-full bg-blue-500"></span>
-                <span>Valeur totale</span>
+            <div className="rounded-xl border bg-gradient-to-br from-background to-muted/30 p-4">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <div
+                  className="size-2 rounded-full"
+                  style={{
+                    backgroundColor: "hsl(217 91% 60%)",
+                    boxShadow: `0 0 0 4px hsl(217 91% 60% / 0.15)`
+                  }}
+                />
+                <span className="text-xs font-medium uppercase tracking-wide">Valeur totale</span>
               </div>
-              <div className="text-xl font-semibold">
+              <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight">
                 {stats?.totalValue.toLocaleString("fr-FR", {
                   style: "currency",
                   currency: "EUR",
@@ -632,27 +641,33 @@ export function BalanceSummeryChart() {
                 })}
               </div>
             </div>
-            <div className="bg-muted space-y-2 rounded-md border p-4">
-              <div className="flex items-center gap-2">
-                <span
-                  className="size-3 rounded-full"
-                  style={{ backgroundColor: colorEntries }}
-                ></span>
-                <span>Entrées (mois)</span>
+            <div className="rounded-xl border bg-gradient-to-br from-background to-green-500/5 p-4">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <div
+                  className="size-2 rounded-full"
+                  style={{
+                    backgroundColor: colorEntries,
+                    boxShadow: `0 0 0 4px hsl(var(--chart-2) / 0.15)`
+                  }}
+                />
+                <span className="text-xs font-medium uppercase tracking-wide">Entrées (mois)</span>
               </div>
-              <div className="text-xl font-semibold text-green-600">
+              <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-green-600 dark:text-green-400">
                 +{stats?.monthlyEntries.toLocaleString("fr-FR")}
               </div>
             </div>
-            <div className="bg-muted space-y-2 rounded-md border p-4">
-              <div className="flex items-center gap-2">
-                <span
-                  className="size-3 rounded-full"
-                  style={{ backgroundColor: colorExits }}
-                ></span>
-                <span>Sorties (mois)</span>
+            <div className="rounded-xl border bg-gradient-to-br from-background to-red-500/5 p-4">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <div
+                  className="size-2 rounded-full"
+                  style={{
+                    backgroundColor: colorExits,
+                    boxShadow: `0 0 0 4px hsl(var(--chart-5) / 0.15)`
+                  }}
+                />
+                <span className="text-xs font-medium uppercase tracking-wide">Sorties (mois)</span>
               </div>
-              <div className="text-xl font-semibold text-red-600">
+              <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-red-600 dark:text-red-400">
                 -{stats?.monthlyExits.toLocaleString("fr-FR")}
               </div>
             </div>
@@ -831,7 +846,7 @@ export function BalanceSummeryChart() {
                     if (active && payload && payload.length > 0) {
                       const data = payload[0].payload;
                       return (
-                        <div className="rounded-lg border bg-background p-2 shadow-lg">
+                        <div className="rounded-lg border border-border/50 bg-muted p-2 shadow-lg">
                           <p className="text-xs font-medium mb-1">{data.monthLabel}</p>
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center justify-between gap-4">
