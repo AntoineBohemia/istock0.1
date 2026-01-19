@@ -18,7 +18,8 @@
       "Bash(npm install:*)",
       "Bash(cd:*)",
       "Bash(git add:*)",
-      "Bash(git rebase:*)"
+      "Bash(git rebase:*)",
+      "Bash(git stash:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
