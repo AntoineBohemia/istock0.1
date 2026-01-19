@@ -244,9 +244,23 @@ function Sidebar({
         <div
           data-sidebar="sidebar"
           data-slot="sidebar-inner"
-          className="bg-sidebar group-data-[variant=floating]:border-sidebar-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm"
+          className={cn(
+            "flex h-full w-full flex-col",
+            // Default styles
+            "bg-sidebar",
+            // Floating variant - card-like style
+            "group-data-[variant=floating]:relative group-data-[variant=floating]:rounded-[24px] group-data-[variant=floating]:bg-gradient-to-b group-data-[variant=floating]:from-muted/50 group-data-[variant=floating]:to-muted/60 group-data-[variant=floating]:p-2 group-data-[variant=floating]:shadow-[0_7px_47px_-12px_rgba(0,0,0,0.15),0_0_0_1px_rgba(255,255,255,0.4)_inset] group-data-[variant=floating]:dark:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.05)_inset]"
+          )}
         >
-          {children}
+          {/* Inner highlight for floating variant */}
+          <div
+            className="absolute inset-[1px] rounded-[23px] bg-gradient-to-b from-background/60 to-transparent pointer-events-none dark:from-background/30 hidden group-data-[variant=floating]:block"
+            style={{ height: "50%" }}
+          />
+          {/* Inner container for floating variant */}
+          <div className="relative flex-1 flex flex-col bg-sidebar rounded-[16px] shadow-[0_2px_8px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.2),0_0_0_1px_rgba(255,255,255,0.05)] group-data-[variant=floating]:bg-card group-data-[variant=sidebar]:rounded-none group-data-[variant=sidebar]:shadow-none group-data-[variant=sidebar]:bg-sidebar group-data-[variant=inset]:rounded-none group-data-[variant=inset]:shadow-none group-data-[variant=inset]:bg-sidebar">
+            {children}
+          </div>
         </div>
       </div>
     </div>

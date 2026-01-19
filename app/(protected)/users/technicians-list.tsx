@@ -59,6 +59,7 @@ import {
   deleteTechnician,
   TechnicianWithInventory,
 } from "@/lib/supabase/queries/technicians";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 function generateInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
@@ -74,6 +75,7 @@ function formatDate(dateString: string | null): string {
 }
 
 export default function TechniciansList() {
+  const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
   const [technicians, setTechnicians] = useState<TechnicianWithInventory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -84,9 +86,11 @@ export default function TechniciansList() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const loadTechnicians = async () => {
+    if (!currentOrganization) return;
+
     setIsLoading(true);
     try {
-      const data = await getTechnicians();
+      const data = await getTechnicians(currentOrganization.id);
       setTechnicians(data);
     } catch (error) {
       toast.error(
@@ -100,8 +104,10 @@ export default function TechniciansList() {
   };
 
   useEffect(() => {
-    loadTechnicians();
-  }, []);
+    if (!isOrgLoading && currentOrganization) {
+      loadTechnicians();
+    }
+  }, [currentOrganization?.id, isOrgLoading]);
 
   const handleDelete = async () => {
     if (!technicianToDelete) return;
@@ -270,7 +276,7 @@ export default function TechniciansList() {
     },
   });
 
-  if (isLoading) {
+  if (isLoading || isOrgLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2 className="size-8 animate-spin text-muted-foreground" />

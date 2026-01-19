@@ -60,13 +60,19 @@ export interface StockEvolutionData {
 /**
  * Récupère les statistiques générales du dashboard
  */
-export async function getDashboardStats(): Promise<DashboardStats> {
+export async function getDashboardStats(organizationId?: string): Promise<DashboardStats> {
   const supabase = createClient();
 
   // Récupérer tous les produits pour calculer les stats
-  const { data: products, error: productsError } = await supabase
+  let productsQuery = supabase
     .from("products")
     .select("stock_current, stock_min, stock_max, price");
+
+  if (organizationId) {
+    productsQuery = productsQuery.eq("organization_id", organizationId);
+  }
+
+  const { data: products, error: productsError } = await productsQuery;
 
   if (productsError) {
     throw new Error(`Erreur lors de la récupération des produits: ${productsError.message}`);
@@ -96,10 +102,16 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
-  const { data: movements, error: movementsError } = await supabase
+  let movementsQuery = supabase
     .from("stock_movements")
     .select("quantity, movement_type")
     .gte("created_at", startOfMonth.toISOString());
+
+  if (organizationId) {
+    movementsQuery = movementsQuery.eq("organization_id", organizationId);
+  }
+
+  const { data: movements, error: movementsError } = await movementsQuery;
 
   if (movementsError) {
     throw new Error(`Erreur lors de la récupération des mouvements: ${movementsError.message}`);
@@ -130,14 +142,21 @@ export async function getDashboardStats(): Promise<DashboardStats> {
  * Récupère les produits nécessitant un réapprovisionnement (score < 30%)
  */
 export async function getProductsNeedingRestock(
-  limit: number = 10
+  limit: number = 10,
+  organizationId?: string
 ): Promise<ProductNeedingRestock[]> {
   const supabase = createClient();
 
-  const { data: products, error } = await supabase
+  let query = supabase
     .from("products")
     .select("id, name, sku, image_url, stock_current, stock_min, stock_max")
     .order("stock_current", { ascending: true });
+
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { data: products, error } = await query;
 
   if (error) {
     throw new Error(`Erreur lors de la récupération des produits: ${error.message}`);
@@ -164,12 +183,13 @@ export async function getProductsNeedingRestock(
  * Récupère les techniciens dont le dernier restock date de plus de X jours
  */
 export async function getTechniciansNeedingRestock(
-  daysThreshold: number = 7
+  daysThreshold: number = 7,
+  organizationId?: string
 ): Promise<TechnicianNeedingRestock[]> {
   const supabase = createClient();
 
   // Récupérer tous les techniciens avec leur inventaire
-  const { data: technicians, error: techniciansError } = await supabase
+  let techniciansQuery = supabase
     .from("technicians")
     .select(`
       id,
@@ -177,6 +197,12 @@ export async function getTechniciansNeedingRestock(
       last_name,
       technician_inventory(id)
     `);
+
+  if (organizationId) {
+    techniciansQuery = techniciansQuery.eq("organization_id", organizationId);
+  }
+
+  const { data: technicians, error: techniciansError } = await techniciansQuery;
 
   if (techniciansError) {
     throw new Error(`Erreur lors de la récupération des techniciens: ${techniciansError.message}`);
@@ -242,11 +268,12 @@ export async function getTechniciansNeedingRestock(
  * Récupère les mouvements récents
  */
 export async function getRecentMovements(
-  limit: number = 10
+  limit: number = 10,
+  organizationId?: string
 ): Promise<RecentMovement[]> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("stock_movements")
     .select(`
       id,
@@ -259,6 +286,12 @@ export async function getRecentMovements(
     `)
     .order("created_at", { ascending: false })
     .limit(limit);
+
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(`Erreur lors de la récupération des mouvements: ${error.message}`);
@@ -286,7 +319,8 @@ export async function getRecentMovements(
  * Récupère l'évolution globale du stock sur une période
  */
 export async function getGlobalStockEvolution(
-  months: number = 6
+  months: number = 6,
+  organizationId?: string
 ): Promise<StockEvolutionData[]> {
   const supabase = createClient();
 
@@ -296,20 +330,32 @@ export async function getGlobalStockEvolution(
   startDate.setHours(0, 0, 0, 0);
 
   // Récupérer tous les mouvements sur la période
-  const { data: movements, error } = await supabase
+  let movementsQuery = supabase
     .from("stock_movements")
     .select("quantity, movement_type, created_at")
     .gte("created_at", startDate.toISOString())
     .order("created_at", { ascending: true });
+
+  if (organizationId) {
+    movementsQuery = movementsQuery.eq("organization_id", organizationId);
+  }
+
+  const { data: movements, error } = await movementsQuery;
 
   if (error) {
     throw new Error(`Erreur lors de la récupération des mouvements: ${error.message}`);
   }
 
   // Récupérer le stock actuel total
-  const { data: products } = await supabase
+  let productsQuery = supabase
     .from("products")
     .select("stock_current");
+
+  if (organizationId) {
+    productsQuery = productsQuery.eq("organization_id", organizationId);
+  }
+
+  const { data: products } = await productsQuery;
 
   const currentTotalStock =
     products?.reduce((sum, p) => sum + (p.stock_current || 0), 0) || 0;
@@ -782,7 +828,7 @@ export async function getGlobalBreakdown(
 /**
  * Récupère les statistiques des techniciens pour le dashboard
  */
-export async function getTechnicianStats(): Promise<{
+export async function getTechnicianStats(organizationId?: string): Promise<{
   total: number;
   withGoodStock: number;
   withLowStock: number;
@@ -791,7 +837,7 @@ export async function getTechnicianStats(): Promise<{
   const supabase = createClient();
 
   // Récupérer les techniciens avec leur inventaire
-  const { data: technicians, error } = await supabase
+  let query = supabase
     .from("technicians")
     .select(`
       id,
@@ -800,6 +846,12 @@ export async function getTechnicianStats(): Promise<{
         product:products(stock_max)
       )
     `);
+
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { data: technicians, error } = await query;
 
   if (error) {
     throw new Error(`Erreur lors de la récupération des techniciens: ${error.message}`);
@@ -835,7 +887,7 @@ export async function getTechnicianStats(): Promise<{
   });
 
   // Récupérer les techniciens à restocker
-  const techniciansNeedingRestock = await getTechniciansNeedingRestock(7);
+  const techniciansNeedingRestock = await getTechniciansNeedingRestock(7, organizationId);
 
   return {
     total: technicians?.length || 0,

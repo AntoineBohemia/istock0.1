@@ -96,9 +96,11 @@ import {
   getStockBadgeVariant,
   getStockStatus,
 } from "@/lib/utils/stock";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 export default function ProductList() {
   const router = useRouter();
+  const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
   const [products, setProducts] = useState<ProductWithCategory[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -114,11 +116,17 @@ export default function ProductList() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const loadData = async () => {
+    if (!currentOrganization) return;
+
     setIsLoading(true);
     try {
       const [productsResult, categoriesData] = await Promise.all([
-        getProducts({ search: searchQuery, pageSize: 100 }),
-        getCategories(),
+        getProducts({
+          organizationId: currentOrganization.id,
+          search: searchQuery,
+          pageSize: 100
+        }),
+        getCategories(currentOrganization.id),
       ]);
       setProducts(productsResult.products);
       setCategories(categoriesData);
@@ -130,8 +138,10 @@ export default function ProductList() {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!isOrgLoading && currentOrganization) {
+      loadData();
+    }
+  }, [currentOrganization?.id, isOrgLoading]);
 
   // Filtrer les produits côté client
   const filteredProducts = React.useMemo(() => {
@@ -386,7 +396,7 @@ export default function ProductList() {
     },
   });
 
-  if (isLoading) {
+  if (isLoading || isOrgLoading || !currentOrganization) {
     return (
       <Card>
         <CardContent className="flex h-96 items-center justify-center">

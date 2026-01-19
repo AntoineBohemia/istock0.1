@@ -24,8 +24,10 @@ import {
   getTechniciansNeedingRestock,
   TechnicianNeedingRestock,
 } from "@/lib/supabase/queries/dashboard";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 export function SuccessMetrics() {
+  const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
   const [stats, setStats] = useState({
     total: 0,
     withGoodStock: 0,
@@ -39,10 +41,12 @@ export function SuccessMetrics() {
 
   useEffect(() => {
     async function loadData() {
+      if (!currentOrganization) return;
+
       try {
         const [statsData, techniciansData] = await Promise.all([
-          getTechnicianStats(),
-          getTechniciansNeedingRestock(7),
+          getTechnicianStats(currentOrganization.id),
+          getTechniciansNeedingRestock(7, currentOrganization.id),
         ]);
         setStats(statsData);
         setTechniciansToRestock(techniciansData.slice(0, 6));
@@ -52,12 +56,15 @@ export function SuccessMetrics() {
         setIsLoading(false);
       }
     }
-    loadData();
-  }, []);
 
-  if (isLoading) {
+    if (!isOrgLoading && currentOrganization) {
+      loadData();
+    }
+  }, [currentOrganization?.id, isOrgLoading]);
+
+  if (isLoading || isOrgLoading) {
     return (
-      <Card>
+      <Card className="h-full">
         <CardContent className="flex h-64 items-center justify-center">
           <Loader2 className="size-8 animate-spin text-muted-foreground" />
         </CardContent>
@@ -66,7 +73,7 @@ export function SuccessMetrics() {
   }
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader>
         <CardDescription>Nombre de techniciens actifs</CardDescription>
         <CardTitle className="font-display text-2xl lg:text-3xl">

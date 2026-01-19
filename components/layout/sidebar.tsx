@@ -46,7 +46,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import Icon from "../icon";
-import Logo from "@/components/layout/logo";
+import { OrganizationAvatar } from "@/components/ui/organization-avatar";
 import { Button } from "@/components/ui/button";
 import { useIsTablet } from "@/hooks/use-mobile";
 import TechniciansMenu from "@/components/layout/technicians-menu";
@@ -82,14 +82,12 @@ export default function Sidebar() {
                 <SidebarMenuButton className="hover:text-foreground rounded-none group-data-[collapsible=icon]:px-0! hover:bg-[var(--primary)]/10">
                   {isLoading ? (
                     <Loader2 className="size-4 animate-spin" />
-                  ) : currentOrganization?.logo_url ? (
-                    <img
-                      src={currentOrganization.logo_url}
-                      alt={currentOrganization.name}
-                      className="size-5 rounded object-cover"
-                    />
                   ) : (
-                    <Logo />
+                    <OrganizationAvatar
+                      name={currentOrganization?.name || "Organisation"}
+                      logoUrl={currentOrganization?.logo_url}
+                      size="xs"
+                    />
                   )}
                   <div className="truncate font-semibold group-data-[collapsible=icon]:hidden">
                     {isLoading ? "..." : currentOrganization?.name || "Organisation"}
@@ -107,11 +105,16 @@ export default function Sidebar() {
                         switchOrganization(org.id);
                       }
                     }}
-                    className="flex items-center justify-between"
+                    className="flex items-center gap-2"
                   >
-                    <span>{org.name}</span>
+                    <OrganizationAvatar
+                      name={org.name}
+                      logoUrl={org.logo_url}
+                      size="xs"
+                    />
+                    <span className="flex-1 truncate">{org.name}</span>
                     {org.id === currentOrganization?.id && (
-                      <Check className="size-4 text-primary" />
+                      <Check className="size-4 text-primary shrink-0" />
                     )}
                   </DropdownMenuItem>
                 ))}

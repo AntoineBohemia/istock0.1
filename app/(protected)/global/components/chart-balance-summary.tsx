@@ -44,6 +44,7 @@ import {
   getGlobalBreakdown,
 } from "@/lib/supabase/queries/dashboard";
 import { createClient } from "@/lib/supabase/client";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { Category, CategoryWithChildren } from "@/lib/supabase/queries/categories";
 
 interface Product {
@@ -197,6 +198,7 @@ function HierarchicalTooltipContent({
 }
 
 export function BalanceSummeryChart() {
+  const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
   const chartRef = useRef<HTMLDivElement>(null);
   const [axis, setAxis] = useState(0);
   const [displayValue, setDisplayValue] = useState(0);
@@ -259,14 +261,24 @@ export function BalanceSummeryChart() {
   // Charger les données initiales
   useEffect(() => {
     async function loadData() {
+      if (!currentOrganization) return;
+
       try {
         const supabase = createClient();
 
         const [statsData, evolutionData, categoriesData, productsData] = await Promise.all([
-          getDashboardStats(),
-          getGlobalStockEvolution(6),
-          supabase.from("categories").select("*").order("name"),
-          supabase.from("products").select("id, name, sku, category_id, stock_current").order("name"),
+          getDashboardStats(currentOrganization.id),
+          getGlobalStockEvolution(6, currentOrganization.id),
+          supabase
+            .from("categories")
+            .select("*")
+            .eq("organization_id", currentOrganization.id)
+            .order("name"),
+          supabase
+            .from("products")
+            .select("id, name, sku, category_id, stock_current")
+            .eq("organization_id", currentOrganization.id)
+            .order("name"),
         ]);
 
         setStats(statsData);
@@ -320,8 +332,11 @@ export function BalanceSummeryChart() {
         setIsLoading(false);
       }
     }
-    loadData();
-  }, []);
+
+    if (!isOrgLoading && currentOrganization) {
+      loadData();
+    }
+  }, [currentOrganization?.id, isOrgLoading]);
 
   // Initialize axis position after chart renders
   useEffect(() => {
@@ -335,7 +350,7 @@ export function BalanceSummeryChart() {
   // Recharger les données du graphique et le breakdown quand la sélection change
   useEffect(() => {
     async function loadChartData() {
-      if (isLoading) return;
+      if (isLoading || !currentOrganization) return;
 
       setIsLoadingChart(true);
       try {
@@ -343,7 +358,7 @@ export function BalanceSummeryChart() {
         let newBreakdown: BreakdownItem[] = [];
 
         if (selection === "all") {
-          evolutionData = await getGlobalStockEvolution(6);
+          evolutionData = await getGlobalStockEvolution(6, currentOrganization.id);
           newBreakdown = await getGlobalBreakdown(
             allCategories,
             allCategories,
@@ -362,7 +377,7 @@ export function BalanceSummeryChart() {
           evolutionData = await getProductStockEvolution(productId, 6);
           newBreakdown = [];
         } else {
-          evolutionData = await getGlobalStockEvolution(6);
+          evolutionData = await getGlobalStockEvolution(6, currentOrganization.id);
           newBreakdown = await getGlobalBreakdown(
             allCategories,
             allCategories,
@@ -386,7 +401,7 @@ export function BalanceSummeryChart() {
       }
     }
     loadChartData();
-  }, [selection, isLoading, allCategories, productsWithStock]);
+  }, [selection, isLoading, allCategories, productsWithStock, currentOrganization?.id]);
 
   // Construire la liste hiérarchique pour le select
   const hierarchicalItems = useMemo(() => {
@@ -492,7 +507,7 @@ export function BalanceSummeryChart() {
     [breakdown, selectionLabel, selection]
   );
 
-  if (isLoading) {
+  if (isLoading || isOrgLoading) {
     return (
       <Card className="h-full">
         <CardHeader>

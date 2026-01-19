@@ -10,7 +10,15 @@
       "mcp__supabase__apply_migration",
       "mcp__supabase__execute_sql",
       "WebFetch(domain:evilcharts.com)",
-      "WebFetch(domain:shadcnuikit.com)"
+      "mcp__supabase__get_project_url",
+      "mcp__supabase__get_publishable_keys",
+      "mcp__supabase__get_advisors",
+      "mcp__supabase__list_migrations",
+      "Bash(npm run build:*)",
+      "Bash(npm install:*)",
+      "Bash(cd:*)",
+      "Bash(git add:*)",
+      "Bash(git rebase:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

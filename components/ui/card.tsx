@@ -5,13 +5,23 @@ import { cn } from "@/lib/utils";
 function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      data-slot="card"
       className={cn(
-        "bg-white/80 backdrop-blur-sm text-card-foreground flex flex-col gap-6 rounded-4xl border-[7px] border-gray-100 py-6 shadow-[0_4px_12px_rgba(0,0,0,0.05)]",
+        "relative rounded-[32px] bg-gradient-to-b from-muted/50 to-muted/60 p-3 shadow-[0_7px_47px_-12px_rgba(0,0,0,0.15),0_0_0_1px_rgba(255,255,255,0.4)_inset] dark:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.05)_inset]",
         className
       )}
-      {...props}
-    />
+    >
+      {/* Inner highlight */}
+      <div
+        className="absolute inset-[1px] rounded-[31px] bg-gradient-to-b from-background/60 to-transparent pointer-events-none dark:from-background/30"
+        style={{ height: "50%" }}
+      />
+
+      <div
+        data-slot="card"
+        className="relative bg-card text-card-foreground flex flex-col gap-6 rounded-[20px] py-6 shadow-[0_2px_8px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.2),0_0_0_1px_rgba(255,255,255,0.05)]"
+        {...props}
+      />
+    </div>
   );
 }
 

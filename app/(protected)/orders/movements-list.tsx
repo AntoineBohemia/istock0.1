@@ -60,6 +60,7 @@ import {
   MOVEMENT_TYPE_LABELS,
 } from "@/lib/supabase/queries/stock-movements";
 import { createClient } from "@/lib/supabase/client";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 import CreateMovementDialog from "./create-movement-dialog";
 
 const MOVEMENT_BADGE_VARIANTS: Record<
@@ -85,6 +86,7 @@ interface Technician {
 
 export default function MovementsList() {
   const router = useRouter();
+  const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
@@ -111,9 +113,12 @@ export default function MovementsList() {
   const [filterEndDate, setFilterEndDate] = useState<Date | undefined>();
 
   const loadMovements = async () => {
+    if (!currentOrganization) return;
+
     setIsLoading(true);
     try {
       const filters: Parameters<typeof getStockMovements>[0] = {
+        organizationId: currentOrganization.id,
         page,
         pageSize: 20,
       };
@@ -149,13 +154,20 @@ export default function MovementsList() {
   };
 
   const loadFiltersData = async () => {
+    if (!currentOrganization) return;
+
     const supabase = createClient();
 
     const [productsRes, techniciansRes] = await Promise.all([
-      supabase.from("products").select("id, name").order("name"),
+      supabase
+        .from("products")
+        .select("id, name")
+        .eq("organization_id", currentOrganization.id)
+        .order("name"),
       supabase
         .from("technicians")
         .select("id, first_name, last_name")
+        .eq("organization_id", currentOrganization.id)
         .order("last_name"),
     ]);
 
@@ -164,12 +176,16 @@ export default function MovementsList() {
   };
 
   useEffect(() => {
-    loadFiltersData();
-  }, []);
+    if (!isOrgLoading && currentOrganization) {
+      loadFiltersData();
+    }
+  }, [currentOrganization?.id, isOrgLoading]);
 
   useEffect(() => {
-    loadMovements();
-  }, [page, filterType, filterProduct, filterTechnician, filterStartDate, filterEndDate]);
+    if (!isOrgLoading && currentOrganization) {
+      loadMovements();
+    }
+  }, [currentOrganization?.id, isOrgLoading, page, filterType, filterProduct, filterTechnician, filterStartDate, filterEndDate]);
 
   const handleSuccess = () => {
     loadMovements();
@@ -320,7 +336,7 @@ export default function MovementsList() {
     filterStartDate ||
     filterEndDate;
 
-  if (isLoading && movements.length === 0) {
+  if ((isLoading || isOrgLoading) && movements.length === 0) {
     return (
       <Card>
         <CardContent className="flex h-64 items-center justify-center">

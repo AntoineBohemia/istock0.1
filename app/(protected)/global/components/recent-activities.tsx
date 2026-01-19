@@ -16,6 +16,7 @@ import {
   RecentMovement,
 } from "@/lib/supabase/queries/dashboard";
 import { MOVEMENT_TYPE_LABELS } from "@/lib/supabase/queries/stock-movements";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 const MOVEMENT_BADGE_STYLES: Record<string, string> = {
   entry:
@@ -29,13 +30,16 @@ const MOVEMENT_BADGE_STYLES: Record<string, string> = {
 };
 
 export function RecentActivities() {
+  const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
   const [movements, setMovements] = useState<RecentMovement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
+      if (!currentOrganization) return;
+
       try {
-        const data = await getRecentMovements(6);
+        const data = await getRecentMovements(6, currentOrganization.id);
         setMovements(data);
       } catch (error) {
         console.error("Error loading recent movements:", error);
@@ -43,10 +47,13 @@ export function RecentActivities() {
         setIsLoading(false);
       }
     }
-    loadData();
-  }, []);
 
-  if (isLoading) {
+    if (!isOrgLoading && currentOrganization) {
+      loadData();
+    }
+  }, [currentOrganization?.id, isOrgLoading]);
+
+  if (isLoading || isOrgLoading) {
     return (
       <Card className="h-full">
         <CardHeader>

@@ -5,6 +5,7 @@ import { NextResponse, type NextRequest } from "next/server";
 const PROTECTED_ROUTES = [
   "/calendar",
   "/global",
+  "/onboarding-flow",
   "/orders",
   "/product",
   "/users",
@@ -50,7 +51,17 @@ export async function proxy(request: NextRequest) {
 
   const {
     data: { user },
+    error,
   } = await supabase.auth.getUser();
+
+  // Si le refresh token est invalide/expiré, nettoyer la session et rediriger vers login
+  if (error?.code === "refresh_token_not_found") {
+    const response = NextResponse.redirect(new URL(LOGIN_ROUTE, request.url));
+    // Supprimer les cookies de session Supabase
+    response.cookies.delete("sb-amlqevfympqjrnqcnizq-auth-token");
+    response.cookies.delete("sb-amlqevfympqjrnqcnizq-auth-token-code-verifier");
+    return response;
+  }
 
   const { pathname } = request.nextUrl;
 
