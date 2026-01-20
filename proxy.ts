@@ -22,6 +22,25 @@ const DEFAULT_AUTHENTICATED_ROUTE = "/global";
 const LOGIN_ROUTE = "/login";
 
 export async function proxy(request: NextRequest) {
+  const { pathname, searchParams } = request.nextUrl;
+
+  // Handle Supabase email confirmation code redirect
+  // If we're at the root and there's a code parameter, redirect to /auth/callback
+  // This handles the case where Supabase email confirmation redirects to /?code=...
+  // instead of /auth/callback?code=...
+  if (pathname === "/" && searchParams.has("code")) {
+    const code = searchParams.get("code");
+    const next = searchParams.get("next");
+
+    const callbackUrl = new URL("/auth/callback", request.url);
+    callbackUrl.searchParams.set("code", code!);
+    if (next) {
+      callbackUrl.searchParams.set("next", next);
+    }
+
+    return NextResponse.redirect(callbackUrl);
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -63,7 +82,7 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  const { pathname } = request.nextUrl;
+  // pathname already extracted at the beginning
 
   // Vérifie si c'est une route d'authentification (login, register, forgot-password)
   const isAuthRoute = AUTH_ROUTES.some((route) => pathname === route);
