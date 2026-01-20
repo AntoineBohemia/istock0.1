@@ -116,7 +116,7 @@ function LoginForm() {
 
 export default function Page() {
   return (
-    <div className="relative flex items-center justify-center py-4 lg:h-screen">
+    <div className="relative flex items-center justify-center min-h-screen py-4">
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
