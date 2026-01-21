@@ -14,34 +14,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { createCategory, Category } from "@/lib/supabase/queries/categories";
 import { toast } from "sonner";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 interface AddNewCategoryProps {
-  parentCategories?: Category[];
   onCategoryCreated?: (category: Category) => void;
-  isSubCategory?: boolean;
-  defaultParentId?: string;
 }
 
 export default function AddNewCategory({
-  parentCategories = [],
   onCategoryCreated,
-  isSubCategory = false,
-  defaultParentId,
 }: AddNewCategoryProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [parentId, setParentId] = useState<string | undefined>(defaultParentId);
   const [isLoading, setIsLoading] = useState(false);
   const { currentOrganization } = useOrganizationStore();
 
@@ -63,13 +48,11 @@ export default function AddNewCategory({
     try {
       const newCategory = await createCategory(
         currentOrganization.id,
-        name.trim(),
-        isSubCategory ? parentId : undefined
+        name.trim()
       );
       toast.success(`Catégorie "${newCategory.name}" créée avec succès`);
       onCategoryCreated?.(newCategory);
       setName("");
-      setParentId(defaultParentId);
       setOpen(false);
     } catch (error) {
       toast.error(
@@ -92,13 +75,9 @@ export default function AddNewCategory({
       <DialogContent className="sm:max-w-[425px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>
-              {isSubCategory ? "Nouvelle sous-catégorie" : "Nouvelle catégorie"}
-            </DialogTitle>
+            <DialogTitle>Nouvelle catégorie</DialogTitle>
             <DialogDescription>
-              {isSubCategory
-                ? "Ajoutez une nouvelle sous-catégorie à votre catalogue."
-                : "Ajoutez une nouvelle catégorie principale à votre catalogue."}
+              Ajoutez une nouvelle catégorie à votre catalogue.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -112,29 +91,6 @@ export default function AddNewCategory({
                 disabled={isLoading}
               />
             </div>
-            {isSubCategory && parentCategories.length > 0 && (
-              <div className="grid gap-2">
-                <Label htmlFor="parent">Catégorie parente</Label>
-                <Select
-                  value={parentId}
-                  onValueChange={setParentId}
-                  disabled={isLoading}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionnez une catégorie" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {parentCategories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
-                          {cat.name}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
           </div>
           <DialogFooter>
             <Button

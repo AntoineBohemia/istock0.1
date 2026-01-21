@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import {
-  ChevronRight,
   Edit2,
   Loader2,
   MoreHorizontal,
@@ -53,20 +52,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 
 import {
   Category,
-  CategoryWithChildren,
-  getCategoriesTree,
+  getCategories,
   createCategory,
   updateCategory,
   deleteCategory,
@@ -75,8 +64,7 @@ import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 export default function CategoriesPage() {
   const { currentOrganization } = useOrganizationStore();
-  const [categories, setCategories] = useState<CategoryWithChildren[]>([]);
-  const [parentCategories, setParentCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -85,23 +73,13 @@ export default function CategoriesPage() {
   // Form states
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [categoryName, setCategoryName] = useState("");
-  const [categoryParentId, setCategoryParentId] = useState<string>("");
-  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(
-    null
-  );
-
-  // Expanded categories for showing subcategories
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set()
-  );
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
 
   const loadCategories = async () => {
     if (!currentOrganization) return;
     try {
-      const tree = await getCategoriesTree(currentOrganization.id);
-      setCategories(tree);
-      // Extraire les catégories parentes (niveau 0) de l'arborescence
-      setParentCategories(tree.map(({ children, ...cat }) => cat));
+      const data = await getCategories(currentOrganization.id);
+      setCategories(data);
     } catch (error) {
       toast.error("Erreur lors du chargement des catégories");
     } finally {
@@ -113,29 +91,15 @@ export default function CategoriesPage() {
     loadCategories();
   }, [currentOrganization]);
 
-  const toggleExpanded = (categoryId: string) => {
-    setExpandedCategories((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(categoryId)) {
-        newSet.delete(categoryId);
-      } else {
-        newSet.add(categoryId);
-      }
-      return newSet;
-    });
-  };
-
-  const openCreateDialog = (parentId?: string) => {
+  const openCreateDialog = () => {
     setEditingCategory(null);
     setCategoryName("");
-    setCategoryParentId(parentId || "");
     setIsDialogOpen(true);
   };
 
   const openEditDialog = (category: Category) => {
     setEditingCategory(category);
     setCategoryName(category.name);
-    setCategoryParentId(category.parent_id || "");
     setIsDialogOpen(true);
   };
 
@@ -159,18 +123,10 @@ export default function CategoriesPage() {
 
     try {
       if (editingCategory) {
-        await updateCategory(
-          editingCategory.id,
-          categoryName.trim(),
-          categoryParentId || null
-        );
+        await updateCategory(editingCategory.id, categoryName.trim());
         toast.success("Catégorie mise à jour avec succès");
       } else {
-        await createCategory(
-          currentOrganization.id,
-          categoryName.trim(),
-          categoryParentId || undefined
-        );
+        await createCategory(currentOrganization.id, categoryName.trim());
         toast.success("Catégorie créée avec succès");
       }
       setIsDialogOpen(false);
@@ -204,98 +160,6 @@ export default function CategoriesPage() {
     }
   };
 
-  const renderCategoryRow = (
-    category: CategoryWithChildren,
-    level: number = 0
-  ): React.ReactNode => {
-    const hasChildren = category.children && category.children.length > 0;
-    const isExpanded = expandedCategories.has(category.id);
-
-    return (
-      <React.Fragment key={category.id}>
-        <TableRow>
-          <TableCell>
-            <div
-              className="flex items-center gap-2"
-              style={{ paddingLeft: `${level * 24}px` }}
-            >
-              {hasChildren && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-6"
-                  onClick={() => toggleExpanded(category.id)}
-                >
-                  <ChevronRight
-                    className={`size-4 transition-transform ${
-                      isExpanded ? "rotate-90" : ""
-                    }`}
-                  />
-                </Button>
-              )}
-              {!hasChildren && <div className="size-6" />}
-              <span className="font-medium">{category.name}</span>
-            </div>
-          </TableCell>
-          <TableCell>
-            {level === 0 ? (
-              <Badge variant="secondary">Principale</Badge>
-            ) : (
-              <Badge variant="outline">Sous-catégorie</Badge>
-            )}
-          </TableCell>
-          <TableCell>
-            {hasChildren ? (
-              <span className="text-muted-foreground">
-                {category.children!.length} sous-catégorie(s)
-              </span>
-            ) : (
-              <span className="text-muted-foreground">-</span>
-            )}
-          </TableCell>
-          <TableCell>
-            <span className="text-muted-foreground text-sm">
-              {new Date(category.created_at).toLocaleDateString("fr-FR")}
-            </span>
-          </TableCell>
-          <TableCell>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="size-8">
-                  <MoreHorizontal className="size-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {level === 0 && (
-                  <DropdownMenuItem
-                    onClick={() => openCreateDialog(category.id)}
-                  >
-                    <Plus className="mr-2 size-4" />
-                    Ajouter sous-catégorie
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem onClick={() => openEditDialog(category)}>
-                  <Edit2 className="mr-2 size-4" />
-                  Modifier
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => openDeleteDialog(category)}
-                  className="text-destructive"
-                >
-                  <Trash2 className="mr-2 size-4" />
-                  Supprimer
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </TableCell>
-        </TableRow>
-        {isExpanded &&
-          hasChildren &&
-          category.children!.map((child) => renderCategoryRow(child, level + 1))}
-      </React.Fragment>
-    );
-  };
-
   if (isLoading) {
     return (
       <div className="flex h-96 items-center justify-center">
@@ -313,7 +177,7 @@ export default function CategoriesPage() {
             Gérez les catégories de produits de votre inventaire
           </p>
         </div>
-        <Button onClick={() => openCreateDialog()}>
+        <Button onClick={openCreateDialog}>
           <Plus className="mr-2 size-4" />
           Nouvelle catégorie
         </Button>
@@ -323,7 +187,7 @@ export default function CategoriesPage() {
         <CardHeader>
           <CardTitle>Liste des catégories</CardTitle>
           <CardDescription>
-            {categories.length} catégorie(s) principale(s)
+            {categories.length} catégorie(s)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -331,8 +195,6 @@ export default function CategoriesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nom</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Sous-catégories</TableHead>
                 <TableHead>Date de création</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
@@ -340,13 +202,13 @@ export default function CategoriesPage() {
             <TableBody>
               {categories.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={3} className="h-24 text-center">
                     <div className="text-muted-foreground">
                       Aucune catégorie trouvée.{" "}
                       <Button
                         variant="link"
                         className="px-1"
-                        onClick={() => openCreateDialog()}
+                        onClick={openCreateDialog}
                       >
                         Créer une catégorie
                       </Button>
@@ -354,7 +216,40 @@ export default function CategoriesPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                categories.map((category) => renderCategoryRow(category))
+                categories.map((category) => (
+                  <TableRow key={category.id}>
+                    <TableCell>
+                      <span className="font-medium">{category.name}</span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-muted-foreground text-sm">
+                        {new Date(category.created_at).toLocaleDateString("fr-FR")}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="size-8">
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditDialog(category)}>
+                            <Edit2 className="mr-2 size-4" />
+                            Modifier
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => openDeleteDialog(category)}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="mr-2 size-4" />
+                            Supprimer
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
             </TableBody>
           </Table>
@@ -384,30 +279,6 @@ export default function CategoriesPage() {
                 placeholder="Ex: Peintures"
                 disabled={isSubmitting}
               />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="parent">Catégorie parente (optionnel)</Label>
-              <Select
-                value={categoryParentId || "none"}
-                onValueChange={(value) => setCategoryParentId(value === "none" ? "" : value)}
-                disabled={isSubmitting}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Aucune (catégorie principale)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="none">Aucune (catégorie principale)</SelectItem>
-                    {parentCategories
-                      .filter((cat) => cat.id !== editingCategory?.id)
-                      .map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
-                          {cat.name}
-                        </SelectItem>
-                      ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
             </div>
           </div>
           <DialogFooter>

@@ -27,7 +27,6 @@ export interface OrganizationData {
 export interface CategoryData {
   id?: string;
   name: string;
-  parentId?: string;
 }
 
 export interface ProductData {

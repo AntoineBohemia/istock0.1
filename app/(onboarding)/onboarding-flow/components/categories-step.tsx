@@ -109,8 +109,7 @@ export function CategoriesStep() {
           setSavingIndex(i);
           const created = await createCategory(
             data.createdOrganizationId,
-            cat.name,
-            cat.parentId
+            cat.name
           );
           setCategoryId(i, created.id);
         }
