@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { CartesianGrid, XAxis, YAxis, Area, AreaChart, Bar, BarChart, Tooltip, TooltipProps, Cell, ReferenceLine } from "recharts";
 import { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
-import { Loader2, Folder, Package, TrendingUp, TrendingDown } from "lucide-react";
+import { Loader2, Folder, Package, TrendingUp, TrendingDown, ChevronDown, ChevronUp, BarChart3 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useSpring, useMotionValueEvent } from "motion/react";
@@ -21,6 +21,11 @@ import {
   CardContent,
   CardDescription,
 } from "@/components/ui/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   Select,
   SelectContent,
@@ -202,6 +207,7 @@ export function BalanceSummeryChart() {
   const chartRef = useRef<HTMLDivElement>(null);
   const [axis, setAxis] = useState(0);
   const [displayValue, setDisplayValue] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // Bar chart state
   const [activeBarIndex, setActiveBarIndex] = useState<number | undefined>(undefined);
@@ -510,234 +516,247 @@ export function BalanceSummeryChart() {
   if (isLoading || isOrgLoading) {
     return (
       <Card className="h-full">
-        <CardHeader>
-          <CardTitle>Evolution du stock</CardTitle>
+        <CardHeader className="pb-3 lg:pb-6">
+          <CardTitle className="text-base lg:text-lg">Evolution du stock</CardTitle>
         </CardHeader>
-        <CardContent className="flex h-[400px] items-center justify-center">
-          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        <CardContent className="flex h-32 lg:h-[400px] items-center justify-center">
+          <Loader2 className="size-6 lg:size-8 animate-spin text-muted-foreground" />
         </CardContent>
       </Card>
     );
   }
 
-  return (
-    <Card className="h-full">
-      <CardHeader>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-3">
-              <span className="text-3xl font-bold tabular-nums">
-                {displayValue.toLocaleString("fr-FR")}
-              </span>
-              <Badge
-                variant="secondary"
-                className={`${
-                  trend.isPositive
-                    ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                    : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                }`}
-              >
-                {trend.isPositive ? (
-                  <TrendingUp className="mr-1 size-3" />
-                ) : (
-                  <TrendingDown className="mr-1 size-3" />
-                )}
-                {trend.isPositive ? "+" : "-"}{trend.value}%
-              </Badge>
-            </CardTitle>
-            <CardDescription>
-              {selection === "all" ? "Vue globale de tous les produits" : selectionLabel}
-            </CardDescription>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Label htmlFor="selection-select" className="text-xs text-muted-foreground whitespace-nowrap">
-                Filtrer
-              </Label>
-              <Select value={selection} onValueChange={setSelection}>
-                <SelectTrigger id="selection-select" className="w-[200px] h-8 text-xs">
-                  <SelectValue placeholder="Tous" />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  <SelectItem value="all" className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <Package className="size-3.5" />
-                      <span>Tous les produits</span>
-                    </div>
-                  </SelectItem>
-
-                  {hierarchicalItems.map((item) => {
-                    if (item.type === "uncategorized-label") {
-                      return (
-                        <div
-                          key={item.id}
-                          className="px-2 py-1.5 text-xs font-medium text-muted-foreground"
-                        >
-                          {item.name}
-                        </div>
-                      );
-                    }
-
-                    if (item.type === "category") {
-                      return (
-                        <SelectItem
-                          key={`cat-${item.id}`}
-                          value={`category:${item.id}`}
-                          className="font-medium text-foreground"
-                        >
-                          <div
-                            className="flex items-center gap-2"
-                            style={{ paddingLeft: `${item.depth * 12}px` }}
-                          >
-                            <Folder className="size-3.5" />
-                            <span>{item.name}</span>
-                          </div>
-                        </SelectItem>
-                      );
-                    }
-
-                    return (
-                      <SelectItem
-                        key={`prod-${item.id}`}
-                        value={`product:${item.id}`}
-                        className="text-muted-foreground"
-                      >
-                        <div
-                          className="flex items-center gap-2"
-                          style={{ paddingLeft: `${item.depth * 12}px` }}
-                        >
-                          <span className="text-xs">•</span>
-                          <span>{item.name}</span>
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+  // Chart content component for reuse
+  const ChartContent = () => (
+    <>
+      {selection === "all" && (
+        <div className="mb-8 grid gap-3 text-sm md:grid-cols-2 lg:max-w-(--breakpoint-sm) lg:grid-cols-4">
+          <div className="rounded-xl border bg-gradient-to-br from-background to-muted/30 p-4">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <div
+                className="size-2 rounded-full"
+                style={{
+                  backgroundColor: colorStock,
+                  boxShadow: `0 0 0 4px hsl(var(--chart-1) / 0.15)`
+                }}
+              />
+              <span className="text-xs font-medium uppercase tracking-wide">Stock actuel</span>
             </div>
-            <ExportButton />
+            <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight">
+              {stats?.totalStock.toLocaleString("fr-FR")}
+            </div>
+          </div>
+          <div className="rounded-xl border bg-gradient-to-br from-background to-muted/30 p-4">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <div
+                className="size-2 rounded-full"
+                style={{
+                  backgroundColor: "hsl(217 91% 60%)",
+                  boxShadow: `0 0 0 4px hsl(217 91% 60% / 0.15)`
+                }}
+              />
+              <span className="text-xs font-medium uppercase tracking-wide">Valeur totale</span>
+            </div>
+            <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight">
+              {stats?.totalValue.toLocaleString("fr-FR", {
+                style: "currency",
+                currency: "EUR",
+                maximumFractionDigits: 0,
+              })}
+            </div>
+          </div>
+          <div className="rounded-xl border bg-gradient-to-br from-background to-green-500/5 p-4">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <div
+                className="size-2 rounded-full"
+                style={{
+                  backgroundColor: colorEntries,
+                  boxShadow: `0 0 0 4px hsl(var(--chart-2) / 0.15)`
+                }}
+              />
+              <span className="text-xs font-medium uppercase tracking-wide">Entrées (mois)</span>
+            </div>
+            <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-green-600 dark:text-green-400">
+              +{stats?.monthlyEntries.toLocaleString("fr-FR")}
+            </div>
+          </div>
+          <div className="rounded-xl border bg-gradient-to-br from-background to-red-500/5 p-4">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <div
+                className="size-2 rounded-full"
+                style={{
+                  backgroundColor: colorExits,
+                  boxShadow: `0 0 0 4px hsl(var(--chart-5) / 0.15)`
+                }}
+              />
+              <span className="text-xs font-medium uppercase tracking-wide">Sorties (mois)</span>
+            </div>
+            <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-red-600 dark:text-red-400">
+              -{stats?.monthlyExits.toLocaleString("fr-FR")}
+            </div>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="relative">
-        {selection === "all" && (
-          <div className="mb-8 grid gap-3 text-sm md:grid-cols-2 lg:max-w-(--breakpoint-sm) lg:grid-cols-4">
-            <div className="rounded-xl border bg-gradient-to-br from-background to-muted/30 p-4">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <div
-                  className="size-2 rounded-full"
-                  style={{
-                    backgroundColor: colorStock,
-                    boxShadow: `0 0 0 4px hsl(var(--chart-1) / 0.15)`
-                  }}
-                />
-                <span className="text-xs font-medium uppercase tracking-wide">Stock actuel</span>
-              </div>
-              <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight">
-                {stats?.totalStock.toLocaleString("fr-FR")}
-              </div>
-            </div>
-            <div className="rounded-xl border bg-gradient-to-br from-background to-muted/30 p-4">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <div
-                  className="size-2 rounded-full"
-                  style={{
-                    backgroundColor: "hsl(217 91% 60%)",
-                    boxShadow: `0 0 0 4px hsl(217 91% 60% / 0.15)`
-                  }}
-                />
-                <span className="text-xs font-medium uppercase tracking-wide">Valeur totale</span>
-              </div>
-              <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight">
-                {stats?.totalValue.toLocaleString("fr-FR", {
-                  style: "currency",
-                  currency: "EUR",
-                  maximumFractionDigits: 0,
-                })}
-              </div>
-            </div>
-            <div className="rounded-xl border bg-gradient-to-br from-background to-green-500/5 p-4">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <div
-                  className="size-2 rounded-full"
-                  style={{
-                    backgroundColor: colorEntries,
-                    boxShadow: `0 0 0 4px hsl(var(--chart-2) / 0.15)`
-                  }}
-                />
-                <span className="text-xs font-medium uppercase tracking-wide">Entrées (mois)</span>
-              </div>
-              <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-green-600 dark:text-green-400">
-                +{stats?.monthlyEntries.toLocaleString("fr-FR")}
-              </div>
-            </div>
-            <div className="rounded-xl border bg-gradient-to-br from-background to-red-500/5 p-4">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <div
-                  className="size-2 rounded-full"
-                  style={{
-                    backgroundColor: colorExits,
-                    boxShadow: `0 0 0 4px hsl(var(--chart-5) / 0.15)`
-                  }}
-                />
-                <span className="text-xs font-medium uppercase tracking-wide">Sorties (mois)</span>
-              </div>
-              <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-red-600 dark:text-red-400">
-                -{stats?.monthlyExits.toLocaleString("fr-FR")}
-              </div>
-            </div>
-          </div>
-        )}
+      )}
 
-        {isLoadingChart && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80">
-            <Loader2 className="size-8 animate-spin text-muted-foreground" />
-          </div>
-        )}
+      {isLoadingChart && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80">
+          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        </div>
+      )}
 
-        {formattedChartData.length > 0 ? (
-          <ChartContainer
-            ref={chartRef}
-            className="w-full h-[300px]"
-            config={chartConfig}
+      {formattedChartData.length > 0 ? (
+        <ChartContainer
+          ref={chartRef}
+          className="w-full h-[300px]"
+          config={chartConfig}
+        >
+          <AreaChart
+            className="overflow-visible"
+            accessibilityLayer
+            data={formattedChartData}
+            onMouseMove={(state) => {
+              const x = state.activeCoordinate?.x;
+              const dataValue = state.activePayload?.[0]?.value as number | undefined;
+              if (x !== undefined && dataValue !== undefined) {
+                springX.set(x);
+                springY.set(dataValue);
+              }
+            }}
+            onMouseLeave={() => {
+              if (chartRef.current) {
+                springX.set(chartRef.current.getBoundingClientRect().width);
+              }
+              if (formattedChartData.length > 0) {
+                springY.set(formattedChartData[formattedChartData.length - 1].totalStock);
+              }
+            }}
+            margin={{ left: 12, right: 12 }}
           >
-            <AreaChart
-              className="overflow-visible"
+            <defs>
+              <linearGradient id="gradient-stock" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={colorStock} stopOpacity={0.4} />
+                <stop offset="95%" stopColor={colorStock} stopOpacity={0.05} />
+              </linearGradient>
+              <linearGradient id="gradient-stock-faded" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={colorStock} stopOpacity={0.1} />
+                <stop offset="95%" stopColor={colorStock} stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid
+              vertical={false}
+              strokeDasharray="3 3"
+              className="stroke-muted"
+            />
+            <XAxis
+              dataKey="monthLabel"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              className="text-xs"
+            />
+            <YAxis
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              className="text-xs"
+              tickFormatter={(value) => value.toLocaleString("fr-FR")}
+            />
+            <Tooltip
+              cursor={{ stroke: colorStock, strokeWidth: 1, strokeDasharray: "4 4" }}
+              content={CustomTooltip}
+            />
+            {/* Background area (faded) */}
+            <Area
+              dataKey="totalStock"
+              type="monotone"
+              fill="url(#gradient-stock-faded)"
+              stroke={colorStock}
+              strokeWidth={2}
+              strokeOpacity={0.3}
+              dot={false}
+              activeDot={false}
+            />
+            {/* Clipped area (animated reveal) */}
+            <Area
+              dataKey="totalStock"
+              type="monotone"
+              fill="url(#gradient-stock)"
+              stroke={colorStock}
+              strokeWidth={2}
+              dot={false}
+              activeDot={{
+                r: 6,
+                fill: colorStock,
+                stroke: "hsl(var(--background))",
+                strokeWidth: 2,
+              }}
+              style={{
+                clipPath: chartRef.current
+                  ? `inset(0 ${chartRef.current.getBoundingClientRect().width - axis}px 0 0)`
+                  : undefined,
+              }}
+            />
+          </AreaChart>
+        </ChartContainer>
+      ) : (
+        <div className="flex h-[300px] items-center justify-center text-muted-foreground">
+          Aucune donnée disponible
+        </div>
+      )}
+
+      {/* Entrées/Sorties bar chart */}
+      {formattedChartData.length > 0 && (
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm font-medium">Flux mensuels</p>
+            <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <span
+                  className="size-2.5 rounded-full"
+                  style={{ backgroundColor: colorEntries }}
+                />
+                <span className="text-muted-foreground">Entrées</span>
+                <span className="font-semibold text-green-600 tabular-nums">
+                  +{barDisplayEntries.toLocaleString("fr-FR")}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className="size-2.5 rounded-full"
+                  style={{ backgroundColor: colorExits }}
+                />
+                <span className="text-muted-foreground">Sorties</span>
+                <span className="font-semibold text-red-600 tabular-nums">
+                  -{barDisplayExits.toLocaleString("fr-FR")}
+                </span>
+              </div>
+            </div>
+          </div>
+          <ChartContainer className="w-full h-[150px]" config={chartConfig}>
+            <BarChart
               accessibilityLayer
               data={formattedChartData}
-              onMouseMove={(state) => {
-                const x = state.activeCoordinate?.x;
-                const dataValue = state.activePayload?.[0]?.value as number | undefined;
-                if (x !== undefined && dataValue !== undefined) {
-                  springX.set(x);
-                  springY.set(dataValue);
-                }
-              }}
-              onMouseLeave={() => {
-                if (chartRef.current) {
-                  springX.set(chartRef.current.getBoundingClientRect().width);
-                }
-                if (formattedChartData.length > 0) {
-                  springY.set(formattedChartData[formattedChartData.length - 1].totalStock);
-                }
-              }}
               margin={{ left: 12, right: 12 }}
+              onMouseLeave={() => {
+                setActiveBarIndex(undefined);
+                // Reset to totals
+                const totalEntries = formattedChartData.reduce((sum, d) => sum + d.entries, 0);
+                const totalExits = formattedChartData.reduce((sum, d) => sum + d.exits, 0);
+                springEntries.set(totalEntries);
+                springExits.set(totalExits);
+              }}
             >
               <defs>
-                <linearGradient id="gradient-stock" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={colorStock} stopOpacity={0.4} />
-                  <stop offset="95%" stopColor={colorStock} stopOpacity={0.05} />
+                <linearGradient id="gradient-entries" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={colorEntries} stopOpacity={1} />
+                  <stop offset="100%" stopColor={colorEntries} stopOpacity={0.7} />
                 </linearGradient>
-                <linearGradient id="gradient-stock-faded" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={colorStock} stopOpacity={0.1} />
-                  <stop offset="95%" stopColor={colorStock} stopOpacity={0.02} />
+                <linearGradient id="gradient-exits" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={colorExits} stopOpacity={1} />
+                  <stop offset="100%" stopColor={colorExits} stopOpacity={0.7} />
                 </linearGradient>
               </defs>
-              <CartesianGrid
-                vertical={false}
-                strokeDasharray="3 3"
-                className="stroke-muted"
-              />
+              <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-muted" />
               <XAxis
                 dataKey="monthLabel"
                 tickLine={false}
@@ -745,179 +764,215 @@ export function BalanceSummeryChart() {
                 tickMargin={8}
                 className="text-xs"
               />
-              <YAxis
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                className="text-xs"
-                tickFormatter={(value) => value.toLocaleString("fr-FR")}
-              />
               <Tooltip
-                cursor={{ stroke: colorStock, strokeWidth: 1, strokeDasharray: "4 4" }}
-                content={CustomTooltip}
-              />
-              {/* Background area (faded) */}
-              <Area
-                dataKey="totalStock"
-                type="monotone"
-                fill="url(#gradient-stock-faded)"
-                stroke={colorStock}
-                strokeWidth={2}
-                strokeOpacity={0.3}
-                dot={false}
-                activeDot={false}
-              />
-              {/* Clipped area (animated reveal) */}
-              <Area
-                dataKey="totalStock"
-                type="monotone"
-                fill="url(#gradient-stock)"
-                stroke={colorStock}
-                strokeWidth={2}
-                dot={false}
-                activeDot={{
-                  r: 6,
-                  fill: colorStock,
-                  stroke: "hsl(var(--background))",
-                  strokeWidth: 2,
-                }}
-                style={{
-                  clipPath: chartRef.current
-                    ? `inset(0 ${chartRef.current.getBoundingClientRect().width - axis}px 0 0)`
-                    : undefined,
-                }}
-              />
-            </AreaChart>
-          </ChartContainer>
-        ) : (
-          <div className="flex h-[300px] items-center justify-center text-muted-foreground">
-            Aucune donnée disponible
-          </div>
-        )}
-
-        {/* Entrées/Sorties bar chart */}
-        {formattedChartData.length > 0 && (
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-medium">Flux mensuels</p>
-              <div className="flex items-center gap-4 text-sm">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="size-2.5 rounded-full"
-                    style={{ backgroundColor: colorEntries }}
-                  />
-                  <span className="text-muted-foreground">Entrées</span>
-                  <span className="font-semibold text-green-600 tabular-nums">
-                    +{barDisplayEntries.toLocaleString("fr-FR")}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className="size-2.5 rounded-full"
-                    style={{ backgroundColor: colorExits }}
-                  />
-                  <span className="text-muted-foreground">Sorties</span>
-                  <span className="font-semibold text-red-600 tabular-nums">
-                    -{barDisplayExits.toLocaleString("fr-FR")}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <ChartContainer className="w-full h-[150px]" config={chartConfig}>
-              <BarChart
-                accessibilityLayer
-                data={formattedChartData}
-                margin={{ left: 12, right: 12 }}
-                onMouseLeave={() => {
-                  setActiveBarIndex(undefined);
-                  // Reset to totals
-                  const totalEntries = formattedChartData.reduce((sum, d) => sum + d.entries, 0);
-                  const totalExits = formattedChartData.reduce((sum, d) => sum + d.exits, 0);
-                  springEntries.set(totalEntries);
-                  springExits.set(totalExits);
-                }}
-              >
-                <defs>
-                  <linearGradient id="gradient-entries" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={colorEntries} stopOpacity={1} />
-                    <stop offset="100%" stopColor={colorEntries} stopOpacity={0.7} />
-                  </linearGradient>
-                  <linearGradient id="gradient-exits" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={colorExits} stopOpacity={1} />
-                    <stop offset="100%" stopColor={colorExits} stopOpacity={0.7} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis
-                  dataKey="monthLabel"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  className="text-xs"
-                />
-                <Tooltip
-                  cursor={{ fill: "hsl(var(--muted))", opacity: 0.5 }}
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length > 0) {
-                      const data = payload[0].payload;
-                      return (
-                        <div className="rounded-lg border border-border/50 bg-muted p-2 shadow-lg">
-                          <p className="text-xs font-medium mb-1">{data.monthLabel}</p>
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center justify-between gap-4">
-                              <div className="flex items-center gap-1.5">
-                                <span className="size-2 rounded-full" style={{ backgroundColor: colorEntries }} />
-                                <span className="text-xs text-muted-foreground">Entrées</span>
-                              </div>
-                              <span className="text-xs font-medium text-green-600">+{data.entries.toLocaleString("fr-FR")}</span>
+                cursor={{ fill: "hsl(var(--muted))", opacity: 0.5 }}
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length > 0) {
+                    const data = payload[0].payload;
+                    return (
+                      <div className="rounded-lg border border-border/50 bg-muted p-2 shadow-lg">
+                        <p className="text-xs font-medium mb-1">{data.monthLabel}</p>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-1.5">
+                              <span className="size-2 rounded-full" style={{ backgroundColor: colorEntries }} />
+                              <span className="text-xs text-muted-foreground">Entrées</span>
                             </div>
-                            <div className="flex items-center justify-between gap-4">
-                              <div className="flex items-center gap-1.5">
-                                <span className="size-2 rounded-full" style={{ backgroundColor: colorExits }} />
-                                <span className="text-xs text-muted-foreground">Sorties</span>
-                              </div>
-                              <span className="text-xs font-medium text-red-600">-{data.exits.toLocaleString("fr-FR")}</span>
+                            <span className="text-xs font-medium text-green-600">+{data.entries.toLocaleString("fr-FR")}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-1.5">
+                              <span className="size-2 rounded-full" style={{ backgroundColor: colorExits }} />
+                              <span className="text-xs text-muted-foreground">Sorties</span>
                             </div>
+                            <span className="text-xs font-medium text-red-600">-{data.exits.toLocaleString("fr-FR")}</span>
                           </div>
                         </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Bar dataKey="entries" fill="url(#gradient-entries)" radius={[4, 4, 0, 0]}>
+                {formattedChartData.map((entry, index) => (
+                  <Cell
+                    key={`entries-${index}`}
+                    className="transition-opacity duration-200"
+                    opacity={activeBarIndex === undefined ? 1 : activeBarIndex === index ? 1 : 0.3}
+                    onMouseEnter={() => {
+                      setActiveBarIndex(index);
+                      springEntries.set(entry.entries);
+                      springExits.set(entry.exits);
+                    }}
+                  />
+                ))}
+              </Bar>
+              <Bar dataKey="exits" fill="url(#gradient-exits)" radius={[4, 4, 0, 0]}>
+                {formattedChartData.map((entry, index) => (
+                  <Cell
+                    key={`exits-${index}`}
+                    className="transition-opacity duration-200"
+                    opacity={activeBarIndex === undefined ? 1 : activeBarIndex === index ? 1 : 0.3}
+                    onMouseEnter={() => {
+                      setActiveBarIndex(index);
+                      springEntries.set(entry.entries);
+                      springExits.set(entry.exits);
+                    }}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ChartContainer>
+        </div>
+      )}
+    </>
+  );
+
+  return (
+    <Card className="h-full">
+      {/* Mobile: Collapsible view */}
+      <Collapsible open={isExpanded} onOpenChange={setIsExpanded} className="lg:hidden">
+        <CollapsibleTrigger asChild>
+          <CardHeader className="pb-3 cursor-pointer hover:bg-muted/50 transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <BarChart3 className="size-5 text-muted-foreground" />
+                <div>
+                  <CardTitle className="text-base">Graphiques</CardTitle>
+                  <CardDescription className="text-xs">
+                    {displayValue.toLocaleString("fr-FR")} unités
+                    <Badge
+                      variant="secondary"
+                      className={`ml-2 text-[10px] px-1.5 py-0 ${
+                        trend.isPositive
+                          ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                          : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                      }`}
+                    >
+                      {trend.isPositive ? "+" : "-"}{trend.value}%
+                    </Badge>
+                  </CardDescription>
+                </div>
+              </div>
+              {isExpanded ? (
+                <ChevronUp className="size-5 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="size-5 text-muted-foreground" />
+              )}
+            </div>
+          </CardHeader>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <CardContent className="pt-0 relative">
+            <ChartContent />
+          </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Desktop: Full view */}
+      <div className="hidden lg:block">
+        <CardHeader>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-3">
+                <span className="text-3xl font-bold tabular-nums">
+                  {displayValue.toLocaleString("fr-FR")}
+                </span>
+                <Badge
+                  variant="secondary"
+                  className={`${
+                    trend.isPositive
+                      ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                      : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                  }`}
+                >
+                  {trend.isPositive ? (
+                    <TrendingUp className="mr-1 size-3" />
+                  ) : (
+                    <TrendingDown className="mr-1 size-3" />
+                  )}
+                  {trend.isPositive ? "+" : "-"}{trend.value}%
+                </Badge>
+              </CardTitle>
+              <CardDescription>
+                {selection === "all" ? "Vue globale de tous les produits" : selectionLabel}
+              </CardDescription>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="selection-select" className="text-xs text-muted-foreground whitespace-nowrap">
+                  Filtrer
+                </Label>
+                <Select value={selection} onValueChange={setSelection}>
+                  <SelectTrigger id="selection-select" className="w-[200px] h-8 text-xs">
+                    <SelectValue placeholder="Tous" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    <SelectItem value="all" className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <Package className="size-3.5" />
+                        <span>Tous les produits</span>
+                      </div>
+                    </SelectItem>
+
+                    {hierarchicalItems.map((item) => {
+                      if (item.type === "uncategorized-label") {
+                        return (
+                          <div
+                            key={item.id}
+                            className="px-2 py-1.5 text-xs font-medium text-muted-foreground"
+                          >
+                            {item.name}
+                          </div>
+                        );
+                      }
+
+                      if (item.type === "category") {
+                        return (
+                          <SelectItem
+                            key={`cat-${item.id}`}
+                            value={`category:${item.id}`}
+                            className="font-medium text-foreground"
+                          >
+                            <div
+                              className="flex items-center gap-2"
+                              style={{ paddingLeft: `${item.depth * 12}px` }}
+                            >
+                              <Folder className="size-3.5" />
+                              <span>{item.name}</span>
+                            </div>
+                          </SelectItem>
+                        );
+                      }
+
+                      return (
+                        <SelectItem
+                          key={`prod-${item.id}`}
+                          value={`product:${item.id}`}
+                          className="text-muted-foreground"
+                        >
+                          <div
+                            className="flex items-center gap-2"
+                            style={{ paddingLeft: `${item.depth * 12}px` }}
+                          >
+                            <span className="text-xs">•</span>
+                            <span>{item.name}</span>
+                          </div>
+                        </SelectItem>
                       );
-                    }
-                    return null;
-                  }}
-                />
-                <Bar dataKey="entries" fill="url(#gradient-entries)" radius={[4, 4, 0, 0]}>
-                  {formattedChartData.map((entry, index) => (
-                    <Cell
-                      key={`entries-${index}`}
-                      className="transition-opacity duration-200"
-                      opacity={activeBarIndex === undefined ? 1 : activeBarIndex === index ? 1 : 0.3}
-                      onMouseEnter={() => {
-                        setActiveBarIndex(index);
-                        springEntries.set(entry.entries);
-                        springExits.set(entry.exits);
-                      }}
-                    />
-                  ))}
-                </Bar>
-                <Bar dataKey="exits" fill="url(#gradient-exits)" radius={[4, 4, 0, 0]}>
-                  {formattedChartData.map((entry, index) => (
-                    <Cell
-                      key={`exits-${index}`}
-                      className="transition-opacity duration-200"
-                      opacity={activeBarIndex === undefined ? 1 : activeBarIndex === index ? 1 : 0.3}
-                      onMouseEnter={() => {
-                        setActiveBarIndex(index);
-                        springEntries.set(entry.entries);
-                        springExits.set(entry.exits);
-                      }}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ChartContainer>
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+              <ExportButton />
+            </div>
           </div>
-        )}
-      </CardContent>
+        </CardHeader>
+        <CardContent className="relative">
+          <ChartContent />
+        </CardContent>
+      </div>
     </Card>
   );
 }

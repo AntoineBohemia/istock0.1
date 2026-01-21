@@ -12,7 +12,6 @@ export default function ScanFab() {
   const [scannedProductId, setScannedProductId] = useState<string | null>(null);
 
   const handleScan = (productId: string) => {
-    console.log("Scanned product:", productId);
     setScannedProductId(productId);
   };
 

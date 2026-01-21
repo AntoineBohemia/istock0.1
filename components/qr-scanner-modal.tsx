@@ -22,8 +22,8 @@ interface QrScannerModalProps {
 // Support both formats:
 // - Legacy: smpr://product/{id}
 // - New: https://istock-app.space/stock?product={id}
-const LEGACY_PATTERN = /^smpr:\/\/product\/(.+)$/;
-const URL_PATTERN = /^https?:\/\/[^/]+\/stock\?product=(.+)$/;
+const LEGACY_PATTERN = /^smpr:\/\/product\/([a-zA-Z0-9-]+)$/;
+const URL_PATTERN = /^https?:\/\/[^/]+\/stock\?product=([a-zA-Z0-9-]+)/;
 
 export default function QrScannerModal({
   open,
