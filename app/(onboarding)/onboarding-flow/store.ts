@@ -21,7 +21,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
 
 export interface OrganizationData {
   name: string;
-  sector: string;
+  sectors: string[];
 }
 
 export interface CategoryData {
@@ -92,7 +92,7 @@ interface OnboardingStore {
 const initialData: OnboardingData = {
   organization: {
     name: "",
-    sector: "",
+    sectors: [],
   },
   categories: [],
   products: [],

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useOnboardingStore } from "../store";
 import { Building2, Loader2 } from "lucide-react";
 import { createOrganization } from "@/lib/supabase/queries/organizations";
@@ -43,8 +43,17 @@ export function OrganizationStep() {
 
   const [localName, setLocalName] = useState(data.organization.name);
 
+  const toggleSector = (value: string) => {
+    const current = data.organization.sectors;
+    if (current.includes(value)) {
+      updateOrganization({ sectors: current.filter((s) => s !== value) });
+    } else {
+      updateOrganization({ sectors: [...current, value] });
+    }
+  };
+
   const handleCreate = async () => {
-    if (!localName.trim() || !data.organization.sector) {
+    if (!localName.trim() || data.organization.sectors.length === 0) {
       toast.error("Veuillez remplir tous les champs");
       return;
     }
@@ -68,7 +77,7 @@ export function OrganizationStep() {
     }
   };
 
-  const isValid = localName.trim().length >= 2 && data.organization.sector;
+  const isValid = localName.trim().length >= 2 && data.organization.sectors.length > 0;
 
   return (
     <div className="space-y-8">
@@ -100,30 +109,30 @@ export function OrganizationStep() {
         </div>
 
         <div className="space-y-4">
-          <Label>Secteur d'activite</Label>
-          <RadioGroup
-            value={data.organization.sector}
-            onValueChange={(value) => updateOrganization({ sector: value })}
-            className="grid grid-cols-2 gap-3 md:grid-cols-3"
-          >
-            {sectors.map((sector) => (
-              <div key={sector.value} className="relative">
-                <RadioGroupItem
-                  value={sector.value}
-                  id={sector.value}
-                  className="peer sr-only"
-                />
-                <Label
-                  htmlFor={sector.value}
-                  className="peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:border-primary hover:border-primary flex cursor-pointer flex-col items-center justify-center rounded-lg border p-4 text-center transition-colors"
+          <Label>Secteurs d'activite <span className="text-muted-foreground font-normal">(plusieurs choix possibles)</span></Label>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+            {sectors.map((sector) => {
+              const isSelected = data.organization.sectors.includes(sector.value);
+              return (
+                <div
+                  key={sector.value}
+                  onClick={() => toggleSector(sector.value)}
+                  className={`relative flex cursor-pointer flex-col items-center justify-center rounded-lg border p-4 text-center transition-colors hover:border-primary ${
+                    isSelected ? "bg-primary/10 border-primary" : ""
+                  }`}
                 >
+                  <Checkbox
+                    checked={isSelected}
+                    className="absolute top-2 right-2"
+                    onCheckedChange={() => toggleSector(sector.value)}
+                  />
                   <span className="text-2xl mb-1">{sector.emoji}</span>
                   <span className="font-medium text-sm">{sector.label}</span>
                   <span className="text-xs text-muted-foreground">{sector.desc}</span>
-                </Label>
-              </div>
-            ))}
-          </RadioGroup>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
