@@ -11,6 +11,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Package,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -31,6 +32,19 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -85,14 +99,16 @@ export default function QuickStockMovementModal({
 }: QuickStockMovementModalProps) {
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
   const [product, setProduct] = useState<Product | null>(null);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [productPopoverOpen, setProductPopoverOpen] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
-      direction: "exit",
+      direction: "entry",
       exit_type: "exit_anonymous",
       technician_id: "",
       quantity: 1,
@@ -103,10 +119,11 @@ export default function QuickStockMovementModal({
   const direction = form.watch("direction");
   const exitType = form.watch("exit_type");
 
-  // Fetch product when productId changes
+  // Fetch data when modal opens
   useEffect(() => {
-    if (!productId || !open) {
+    if (!open) {
       setProduct(null);
+      setAllProducts([]);
       return;
     }
 
@@ -117,49 +134,61 @@ export default function QuickStockMovementModal({
 
     const organizationId = currentOrganization.id;
 
-    async function fetchProduct() {
+    async function fetchData() {
       setIsLoading(true);
       try {
         const supabase = createClient();
 
-        const [productRes, techniciansRes] = await Promise.all([
-          supabase
-            .from("products")
-            .select("id, name, sku, image_url, stock_current, price")
-            .eq("id", productId)
-            .single(),
+        // Always fetch technicians and all products (for manual selection)
+        const [techniciansRes, productsRes] = await Promise.all([
           supabase
             .from("technicians")
             .select("id, first_name, last_name")
             .eq("organization_id", organizationId)
             .order("last_name"),
+          supabase
+            .from("products")
+            .select("id, name, sku, image_url, stock_current, price")
+            .eq("organization_id", organizationId)
+            .order("name"),
         ]);
 
-        if (productRes.error) {
-          toast.error("Produit non trouvé");
-          onClose();
-          return;
-        }
-
-        setProduct(productRes.data);
         setTechnicians(techniciansRes.data || []);
+        setAllProducts(productsRes.data || []);
+
+        // If productId is provided, find and set the product
+        if (productId) {
+          const foundProduct = productsRes.data?.find(p => p.id === productId);
+          if (foundProduct) {
+            setProduct(foundProduct);
+          } else {
+            toast.error("Produit non trouvé");
+            onClose();
+            return;
+          }
+        }
       } catch (error) {
-        toast.error("Erreur lors du chargement du produit");
+        toast.error("Erreur lors du chargement des données");
         onClose();
       } finally {
         setIsLoading(false);
       }
     }
 
-    fetchProduct();
+    fetchData();
     form.reset({
-      direction: "exit",
+      direction: "entry",
       exit_type: "exit_anonymous",
       technician_id: "",
       quantity: 1,
       notes: "",
     });
   }, [productId, open, currentOrganization, isOrgLoading]);
+
+  const selectProduct = (selectedProduct: Product) => {
+    setProduct(selectedProduct);
+    setProductPopoverOpen(false);
+  };
 
   const onSubmit = async (data: FormValues) => {
     if (!product || !currentOrganization) return;
@@ -217,6 +246,7 @@ export default function QuickStockMovementModal({
 
   const handleClose = () => {
     form.reset();
+    setProduct(null);
     onClose();
   };
 
@@ -276,6 +306,18 @@ export default function QuickStockMovementModal({
                     )}
                   </div>
                 </div>
+                {/* Allow changing product if no productId was provided */}
+                {!productId && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setProduct(null)}
+                    className="text-xs"
+                  >
+                    Changer
+                  </Button>
+                )}
               </div>
 
               {/* Direction Toggle */}
@@ -297,14 +339,14 @@ export default function QuickStockMovementModal({
                       >
                         <ToggleGroupItem
                           value="entry"
-                          className="flex-1 data-[state=on]:bg-green-100 data-[state=on]:text-green-700 data-[state=on]:border-green-300 dark:data-[state=on]:bg-green-900 dark:data-[state=on]:text-green-100"
+                          className="flex-1 data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-700 data-[state=on]:border-emerald-300 dark:data-[state=on]:bg-emerald-900 dark:data-[state=on]:text-emerald-100"
                         >
                           <ArrowDownToLine className="mr-2 size-4" />
                           Entrée
                         </ToggleGroupItem>
                         <ToggleGroupItem
                           value="exit"
-                          className="flex-1 data-[state=on]:bg-red-100 data-[state=on]:text-red-700 data-[state=on]:border-red-300 dark:data-[state=on]:bg-red-900 dark:data-[state=on]:text-red-100"
+                          className="flex-1 data-[state=on]:bg-rose-100 data-[state=on]:text-rose-700 data-[state=on]:border-rose-300 dark:data-[state=on]:bg-rose-900 dark:data-[state=on]:text-rose-100"
                         >
                           <ArrowUpFromLine className="mr-2 size-4" />
                           Sortie
@@ -437,8 +479,8 @@ export default function QuickStockMovementModal({
                   disabled={isSubmitting}
                   className={
                     direction === "entry"
-                      ? "bg-green-600 hover:bg-green-700"
-                      : "bg-red-600 hover:bg-red-700"
+                      ? "bg-emerald-600 hover:bg-emerald-700"
+                      : "bg-rose-600 hover:bg-rose-700"
                   }
                 >
                   {isSubmitting && (
@@ -450,8 +492,64 @@ export default function QuickStockMovementModal({
             </form>
           </Form>
         ) : (
-          <div className="flex h-40 items-center justify-center text-muted-foreground">
-            Aucun produit sélectionné
+          /* Product Selection - when no product is selected */
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm font-medium mb-2">Sélectionner un produit</p>
+              <Popover open={productPopoverOpen} onOpenChange={setProductPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                  >
+                    <Search className="mr-2 size-4" />
+                    Rechercher un produit...
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[350px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Rechercher par nom ou SKU..." />
+                    <CommandList>
+                      <CommandEmpty>Aucun produit trouvé</CommandEmpty>
+                      <CommandGroup>
+                        {allProducts.map((p) => (
+                          <CommandItem
+                            key={p.id}
+                            onSelect={() => selectProduct(p)}
+                            className="flex items-center gap-3"
+                          >
+                            <figure className="flex size-10 items-center justify-center rounded border bg-muted shrink-0">
+                              {p.image_url ? (
+                                <Image
+                                  src={p.image_url}
+                                  width={40}
+                                  height={40}
+                                  alt={p.name}
+                                  className="size-full rounded object-cover"
+                                />
+                              ) : (
+                                <ImageIcon className="size-4 text-muted-foreground" />
+                              )}
+                            </figure>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate text-sm">{p.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {p.sku && <span className="font-mono">{p.sku} • </span>}
+                                Stock: {p.stock_current}
+                              </p>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <p className="text-center text-sm text-muted-foreground">
+              ou scannez un QR code produit
+            </p>
           </div>
         )}
       </DialogContent>

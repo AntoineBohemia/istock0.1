@@ -1,8 +1,6 @@
 import { generateMeta } from "@/lib/utils";
-import Link from "next/link";
-import { Package, PlusCircle } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import ProductHeader from "./product-header";
 import ProductList from "./product-list";
 import ProductStats from "./product-stats";
 
@@ -18,21 +16,7 @@ export async function generateMetadata() {
 export default function Page() {
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between space-y-2">
-        <h1 className="text-2xl font-bold tracking-tight">Stock produits</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link href="/stock">
-              <Package /> Mouvement de stock
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link href="/product/create">
-              <PlusCircle /> Ajouter un produit
-            </Link>
-          </Button>
-        </div>
-      </div>
+      <ProductHeader />
       <ProductStats />
       <div className="pt-4">
         <ProductList />

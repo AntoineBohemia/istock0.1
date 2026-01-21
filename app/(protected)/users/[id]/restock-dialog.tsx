@@ -316,6 +316,7 @@ export default function RestockDialog({
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={isSubmitting}
+            className="mr-4"
           >
             Annuler
           </Button>

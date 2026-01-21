@@ -1,8 +1,9 @@
+
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
-import { Loader2, History, Package, ImageIcon } from "lucide-react";
+import { Loader2, History, ImageIcon, Package } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -14,20 +15,67 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   getTechnicianStockMovements,
   TechnicianStockMovement,
 } from "@/lib/supabase/queries/technicians";
 
 interface TechnicianHistoryProps {
   technicianId: string;
+}
+
+interface RestockSession {
+  id: string;
+  date: Date;
+  movements: TechnicianStockMovement[];
+  totalItems: number;
+}
+
+// Group movements that happened within 1 minute of each other as a single restock session
+function groupMovementsIntoSessions(movements: TechnicianStockMovement[]): RestockSession[] {
+  if (movements.length === 0) return [];
+
+  const sessions: RestockSession[] = [];
+  let currentSession: TechnicianStockMovement[] = [];
+  let sessionStartTime: Date | null = null;
+
+  // Sort by date descending (most recent first)
+  const sortedMovements = [...movements].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
+  for (const movement of sortedMovements) {
+    const movementTime = new Date(movement.created_at);
+
+    if (sessionStartTime === null) {
+      currentSession = [movement];
+      sessionStartTime = movementTime;
+    } else {
+      const timeDiff = Math.abs(sessionStartTime.getTime() - movementTime.getTime());
+      if (timeDiff <= 60000) {
+        currentSession.push(movement);
+      } else {
+        sessions.push({
+          id: currentSession[0].id,
+          date: sessionStartTime,
+          movements: currentSession,
+          totalItems: currentSession.reduce((sum, m) => sum + m.quantity, 0),
+        });
+        currentSession = [movement];
+        sessionStartTime = movementTime;
+      }
+    }
+  }
+
+  if (currentSession.length > 0 && sessionStartTime) {
+    sessions.push({
+      id: currentSession[0].id,
+      date: sessionStartTime,
+      movements: currentSession,
+      totalItems: currentSession.reduce((sum, m) => sum + m.quantity, 0),
+    });
+  }
+
+  return sessions;
 }
 
 export default function TechnicianHistory({
@@ -56,23 +104,7 @@ export default function TechnicianHistory({
     }
   };
 
-  // Group movements by date
-  const groupedMovements = movements.reduce(
-    (groups, movement) => {
-      const date = new Date(movement.created_at).toLocaleDateString("fr-FR", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      });
-      if (!groups[date]) {
-        groups[date] = [];
-      }
-      groups[date].push(movement);
-      return groups;
-    },
-    {} as Record<string, TechnicianStockMovement[]>
-  );
-
+  const sessions = useMemo(() => groupMovementsIntoSessions(movements), [movements]);
   const totalItems = movements.reduce((sum, m) => sum + m.quantity, 0);
 
   if (isLoading) {
@@ -90,13 +122,13 @@ export default function TechnicianHistory({
       <CardHeader>
         <CardTitle>Historique des approvisionnements</CardTitle>
         <CardDescription>
-          {movements.length === 0
+          {sessions.length === 0
             ? "Aucun approvisionnement effectué"
-            : `${movements.length} mouvement(s) - ${totalItems} item(s) au total`}
+            : `${sessions.length} restock(s) - ${totalItems} item(s) au total`}
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {movements.length === 0 ? (
+        {sessions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <History className="size-12 text-muted-foreground/50" />
             <p className="mt-4 text-muted-foreground">
@@ -109,76 +141,67 @@ export default function TechnicianHistory({
           </div>
         ) : (
           <div className="space-y-6">
-            {Object.entries(groupedMovements).map(([date, dateMovements]) => (
-              <div key={date}>
+            {sessions.map((session) => (
+              <div key={session.id}>
+                {/* Session header */}
                 <div className="flex items-center gap-2 mb-3">
                   <div className="rounded-full bg-primary/10 p-2">
                     <Package className="size-4 text-primary" />
                   </div>
                   <div>
-                    <p className="font-medium">{date}</p>
+                    <p className="font-medium">
+                      {session.date.toLocaleDateString("fr-FR", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                      {" à "}
+                      {session.date.toLocaleTimeString("fr-FR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      {dateMovements.reduce((sum, m) => sum + m.quantity, 0)}{" "}
-                      item(s)
+                      {session.movements.length} produit{session.movements.length > 1 ? "s" : ""} • {session.totalItems} item{session.totalItems > 1 ? "s" : ""}
                     </p>
                   </div>
                 </div>
-                <div className="rounded-md border ml-10">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Produit</TableHead>
-                        <TableHead>SKU</TableHead>
-                        <TableHead>Heure</TableHead>
-                        <TableHead>Notes</TableHead>
-                        <TableHead className="text-right">Quantité</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {dateMovements.map((movement) => (
-                        <TableRow key={movement.id}>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <figure className="flex size-8 items-center justify-center rounded border bg-muted">
-                                {movement.product?.image_url ? (
-                                  <Image
-                                    src={movement.product.image_url}
-                                    width={32}
-                                    height={32}
-                                    alt={movement.product.name}
-                                    className="size-full rounded object-cover"
-                                  />
-                                ) : (
-                                  <ImageIcon className="size-4 text-muted-foreground" />
-                                )}
-                              </figure>
-                              <span className="font-medium">
-                                {movement.product?.name || "Produit supprimé"}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-muted-foreground font-mono text-xs">
-                            {movement.product?.sku || "-"}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground text-sm">
-                            {new Date(movement.created_at).toLocaleTimeString(
-                              "fr-FR",
-                              {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              }
-                            )}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
-                            {movement.notes || "-"}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Badge variant="secondary">+{movement.quantity}</Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+
+                {/* Products list */}
+                <div className="ml-10 space-y-2">
+                  {session.movements.map((movement) => (
+                    <div
+                      key={movement.id}
+                      className="flex items-center justify-between rounded-lg border p-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <figure className="flex size-10 items-center justify-center rounded-lg border bg-muted">
+                          {movement.product?.image_url ? (
+                            <Image
+                              src={movement.product.image_url}
+                              width={40}
+                              height={40}
+                              alt={movement.product.name}
+                              className="size-full rounded-lg object-cover"
+                            />
+                          ) : (
+                            <ImageIcon className="size-5 text-muted-foreground" />
+                          )}
+                        </figure>
+                        <div>
+                          <p className="font-medium">
+                            {movement.product?.name || "Produit supprimé"}
+                          </p>
+                          {movement.product?.sku && (
+                            <p className="text-xs text-muted-foreground font-mono">
+                              {movement.product.sku}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <Badge variant="secondary">+{movement.quantity}</Badge>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
@@ -188,3 +211,4 @@ export default function TechnicianHistory({
     </Card>
   );
 }
+

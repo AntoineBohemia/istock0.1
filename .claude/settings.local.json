@@ -27,7 +27,9 @@
       "Bash(git commit:*)",
       "mcp__supabase__get_logs",
       "Bash(pnpm build:*)",
-      "Bash(node -e:*)"
+      "Bash(node -e:*)",
+      "Bash(git checkout:*)",
+      "Bash(npx tsc:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

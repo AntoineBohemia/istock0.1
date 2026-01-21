@@ -130,15 +130,15 @@ export default async function TechnicianDetailPage({
               {generateInitials(technician.first_name, technician.last_name)}
             </AvatarFallback>
           </Avatar>
-          <div>
-            <h1 className="text-2xl font-bold">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold truncate">
               {technician.first_name} {technician.last_name}
             </h1>
-            <p className="text-muted-foreground">{technician.email}</p>
+            <p className="text-muted-foreground truncate">{technician.email}</p>
           </div>
         </div>
         <div className="flex gap-2">
-          <Button asChild>
+          <Button variant="outline" asChild>
             <Link href={`/users/${id}/edit`}>
               <Edit3Icon className="size-4" />
               Modifier
@@ -154,44 +154,44 @@ export default async function TechnicianDetailPage({
       {/* Info Cards */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
-          <CardContent className="flex items-center gap-4 pt-6">
-            <div className="rounded-full bg-primary/10 p-3">
+          <CardContent className="flex items-center gap-4">
+            <div className="shrink-0 rounded-full bg-primary/10 p-3">
               <Mail className="size-5 text-primary" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-sm text-muted-foreground">Email</p>
-              <p className="font-medium">{technician.email}</p>
+              <p className="font-medium truncate">{technician.email}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-4 pt-6">
-            <div className="rounded-full bg-primary/10 p-3">
+          <CardContent className="flex items-center gap-4">
+            <div className="shrink-0 rounded-full bg-primary/10 p-3">
               <Phone className="size-5 text-primary" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-sm text-muted-foreground">Téléphone</p>
-              <p className="font-medium">{technician.phone || "-"}</p>
+              <p className="font-medium truncate">{technician.phone || "-"}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-4 pt-6">
-            <div className="rounded-full bg-primary/10 p-3">
+          <CardContent className="flex items-center gap-4">
+            <div className="shrink-0 rounded-full bg-primary/10 p-3">
               <MapPin className="size-5 text-primary" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-sm text-muted-foreground">Ville</p>
-              <p className="font-medium">{technician.city || "-"}</p>
+              <p className="font-medium truncate">{technician.city || "-"}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-4 pt-6">
-            <div className="rounded-full bg-primary/10 p-3">
+          <CardContent className="flex items-center gap-4">
+            <div className="shrink-0 rounded-full bg-primary/10 p-3">
               <Package className="size-5 text-primary" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-sm text-muted-foreground">Inventaire</p>
               <div className="flex items-center gap-2">
                 <p className="font-medium">{technician.inventory_count} items</p>

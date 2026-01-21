@@ -1,31 +1,31 @@
-import { generateMeta } from "@/lib/utils";
+"use client";
 
+import { useState } from "react";
+import { PackagePlus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import QuickStockMovementModal from "@/components/quick-stock-movement-modal";
 import { BalanceSummeryChart } from "./components/chart-balance-summary";
 import { SuccessMetrics } from "@/app/(protected)/global/components";
 import { RecentActivities } from "./components/recent-activities";
-import { StockMovementCard } from "./components/trading-card";
 import { QuickActions } from "./components/quick-actions";
 import { CompactStats } from "./components/compact-stats";
 
-export async function generateMetadata() {
-  return generateMeta({
-    title: "Tableau de bord",
-    description:
-      "Vue d'ensemble de votre stock, mouvements récents et techniciens à restocker.",
-    canonical: "/global",
-  });
-}
-
 export default function Page() {
+  const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
+
   return (
     <>
-      <div className="mb-4 flex flex-row items-center justify-between space-y-2">
+      <div className="mb-4 flex flex-row items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Tableau de bord</h1>
           <p className="text-muted-foreground hidden sm:block">
             Vue d'ensemble de votre gestion de stock
           </p>
         </div>
+        <Button onClick={() => setIsRestockModalOpen(true)}>
+          <PackagePlus className="size-4" />
+          Restocker
+        </Button>
       </div>
 
       {/* Mobile Layout: Compact and efficient */}
@@ -46,23 +46,24 @@ export default function Page() {
         <BalanceSummeryChart />
       </div>
 
-      {/* Desktop Layout: Original grid system */}
-      <div className="hidden lg:block">
-        <div className="mt-4 grid gap-4 xl:grid-cols-5">
-          <div className="xl:col-span-2">
-            <StockMovementCard />
-          </div>
-          <div className="xl:col-span-3">
-            <SuccessMetrics />
-          </div>
-        </div>
-        <div className="mt-4 grid gap-4 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <BalanceSummeryChart />
-          </div>
+      {/* Desktop Layout */}
+      <div className="hidden lg:block space-y-4">
+        {/* Top: Technicians (left) + Recent Activities (right) */}
+        <div className="grid gap-4 lg:grid-cols-2">
+          <SuccessMetrics />
           <RecentActivities />
         </div>
+
+        {/* Bottom: Full width chart */}
+        <BalanceSummeryChart />
       </div>
+
+      {/* Restock Modal */}
+      <QuickStockMovementModal
+        open={isRestockModalOpen}
+        onClose={() => setIsRestockModalOpen(false)}
+        productId={null}
+      />
     </>
   );
 }

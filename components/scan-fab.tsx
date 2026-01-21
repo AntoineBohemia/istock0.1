@@ -23,7 +23,7 @@ export default function ScanFab() {
     <>
       <Button
         onClick={() => setIsScannerOpen(true)}
-        className="fixed bottom-6 right-6 z-50 size-14 rounded-full shadow-lg"
+        className="fixed bottom-6 right-6 z-50 size-14 rounded-full shadow-lg sm:hidden"
         size="icon"
       >
         <ScanLine className="size-6" />

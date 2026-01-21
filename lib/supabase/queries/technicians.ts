@@ -324,3 +324,92 @@ export async function getTechnicianStockMovements(
     product: Array.isArray(item.product) ? item.product[0] : item.product,
   })) as TechnicianStockMovement[];
 }
+
+export interface TechniciansStats {
+  totalTechnicians: number;
+  emptyInventory: number;
+  totalItems: number;
+  recentRestocks: number;
+}
+
+/**
+ * Récupère les statistiques des techniciens
+ */
+export async function getTechniciansStats(organizationId: string): Promise<TechniciansStats> {
+  const supabase = createClient();
+
+  // Récupérer tous les techniciens
+  const { data: technicians, error: techError } = await supabase
+    .from("technicians")
+    .select("id")
+    .eq("organization_id", organizationId);
+
+  if (techError) {
+    throw new Error(`Erreur lors de la récupération des techniciens: ${techError.message}`);
+  }
+
+  const technicianIds = technicians?.map((t) => t.id) || [];
+  const totalTechnicians = technicianIds.length;
+
+  if (totalTechnicians === 0) {
+    return {
+      totalTechnicians: 0,
+      emptyInventory: 0,
+      totalItems: 0,
+      recentRestocks: 0,
+    };
+  }
+
+  // Récupérer l'inventaire pour calculer les items totaux et inventaires vides
+  const { data: inventoryData, error: invError } = await supabase
+    .from("technician_inventory")
+    .select("technician_id, quantity")
+    .in("technician_id", technicianIds);
+
+  if (invError) {
+    throw new Error(`Erreur lors de la récupération de l'inventaire: ${invError.message}`);
+  }
+
+  // Calculer les items par technicien
+  const inventoryByTechnician: Record<string, number> = {};
+  let totalItems = 0;
+  inventoryData?.forEach((item) => {
+    if (!inventoryByTechnician[item.technician_id]) {
+      inventoryByTechnician[item.technician_id] = 0;
+    }
+    inventoryByTechnician[item.technician_id] += item.quantity;
+    totalItems += item.quantity;
+  });
+
+  // Techniciens avec inventaire vide
+  const emptyInventory = technicianIds.filter(
+    (id) => !inventoryByTechnician[id] || inventoryByTechnician[id] === 0
+  ).length;
+
+  // Restocks récents (7 derniers jours)
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const { data: recentRestocksData, error: restockError } = await supabase
+    .from("stock_movements")
+    .select("technician_id")
+    .eq("movement_type", "exit_technician")
+    .in("technician_id", technicianIds)
+    .gte("created_at", sevenDaysAgo.toISOString());
+
+  if (restockError) {
+    throw new Error(`Erreur lors de la récupération des restocks: ${restockError.message}`);
+  }
+
+  // Compter les techniciens uniques restockés
+  const uniqueRestockedTechnicians = new Set(
+    recentRestocksData?.map((r) => r.technician_id) || []
+  );
+
+  return {
+    totalTechnicians,
+    emptyInventory,
+    totalItems,
+    recentRestocks: uniqueRestockedTechnicians.size,
+  };
+}

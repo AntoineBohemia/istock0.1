@@ -21,10 +21,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { getTechnician, TechnicianInventoryItem } from "@/lib/supabase/queries/technicians";
-import { calculateInventoryPercentage } from "@/lib/supabase/queries/inventory";
 import RestockDialog from "./restock-dialog";
 
 interface TechnicianInventoryProps {
@@ -77,19 +75,21 @@ export default function TechnicianInventory({
   return (
     <>
       <Card>
-        <CardHeader className="flex-row items-center justify-between">
-          <div>
-            <CardTitle>Inventaire actuel</CardTitle>
-            <CardDescription>
-              {inventory.length === 0
-                ? "Aucun produit dans l'inventaire"
-                : `${inventory.length} produit(s) - ${inventory.reduce((sum, item) => sum + item.quantity, 0)} items au total`}
-            </CardDescription>
+        <CardHeader>
+          <div className="flex w-full items-center justify-between">
+            <div>
+              <CardTitle>Inventaire actuel</CardTitle>
+              <CardDescription>
+                {inventory.length === 0
+                  ? ""
+                  : `${inventory.length} produit(s) - ${inventory.reduce((sum, item) => sum + item.quantity, 0)} items au total`}
+              </CardDescription>
+            </div>
+            <Button onClick={() => setRestockDialogOpen(true)}>
+              <Plus className="size-4" />
+              Restocker
+            </Button>
           </div>
-          <Button onClick={() => setRestockDialogOpen(true)}>
-            <Plus className="size-4" />
-            Restocker
-          </Button>
         </CardHeader>
         <CardContent>
           {inventory.length === 0 ? (
@@ -113,79 +113,53 @@ export default function TechnicianInventory({
                   <TableRow>
                     <TableHead>Produit</TableHead>
                     <TableHead>Quantité</TableHead>
-                    <TableHead>Niveau</TableHead>
                     <TableHead>Assigné le</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {inventory.map((item) => {
-                    const percentage = calculateInventoryPercentage(
-                      item.quantity,
-                      item.product?.stock_max || 100
-                    );
-                    const progressColor =
-                      percentage < 30
-                        ? "bg-red-500"
-                        : percentage < 60
-                          ? "bg-orange-500"
-                          : "bg-green-500";
-
-                    return (
-                      <TableRow key={item.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <figure className="flex size-10 items-center justify-center rounded-lg border bg-muted">
-                              {item.product?.image_url ? (
-                                <Image
-                                  src={item.product.image_url}
-                                  width={40}
-                                  height={40}
-                                  alt={item.product.name}
-                                  className="size-full rounded-lg object-cover"
-                                />
-                              ) : (
-                                <ImageIcon className="size-5 text-muted-foreground" />
-                              )}
-                            </figure>
-                            <div>
-                              <p className="font-medium">
-                                {item.product?.name || "Produit inconnu"}
+                  {inventory.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <figure className="flex size-10 items-center justify-center rounded-lg border bg-muted">
+                            {item.product?.image_url ? (
+                              <Image
+                                src={item.product.image_url}
+                                width={40}
+                                height={40}
+                                alt={item.product.name}
+                                className="size-full rounded-lg object-cover"
+                              />
+                            ) : (
+                              <ImageIcon className="size-5 text-muted-foreground" />
+                            )}
+                          </figure>
+                          <div>
+                            <p className="font-medium">
+                              {item.product?.name || "Produit inconnu"}
+                            </p>
+                            {item.product?.sku && (
+                              <p className="text-xs text-muted-foreground">
+                                {item.product.sku}
                               </p>
-                              {item.product?.sku && (
-                                <p className="text-xs text-muted-foreground">
-                                  {item.product.sku}
-                                </p>
-                              )}
-                            </div>
+                            )}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{item.quantity}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Progress
-                              value={percentage}
-                              color={progressColor}
-                              className="h-2 w-20"
-                            />
-                            <span className="text-sm text-muted-foreground">
-                              {percentage}%
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {new Date(item.assigned_at).toLocaleDateString(
-                            "fr-FR",
-                            {
-                              day: "numeric",
-                              month: "short",
-                            }
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{item.quantity}</Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {new Date(item.assigned_at).toLocaleDateString(
+                          "fr-FR",
+                          {
+                            day: "numeric",
+                            month: "short",
+                          }
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </div>

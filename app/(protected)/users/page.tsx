@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { generateMeta } from "@/lib/utils";
-import { PlusCircleIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+
+import TechniciansHeader from "./technicians-header";
+import TechnicianStats from "./technicians-stats";
 import TechniciansList from "./technicians-list";
 
 export async function generateMetadata() {
@@ -14,16 +14,12 @@ export async function generateMetadata() {
 
 export default function Page() {
   return (
-    <>
-      <div className="flex items-center justify-between space-y-2">
-        <h1 className="text-2xl font-bold tracking-tight">Techniciens</h1>
-        <Button asChild>
-          <Link href="/users/create">
-            <PlusCircleIcon /> Ajouter un technicien
-          </Link>
-        </Button>
+    <div className="space-y-4">
+      <TechniciansHeader />
+      <TechnicianStats />
+      <div className="pt-4">
+        <TechniciansList />
       </div>
-      <TechniciansList />
-    </>
+    </div>
   );
 }
