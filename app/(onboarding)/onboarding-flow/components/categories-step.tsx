@@ -11,12 +11,36 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const SUGGESTED_CATEGORIES = [
-  { name: "Peintures", emoji: "🎨" },
-  { name: "Vernis", emoji: "✨" },
-  { name: "Outillage", emoji: "🔧" },
-  { name: "Accessoires", emoji: "🪣" },
-  { name: "Consommables", emoji: "📦" },
-  { name: "Produits chimiques", emoji: "🧪" },
+  // Peintures
+  { name: "Peintures interieures", emoji: "🏠" },
+  { name: "Peintures exterieures", emoji: "🏡" },
+  { name: "Peintures bois", emoji: "🪵" },
+  { name: "Peintures metal", emoji: "🔩" },
+  { name: "Peintures sol", emoji: "🏗️" },
+  { name: "Laques", emoji: "✨" },
+  // Revetements
+  { name: "Enduits", emoji: "🧱" },
+  { name: "Crepi", emoji: "🏢" },
+  { name: "Sous-couches", emoji: "🖌️" },
+  { name: "Primers", emoji: "🎯" },
+  // Vernis et lasures
+  { name: "Vernis", emoji: "💎" },
+  { name: "Lasures", emoji: "🌲" },
+  { name: "Huiles", emoji: "🫒" },
+  // Preparation
+  { name: "Diluants", emoji: "💧" },
+  { name: "Decapants", emoji: "🧴" },
+  { name: "Nettoyants", emoji: "🧹" },
+  { name: "Mastics", emoji: "🔧" },
+  // Outillage
+  { name: "Pinceaux", emoji: "🖌️" },
+  { name: "Rouleaux", emoji: "🎨" },
+  { name: "Pistolets", emoji: "🔫" },
+  { name: "Baches et adhesifs", emoji: "📦" },
+  // Accessoires
+  { name: "EPI", emoji: "🦺" },
+  { name: "Echelles", emoji: "🪜" },
+  { name: "Abrasifs", emoji: "📄" },
 ];
 
 export function CategoriesStep() {
