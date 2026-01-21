@@ -107,6 +107,13 @@ export function StockMovementCard() {
 
   useEffect(() => {
     async function loadData() {
+      if (!currentOrganization) {
+        setProducts([]);
+        setTechnicians([]);
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const supabase = createClient();
 
@@ -115,10 +122,12 @@ export function StockMovementCard() {
           supabase
             .from("products")
             .select("id, name, sku, image_url, stock_current, price, organization_id")
+            .eq("organization_id", currentOrganization.id)
             .order("name"),
           supabase
             .from("technicians")
             .select("id, first_name, last_name, email, phone, city, organization_id, created_at")
+            .eq("organization_id", currentOrganization.id)
             .order("last_name"),
         ]);
 
@@ -134,7 +143,7 @@ export function StockMovementCard() {
       }
     }
     loadData();
-  }, []);
+  }, [currentOrganization]);
 
   const handleEntryProductChange = (productId: string) => {
     const product = products.find((p) => p.id === productId);

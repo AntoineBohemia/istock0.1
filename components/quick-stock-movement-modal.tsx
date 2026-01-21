@@ -83,7 +83,7 @@ export default function QuickStockMovementModal({
   onClose,
   productId,
 }: QuickStockMovementModalProps) {
-  const { currentOrganization } = useOrganizationStore();
+  const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
   const [product, setProduct] = useState<Product | null>(null);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -105,8 +105,13 @@ export default function QuickStockMovementModal({
 
   // Fetch product when productId changes
   useEffect(() => {
-    if (!productId || !open || !currentOrganization) {
+    if (!productId || !open) {
       setProduct(null);
+      return;
+    }
+
+    // Wait for organization to load
+    if (isOrgLoading || !currentOrganization) {
       return;
     }
 
@@ -154,7 +159,7 @@ export default function QuickStockMovementModal({
       quantity: 1,
       notes: "",
     });
-  }, [productId, open, currentOrganization]);
+  }, [productId, open, currentOrganization, isOrgLoading]);
 
   const onSubmit = async (data: FormValues) => {
     if (!product || !currentOrganization) return;
@@ -228,7 +233,7 @@ export default function QuickStockMovementModal({
           </DialogDescription>
         </DialogHeader>
 
-        {isLoading ? (
+        {isLoading || isOrgLoading ? (
           <div className="flex h-40 items-center justify-center">
             <Loader2 className="size-8 animate-spin text-muted-foreground" />
           </div>
@@ -283,22 +288,23 @@ export default function QuickStockMovementModal({
                     <FormControl>
                       <ToggleGroup
                         type="single"
+                        variant="outline"
                         value={field.value}
                         onValueChange={(value) => {
                           if (value) field.onChange(value);
                         }}
-                        className="justify-start"
+                        className="w-full"
                       >
                         <ToggleGroupItem
                           value="entry"
-                          className="data-[state=on]:bg-green-100 data-[state=on]:text-green-700 dark:data-[state=on]:bg-green-900 dark:data-[state=on]:text-green-100"
+                          className="flex-1 data-[state=on]:bg-green-100 data-[state=on]:text-green-700 data-[state=on]:border-green-300 dark:data-[state=on]:bg-green-900 dark:data-[state=on]:text-green-100"
                         >
                           <ArrowDownToLine className="mr-2 size-4" />
                           Entrée
                         </ToggleGroupItem>
                         <ToggleGroupItem
                           value="exit"
-                          className="data-[state=on]:bg-red-100 data-[state=on]:text-red-700 dark:data-[state=on]:bg-red-900 dark:data-[state=on]:text-red-100"
+                          className="flex-1 data-[state=on]:bg-red-100 data-[state=on]:text-red-700 data-[state=on]:border-red-300 dark:data-[state=on]:bg-red-900 dark:data-[state=on]:text-red-100"
                         >
                           <ArrowUpFromLine className="mr-2 size-4" />
                           Sortie

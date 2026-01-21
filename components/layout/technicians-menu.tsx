@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/sidebar";
 import Icon from "@/components/icon";
 import { createClient } from "@/lib/supabase/client";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 interface Technician {
   id: string;
@@ -43,16 +44,24 @@ interface TechniciansMenuProps {
 export default function TechniciansMenu({ title, href, icon }: TechniciansMenuProps) {
   const pathname = usePathname();
   const { isMobile } = useSidebar();
+  const { currentOrganization } = useOrganizationStore();
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function loadTechnicians() {
+      if (!currentOrganization) {
+        setTechnicians([]);
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const supabase = createClient();
         const { data, error } = await supabase
           .from("technicians")
           .select("id, first_name, last_name")
+          .eq("organization_id", currentOrganization.id)
           .order("last_name");
 
         if (error) throw error;
@@ -64,7 +73,7 @@ export default function TechniciansMenu({ title, href, icon }: TechniciansMenuPr
       }
     }
     loadTechnicians();
-  }, []);
+  }, [currentOrganization]);
 
   return (
     <Fragment>

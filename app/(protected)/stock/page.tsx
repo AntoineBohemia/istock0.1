@@ -14,10 +14,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import QuickStockMovementModal from "@/components/quick-stock-movement-modal";
+import QrScannerModal from "@/components/qr-scanner-modal";
 
 export default function StockPage() {
   const [productParam, setProductParam] = useQueryState("product");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scannedProductId, setScannedProductId] = useState<string | null>(null);
 
   // Auto-open modal when product param is present
   useEffect(() => {
@@ -28,9 +31,19 @@ export default function StockPage() {
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
+    setScannedProductId(null);
     // Clear the product param when modal is closed
     setProductParam(null);
   };
+
+  const handleScan = (productId: string) => {
+    setIsScannerOpen(false);
+    setScannedProductId(productId);
+    setIsModalOpen(true);
+  };
+
+  // Determine which productId to use (from URL or from scanner)
+  const activeProductId = productParam || scannedProductId;
 
   return (
     <div className="space-y-6">
@@ -56,11 +69,13 @@ export default function StockPage() {
             <p className="text-sm text-muted-foreground mb-4">
               Le QR code se trouve sur l'étiquette du produit ou sur sa fiche produit.
             </p>
-            <Button variant="outline" className="w-full" asChild>
-              <Link href="/scan">
-                Ouvrir le scanner
-                <ArrowRight className="size-4" />
-              </Link>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => setIsScannerOpen(true)}
+            >
+              <Scan className="size-4" />
+              Ouvrir le scanner
             </Button>
           </CardContent>
         </Card>
@@ -89,10 +104,16 @@ export default function StockPage() {
         </Card>
       </div>
 
+      <QrScannerModal
+        open={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScan={handleScan}
+      />
+
       <QuickStockMovementModal
         open={isModalOpen}
         onClose={handleCloseModal}
-        productId={productParam}
+        productId={activeProductId}
       />
     </div>
   );

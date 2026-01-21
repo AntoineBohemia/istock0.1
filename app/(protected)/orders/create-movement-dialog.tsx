@@ -127,6 +127,12 @@ export default function CreateMovementDialog({
   }, [productId, products]);
 
   const loadData = async () => {
+    if (!currentOrganization) {
+      setProducts([]);
+      setTechnicians([]);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const supabase = createClient();
@@ -135,6 +141,7 @@ export default function CreateMovementDialog({
       const { data: productsData } = await supabase
         .from("products")
         .select("id, name, sku, image_url, stock_current")
+        .eq("organization_id", currentOrganization.id)
         .order("name");
 
       setProducts(productsData || []);
@@ -143,6 +150,7 @@ export default function CreateMovementDialog({
       const { data: techniciansData } = await supabase
         .from("technicians")
         .select("id, first_name, last_name")
+        .eq("organization_id", currentOrganization.id)
         .order("last_name");
 
       setTechnicians(techniciansData || []);
