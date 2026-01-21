@@ -19,7 +19,11 @@ interface QrScannerModalProps {
   onScan: (productId: string) => void;
 }
 
-const QR_PATTERN = /^smpr:\/\/product\/(.+)$/;
+// Support both formats:
+// - Legacy: smpr://product/{id}
+// - New: https://istock-app.space/stock?product={id}
+const LEGACY_PATTERN = /^smpr:\/\/product\/(.+)$/;
+const URL_PATTERN = /^https?:\/\/[^/]+\/stock\?product=(.+)$/;
 
 export default function QrScannerModal({
   open,
@@ -56,7 +60,13 @@ export default function QrScannerModal({
           },
           (decodedText) => {
             // QR code scanned successfully
-            const match = decodedText.match(QR_PATTERN);
+            // Try legacy format first
+            let match = decodedText.match(LEGACY_PATTERN);
+
+            // If not legacy, try URL format
+            if (!match) {
+              match = decodedText.match(URL_PATTERN);
+            }
 
             if (match) {
               const productId = match[1];
@@ -65,7 +75,7 @@ export default function QrScannerModal({
               onClose();
             } else {
               setError(
-                `Format QR invalide. Attendu: smpr://product/{id}\nReçu: ${decodedText}`
+                `Format QR invalide.\nReçu: ${decodedText}`
               );
             }
           },
