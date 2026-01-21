@@ -2,6 +2,7 @@ import React from "react";
 import { cookies } from "next/headers";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "next-themes";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 import GoogleAnalyticsInit from "@/lib/ga";
 import { fontVariables } from "@/lib/fonts";
 import NextTopLoader from "nextjs-toploader";
@@ -45,26 +46,28 @@ export default async function RootLayout({
         className={cn("bg-background group/layout font-sans", fontVariables)}
         {...bodyAttributes}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <ActiveThemeProvider initialTheme={themeSettings}>
-            {children}
-            <NextTopLoader
-              color="var(--primary)"
-              showSpinner={false}
-              height={2}
-              shadow-sm="none"
-            />
-            {process.env.NODE_ENV === "production" ? (
-              <GoogleAnalyticsInit />
-            ) : null}
-          </ActiveThemeProvider>
-          <Toaster position="top-center" />
-        </ThemeProvider>
+        <NuqsAdapter>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <ActiveThemeProvider initialTheme={themeSettings}>
+              {children}
+              <NextTopLoader
+                color="var(--primary)"
+                showSpinner={false}
+                height={2}
+                shadow-sm="none"
+              />
+              {process.env.NODE_ENV === "production" ? (
+                <GoogleAnalyticsInit />
+              ) : null}
+            </ActiveThemeProvider>
+            <Toaster position="top-center" />
+          </ThemeProvider>
+        </NuqsAdapter>
       </body>
     </html>
   );

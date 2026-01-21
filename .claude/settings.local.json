@@ -25,7 +25,8 @@
       "Bash(git commit -m \"$\\(cat <<''EOF''\nUpdate pnpm lockfile for deployment\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git push:*)",
       "Bash(git commit:*)",
-      "mcp__supabase__get_logs"
+      "mcp__supabase__get_logs",
+      "Bash(pnpm build:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

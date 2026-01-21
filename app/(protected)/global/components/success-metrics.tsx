@@ -121,21 +121,21 @@ export function SuccessMetrics() {
         <p className="mt-8 mb-2 text-sm font-bold">Aperçu des techniciens</p>
         <div className="divide-y *:py-3">
           <div className="flex justify-between text-sm">
-            <span>avec stock bon</span>
+            <span>Stock en bonne état</span>
             <span className="flex items-center gap-1">
               <ArrowUpRight className="size-4 text-green-600" />
               {stats.withGoodStock}
             </span>
           </div>
           <div className="flex justify-between text-sm">
-            <span>avec stock faible</span>
+            <span>Stock faible</span>
             <span className="flex items-center gap-1">
               <ArrowDownLeft className="size-4 text-red-600" />
               {stats.withLowStock}
             </span>
           </div>
           <div className="flex justify-between text-sm">
-            <span>à restocker (&gt;7 jours)</span>
+            <span>A restocker (7 jours)</span>
             <span className="flex items-center gap-1">
               <Users className="size-4 text-orange-500" />
               {stats.needingRestock}

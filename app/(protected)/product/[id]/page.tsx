@@ -28,6 +28,7 @@ import {
   getStockScoreBgColor,
 } from "@/lib/utils/stock";
 import DeleteProductButton from "./delete-product-button";
+import RestockButton from "./restock-button";
 import StockEvolutionChart from "./stock-evolution-chart";
 import ProductQRCode from "@/components/product-qr-code";
 
@@ -132,6 +133,7 @@ export default async function Page({
           </div>
         </div>
         <div className="flex items-center gap-2 pl-12 sm:pl-0">
+          <RestockButton productId={id} />
           <Button asChild size="sm" className="sm:size-default">
             <Link href={`/product/${id}/edit`}>
               <Edit3Icon className="size-4" />

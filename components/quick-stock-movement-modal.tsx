@@ -105,10 +105,12 @@ export default function QuickStockMovementModal({
 
   // Fetch product when productId changes
   useEffect(() => {
-    if (!productId || !open) {
+    if (!productId || !open || !currentOrganization) {
       setProduct(null);
       return;
     }
+
+    const organizationId = currentOrganization.id;
 
     async function fetchProduct() {
       setIsLoading(true);
@@ -124,6 +126,7 @@ export default function QuickStockMovementModal({
           supabase
             .from("technicians")
             .select("id, first_name, last_name")
+            .eq("organization_id", organizationId)
             .order("last_name"),
         ]);
 
@@ -151,7 +154,7 @@ export default function QuickStockMovementModal({
       quantity: 1,
       notes: "",
     });
-  }, [productId, open]);
+  }, [productId, open, currentOrganization]);
 
   const onSubmit = async (data: FormValues) => {
     if (!product || !currentOrganization) return;

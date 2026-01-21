@@ -26,7 +26,7 @@ export default function ProductQRCode({
 }: ProductQRCodeProps) {
   const qrRef = useRef<HTMLDivElement>(null);
 
-  const qrValue = `smpr://product/${productId}`;
+  const qrValue = `https://istock-app.space/stock?product=${productId}`;
 
   const handleDownload = () => {
     const canvas = qrRef.current?.querySelector("canvas");
@@ -128,7 +128,7 @@ export default function ProductQRCode({
       <CardHeader className="pb-3">
         <CardTitle className="text-base">QR Code Produit</CardTitle>
         <CardDescription>
-          Scannez pour accéder au produit
+          Scannez pour gérer le stock rapidement
         </CardDescription>
       </CardHeader>
       <CardContent>

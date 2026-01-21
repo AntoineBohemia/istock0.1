@@ -23,6 +23,7 @@ import {
   MoreHorizontal,
   Package,
   PlusCircle,
+  RefreshCw,
   Search,
   Trash2,
 } from "lucide-react";
@@ -97,6 +98,7 @@ import {
   getStockStatus,
 } from "@/lib/utils/stock";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
+import QuickStockMovementModal from "@/components/quick-stock-movement-modal";
 
 export default function ProductList() {
   const router = useRouter();
@@ -114,6 +116,8 @@ export default function ProductList() {
   const [productToDelete, setProductToDelete] =
     useState<ProductWithCategory | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [stockModalOpen, setStockModalOpen] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
   const loadData = async () => {
     if (!currentOrganization) return;
@@ -347,6 +351,16 @@ export default function ProductList() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedProductId(product.id);
+                  setStockModalOpen(true);
+                }}
+              >
+                <RefreshCw className="mr-2 size-4" />
+                Restocker
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link href={`/product/${product.id}`}>Voir détails</Link>
@@ -586,6 +600,16 @@ export default function ProductList() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <QuickStockMovementModal
+        open={stockModalOpen}
+        onClose={() => {
+          setStockModalOpen(false);
+          setSelectedProductId(null);
+          loadData(); // Refresh data after stock movement
+        }}
+        productId={selectedProductId}
+      />
     </>
   );
 }

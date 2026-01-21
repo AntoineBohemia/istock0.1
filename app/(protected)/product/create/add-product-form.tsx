@@ -47,8 +47,7 @@ import { useFileUpload } from "@/hooks/use-file-upload";
 import AddNewCategory from "./add-category";
 import Link from "next/link";
 import {
-  getParentCategories,
-  getSubCategories,
+  getCategories,
   Category,
 } from "@/lib/supabase/queries/categories";
 import {
@@ -69,7 +68,6 @@ const FormSchema = z.object({
   stock_min: z.string().optional(),
   stock_max: z.string().optional(),
   category_id: z.string().optional(),
-  sub_category_id: z.string().optional(),
   supplier_name: z.string().optional(),
   is_perishable: z.boolean(),
   track_stock: z.boolean(),
@@ -88,12 +86,8 @@ export default function AddProductForm({
 }: AddProductFormProps) {
   const router = useRouter();
   const { currentOrganization } = useOrganizationStore();
-  const [parentCategories, setParentCategories] = useState<Category[]>([]);
-  const [subCategories, setSubCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
-    initialData?.category_id || ""
-  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(
     initialData?.image_url || null
@@ -110,20 +104,19 @@ export default function AddProductForm({
       stock_min: initialData?.stock_min || "10",
       stock_max: initialData?.stock_max || "100",
       category_id: initialData?.category_id || "",
-      sub_category_id: initialData?.sub_category_id || "",
       supplier_name: initialData?.supplier_name || "",
       is_perishable: initialData?.is_perishable || false,
       track_stock: initialData?.track_stock ?? true,
     },
   });
 
-  // Charger les catégories parentes au montage
+  // Charger les catégories au montage
   useEffect(() => {
     async function loadCategories() {
       if (!currentOrganization) return;
       try {
-        const categories = await getParentCategories(currentOrganization.id);
-        setParentCategories(categories);
+        const cats = await getCategories(currentOrganization.id);
+        setCategories(cats);
       } catch (error) {
         toast.error("Erreur lors du chargement des catégories");
       } finally {
@@ -133,35 +126,8 @@ export default function AddProductForm({
     loadCategories();
   }, [currentOrganization]);
 
-  // Charger les sous-catégories quand une catégorie parente est sélectionnée
-  useEffect(() => {
-    async function loadSubCategories() {
-      if (!selectedCategoryId) {
-        setSubCategories([]);
-        return;
-      }
-      try {
-        const subs = await getSubCategories(selectedCategoryId);
-        setSubCategories(subs);
-      } catch (error) {
-        toast.error("Erreur lors du chargement des sous-catégories");
-      }
-    }
-    loadSubCategories();
-  }, [selectedCategoryId]);
-
-  const handleCategoryChange = (value: string) => {
-    setSelectedCategoryId(value);
-    form.setValue("category_id", value);
-    form.setValue("sub_category_id", "");
-  };
-
   const handleCategoryCreated = (category: Category) => {
-    if (!category.parent_id) {
-      setParentCategories((prev) => [...prev, category]);
-    } else if (category.parent_id === selectedCategoryId) {
-      setSubCategories((prev) => [...prev, category]);
-    }
+    setCategories((prev) => [...prev, category]);
   };
 
   const [
@@ -198,8 +164,7 @@ export default function AddProductForm({
         imageUrl = await uploadProductImage(files[0].file);
       }
 
-      // Déterminer la catégorie finale (sous-catégorie ou catégorie parente)
-      const finalCategoryId = data.sub_category_id || data.category_id || null;
+      const finalCategoryId = data.category_id || null;
 
       const productData = {
         organization_id: currentOrganization.id,
@@ -580,99 +545,50 @@ export default function AddProductForm({
 
             <Card>
               <CardHeader className="flex-row items-center justify-between">
-                <CardTitle>Catégories</CardTitle>
+                <CardTitle>Catégorie</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <FormField
-                    name="category_id"
-                    control={form.control}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Catégorie principale</FormLabel>
-                        <FormControl>
-                          <div className="flex gap-2">
-                            <div className="grow">
-                              <Select
-                                value={field.value}
-                                onValueChange={handleCategoryChange}
-                                disabled={isLoadingCategories}
-                              >
-                                <SelectTrigger className="w-full">
-                                  {isLoadingCategories ? (
-                                    <Loader2 className="size-4 animate-spin" />
-                                  ) : (
-                                    <SelectValue placeholder="Sélectionnez une catégorie" />
-                                  )}
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectGroup>
-                                    {parentCategories.map((cat) => (
-                                      <SelectItem key={cat.id} value={cat.id}>
-                                        {cat.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectGroup>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <AddNewCategory
-                              onCategoryCreated={handleCategoryCreated}
-                              isSubCategory={false}
-                            />
+                <FormField
+                  name="category_id"
+                  control={form.control}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Catégorie</FormLabel>
+                      <FormControl>
+                        <div className="flex gap-2">
+                          <div className="grow">
+                            <Select
+                              value={field.value}
+                              onValueChange={field.onChange}
+                              disabled={isLoadingCategories}
+                            >
+                              <SelectTrigger className="w-full">
+                                {isLoadingCategories ? (
+                                  <Loader2 className="size-4 animate-spin" />
+                                ) : (
+                                  <SelectValue placeholder="Sélectionnez une catégorie" />
+                                )}
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectGroup>
+                                  {categories.map((cat) => (
+                                    <SelectItem key={cat.id} value={cat.id}>
+                                      {cat.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
                           </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    name="sub_category_id"
-                    control={form.control}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Sous-catégorie</FormLabel>
-                        <FormControl>
-                          <div className="flex gap-2">
-                            <div className="grow">
-                              <Select
-                                value={field.value}
-                                onValueChange={field.onChange}
-                                disabled={!selectedCategoryId}
-                              >
-                                <SelectTrigger className="w-full">
-                                  <SelectValue
-                                    placeholder={
-                                      selectedCategoryId
-                                        ? "Sélectionnez une sous-catégorie"
-                                        : "Sélectionnez d'abord une catégorie"
-                                    }
-                                  />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectGroup>
-                                    {subCategories.map((cat) => (
-                                      <SelectItem key={cat.id} value={cat.id}>
-                                        {cat.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectGroup>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <AddNewCategory
-                              parentCategories={parentCategories}
-                              onCategoryCreated={handleCategoryCreated}
-                              isSubCategory={true}
-                              defaultParentId={selectedCategoryId}
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                          <AddNewCategory
+                            onCategoryCreated={handleCategoryCreated}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </CardContent>
             </Card>
           </div>
