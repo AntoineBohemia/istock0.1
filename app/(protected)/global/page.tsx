@@ -48,11 +48,11 @@ export default function Page() {
 
       {/* Desktop Layout: Original grid system */}
       <div className="hidden lg:block">
-        <div className="mt-4 grid gap-4 xl:grid-cols-4 2xl:grid-cols-4">
-          <div className="xl:col-span-1 2xl:col-span-1">
+        <div className="mt-4 grid gap-4 xl:grid-cols-5">
+          <div className="xl:col-span-2">
             <StockMovementCard />
           </div>
-          <div className="xl:col-span-3 2xl:col-span-3">
+          <div className="xl:col-span-3">
             <SuccessMetrics />
           </div>
         </div>
