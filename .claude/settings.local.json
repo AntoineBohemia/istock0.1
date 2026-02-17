@@ -29,7 +29,8 @@
       "Bash(pnpm build:*)",
       "Bash(node -e:*)",
       "Bash(git checkout:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npx vitest run:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
