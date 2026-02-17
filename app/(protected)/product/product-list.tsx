@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ColumnDef,
@@ -10,14 +10,13 @@ import {
   VisibilityState,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 import {
   ArrowUpDown,
   ColumnsIcon,
+  Download,
   FilterIcon,
   Loader2,
   MoreHorizontal,
@@ -99,6 +98,7 @@ import {
 } from "@/lib/utils/stock";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import QuickStockMovementModal from "@/components/quick-stock-movement-modal";
+import { exportToCSV } from "@/lib/utils/csv-export";
 
 export default function ProductList() {
   const router = useRouter();
@@ -111,6 +111,7 @@ export default function ProductList() {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] =
@@ -118,8 +119,25 @@ export default function ProductList() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [stockModalOpen, setStockModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const pageSize = 20;
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const loadData = async () => {
+  // Debounced search
+  useEffect(() => {
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [searchQuery]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, selectedCategory]);
+
+  const loadData = useCallback(async () => {
     if (!currentOrganization) return;
 
     setIsLoading(true);
@@ -127,46 +145,28 @@ export default function ProductList() {
       const [productsResult, categoriesData] = await Promise.all([
         getProducts({
           organizationId: currentOrganization.id,
-          search: searchQuery,
-          pageSize: 100
+          search: debouncedSearch || undefined,
+          categoryId: selectedCategory !== "all" ? selectedCategory : undefined,
+          page,
+          pageSize,
         }),
         getCategories(currentOrganization.id),
       ]);
       setProducts(productsResult.products);
+      setTotalCount(productsResult.total);
       setCategories(categoriesData);
     } catch (error) {
       toast.error("Erreur lors du chargement des produits");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentOrganization?.id, page, debouncedSearch, selectedCategory]);
 
   useEffect(() => {
     if (!isOrgLoading && currentOrganization) {
       loadData();
     }
-  }, [currentOrganization?.id, isOrgLoading]);
-
-  // Filtrer les produits côté client
-  const filteredProducts = React.useMemo(() => {
-    let result = products;
-
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(
-        (p) =>
-          p.name.toLowerCase().includes(query) ||
-          p.sku?.toLowerCase().includes(query) ||
-          p.description?.toLowerCase().includes(query)
-      );
-    }
-
-    if (selectedCategory && selectedCategory !== "all") {
-      result = result.filter((p) => p.category_id === selectedCategory);
-    }
-
-    return result;
-  }, [products, searchQuery, selectedCategory]);
+  }, [currentOrganization?.id, isOrgLoading, page, debouncedSearch, selectedCategory]);
 
   const handleDelete = async () => {
     if (!productToDelete) return;
@@ -185,6 +185,18 @@ export default function ProductList() {
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleExportCSV = () => {
+    exportToCSV(products, "produits", [
+      { header: "Nom", accessor: (p) => p.name },
+      { header: "SKU", accessor: (p) => p.sku },
+      { header: "Catégorie", accessor: (p) => p.category?.name },
+      { header: "Prix", accessor: (p) => p.price },
+      { header: "Stock actuel", accessor: (p) => p.stock_current },
+      { header: "Stock min", accessor: (p) => p.stock_min },
+      { header: "Stock max", accessor: (p) => p.stock_max },
+    ]);
   };
 
   const columns: ColumnDef<ProductWithCategory>[] = [
@@ -392,14 +404,12 @@ export default function ProductList() {
   ];
 
   const table = useReactTable({
-    data: filteredProducts,
+    data: products,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
     state: {
@@ -453,6 +463,10 @@ export default function ProductList() {
                     ))}
                 </SelectContent>
               </Select>
+              <Button variant="outline" onClick={handleExportCSV}>
+                <Download className="size-4" />
+                <span className="hidden lg:inline">Exporter CSV</span>
+              </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline">
@@ -549,26 +563,24 @@ export default function ProductList() {
                 </TableBody>
               </Table>
             </div>
-            <div className="flex items-center justify-end space-x-2">
-              <div className="text-muted-foreground flex-1 text-sm">
-                {table.getFilteredSelectedRowModel().rows.length} sur{" "}
-                {table.getFilteredRowModel().rows.length} produit(s)
-                sélectionné(s).
-              </div>
-              <div className="space-x-2">
+            <div className="flex items-center justify-between">
+              <p className="text-muted-foreground text-sm">
+                {totalCount} produit(s) au total
+              </p>
+              <div className="flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => table.previousPage()}
-                  disabled={!table.getCanPreviousPage()}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
                 >
                   Précédent
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => table.nextPage()}
-                  disabled={!table.getCanNextPage()}
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={products.length < pageSize}
                 >
                   Suivant
                 </Button>

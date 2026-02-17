@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
   Calendar,
@@ -102,6 +103,10 @@ const errorRoutes = [
 ];
 
 export default function DevPage() {
+  if (process.env.NODE_ENV !== "development") {
+    redirect("/global");
+  }
+
   return (
     <div className="relative min-h-screen bg-background p-8">
       <div className="absolute top-4 right-4">

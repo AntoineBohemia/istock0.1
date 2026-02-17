@@ -16,6 +16,7 @@ import {
 } from "@tanstack/react-table";
 import {
   ArrowUpDown,
+  Download,
   Loader2,
   ImageIcon,
   ArrowDownToLine,
@@ -62,6 +63,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import CreateMovementDialog from "./create-movement-dialog";
+import { exportToCSV } from "@/lib/utils/csv-export";
 
 const MOVEMENT_BADGE_VARIANTS: Record<
   MovementType,
@@ -189,6 +191,17 @@ export default function MovementsList() {
 
   const handleSuccess = () => {
     loadMovements();
+  };
+
+  const handleExportCSV = () => {
+    exportToCSV(movements, "mouvements", [
+      { header: "Date", accessor: (m) => new Date(m.created_at).toLocaleDateString("fr-FR") },
+      { header: "Type", accessor: (m) => MOVEMENT_TYPE_LABELS[m.movement_type] },
+      { header: "Produit", accessor: (m) => m.product?.name },
+      { header: "Quantité", accessor: (m) => m.quantity },
+      { header: "Technicien", accessor: (m) => m.technician ? `${m.technician.first_name} ${m.technician.last_name}` : "" },
+      { header: "Notes", accessor: (m) => m.notes },
+    ]);
   };
 
   const columns: ColumnDef<StockMovement>[] = [
@@ -430,9 +443,14 @@ export default function MovementsList() {
             )}
 
             <Button
+              variant="outline"
               className="ml-auto"
-              onClick={() => setCreateDialogOpen(true)}
+              onClick={handleExportCSV}
             >
+              <Download className="size-4" />
+              Exporter CSV
+            </Button>
+            <Button onClick={() => setCreateDialogOpen(true)}>
               <PlusCircle className="size-4" />
               Nouveau mouvement
             </Button>

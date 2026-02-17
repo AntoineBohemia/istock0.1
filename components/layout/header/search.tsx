@@ -88,7 +88,7 @@ export default function Search() {
         </VisuallyHidden>
         <CommandInput placeholder="Tappez une recherche" />
         <CommandList>
-          <CommandEmpty>No results found.</CommandEmpty>
+          <CommandEmpty>Aucun résultat trouvé.</CommandEmpty>
           {page_routes.map((route) => (
             <React.Fragment key={route.title}>
               <CommandGroup heading={route.title}>

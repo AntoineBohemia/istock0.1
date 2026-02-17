@@ -1,10 +1,12 @@
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { generateMeta } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export async function generateMetadata() {
   return generateMeta({
-    title: "500 Page",
-    description:
-      "This is an example of a template for 500 error pages. Built with shadcn/ui, Tailwind CSS and Next.js.",
+    title: "Erreur 500",
+    description: "Erreur serveur - iStock",
     canonical: "/pages/error/500"
   });
 }
@@ -30,10 +32,19 @@ export default function Page() {
             <div className="mb-4 text-8xl font-black tracking-tighter text-red-600 sm:text-9xl">
               500
             </div>
-            <div className="text-foreground text-xl font-medium sm:text-2xl">Server Error</div>
+            <div className="text-foreground text-xl font-medium sm:text-2xl">Erreur serveur</div>
           </div>
 
           <div className="from-background/80 absolute right-0 bottom-0 left-0 h-1/3 bg-gradient-to-t to-transparent" />
+        </div>
+
+        <div className="flex justify-center">
+          <Button asChild variant="outline" size="lg" className="group">
+            <Link href="/">
+              Retour à l'accueil
+              <ArrowRight />
+            </Link>
+          </Button>
         </div>
       </div>
     </div>

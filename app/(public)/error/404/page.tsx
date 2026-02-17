@@ -5,9 +5,8 @@ import { Button } from "@/components/ui/button";
 
 export async function generateMetadata() {
   return generateMeta({
-    title: "404 Page",
-    description:
-      "This is an example of a template for 404 error pages. Built with shadcn/ui, Tailwind CSS and Next.js.",
+    title: "Page 404",
+    description: "Page non trouvée - iStock",
     canonical: "/pages/error/404"
   });
 }
@@ -33,7 +32,7 @@ export default function Page() {
             <div className="text-primary mb-4 text-8xl font-black tracking-tighter sm:text-9xl">
               404
             </div>
-            <div className="text-foreground text-xl font-medium sm:text-2xl">Page Not Found</div>
+            <div className="text-foreground text-xl font-medium sm:text-2xl">Page non trouvée</div>
           </div>
 
           <div className="from-background/80 absolute right-0 bottom-0 left-0 h-1/3 bg-gradient-to-t to-transparent" />
@@ -42,7 +41,7 @@ export default function Page() {
         <div className="flex justify-center">
           <Button asChild variant="outline" size="lg" className="group">
             <Link href="/">
-              Back to Home
+              Retour à l'accueil
               <ArrowRight />
             </Link>
           </Button>

@@ -121,7 +121,7 @@ export default function UserMenu() {
         <DropdownMenuSeparator />
 
         <DropdownMenuGroup>
-          <DropdownMenuItem>
+          <DropdownMenuItem onClick={() => router.push("/users/inventory")} className="cursor-pointer">
             <BadgeCheck />
             Mon Compte
           </DropdownMenuItem>
