@@ -6,7 +6,7 @@ vi.mock("@/lib/supabase/client", () => ({
   createClient: () => mockClient,
 }));
 
-import { restockTechnician } from "./inventory";
+import { restockTechnician, getAvailableProductsForRestock } from "./inventory";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -56,5 +56,34 @@ describe("restockTechnician", () => {
     await expect(
       restockTechnician("tech-1", [{ productId: "p1", quantity: 1 }])
     ).rejects.toThrow("Erreur lors du restock: Connection timeout");
+  });
+});
+
+// ─── getAvailableProductsForRestock ──────────────────────────────────
+describe("getAvailableProductsForRestock", () => {
+  it("returns products with stock > 0", async () => {
+    const products = [
+      { id: "p1", name: "Widget", sku: "W-1", image_url: null, stock_current: 10, stock_max: 100 },
+    ];
+    mockClient._setResult({ data: products, error: null });
+
+    const result = await getAvailableProductsForRestock();
+
+    expect(result).toEqual(products);
+    expect(mockClient.gt).toHaveBeenCalledWith("stock_current", 0);
+  });
+
+  it("returns empty array when no products available", async () => {
+    mockClient._setResult({ data: [], error: null });
+
+    const result = await getAvailableProductsForRestock();
+
+    expect(result).toEqual([]);
+  });
+
+  it("throws on Supabase error", async () => {
+    mockClient._setResult({ data: null, error: { message: "Products error" } });
+
+    await expect(getAvailableProductsForRestock()).rejects.toThrow("Products error");
   });
 });
