@@ -14,6 +14,7 @@ import {
 import { useOnboardingStore, ProductData } from "../store";
 import { Package, Loader2, Plus, X, Info, Check, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { createProduct } from "@/lib/supabase/queries/products";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -118,22 +119,16 @@ export function ProductsStep() {
         if (!product.id) {
           setSavingIndex(i);
 
-          const { data: created, error } = await supabase
-            .from("products")
-            .insert({
-              organization_id: data.createdOrganizationId,
+          const created = await createProduct({
+              organization_id: data.createdOrganizationId!,
               name: product.name.trim(),
-              sku: product.sku?.trim() || null,
+              sku: product.sku?.trim() || undefined,
               category_id: product.categoryId || null,
               stock_min: product.stockMin,
               stock_max: product.stockMax,
               stock_current: product.stockInitial,
-              price: product.price || null,
-            })
-            .select()
-            .single();
-
-          if (error) throw error;
+              price: product.price ?? null,
+            });
 
           // Create initial stock movement if needed
           if (product.stockInitial > 0) {
@@ -225,7 +220,6 @@ export function ProductsStep() {
                     <p className="font-medium truncate">{product.name}</p>
                     <p className="text-xs text-muted-foreground truncate">
                       {product.categoryId ? getCategoryName(product.categoryId) : "Sans categorie"}
-                      {product.sku && ` - ${product.sku}`}
                       {" - Stock: "}{product.stockInitial}
                     </p>
                   </div>
@@ -286,17 +280,7 @@ export function ProductsStep() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="product-sku">Reference / SKU</Label>
-                <Input
-                  id="product-sku"
-                  placeholder="Ex: PBM-10L-001"
-                  value={currentProduct.sku}
-                  onChange={(e) => handleChange("sku", e.target.value)}
-                />
-              </div>
-
+            <div className="grid gap-4">
               <div className="grid gap-2">
                 <Label>Categorie</Label>
                 <Select

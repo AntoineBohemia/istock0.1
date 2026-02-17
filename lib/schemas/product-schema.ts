@@ -6,10 +6,34 @@ export const ProductFormSchema = z.object({
   }),
   sku: z.string().optional(),
   description: z.string().optional(),
-  price: z.string().optional(),
-  stock_current: z.string().optional(),
-  stock_min: z.string().optional(),
-  stock_max: z.string().optional(),
+  price: z
+    .string()
+    .optional()
+    .refine(
+      (val) => !val || !Number.isNaN(parseFloat(val)),
+      { message: "Le prix doit être un nombre valide." }
+    ),
+  stock_current: z
+    .string()
+    .optional()
+    .refine(
+      (val) => !val || !Number.isNaN(parseInt(val, 10)),
+      { message: "Le stock doit être un nombre valide." }
+    ),
+  stock_min: z
+    .string()
+    .optional()
+    .refine(
+      (val) => !val || !Number.isNaN(parseInt(val, 10)),
+      { message: "Le stock minimum doit être un nombre valide." }
+    ),
+  stock_max: z
+    .string()
+    .optional()
+    .refine(
+      (val) => !val || !Number.isNaN(parseInt(val, 10)),
+      { message: "Le stock maximum doit être un nombre valide." }
+    ),
   category_id: z.string().optional(),
   supplier_name: z.string().optional(),
   is_perishable: z.boolean(),

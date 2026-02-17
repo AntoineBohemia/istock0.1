@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 export type OnboardingStep =
   | "welcome"
@@ -105,7 +106,11 @@ const initialData: OnboardingData = {
   createdProductIds: [],
 };
 
-export const useOnboardingStore = create<OnboardingStore>((set, get) => ({
+const STORAGE_KEY = "istock-onboarding";
+
+export const useOnboardingStore = create<OnboardingStore>()(
+  persist(
+    (set, get) => ({
   currentStep: 0,
   data: initialData,
   completedSteps: [],
@@ -256,7 +261,10 @@ export const useOnboardingStore = create<OnboardingStore>((set, get) => ({
     });
   },
 
-  reset: () => set({ currentStep: 0, data: initialData, completedSteps: [], error: null }),
+  reset: () => {
+    set({ currentStep: 0, data: initialData, completedSteps: [], error: null });
+    localStorage.removeItem(STORAGE_KEY);
+  },
 
   setLoading: (loading) => set({ isLoading: loading }),
 
@@ -271,4 +279,14 @@ export const useOnboardingStore = create<OnboardingStore>((set, get) => ({
     const state = get();
     return Math.round((state.currentStep / (ONBOARDING_STEPS.length - 1)) * 100);
   },
-}));
+}),
+    {
+      name: STORAGE_KEY,
+      partialize: (state) => ({
+        currentStep: state.currentStep,
+        data: state.data,
+        completedSteps: state.completedSteps,
+      }),
+    },
+  ),
+);

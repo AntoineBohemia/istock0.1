@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
-import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -56,24 +55,9 @@ import {
   uploadProductImage,
 } from "@/lib/supabase/queries/products";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
+import { ProductFormSchema, type ProductFormValues } from "@/lib/schemas/product-schema";
 
-const FormSchema = z.object({
-  name: z.string().min(2, {
-    message: "Le nom du produit doit contenir au moins 2 caractères.",
-  }),
-  sku: z.string().optional(),
-  description: z.string().optional(),
-  price: z.string().optional(),
-  stock_current: z.string().optional(),
-  stock_min: z.string().optional(),
-  stock_max: z.string().optional(),
-  category_id: z.string().optional(),
-  supplier_name: z.string().optional(),
-  is_perishable: z.boolean(),
-  track_stock: z.boolean(),
-});
-
-type FormValues = z.infer<typeof FormSchema>;
+type FormValues = ProductFormValues;
 
 interface AddProductFormProps {
   mode?: "create" | "edit";
@@ -94,10 +78,10 @@ export default function AddProductForm({
   );
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(FormSchema),
+    resolver: zodResolver(ProductFormSchema),
     defaultValues: {
       name: initialData?.name || "",
-      sku: initialData?.sku || "",
+      sku: "",
       description: initialData?.description || "",
       price: initialData?.price || "",
       stock_current: initialData?.stock_current || "0",
@@ -264,25 +248,6 @@ export default function AddProductForm({
                     )}
                   />
                   <div className="grid gap-4 lg:grid-cols-2">
-                    <FormField
-                      control={form.control}
-                      name="sku"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>SKU</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Auto-généré si vide"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Laissez vide pour générer automatiquement
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                     <FormField
                       control={form.control}
                       name="price"

@@ -64,9 +64,35 @@ describe("ProductFormSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts valid product with all optional fields", () => {
+    const result = ProductFormSchema.safeParse({
+      name: "Peinture Blanche",
+      sku: "PB-001",
+      description: "Peinture mate",
+      price: "25.99",
+      stock_current: "10",
+      stock_min: "5",
+      stock_max: "100",
+      category_id: "cat-1",
+      supplier_name: "Fournisseur A",
+      is_perishable: false,
+      track_stock: true,
+    });
+    expect(result.success).toBe(true);
+  });
+
   it("rejects name shorter than 2 characters", () => {
     const result = ProductFormSchema.safeParse({
       name: "A",
+      is_perishable: false,
+      track_stock: true,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects empty name", () => {
+    const result = ProductFormSchema.safeParse({
+      name: "",
       is_perishable: false,
       track_stock: true,
     });
@@ -81,23 +107,93 @@ describe("ProductFormSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  // BUG: price is a z.string().optional(), so "abc" passes Zod validation
-  // but will produce NaN when parseInt/parseFloat is called in the form submit handler
-  it("BUG: accepts non-numeric price string (NaN at runtime)", () => {
+  it("requires track_stock boolean", () => {
+    const result = ProductFormSchema.safeParse({
+      name: "Valid",
+      is_perishable: false,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects non-numeric price string", () => {
     const result = ProductFormSchema.safeParse({
       name: "Widget",
       price: "abc",
       is_perishable: false,
       track_stock: true,
     });
-    // Zod passes because price is just z.string().optional()
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
+  });
 
-    // But at runtime this will produce NaN:
-    if (result.success) {
-      const parsed = parseFloat(result.data.price!);
-      expect(Number.isNaN(parsed)).toBe(true);
-    }
+  it("accepts valid numeric price string", () => {
+    const result = ProductFormSchema.safeParse({
+      name: "Widget",
+      price: "29.99",
+      is_perishable: false,
+      track_stock: true,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts price of 0", () => {
+    const result = ProductFormSchema.safeParse({
+      name: "Free Item",
+      price: "0",
+      is_perishable: false,
+      track_stock: true,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts empty/undefined price", () => {
+    const result = ProductFormSchema.safeParse({
+      name: "No Price",
+      is_perishable: false,
+      track_stock: true,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects non-numeric stock_current", () => {
+    const result = ProductFormSchema.safeParse({
+      name: "Widget",
+      stock_current: "abc",
+      is_perishable: false,
+      track_stock: true,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects non-numeric stock_min", () => {
+    const result = ProductFormSchema.safeParse({
+      name: "Widget",
+      stock_min: "xyz",
+      is_perishable: false,
+      track_stock: true,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects non-numeric stock_max", () => {
+    const result = ProductFormSchema.safeParse({
+      name: "Widget",
+      stock_max: "not-a-number",
+      is_perishable: false,
+      track_stock: true,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts valid numeric stock values", () => {
+    const result = ProductFormSchema.safeParse({
+      name: "Widget",
+      stock_current: "10",
+      stock_min: "5",
+      stock_max: "100",
+      is_perishable: false,
+      track_stock: true,
+    });
+    expect(result.success).toBe(true);
   });
 });
 

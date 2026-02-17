@@ -195,7 +195,7 @@ export async function createProduct(data: CreateProductData): Promise<Product> {
     sku,
     description: data.description || null,
     image_url: data.image_url || null,
-    price: data.price || null,
+    price: data.price ?? null,
     stock_current: data.stock_current ?? 0,
     stock_min: data.stock_min ?? 10,
     stock_max: data.stock_max ?? 100,

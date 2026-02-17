@@ -30,7 +30,9 @@
       "Bash(node -e:*)",
       "Bash(git checkout:*)",
       "Bash(npx tsc:*)",
-      "Bash(npx vitest run:*)"
+      "Bash(npx vitest run:*)",
+      "Bash(npm test:*)",
+      "Bash(./node_modules/.bin/vitest run:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

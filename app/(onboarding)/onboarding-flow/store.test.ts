@@ -20,6 +20,7 @@ const mockProduct: ProductData = {
 describe("useOnboardingStore", () => {
   beforeEach(() => {
     useOnboardingStore.getState().reset();
+    localStorage.clear();
   });
 
   // ─── Navigation ─────────────────────────────────────────────────
@@ -199,6 +200,39 @@ describe("useOnboardingStore", () => {
       expect(state.data.categories).toHaveLength(0);
       expect(state.completedSteps).toHaveLength(0);
       expect(state.error).toBeNull();
+    });
+
+    it("reset clears localStorage", () => {
+      useOnboardingStore.getState().nextStep();
+      useOnboardingStore.getState().reset();
+      expect(localStorage.getItem("istock-onboarding")).toBeNull();
+    });
+  });
+
+  // ─── persistence ─────────────────────────────────────────────────
+  describe("persistence", () => {
+    it("persists state to localStorage", () => {
+      useOnboardingStore.getState().nextStep();
+      useOnboardingStore.getState().addCategory(mockCategory);
+
+      const stored = localStorage.getItem("istock-onboarding");
+      expect(stored).not.toBeNull();
+
+      const parsed = JSON.parse(stored!);
+      expect(parsed.state.currentStep).toBe(1);
+      expect(parsed.state.data.categories).toHaveLength(1);
+    });
+
+    it("does not persist isLoading or error", () => {
+      useOnboardingStore.getState().setLoading(true);
+      useOnboardingStore.getState().setError("test error");
+
+      const stored = localStorage.getItem("istock-onboarding");
+      expect(stored).not.toBeNull();
+
+      const parsed = JSON.parse(stored!);
+      expect(parsed.state.isLoading).toBeUndefined();
+      expect(parsed.state.error).toBeUndefined();
     });
   });
 });
