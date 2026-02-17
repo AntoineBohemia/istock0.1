@@ -12,6 +12,8 @@ export function createMockSupabaseClient() {
     count: null,
   };
 
+  let _resultQueue: Array<{ data: unknown; error: unknown; count?: number | null }> = [];
+
   const client: Record<string, any> = {
     // ── Control ───────────────────────────────────────────────────
     _setResult(result: {
@@ -24,15 +26,30 @@ export function createMockSupabaseClient() {
         error: result.error ?? null,
         count: result.count ?? null,
       };
+      _resultQueue = [];
+      return client;
+    },
+
+    /**
+     * Set a queue of results for multi-query functions.
+     * Each `await` consumes the next result in order.
+     */
+    _setResults(results: Array<{ data?: unknown; error?: unknown; count?: number | null }>) {
+      _resultQueue = results.map((r) => ({
+        data: r.data ?? null,
+        error: r.error ?? null,
+        count: r.count ?? null,
+      }));
       return client;
     },
 
     // ── Thenable (makes `await client.from(...)...` work) ─────────
     then(resolve: (val: any) => void, reject?: (err: any) => void) {
+      const result = _resultQueue.length > 0 ? _resultQueue.shift()! : _result;
       return Promise.resolve({
-        data: _result.data,
-        error: _result.error,
-        count: _result.count,
+        data: result.data,
+        error: result.error,
+        count: result.count,
       }).then(resolve, reject);
     },
 

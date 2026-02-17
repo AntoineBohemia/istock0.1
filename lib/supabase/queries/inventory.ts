@@ -77,6 +77,138 @@ export async function getAvailableProductsForRestock(): Promise<
 }
 
 /**
+ * Ajoute des items à l'inventaire existant d'un technicien sans le réinitialiser.
+ * Pour les produits déjà présents, les quantités sont additionnées.
+ * Étapes :
+ * 1. Lire l'inventaire actuel
+ * 2. Sauvegarder un snapshot dans technician_inventory_history
+ * 3. Pour chaque item : vérifier stock, upsert inventaire, créer mouvement, décrémenter stock
+ */
+export async function addToTechnicianInventory(
+  technicianId: string,
+  items: RestockItem[]
+): Promise<RestockResult> {
+  const supabase = createClient();
+
+  // 1. Lire l'inventaire actuel du technicien
+  const { data: currentInventory, error: invError } = await supabase
+    .from("technician_inventory")
+    .select("id, product_id, quantity, product:products(name, sku)")
+    .eq("technician_id", technicianId);
+
+  if (invError) {
+    throw new Error(`Erreur lors de la lecture de l'inventaire: ${invError.message}`);
+  }
+
+  const previousItemsCount = currentInventory?.length ?? 0;
+
+  // 2. Sauvegarder un snapshot dans l'historique
+  const snapshotItems = (currentInventory ?? []).map((inv: any) => ({
+    product_id: inv.product_id,
+    product_name: inv.product?.name ?? "",
+    product_sku: inv.product?.sku ?? null,
+    quantity: inv.quantity,
+  }));
+
+  const { error: historyError } = await supabase
+    .from("technician_inventory_history")
+    .insert({
+      technician_id: technicianId,
+      snapshot: {
+        items: snapshotItems,
+        total_items: snapshotItems.reduce((sum: number, i: any) => sum + i.quantity, 0),
+      },
+    });
+
+  if (historyError) {
+    throw new Error(`Erreur lors de la sauvegarde de l'historique: ${historyError.message}`);
+  }
+
+  // 3. Traiter chaque item
+  for (const item of items) {
+    // a. Vérifier le stock disponible
+    const { data: product, error: productError } = await supabase
+      .from("products")
+      .select("stock_current, name")
+      .eq("id", item.productId)
+      .single();
+
+    if (productError || !product) {
+      throw new Error("Produit non trouvé");
+    }
+
+    if (product.stock_current < item.quantity) {
+      throw new Error(
+        `Stock insuffisant pour "${product.name}". Disponible: ${product.stock_current}, demandé: ${item.quantity}`
+      );
+    }
+
+    // b. Vérifier si le technicien a déjà ce produit
+    const existing = (currentInventory ?? []).find(
+      (inv: any) => inv.product_id === item.productId
+    );
+
+    if (existing) {
+      // UPDATE quantity += new_quantity
+      const { error: updateError } = await supabase
+        .from("technician_inventory")
+        .update({ quantity: existing.quantity + item.quantity })
+        .eq("id", existing.id);
+
+      if (updateError) {
+        throw new Error(`Erreur lors de la mise à jour de l'inventaire: ${updateError.message}`);
+      }
+    } else {
+      // INSERT nouveau produit dans l'inventaire
+      const { error: insertError } = await supabase
+        .from("technician_inventory")
+        .insert({
+          technician_id: technicianId,
+          product_id: item.productId,
+          quantity: item.quantity,
+        });
+
+      if (insertError) {
+        throw new Error(`Erreur lors de l'ajout à l'inventaire: ${insertError.message}`);
+      }
+    }
+
+    // c. Créer le mouvement de stock
+    const { error: movementError } = await supabase
+      .from("stock_movements")
+      .insert({
+        product_id: item.productId,
+        quantity: item.quantity,
+        movement_type: "exit_technician",
+        technician_id: technicianId,
+      });
+
+    if (movementError) {
+      throw new Error(`Erreur lors de la création du mouvement: ${movementError.message}`);
+    }
+
+    // d. Décrémenter le stock du produit
+    const { error: stockError } = await supabase
+      .from("products")
+      .update({
+        stock_current: product.stock_current - item.quantity,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.productId);
+
+    if (stockError) {
+      throw new Error(`Erreur lors de la mise à jour du stock: ${stockError.message}`);
+    }
+  }
+
+  return {
+    success: true,
+    items_count: items.length,
+    previous_items_count: previousItemsCount,
+  };
+}
+
+/**
  * Calcule le pourcentage d'inventaire d'un technicien par rapport au stock max
  */
 export function calculateInventoryPercentage(

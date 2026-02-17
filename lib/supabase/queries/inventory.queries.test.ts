@@ -6,7 +6,7 @@ vi.mock("@/lib/supabase/client", () => ({
   createClient: () => mockClient,
 }));
 
-import { restockTechnician, getAvailableProductsForRestock } from "./inventory";
+import { restockTechnician, getAvailableProductsForRestock, addToTechnicianInventory } from "./inventory";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -85,5 +85,99 @@ describe("getAvailableProductsForRestock", () => {
     mockClient._setResult({ data: null, error: { message: "Products error" } });
 
     await expect(getAvailableProductsForRestock()).rejects.toThrow("Products error");
+  });
+});
+
+// ─── addToTechnicianInventory ──────────────────────────────────────
+describe("addToTechnicianInventory", () => {
+  it("adds new items to empty inventory", async () => {
+    // Sequence: 1) read inventory, 2) insert history, 3) check product stock,
+    // 4) insert inventory, 5) insert movement, 6) update product stock
+    mockClient._setResults([
+      { data: [], error: null },                                              // 1. current inventory (empty)
+      { data: null, error: null },                                            // 2. insert history snapshot
+      { data: { stock_current: 10, name: "Widget" }, error: null },           // 3. check product stock
+      { data: null, error: null },                                            // 4. insert into technician_inventory
+      { data: null, error: null },                                            // 5. insert stock_movement
+      { data: null, error: null },                                            // 6. update product stock_current
+    ]);
+
+    const result = await addToTechnicianInventory("tech-1", [
+      { productId: "p1", quantity: 5 },
+    ]);
+
+    expect(result).toEqual({
+      success: true,
+      items_count: 1,
+      previous_items_count: 0,
+    });
+
+    // Verify history was saved
+    expect(mockClient.from).toHaveBeenCalledWith("technician_inventory_history");
+    // Verify inventory insert
+    expect(mockClient.insert).toHaveBeenCalledWith({
+      technician_id: "tech-1",
+      product_id: "p1",
+      quantity: 5,
+    });
+    // Verify movement was created
+    expect(mockClient.insert).toHaveBeenCalledWith({
+      product_id: "p1",
+      quantity: 5,
+      movement_type: "exit_technician",
+      technician_id: "tech-1",
+    });
+  });
+
+  it("adds quantities to existing products", async () => {
+    const existingInventory = [
+      { id: "inv-1", product_id: "p1", quantity: 3, product: { name: "Widget", sku: "W-1" } },
+    ];
+
+    // Sequence: 1) read inventory, 2) insert history, 3) check product stock,
+    // 4) update inventory quantity, 5) insert movement, 6) update product stock
+    mockClient._setResults([
+      { data: existingInventory, error: null },                               // 1. current inventory
+      { data: null, error: null },                                            // 2. insert history
+      { data: { stock_current: 10, name: "Widget" }, error: null },           // 3. check stock
+      { data: null, error: null },                                            // 4. update inventory (3+5=8)
+      { data: null, error: null },                                            // 5. insert movement
+      { data: null, error: null },                                            // 6. update stock
+    ]);
+
+    const result = await addToTechnicianInventory("tech-1", [
+      { productId: "p1", quantity: 5 },
+    ]);
+
+    expect(result).toEqual({
+      success: true,
+      items_count: 1,
+      previous_items_count: 1,
+    });
+
+    // Verify update was called with combined quantity (3 + 5 = 8)
+    expect(mockClient.update).toHaveBeenCalledWith({ quantity: 8 });
+  });
+
+  it("throws on insufficient stock", async () => {
+    mockClient._setResults([
+      { data: [], error: null },                                              // 1. current inventory
+      { data: null, error: null },                                            // 2. insert history
+      { data: { stock_current: 2, name: "Widget" }, error: null },            // 3. product has only 2
+    ]);
+
+    await expect(
+      addToTechnicianInventory("tech-1", [{ productId: "p1", quantity: 5 }])
+    ).rejects.toThrow('Stock insuffisant pour "Widget"');
+  });
+
+  it("throws on Supabase error", async () => {
+    mockClient._setResults([
+      { data: null, error: { message: "DB connection lost" } },               // 1. inventory read fails
+    ]);
+
+    await expect(
+      addToTechnicianInventory("tech-1", [{ productId: "p1", quantity: 1 }])
+    ).rejects.toThrow("Erreur lors de la lecture de l'inventaire: DB connection lost");
   });
 });

@@ -6,6 +6,7 @@ import { Loader2, ImageIcon, Plus, Minus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   restockTechnician,
+  addToTechnicianInventory,
   getAvailableProductsForRestock,
   RestockItem,
 } from "@/lib/supabase/queries/inventory";
@@ -66,6 +68,7 @@ export default function RestockDialog({
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>(
     []
   );
+  const [resetInventory, setResetInventory] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -143,7 +146,11 @@ export default function RestockDialog({
         quantity: p.quantity,
       }));
 
-      await restockTechnician(technicianId, items);
+      if (resetInventory) {
+        await restockTechnician(technicianId, items);
+      } else {
+        await addToTechnicianInventory(technicianId, items);
+      }
 
       toast.success("Restock effectué avec succès");
       onOpenChange(false);
@@ -165,8 +172,9 @@ export default function RestockDialog({
         <DialogHeader>
           <DialogTitle>Restocker le technicien</DialogTitle>
           <DialogDescription>
-            Sélectionnez les produits et quantités à attribuer. L&apos;ancien
-            inventaire sera archivé et le stock sera décrémenté.
+            {resetInventory
+              ? "Sélectionnez les produits et quantités à attribuer. L'ancien inventaire sera réinitialisé et archivé."
+              : "Sélectionnez les produits et quantités à ajouter à l'inventaire existant du technicien."}
           </DialogDescription>
         </DialogHeader>
 
@@ -200,6 +208,29 @@ export default function RestockDialog({
                     ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Reset inventory checkbox */}
+            <div className="flex items-start gap-3 rounded-lg border p-3">
+              <Checkbox
+                id="reset-inventory"
+                checked={resetInventory}
+                onCheckedChange={(checked) =>
+                  setResetInventory(checked === true)
+                }
+              />
+              <div className="space-y-1">
+                <Label
+                  htmlFor="reset-inventory"
+                  className="cursor-pointer text-sm font-medium leading-none"
+                >
+                  Réinitialiser l&apos;inventaire
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Décochez pour conserver l&apos;inventaire actuel et ajouter
+                  les produits sélectionnés
+                </p>
+              </div>
             </div>
 
             {/* Selected products list */}
