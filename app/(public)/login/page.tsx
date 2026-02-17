@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -26,6 +26,18 @@ function LoginForm() {
 
   // Récupère l'URL de redirection depuis les paramètres ou utilise la valeur par défaut
   const redirectTo = searchParams.get("redirectTo") || DEFAULT_REDIRECT;
+
+  // Détecte la session issue d'un magic link (token dans le hash de l'URL)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN") {
+        router.push(redirectTo);
+        router.refresh();
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase, router, redirectTo]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
