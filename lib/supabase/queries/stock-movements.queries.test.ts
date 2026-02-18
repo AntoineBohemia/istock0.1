@@ -250,4 +250,23 @@ describe("getMovementsSummary", () => {
 
     await expect(getMovementsSummary()).rejects.toThrow("Summary error");
   });
+
+  it("filters by organization_id when orgId is provided", async () => {
+    mockClient._setResult({ data: [], error: null });
+
+    await getMovementsSummary("org-1");
+
+    expect(mockClient.eq).toHaveBeenCalledWith("organization_id", "org-1");
+  });
+
+  it("does not filter by organization_id when orgId is omitted", async () => {
+    mockClient._setResult({ data: [], error: null });
+
+    await getMovementsSummary();
+
+    expect(mockClient.eq).not.toHaveBeenCalledWith(
+      "organization_id",
+      expect.anything()
+    );
+  });
 });

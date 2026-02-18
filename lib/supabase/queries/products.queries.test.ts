@@ -315,6 +315,68 @@ describe("getProducts", () => {
   });
 });
 
+// ─── getProducts — stockStatus client-side filtering ─────────────────
+describe("getProducts stockStatus filtering", () => {
+  const mockProducts = [
+    { id: "p1", name: "Low Stock", stock_current: 3, stock_min: 10, stock_max: 100 },
+    { id: "p2", name: "Normal", stock_current: 50, stock_min: 10, stock_max: 100 },
+    { id: "p3", name: "High Stock", stock_current: 100, stock_min: 10, stock_max: 100 },
+    { id: "p4", name: "Exact Min", stock_current: 10, stock_min: 10, stock_max: 100 },
+    { id: "p5", name: "Exact Max", stock_current: 100, stock_min: 10, stock_max: 100 },
+  ];
+
+  it('stockStatus "low" keeps only products where stock_current <= stock_min', async () => {
+    mockClient._setResult({ data: [...mockProducts], error: null, count: 5 });
+
+    const result = await getProducts({ stockStatus: "low" });
+
+    expect(result.products.map((p) => p.id)).toEqual(["p1", "p4"]);
+  });
+
+  it('stockStatus "high" keeps only products where stock_current >= stock_max', async () => {
+    mockClient._setResult({ data: [...mockProducts], error: null, count: 5 });
+
+    const result = await getProducts({ stockStatus: "high" });
+
+    expect(result.products.map((p) => p.id)).toEqual(["p3", "p5"]);
+  });
+
+  it('stockStatus "all" returns all products without filtering', async () => {
+    mockClient._setResult({ data: [...mockProducts], error: null, count: 5 });
+
+    const result = await getProducts({ stockStatus: "all" });
+
+    expect(result.products).toHaveLength(5);
+    expect(result.total).toBe(5);
+  });
+
+  it("stockStatus undefined returns all products without filtering", async () => {
+    mockClient._setResult({ data: [...mockProducts], error: null, count: 5 });
+
+    const result = await getProducts({});
+
+    expect(result.products).toHaveLength(5);
+    expect(result.total).toBe(5);
+  });
+
+  it("total is recalculated after client-side filter", async () => {
+    mockClient._setResult({ data: [...mockProducts], error: null, count: 5 });
+
+    const result = await getProducts({ stockStatus: "low" });
+
+    // total should be the filtered count, not the original DB count
+    expect(result.total).toBe(2);
+  });
+
+  it("totalPages is recalculated after client-side filter", async () => {
+    mockClient._setResult({ data: [...mockProducts], error: null, count: 5 });
+
+    const result = await getProducts({ stockStatus: "low", pageSize: 1 });
+
+    expect(result.totalPages).toBe(2);
+  });
+});
+
 // ─── getProduct ──────────────────────────────────────────────────────
 describe("getProduct", () => {
   it("returns a product by id", async () => {
