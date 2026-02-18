@@ -9,9 +9,12 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMovementsSummary } from "@/hooks/queries";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 export default function MovementsOverview() {
-  const { data: summary = { totalEntries: 0, totalExits: 0, recentMovements: 0 } } = useMovementsSummary();
+  const { currentOrganization } = useOrganizationStore();
+  const orgId = currentOrganization?.id;
+  const { data: summary = { totalEntries: 0, totalExits: 0, recentMovements: 0 } } = useMovementsSummary(orgId);
 
   const balance = summary.totalEntries - summary.totalExits;
   const isPositive = balance >= 0;

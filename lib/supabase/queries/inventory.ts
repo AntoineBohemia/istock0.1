@@ -51,7 +51,7 @@ export async function restockTechnician(
 /**
  * Récupère les produits disponibles pour le restock (avec stock > 0)
  */
-export async function getAvailableProductsForRestock(): Promise<
+export async function getAvailableProductsForRestock(organizationId: string): Promise<
   Array<{
     id: string;
     name: string;
@@ -66,6 +66,7 @@ export async function getAvailableProductsForRestock(): Promise<
   const { data, error } = await supabase
     .from("products")
     .select("id, name, sku, image_url, stock_current, stock_max")
+    .eq("organization_id", organizationId)
     .gt("stock_current", 0)
     .order("name", { ascending: true });
 

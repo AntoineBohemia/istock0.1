@@ -32,7 +32,7 @@ export const queryKeys = {
       [...queryKeys.movements.all, "byProduct", productId] as const,
     stats: (productId: string, months?: number) =>
       [...queryKeys.movements.all, "stats", productId, months] as const,
-    summary: () => [...queryKeys.movements.all, "summary"] as const,
+    summary: (orgId?: string) => [...queryKeys.movements.all, "summary", orgId] as const,
   },
 
   technicians: {

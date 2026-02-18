@@ -7,7 +7,7 @@ import { getAvailableProductsForRestock } from "@/lib/supabase/queries/inventory
 export function useAvailableProductsForRestock(orgId?: string) {
   return useQuery({
     queryKey: queryKeys.inventory.availableProducts(orgId),
-    queryFn: () => getAvailableProductsForRestock(),
+    queryFn: () => getAvailableProductsForRestock(orgId!),
     enabled: !!orgId,
   });
 }

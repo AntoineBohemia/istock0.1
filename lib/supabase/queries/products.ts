@@ -121,17 +121,8 @@ export async function getProducts(
     query = query.lte("price", maxPrice);
   }
 
-  // Filtre par statut de stock
-  if (stockStatus && stockStatus !== "all") {
-    switch (stockStatus) {
-      case "low":
-        query = query.lte("stock_current", supabase.rpc("get_stock_min"));
-        break;
-      case "high":
-        query = query.gte("stock_current", supabase.rpc("get_stock_max"));
-        break;
-    }
-  }
+  // Note: stockStatus "low"/"high" filters are applied client-side after fetch
+  // because PostgREST doesn't support column-to-column comparison directly
 
   // Pagination
   const from = (page - 1) * pageSize;
@@ -147,10 +138,21 @@ export async function getProducts(
     throw new Error(`Erreur lors de la récupération des produits: ${error.message}`);
   }
 
-  const total = count || 0;
+  let products = (data as ProductWithCategory[]) || [];
+  let total = count || 0;
+
+  // Apply stock status filter client-side (column-to-column comparison)
+  if (stockStatus && stockStatus !== "all") {
+    if (stockStatus === "low") {
+      products = products.filter((p) => p.stock_current <= p.stock_min);
+    } else if (stockStatus === "high") {
+      products = products.filter((p) => p.stock_current >= p.stock_max);
+    }
+    total = products.length;
+  }
 
   return {
-    products: (data as ProductWithCategory[]) || [],
+    products,
     total,
     page,
     pageSize,

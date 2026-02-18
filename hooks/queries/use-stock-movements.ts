@@ -37,10 +37,11 @@ export function useProductMovementStats(productId: string, months?: number) {
   });
 }
 
-export function useMovementsSummary() {
+export function useMovementsSummary(orgId?: string) {
   return useQuery({
-    queryKey: queryKeys.movements.summary(),
-    queryFn: () => getMovementsSummary(),
+    queryKey: queryKeys.movements.summary(orgId),
+    queryFn: () => getMovementsSummary(orgId),
+    enabled: !!orgId,
     staleTime: STALE_TIME.MODERATE,
   });
 }

@@ -67,16 +67,17 @@ describe("getAvailableProductsForRestock", () => {
     ];
     mockClient._setResult({ data: products, error: null });
 
-    const result = await getAvailableProductsForRestock();
+    const result = await getAvailableProductsForRestock("org-1");
 
     expect(result).toEqual(products);
+    expect(mockClient.eq).toHaveBeenCalledWith("organization_id", "org-1");
     expect(mockClient.gt).toHaveBeenCalledWith("stock_current", 0);
   });
 
   it("returns empty array when no products available", async () => {
     mockClient._setResult({ data: [], error: null });
 
-    const result = await getAvailableProductsForRestock();
+    const result = await getAvailableProductsForRestock("org-1");
 
     expect(result).toEqual([]);
   });
@@ -84,7 +85,7 @@ describe("getAvailableProductsForRestock", () => {
   it("throws on Supabase error", async () => {
     mockClient._setResult({ data: null, error: { message: "Products error" } });
 
-    await expect(getAvailableProductsForRestock()).rejects.toThrow("Products error");
+    await expect(getAvailableProductsForRestock("org-1")).rejects.toThrow("Products error");
   });
 });
 

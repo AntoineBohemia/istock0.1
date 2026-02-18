@@ -281,7 +281,7 @@ export async function getProductMovementStats(
 /**
  * Récupère un résumé des mouvements récents
  */
-export async function getMovementsSummary(): Promise<{
+export async function getMovementsSummary(organizationId?: string): Promise<{
   totalEntries: number;
   totalExits: number;
   recentMovements: number;
@@ -291,10 +291,16 @@ export async function getMovementsSummary(): Promise<{
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("stock_movements")
     .select("quantity, movement_type")
     .gte("created_at", thirtyDaysAgo.toISOString());
+
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(`Erreur lors de la récupération du résumé: ${error.message}`);

@@ -5,7 +5,6 @@ import { queryKeys } from "@/lib/query-keys";
 import {
   createEntry,
   createExit,
-  type MovementType,
 } from "@/lib/supabase/queries/stock-movements";
 
 interface CreateEntryParams {
