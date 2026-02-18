@@ -42,13 +42,9 @@ import {
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Badge } from "@/components/ui/badge";
-import { createClient } from "@/lib/supabase/client";
-import {
-  createEntry,
-  createExit,
-  MovementType,
-} from "@/lib/supabase/queries/stock-movements";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
+import { useProducts, useTechnicians } from "@/hooks/queries";
+import { useCreateStockEntry, useCreateStockExit } from "@/hooks/mutations";
 
 const FormSchema = z.object({
   direction: z.enum(["entry", "exit"]),
@@ -86,12 +82,31 @@ export default function CreateMovementDialog({
   onOpenChange,
   onSuccess,
 }: CreateMovementDialogProps) {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [technicians, setTechnicians] = useState<Technician[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const { currentOrganization } = useOrganizationStore();
+  const { data: productsResult, isLoading: isLoadingProducts } = useProducts({
+    organizationId: currentOrganization?.id,
+    pageSize: 1000,
+  });
+  const { data: techniciansData = [], isLoading: isLoadingTechnicians } = useTechnicians(currentOrganization?.id);
+  const createEntryMutation = useCreateStockEntry();
+  const createExitMutation = useCreateStockExit();
+
+  const products: Product[] = (productsResult?.products || []).map(p => ({
+    id: p.id,
+    name: p.name,
+    sku: p.sku,
+    image_url: p.image_url,
+    stock_current: p.stock_current,
+  }));
+  const technicians: Technician[] = techniciansData.map(t => ({
+    id: t.id,
+    first_name: t.first_name,
+    last_name: t.last_name,
+  }));
+
+  const isLoading = isLoadingProducts || isLoadingTechnicians;
+  const isSubmitting = createEntryMutation.isPending || createExitMutation.isPending;
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
@@ -107,99 +122,78 @@ export default function CreateMovementDialog({
 
   const direction = form.watch("direction");
   const exitType = form.watch("exit_type");
-  const productId = form.watch("product_id");
+  const watchedProductId = form.watch("product_id");
 
   useEffect(() => {
     if (open) {
-      loadData();
       form.reset();
       setSelectedProduct(null);
     }
   }, [open]);
 
   useEffect(() => {
-    if (productId) {
-      const product = products.find((p) => p.id === productId);
+    if (watchedProductId) {
+      const product = products.find((p) => p.id === watchedProductId);
       setSelectedProduct(product || null);
     } else {
       setSelectedProduct(null);
     }
-  }, [productId, products]);
+  }, [watchedProductId, products]);
 
-  const loadData = async () => {
-    if (!currentOrganization) {
-      setProducts([]);
-      setTechnicians([]);
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const supabase = createClient();
-
-      // Charger les produits
-      const { data: productsData } = await supabase
-        .from("products")
-        .select("id, name, sku, image_url, stock_current")
-        .eq("organization_id", currentOrganization.id)
-        .order("name");
-
-      setProducts(productsData || []);
-
-      // Charger les techniciens
-      const { data: techniciansData } = await supabase
-        .from("technicians")
-        .select("id, first_name, last_name")
-        .eq("organization_id", currentOrganization.id)
-        .order("last_name");
-
-      setTechnicians(techniciansData || []);
-    } catch (error) {
-      toast.error("Erreur lors du chargement des données");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const onSubmit = async (data: FormValues) => {
+  const onSubmit = (data: FormValues) => {
     if (!currentOrganization) return;
-    setIsSubmitting(true);
 
-    try {
-      if (data.direction === "entry") {
-        await createEntry(currentOrganization.id, data.product_id, data.quantity, data.notes);
-        toast.success("Entrée de stock enregistrée");
-      } else {
-        const exitType = data.exit_type || "exit_anonymous";
-
-        // Vérification du stock
-        if (selectedProduct && data.quantity > selectedProduct.stock_current) {
-          toast.error(
-            `Stock insuffisant. Disponible: ${selectedProduct.stock_current}`
-          );
-          setIsSubmitting(false);
-          return;
+    if (data.direction === "entry") {
+      createEntryMutation.mutate(
+        {
+          organizationId: currentOrganization.id,
+          productId: data.product_id,
+          quantity: data.quantity,
+          notes: data.notes,
+        },
+        {
+          onSuccess: () => {
+            toast.success("Entrée de stock enregistrée");
+            onOpenChange(false);
+            onSuccess();
+          },
+          onError: (error) => {
+            toast.error(
+              error instanceof Error ? error.message : "Erreur lors de l'enregistrement"
+            );
+          },
         }
+      );
+    } else {
+      const exitTypeValue = data.exit_type || "exit_anonymous";
 
-        await createExit(
-          currentOrganization.id,
-          data.product_id,
-          data.quantity,
-          exitType,
-          exitType === "exit_technician" ? data.technician_id : undefined,
-          data.notes
-        );
-        toast.success("Sortie de stock enregistrée");
+      if (selectedProduct && data.quantity > selectedProduct.stock_current) {
+        toast.error(`Stock insuffisant. Disponible: ${selectedProduct.stock_current}`);
+        return;
       }
 
-      onOpenChange(false);
-      onSuccess();
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Erreur lors de l'enregistrement"
+      createExitMutation.mutate(
+        {
+          organizationId: currentOrganization.id,
+          productId: data.product_id,
+          quantity: data.quantity,
+          type: exitTypeValue,
+          technicianId: exitTypeValue === "exit_technician" ? data.technician_id : undefined,
+          notes: data.notes,
+        },
+        {
+          onSuccess: () => {
+            toast.success("Sortie de stock enregistrée");
+            onOpenChange(false);
+            onSuccess();
+          },
+          onError: (error) => {
+            toast.error(
+              error instanceof Error ? error.message : "Erreur lors de l'enregistrement"
+            );
+          },
+        }
       );
-    } finally {
-      setIsSubmitting(false);
     }
   };
 

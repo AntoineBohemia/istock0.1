@@ -142,64 +142,46 @@ describe("getGlobalBreakdown", () => {
 // ─── getDashboardStats ──────────────────────────────────────────────
 describe("getDashboardStats", () => {
   it("computes all stats correctly", async () => {
-    let callCount = 0;
-    const originalThen = mockClient.then;
-
-    mockClient.then = (resolve: any, reject?: any) => {
-      callCount++;
-      if (callCount === 1) {
-        // Products query
-        return Promise.resolve({
-          data: [
-            { stock_current: 50, stock_min: 10, stock_max: 100, price: 10 },
-            { stock_current: 5, stock_min: 10, stock_max: 100, price: 20 },
-          ],
-          error: null,
-        }).then(resolve, reject);
-      }
-      if (callCount === 2) {
-        // Movements query
-        return Promise.resolve({
-          data: [
-            { quantity: 20, movement_type: "entry" },
-            { quantity: 8, movement_type: "exit_technician" },
-          ],
-          error: null,
-        }).then(resolve, reject);
-      }
-      return Promise.resolve({ data: null, error: null }).then(resolve, reject);
-    };
+    mockClient._setResult({
+      data: {
+        totalStock: 55,
+        totalValue: 600,
+        monthlyEntries: 20,
+        monthlyExits: 8,
+        totalProducts: 2,
+        lowStockCount: 1,
+      },
+      error: null,
+    });
 
     const result = await getDashboardStats();
 
     expect(result.totalStock).toBe(55);
-    expect(result.totalValue).toBe(600); // 50*10 + 5*20
+    expect(result.totalValue).toBe(600);
     expect(result.monthlyEntries).toBe(20);
     expect(result.monthlyExits).toBe(8);
     expect(result.totalProducts).toBe(2);
-    // stock_current=5, stock_max=100 => score=5 (<30), so lowStockCount=1
     expect(result.lowStockCount).toBe(1);
-
-    mockClient.then = originalThen;
   });
 
   it("filters by organizationId", async () => {
-    let callCount = 0;
-    const originalThen = mockClient.then;
-
-    mockClient.then = (resolve: any, reject?: any) => {
-      callCount++;
-      if (callCount === 1) {
-        return Promise.resolve({ data: [], error: null }).then(resolve, reject);
-      }
-      return Promise.resolve({ data: [], error: null }).then(resolve, reject);
-    };
+    mockClient._setResult({
+      data: {
+        totalStock: 0,
+        totalValue: 0,
+        monthlyEntries: 0,
+        monthlyExits: 0,
+        totalProducts: 0,
+        lowStockCount: 0,
+      },
+      error: null,
+    });
 
     await getDashboardStats("org-1");
 
-    expect(mockClient.eq).toHaveBeenCalledWith("organization_id", "org-1");
-
-    mockClient.then = originalThen;
+    expect(mockClient.rpc).toHaveBeenCalledWith("get_dashboard_stats", {
+      p_organization_id: "org-1",
+    });
   });
 
   it("throws on Supabase error", async () => {
@@ -250,8 +232,8 @@ describe("getProductsNeedingRestock", () => {
 // ─── getTechniciansNeedingRestock ────────────────────────────────────
 describe("getTechniciansNeedingRestock", () => {
   it("returns technicians with no recent restock", async () => {
-    let callCount = 0;
     const originalThen = mockClient.then;
+    let callCount = 0;
 
     mockClient.then = (resolve: any, reject?: any) => {
       callCount++;
@@ -272,16 +254,18 @@ describe("getTechniciansNeedingRestock", () => {
       return Promise.resolve({ data: null, error: null }).then(resolve, reject);
     };
 
-    const result = await getTechniciansNeedingRestock(7);
+    try {
+      const result = await getTechniciansNeedingRestock(7);
 
-    expect(result).toHaveLength(2);
-
-    mockClient.then = originalThen;
+      expect(result).toHaveLength(2);
+    } finally {
+      mockClient.then = originalThen;
+    }
   });
 
   it("returns empty when all recently restocked", async () => {
-    let callCount = 0;
     const originalThen = mockClient.then;
+    let callCount = 0;
     const recentDate = new Date().toISOString();
 
     mockClient.then = (resolve: any, reject?: any) => {
@@ -301,11 +285,13 @@ describe("getTechniciansNeedingRestock", () => {
       return Promise.resolve({ data: null, error: null }).then(resolve, reject);
     };
 
-    const result = await getTechniciansNeedingRestock(7);
+    try {
+      const result = await getTechniciansNeedingRestock(7);
 
-    expect(result).toEqual([]);
-
-    mockClient.then = originalThen;
+      expect(result).toEqual([]);
+    } finally {
+      mockClient.then = originalThen;
+    }
   });
 
   it("throws on Supabase error", async () => {
@@ -355,8 +341,8 @@ describe("getRecentMovements", () => {
 // ─── getGlobalStockEvolution ─────────────────────────────────────────
 describe("getGlobalStockEvolution", () => {
   it("returns monthly data with correct stock calculations", async () => {
-    let callCount = 0;
     const originalThen = mockClient.then;
+    let callCount = 0;
 
     mockClient.then = (resolve: any, reject?: any) => {
       callCount++;
@@ -374,12 +360,14 @@ describe("getGlobalStockEvolution", () => {
       return Promise.resolve({ data: null, error: null }).then(resolve, reject);
     };
 
-    const result = await getGlobalStockEvolution(6);
+    try {
+      const result = await getGlobalStockEvolution(6);
 
-    expect(result).toHaveLength(6);
-    expect(result[result.length - 1].totalStock).toBe(100);
-
-    mockClient.then = originalThen;
+      expect(result).toHaveLength(6);
+      expect(result[result.length - 1].totalStock).toBe(100);
+    } finally {
+      mockClient.then = originalThen;
+    }
   });
 
   it("throws on Supabase error", async () => {
@@ -392,8 +380,8 @@ describe("getGlobalStockEvolution", () => {
 // ─── getProductStockEvolution ────────────────────────────────────────
 describe("getProductStockEvolution", () => {
   it("returns monthly data for a specific product", async () => {
-    let callCount = 0;
     const originalThen = mockClient.then;
+    let callCount = 0;
 
     mockClient.then = (resolve: any, reject?: any) => {
       callCount++;
@@ -411,12 +399,14 @@ describe("getProductStockEvolution", () => {
       return Promise.resolve({ data: null, error: null }).then(resolve, reject);
     };
 
-    const result = await getProductStockEvolution("prod-1", 6);
+    try {
+      const result = await getProductStockEvolution("prod-1", 6);
 
-    expect(result).toHaveLength(6);
-    expect(result[result.length - 1].totalStock).toBe(50);
-
-    mockClient.then = originalThen;
+      expect(result).toHaveLength(6);
+      expect(result[result.length - 1].totalStock).toBe(50);
+    } finally {
+      mockClient.then = originalThen;
+    }
   });
 
   it("throws on Supabase error", async () => {
@@ -429,8 +419,8 @@ describe("getProductStockEvolution", () => {
 // ─── getCategoryStockEvolution ───────────────────────────────────────
 describe("getCategoryStockEvolution", () => {
   it("returns monthly data for products in category", async () => {
-    let callCount = 0;
     const originalThen = mockClient.then;
+    let callCount = 0;
 
     mockClient.then = (resolve: any, reject?: any) => {
       callCount++;
@@ -451,12 +441,14 @@ describe("getCategoryStockEvolution", () => {
       return Promise.resolve({ data: null, error: null }).then(resolve, reject);
     };
 
-    const result = await getCategoryStockEvolution("cat-1", 6);
+    try {
+      const result = await getCategoryStockEvolution("cat-1", 6);
 
-    expect(result).toHaveLength(6);
-    expect(result[result.length - 1].totalStock).toBe(50);
-
-    mockClient.then = originalThen;
+      expect(result).toHaveLength(6);
+      expect(result[result.length - 1].totalStock).toBe(50);
+    } finally {
+      mockClient.then = originalThen;
+    }
   });
 
   it("returns empty data when no products in category", async () => {
@@ -482,8 +474,8 @@ describe("getCategoryStockEvolution", () => {
 // ─── getTechnicianStats ──────────────────────────────────────────────
 describe("getTechnicianStats", () => {
   it("returns correct counts (good/low stock, needing restock)", async () => {
-    let callCount = 0;
     const originalThen = mockClient.then;
+    let callCount = 0;
 
     mockClient.then = (resolve: any, reject?: any) => {
       callCount++;
@@ -529,15 +521,17 @@ describe("getTechnicianStats", () => {
       return Promise.resolve({ data: null, error: null }).then(resolve, reject);
     };
 
-    const result = await getTechnicianStats();
+    try {
+      const result = await getTechnicianStats();
 
-    expect(result.total).toBe(3);
-    // tech-1: score=80 (>=50 -> good), tech-2: score=10 (<50 -> low), tech-3: empty (low)
-    expect(result.withGoodStock).toBe(1);
-    expect(result.withLowStock).toBe(2);
-    expect(result.needingRestock).toBe(3);
-
-    mockClient.then = originalThen;
+      expect(result.total).toBe(3);
+      // tech-1: score=80 (>=50 -> good), tech-2: score=10 (<50 -> low), tech-3: empty (low)
+      expect(result.withGoodStock).toBe(1);
+      expect(result.withLowStock).toBe(2);
+      expect(result.needingRestock).toBe(3);
+    } finally {
+      mockClient.then = originalThen;
+    }
   });
 
   it("throws on Supabase error", async () => {

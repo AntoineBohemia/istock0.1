@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Loader2, TrendingUp, TrendingDown } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { format } from "date-fns";
@@ -19,7 +18,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { getProductMovementStats } from "@/lib/supabase/queries/stock-movements";
+import { useProductMovementStats } from "@/hooks/queries";
 
 interface StockEvolutionChartProps {
   productId: string;
@@ -39,30 +38,7 @@ const chartConfig = {
 export default function StockEvolutionChart({
   productId,
 }: StockEvolutionChartProps) {
-  const [data, setData] = useState<
-    Array<{
-      date: string;
-      entries: number;
-      exits: number;
-      balance: number;
-    }>
-  >([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    async function loadData() {
-      setIsLoading(true);
-      try {
-        const stats = await getProductMovementStats(productId, 3);
-        setData(stats);
-      } catch (error) {
-        console.error("Error loading stock evolution:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    loadData();
-  }, [productId]);
+  const { data = [], isLoading } = useProductMovementStats(productId, 3);
 
   const totalEntries = data.reduce((sum, d) => sum + d.entries, 0);
   const totalExits = data.reduce((sum, d) => sum + d.exits, 0);

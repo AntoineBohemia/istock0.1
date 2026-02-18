@@ -57,9 +57,9 @@ import {
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Badge } from "@/components/ui/badge";
-import { createClient } from "@/lib/supabase/client";
-import { createEntry, createExit } from "@/lib/supabase/queries/stock-movements";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
+import { useProducts, useTechnicians } from "@/hooks/queries";
+import { useCreateStockEntry, useCreateStockExit } from "@/hooks/mutations";
 
 interface QuickStockMovementModalProps {
   open: boolean;
@@ -98,11 +98,31 @@ export default function QuickStockMovementModal({
   productId,
 }: QuickStockMovementModalProps) {
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
+  const { data: productsResult, isLoading: isLoadingProducts } = useProducts({
+    organizationId: currentOrganization?.id,
+    pageSize: 1000,
+  });
+  const { data: techniciansData = [], isLoading: isLoadingTechnicians } = useTechnicians(currentOrganization?.id);
+  const createEntryMutation = useCreateStockEntry();
+  const createExitMutation = useCreateStockExit();
+
+  const allProducts: Product[] = (productsResult?.products || []).map(p => ({
+    id: p.id,
+    name: p.name,
+    sku: p.sku,
+    image_url: p.image_url,
+    stock_current: p.stock_current,
+    price: p.price,
+  }));
+  const technicians: Technician[] = techniciansData.map(t => ({
+    id: t.id,
+    first_name: t.first_name,
+    last_name: t.last_name,
+  }));
+
   const [product, setProduct] = useState<Product | null>(null);
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [technicians, setTechnicians] = useState<Technician[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isLoading = isLoadingProducts || isLoadingTechnicians;
+  const isSubmitting = createEntryMutation.isPending || createExitMutation.isPending;
   const [productPopoverOpen, setProductPopoverOpen] = useState(false);
 
   const form = useForm<FormValues>({
@@ -119,63 +139,25 @@ export default function QuickStockMovementModal({
   const direction = form.watch("direction");
   const exitType = form.watch("exit_type");
 
-  // Fetch data when modal opens
+  // Handle modal open/close and product selection
   useEffect(() => {
     if (!open) {
       setProduct(null);
-      setAllProducts([]);
       return;
     }
 
-    // Wait for organization to load
-    if (isOrgLoading || !currentOrganization) {
-      return;
-    }
-
-    const organizationId = currentOrganization.id;
-
-    async function fetchData() {
-      setIsLoading(true);
-      try {
-        const supabase = createClient();
-
-        // Always fetch technicians and all products (for manual selection)
-        const [techniciansRes, productsRes] = await Promise.all([
-          supabase
-            .from("technicians")
-            .select("id, first_name, last_name")
-            .eq("organization_id", organizationId)
-            .order("last_name"),
-          supabase
-            .from("products")
-            .select("id, name, sku, image_url, stock_current, price")
-            .eq("organization_id", organizationId)
-            .order("name"),
-        ]);
-
-        setTechnicians(techniciansRes.data || []);
-        setAllProducts(productsRes.data || []);
-
-        // If productId is provided, find and set the product
-        if (productId) {
-          const foundProduct = productsRes.data?.find(p => p.id === productId);
-          if (foundProduct) {
-            setProduct(foundProduct);
-          } else {
-            toast.error("Produit non trouvé");
-            onClose();
-            return;
-          }
-        }
-      } catch (error) {
-        toast.error("Erreur lors du chargement des données");
+    // If productId is provided, find and set the product from cached data
+    if (productId && allProducts.length > 0) {
+      const foundProduct = allProducts.find(p => p.id === productId);
+      if (foundProduct) {
+        setProduct(foundProduct);
+      } else {
+        toast.error("Produit non trouvé");
         onClose();
-      } finally {
-        setIsLoading(false);
+        return;
       }
     }
 
-    fetchData();
     form.reset({
       direction: "entry",
       exit_type: "exit_anonymous",
@@ -183,64 +165,70 @@ export default function QuickStockMovementModal({
       quantity: 1,
       notes: "",
     });
-  }, [productId, open, currentOrganization, isOrgLoading]);
+  }, [productId, open, allProducts.length]);
 
   const selectProduct = (selectedProduct: Product) => {
     setProduct(selectedProduct);
     setProductPopoverOpen(false);
   };
 
-  const onSubmit = async (data: FormValues) => {
+  const onSubmit = (data: FormValues) => {
     if (!product || !currentOrganization) return;
 
-    setIsSubmitting(true);
-
-    try {
-      if (data.direction === "entry") {
-        await createEntry(currentOrganization.id, product.id, data.quantity, data.notes);
-        toast.success(
-          `+${data.quantity} ${product.name} ajouté(s) au stock`
-        );
-      } else {
-        const exitType = data.exit_type || "exit_anonymous";
-
-        // Validate stock
-        if (data.quantity > product.stock_current) {
-          toast.error(
-            `Stock insuffisant. Disponible: ${product.stock_current}`
-          );
-          setIsSubmitting(false);
-          return;
+    if (data.direction === "entry") {
+      createEntryMutation.mutate(
+        {
+          organizationId: currentOrganization.id,
+          productId: product.id,
+          quantity: data.quantity,
+          notes: data.notes,
+        },
+        {
+          onSuccess: () => {
+            toast.success(`+${data.quantity} ${product.name} ajouté(s) au stock`);
+            onClose();
+          },
+          onError: (error) => {
+            toast.error(
+              error instanceof Error ? error.message : "Erreur lors de l'enregistrement"
+            );
+          },
         }
+      );
+    } else {
+      const exitTypeValue = data.exit_type || "exit_anonymous";
 
-        // Validate technician for exit_technician type
-        if (exitType === "exit_technician" && !data.technician_id) {
-          toast.error("Veuillez sélectionner un technicien");
-          setIsSubmitting(false);
-          return;
-        }
-
-        await createExit(
-          currentOrganization.id,
-          product.id,
-          data.quantity,
-          exitType,
-          exitType === "exit_technician" ? data.technician_id : undefined,
-          data.notes
-        );
-
-        toast.success(
-          `-${data.quantity} ${product.name} retiré(s) du stock`
-        );
+      if (data.quantity > product.stock_current) {
+        toast.error(`Stock insuffisant. Disponible: ${product.stock_current}`);
+        return;
       }
 
-      onClose();
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Erreur lors de l'enregistrement"
+      if (exitTypeValue === "exit_technician" && !data.technician_id) {
+        toast.error("Veuillez sélectionner un technicien");
+        return;
+      }
+
+      createExitMutation.mutate(
+        {
+          organizationId: currentOrganization.id,
+          productId: product.id,
+          quantity: data.quantity,
+          type: exitTypeValue,
+          technicianId: exitTypeValue === "exit_technician" ? data.technician_id : undefined,
+          notes: data.notes,
+        },
+        {
+          onSuccess: () => {
+            toast.success(`-${data.quantity} ${product.name} retiré(s) du stock`);
+            onClose();
+          },
+          onError: (error) => {
+            toast.error(
+              error instanceof Error ? error.message : "Erreur lors de l'enregistrement"
+            );
+          },
+        }
       );
-    } finally {
-      setIsSubmitting(false);
     }
   };
 

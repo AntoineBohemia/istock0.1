@@ -23,50 +23,34 @@ beforeEach(() => {
 
 // ─── getTechnicians ─────────────────────────────────────────────────
 describe("getTechnicians", () => {
-  it("enriches technicians with inventory_count and last_restock_at", async () => {
-    let callCount = 0;
-    const originalThen = mockClient.then;
-
-    mockClient.then = (resolve: any, reject?: any) => {
-      callCount++;
-      if (callCount === 1) {
-        // Technicians query
-        return Promise.resolve({
-          data: [
-            { id: "tech-1", first_name: "Jean", last_name: "Dupont", email: "j@d.com", phone: null, city: null, organization_id: "org-1", created_at: "2024-01-01" },
-          ],
-          error: null,
-        }).then(resolve, reject);
-      }
-      if (callCount === 2) {
-        // Inventory query
-        return Promise.resolve({
-          data: [
-            { technician_id: "tech-1", quantity: 10 },
-            { technician_id: "tech-1", quantity: 5 },
-          ],
-          error: null,
-        }).then(resolve, reject);
-      }
-      if (callCount === 3) {
-        // History query
-        return Promise.resolve({
-          data: [
-            { technician_id: "tech-1", created_at: "2024-06-15T10:00:00Z" },
-          ],
-          error: null,
-        }).then(resolve, reject);
-      }
-      return Promise.resolve({ data: null, error: null }).then(resolve, reject);
-    };
+  it("returns technicians with inventory_count and last_restock_at from RPC", async () => {
+    mockClient._setResult({
+      data: [
+        {
+          id: "tech-1",
+          first_name: "Jean",
+          last_name: "Dupont",
+          email: "j@d.com",
+          phone: null,
+          city: null,
+          organization_id: "org-1",
+          created_at: "2024-01-01",
+          inventory: [],
+          inventory_count: 15,
+          last_restock_at: "2024-06-15T10:00:00Z",
+        },
+      ],
+      error: null,
+    });
 
     const result = await getTechnicians("org-1");
 
+    expect(mockClient.rpc).toHaveBeenCalledWith("get_technicians_with_stats", {
+      p_organization_id: "org-1",
+    });
     expect(result).toHaveLength(1);
-    expect(result[0].inventory_count).toBe(15); // 10 + 5
+    expect(result[0].inventory_count).toBe(15);
     expect(result[0].last_restock_at).toBe("2024-06-15T10:00:00Z");
-
-    mockClient.then = originalThen;
   });
 
   it("returns empty array when no technicians exist", async () => {
@@ -77,28 +61,38 @@ describe("getTechnicians", () => {
   });
 
   it("returns 0 inventory_count for technicians without inventory", async () => {
-    let callCount = 0;
-    const originalThen = mockClient.then;
-
-    mockClient.then = (resolve: any, reject?: any) => {
-      callCount++;
-      if (callCount === 1) {
-        return Promise.resolve({
-          data: [{ id: "tech-1", first_name: "A", last_name: "B", email: "a@b.com", phone: null, city: null, organization_id: "org-1", created_at: "2024-01-01" }],
-          error: null,
-        }).then(resolve, reject);
-      }
-      if (callCount === 2) {
-        return Promise.resolve({ data: [], error: null }).then(resolve, reject);
-      }
-      return Promise.resolve({ data: [], error: null }).then(resolve, reject);
-    };
+    mockClient._setResult({
+      data: [
+        {
+          id: "tech-1",
+          first_name: "A",
+          last_name: "B",
+          email: "a@b.com",
+          phone: null,
+          city: null,
+          organization_id: "org-1",
+          created_at: "2024-01-01",
+          inventory: [],
+          inventory_count: 0,
+          last_restock_at: null,
+        },
+      ],
+      error: null,
+    });
 
     const result = await getTechnicians("org-1");
     expect(result[0].inventory_count).toBe(0);
     expect(result[0].last_restock_at).toBeNull();
+  });
 
-    mockClient.then = originalThen;
+  it("passes null when no organizationId is provided", async () => {
+    mockClient._setResult({ data: [], error: null });
+
+    await getTechnicians();
+
+    expect(mockClient.rpc).toHaveBeenCalledWith("get_technicians_with_stats", {
+      p_organization_id: null,
+    });
   });
 
   it("throws on Supabase error", async () => {
@@ -122,8 +116,8 @@ describe("getTechniciansStats", () => {
   });
 
   it("counts empty inventories and total items", async () => {
-    let callCount = 0;
     const originalThen = mockClient.then;
+    let callCount = 0;
 
     mockClient.then = (resolve: any, reject?: any) => {
       callCount++;
@@ -155,13 +149,15 @@ describe("getTechniciansStats", () => {
       return Promise.resolve({ data: null, error: null }).then(resolve, reject);
     };
 
-    const stats = await getTechniciansStats("org-1");
-    expect(stats.totalTechnicians).toBe(3);
-    expect(stats.emptyInventory).toBe(2); // t2 and t3
-    expect(stats.totalItems).toBe(15);
-    expect(stats.recentRestocks).toBe(1);
-
-    mockClient.then = originalThen;
+    try {
+      const stats = await getTechniciansStats("org-1");
+      expect(stats.totalTechnicians).toBe(3);
+      expect(stats.emptyInventory).toBe(2); // t2 and t3
+      expect(stats.totalItems).toBe(15);
+      expect(stats.recentRestocks).toBe(1);
+    } finally {
+      mockClient.then = originalThen;
+    }
   });
 
   it("throws on Supabase error", async () => {
@@ -299,8 +295,8 @@ describe("deleteTechnician", () => {
 // ─── getTechnician ───────────────────────────────────────────────────
 describe("getTechnician", () => {
   it("returns technician with inventory and last_restock_at", async () => {
-    let callCount = 0;
     const originalThen = mockClient.then;
+    let callCount = 0;
 
     mockClient.then = (resolve: any, reject?: any) => {
       callCount++;
@@ -330,15 +326,17 @@ describe("getTechnician", () => {
       return Promise.resolve({ data: null, error: null }).then(resolve, reject);
     };
 
-    const result = await getTechnician("tech-1");
+    try {
+      const result = await getTechnician("tech-1");
 
-    expect(result).not.toBeNull();
-    expect(result!.id).toBe("tech-1");
-    expect(result!.inventory).toHaveLength(1);
-    expect(result!.inventory_count).toBe(10);
-    expect(result!.last_restock_at).toBe("2024-06-15T10:00:00Z");
-
-    mockClient.then = originalThen;
+      expect(result).not.toBeNull();
+      expect(result!.id).toBe("tech-1");
+      expect(result!.inventory).toHaveLength(1);
+      expect(result!.inventory_count).toBe(10);
+      expect(result!.last_restock_at).toBe("2024-06-15T10:00:00Z");
+    } finally {
+      mockClient.then = originalThen;
+    }
   });
 
   it("returns null when not found (PGRST116)", async () => {

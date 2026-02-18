@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { Loader2, Package, ImageIcon, Plus } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { getTechnician, TechnicianInventoryItem } from "@/lib/supabase/queries/technicians";
+import { useTechnician } from "@/hooks/queries";
 import RestockDialog from "./restock-dialog";
 
 interface TechnicianInventoryProps {
@@ -32,35 +31,9 @@ interface TechnicianInventoryProps {
 export default function TechnicianInventory({
   technicianId,
 }: TechnicianInventoryProps) {
-  const [inventory, setInventory] = useState<TechnicianInventoryItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: technician, isLoading } = useTechnician(technicianId);
+  const inventory = technician?.inventory || [];
   const [restockDialogOpen, setRestockDialogOpen] = useState(false);
-
-  const loadInventory = async () => {
-    setIsLoading(true);
-    try {
-      const technician = await getTechnician(technicianId);
-      if (technician) {
-        setInventory(technician.inventory);
-      }
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Erreur lors du chargement de l'inventaire"
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadInventory();
-  }, [technicianId]);
-
-  const handleRestockSuccess = () => {
-    loadInventory();
-  };
 
   if (isLoading) {
     return (
@@ -171,7 +144,7 @@ export default function TechnicianInventory({
         technicianId={technicianId}
         open={restockDialogOpen}
         onOpenChange={setRestockDialogOpen}
-        onSuccess={handleRestockSuccess}
+        onSuccess={() => {}}
       />
     </>
   );

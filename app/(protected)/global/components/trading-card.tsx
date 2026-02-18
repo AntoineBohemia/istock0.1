@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -34,10 +34,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { createClient } from "@/lib/supabase/client";
-import { createEntry, createExit, MovementType, MOVEMENT_TYPE_LABELS } from "@/lib/supabase/queries/stock-movements";
-import { Technician } from "@/lib/supabase/queries/technicians";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
+import { useProducts, useTechnicians } from "@/hooks/queries";
+import { useCreateStockEntry, useCreateStockExit } from "@/hooks/mutations";
 
 interface Product {
   id: string;
@@ -77,13 +76,31 @@ type EntryFormValues = z.infer<typeof EntrySchema>;
 type ExitFormValues = z.infer<typeof ExitSchema>;
 
 export function StockMovementCard() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [technicians, setTechnicians] = useState<Technician[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { currentOrganization } = useOrganizationStore();
+  const { data: productsResult, isLoading: isLoadingProducts } = useProducts({
+    organizationId: currentOrganization?.id,
+    pageSize: 1000,
+  });
+  const { data: techniciansData = [], isLoading: isLoadingTechnicians } = useTechnicians(currentOrganization?.id);
+  const createEntryMutation = useCreateStockEntry();
+  const createExitMutation = useCreateStockExit();
+
+  const products: Product[] = (productsResult?.products || []).map(p => ({
+    id: p.id,
+    name: p.name,
+    sku: p.sku,
+    image_url: p.image_url,
+    stock_current: p.stock_current,
+    price: p.price,
+    organization_id: p.organization_id,
+  }));
+  const technicians = techniciansData;
+
+  const isLoading = isLoadingProducts || isLoadingTechnicians;
+  const isSubmitting = createEntryMutation.isPending || createExitMutation.isPending;
+
   const [selectedEntryProduct, setSelectedEntryProduct] = useState<Product | null>(null);
   const [selectedExitProduct, setSelectedExitProduct] = useState<Product | null>(null);
-  const { currentOrganization } = useOrganizationStore();
 
   const entryForm = useForm<EntryFormValues>({
     resolver: zodResolver(EntrySchema),
@@ -105,46 +122,6 @@ export function StockMovementCard() {
 
   const selectedExitType = exitForm.watch("exit_type");
 
-  useEffect(() => {
-    async function loadData() {
-      if (!currentOrganization) {
-        setProducts([]);
-        setTechnicians([]);
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        const supabase = createClient();
-
-        // Charger les produits et les techniciens en parallèle
-        const [productsResponse, techniciansResponse] = await Promise.all([
-          supabase
-            .from("products")
-            .select("id, name, sku, image_url, stock_current, price, organization_id")
-            .eq("organization_id", currentOrganization.id)
-            .order("name"),
-          supabase
-            .from("technicians")
-            .select("id, first_name, last_name, email, phone, city, organization_id, created_at")
-            .eq("organization_id", currentOrganization.id)
-            .order("last_name"),
-        ]);
-
-        if (productsResponse.error) throw productsResponse.error;
-        if (techniciansResponse.error) throw techniciansResponse.error;
-
-        setProducts(productsResponse.data || []);
-        setTechnicians(techniciansResponse.data || []);
-      } catch (error) {
-        console.error("Error loading data:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    loadData();
-  }, [currentOrganization]);
-
   const handleEntryProductChange = (productId: string) => {
     const product = products.find((p) => p.id === productId);
     setSelectedEntryProduct(product || null);
@@ -157,73 +134,61 @@ export function StockMovementCard() {
     exitForm.setValue("product_id", productId);
   };
 
-  const onEntrySubmit = async (data: EntryFormValues) => {
+  const onEntrySubmit = (data: EntryFormValues) => {
     if (!currentOrganization) return;
-    setIsSubmitting(true);
-    try {
-      await createEntry(currentOrganization.id, data.product_id, data.quantity);
-      toast.success(`Entrée de ${data.quantity} unités enregistrée`);
-      entryForm.reset();
-      setSelectedEntryProduct(null);
-
-      // Refresh products list
-      const supabase = createClient();
-      const { data: updatedProducts } = await supabase
-        .from("products")
-        .select("id, name, sku, image_url, stock_current, price, organization_id")
-        .eq("organization_id", currentOrganization.id)
-        .order("name");
-      if (updatedProducts) setProducts(updatedProducts);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Erreur lors de l'enregistrement"
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+    createEntryMutation.mutate(
+      {
+        organizationId: currentOrganization.id,
+        productId: data.product_id,
+        quantity: data.quantity,
+      },
+      {
+        onSuccess: () => {
+          toast.success(`Entrée de ${data.quantity} unités enregistrée`);
+          entryForm.reset();
+          setSelectedEntryProduct(null);
+        },
+        onError: (error) => {
+          toast.error(
+            error instanceof Error ? error.message : "Erreur lors de l'enregistrement"
+          );
+        },
+      }
+    );
   };
 
-  const onExitSubmit = async (data: ExitFormValues) => {
+  const onExitSubmit = (data: ExitFormValues) => {
     if (!currentOrganization) return;
-    setIsSubmitting(true);
-    try {
-      // Vérifier le stock disponible
-      if (selectedExitProduct && data.quantity > selectedExitProduct.stock_current) {
-        toast.error(
-          `Stock insuffisant. Disponible: ${selectedExitProduct.stock_current}`
-        );
-        setIsSubmitting(false);
-        return;
-      }
 
-      await createExit(
-        currentOrganization.id,
-        data.product_id,
-        data.quantity,
-        data.exit_type,
-        data.exit_type === "exit_technician" ? data.technician_id : undefined
-      );
-
-      const exitTypeLabel = EXIT_TYPES.find((t) => t.value === data.exit_type)?.label || "Sortie";
-      toast.success(`${exitTypeLabel} de ${data.quantity} unités enregistrée`);
-      exitForm.reset();
-      setSelectedExitProduct(null);
-
-      // Refresh products list
-      const supabase = createClient();
-      const { data: updatedProducts } = await supabase
-        .from("products")
-        .select("id, name, sku, image_url, stock_current, price, organization_id")
-        .eq("organization_id", currentOrganization.id)
-        .order("name");
-      if (updatedProducts) setProducts(updatedProducts);
-    } catch (error) {
+    if (selectedExitProduct && data.quantity > selectedExitProduct.stock_current) {
       toast.error(
-        error instanceof Error ? error.message : "Erreur lors de l'enregistrement"
+        `Stock insuffisant. Disponible: ${selectedExitProduct.stock_current}`
       );
-    } finally {
-      setIsSubmitting(false);
+      return;
     }
+
+    createExitMutation.mutate(
+      {
+        organizationId: currentOrganization.id,
+        productId: data.product_id,
+        quantity: data.quantity,
+        type: data.exit_type,
+        technicianId: data.exit_type === "exit_technician" ? data.technician_id : undefined,
+      },
+      {
+        onSuccess: () => {
+          const exitTypeLabel = EXIT_TYPES.find((t) => t.value === data.exit_type)?.label || "Sortie";
+          toast.success(`${exitTypeLabel} de ${data.quantity} unités enregistrée`);
+          exitForm.reset();
+          setSelectedExitProduct(null);
+        },
+        onError: (error) => {
+          toast.error(
+            error instanceof Error ? error.message : "Erreur lors de l'enregistrement"
+          );
+        },
+      }
+    );
   };
 
   if (isLoading) {

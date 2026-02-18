@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { calculateStockScore } from "@/lib/utils/stock";
+// Note: calculateStockScore is still used by getProductsNeedingRestock and getTechnicianStats below
 
 export interface DashboardStats {
   totalStock: number;
@@ -59,83 +60,20 @@ export interface StockEvolutionData {
 
 /**
  * Récupère les statistiques générales du dashboard
+ * Utilise une RPC pour tout calculer en une seule requête SQL
  */
 export async function getDashboardStats(organizationId?: string): Promise<DashboardStats> {
   const supabase = createClient();
 
-  // Récupérer tous les produits pour calculer les stats
-  let productsQuery = supabase
-    .from("products")
-    .select("stock_current, stock_min, stock_max, price");
-
-  if (organizationId) {
-    productsQuery = productsQuery.eq("organization_id", organizationId);
-  }
-
-  const { data: products, error: productsError } = await productsQuery;
-
-  if (productsError) {
-    throw new Error(`Erreur lors de la récupération des produits: ${productsError.message}`);
-  }
-
-  // Calculer les totaux
-  let totalStock = 0;
-  let totalValue = 0;
-  let lowStockCount = 0;
-
-  products?.forEach((product) => {
-    totalStock += product.stock_current || 0;
-    totalValue += (product.stock_current || 0) * (product.price || 0);
-
-    const score = calculateStockScore(
-      product.stock_current,
-      product.stock_min,
-      product.stock_max
-    );
-    if (score < 30) {
-      lowStockCount++;
-    }
+  const { data, error } = await supabase.rpc("get_dashboard_stats", {
+    p_organization_id: organizationId || null,
   });
 
-  // Récupérer les mouvements du mois
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
-
-  let movementsQuery = supabase
-    .from("stock_movements")
-    .select("quantity, movement_type")
-    .gte("created_at", startOfMonth.toISOString());
-
-  if (organizationId) {
-    movementsQuery = movementsQuery.eq("organization_id", organizationId);
+  if (error) {
+    throw new Error(`Erreur lors de la récupération des statistiques: ${error.message}`);
   }
 
-  const { data: movements, error: movementsError } = await movementsQuery;
-
-  if (movementsError) {
-    throw new Error(`Erreur lors de la récupération des mouvements: ${movementsError.message}`);
-  }
-
-  let monthlyEntries = 0;
-  let monthlyExits = 0;
-
-  movements?.forEach((movement) => {
-    if (movement.movement_type === "entry") {
-      monthlyEntries += movement.quantity;
-    } else {
-      monthlyExits += movement.quantity;
-    }
-  });
-
-  return {
-    totalStock,
-    totalValue,
-    monthlyEntries,
-    monthlyExits,
-    totalProducts: products?.length || 0,
-    lowStockCount,
-  };
+  return data as DashboardStats;
 }
 
 /**

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useQueryStates, parseAsString, parseAsInteger, parseAsIsoDate } from "nuqs";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -55,15 +56,15 @@ import {
 } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import {
-  getStockMovements,
   StockMovement,
   MovementType,
   MOVEMENT_TYPE_LABELS,
 } from "@/lib/supabase/queries/stock-movements";
-import { createClient } from "@/lib/supabase/client";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import CreateMovementDialog from "./create-movement-dialog";
 import { exportToCSV } from "@/lib/utils/csv-export";
+import { useStockMovements, useTechnicians } from "@/hooks/queries";
+import { useProducts } from "@/hooks/queries";
 
 const MOVEMENT_BADGE_VARIANTS: Record<
   MovementType,
@@ -89,15 +90,36 @@ interface Technician {
 export default function MovementsList() {
   const router = useRouter();
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
-  const [movements, setMovements] = useState<StockMovement[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [technicians, setTechnicians] = useState<Technician[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
-  const [page, setPage] = useState(1);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+
+  // URL-synced filters via nuqs
+  const [filters, setFilters] = useQueryStates({
+    type: parseAsString.withDefault("all"),
+    product: parseAsString.withDefault("all"),
+    technician: parseAsString.withDefault("all"),
+    startDate: parseAsIsoDate,
+    endDate: parseAsIsoDate,
+    page: parseAsInteger.withDefault(1),
+  });
+
+  const filterType = filters.type;
+  const filterProduct = filters.product;
+  const filterTechnician = filters.technician;
+  const filterStartDate = filters.startDate ?? undefined;
+  const filterEndDate = filters.endDate ?? undefined;
+  const page = filters.page;
+
+  const setFilterType = (value: string) => setFilters({ type: value, page: 1 });
+  const setFilterProduct = (value: string) => setFilters({ product: value, page: 1 });
+  const setFilterTechnician = (value: string) => setFilters({ technician: value, page: 1 });
+  const setFilterStartDate = (value: Date | undefined) => setFilters({ startDate: value ?? null, page: 1 });
+  const setFilterEndDate = (value: Date | undefined) => setFilters({ endDate: value ?? null, page: 1 });
+  const setPage = (value: number | ((prev: number) => number)) => {
+    const newPage = typeof value === "function" ? value(page) : value;
+    setFilters({ page: newPage });
+  };
 
   const handleRowClick = (movement: StockMovement) => {
     if (movement.movement_type === "entry") {
@@ -107,91 +129,25 @@ export default function MovementsList() {
     }
   };
 
-  // Filtres
-  const [filterType, setFilterType] = useState<string>("all");
-  const [filterProduct, setFilterProduct] = useState<string>("all");
-  const [filterTechnician, setFilterTechnician] = useState<string>("all");
-  const [filterStartDate, setFilterStartDate] = useState<Date | undefined>();
-  const [filterEndDate, setFilterEndDate] = useState<Date | undefined>();
+  // React Query hooks
+  const { data: movementsResult, isLoading } = useStockMovements({
+    organizationId: currentOrganization?.id,
+    page,
+    pageSize: 20,
+    movementType: filterType !== "all" ? (filterType as MovementType) : undefined,
+    productId: filterProduct !== "all" ? filterProduct : undefined,
+    technicianId: filterTechnician !== "all" ? filterTechnician : undefined,
+    startDate: filterStartDate?.toISOString(),
+    endDate: filterEndDate?.toISOString(),
+  });
 
-  const loadMovements = async () => {
-    if (!currentOrganization) return;
+  const { data: productsResult } = useProducts({ organizationId: currentOrganization?.id, pageSize: 1000 });
+  const { data: techniciansData = [] } = useTechnicians(currentOrganization?.id);
 
-    setIsLoading(true);
-    try {
-      const filters: Parameters<typeof getStockMovements>[0] = {
-        organizationId: currentOrganization.id,
-        page,
-        pageSize: 20,
-      };
-
-      if (filterType && filterType !== "all") {
-        filters.movementType = filterType as MovementType;
-      }
-      if (filterProduct && filterProduct !== "all") {
-        filters.productId = filterProduct;
-      }
-      if (filterTechnician && filterTechnician !== "all") {
-        filters.technicianId = filterTechnician;
-      }
-      if (filterStartDate) {
-        filters.startDate = filterStartDate.toISOString();
-      }
-      if (filterEndDate) {
-        filters.endDate = filterEndDate.toISOString();
-      }
-
-      const result = await getStockMovements(filters);
-      setMovements(result.movements);
-      setTotalCount(result.total);
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Erreur lors du chargement des mouvements"
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadFiltersData = async () => {
-    if (!currentOrganization) return;
-
-    const supabase = createClient();
-
-    const [productsRes, techniciansRes] = await Promise.all([
-      supabase
-        .from("products")
-        .select("id, name")
-        .eq("organization_id", currentOrganization.id)
-        .order("name"),
-      supabase
-        .from("technicians")
-        .select("id, first_name, last_name")
-        .eq("organization_id", currentOrganization.id)
-        .order("last_name"),
-    ]);
-
-    setProducts(productsRes.data || []);
-    setTechnicians(techniciansRes.data || []);
-  };
-
-  useEffect(() => {
-    if (!isOrgLoading && currentOrganization) {
-      loadFiltersData();
-    }
-  }, [currentOrganization?.id, isOrgLoading]);
-
-  useEffect(() => {
-    if (!isOrgLoading && currentOrganization) {
-      loadMovements();
-    }
-  }, [currentOrganization?.id, isOrgLoading, page, filterType, filterProduct, filterTechnician, filterStartDate, filterEndDate]);
-
-  const handleSuccess = () => {
-    loadMovements();
-  };
+  const movements = movementsResult?.movements || [];
+  const totalCount = movementsResult?.total || 0;
+  const products: Product[] = (productsResult?.products || []).map(p => ({ id: p.id, name: p.name }));
+  const technicians: Technician[] = techniciansData.map(t => ({ id: t.id, first_name: t.first_name, last_name: t.last_name }));
 
   const handleExportCSV = () => {
     exportToCSV(movements, "mouvements", [
@@ -334,12 +290,14 @@ export default function MovementsList() {
   });
 
   const clearFilters = () => {
-    setFilterType("all");
-    setFilterProduct("all");
-    setFilterTechnician("all");
-    setFilterStartDate(undefined);
-    setFilterEndDate(undefined);
-    setPage(1);
+    setFilters({
+      type: "all",
+      product: "all",
+      technician: "all",
+      startDate: null,
+      endDate: null,
+      page: 1,
+    });
   };
 
   const hasActiveFilters =
@@ -537,7 +495,7 @@ export default function MovementsList() {
       <CreateMovementDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
-        onSuccess={handleSuccess}
+        onSuccess={() => {}}
       />
     </>
   );

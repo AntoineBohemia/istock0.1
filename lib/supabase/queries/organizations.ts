@@ -406,6 +406,32 @@ export async function getInvitationByToken(
 }
 
 /**
+ * Upload un logo d'organisation dans le storage Supabase
+ */
+export async function uploadOrganizationLogo(
+  file: File,
+  orgSlug: string
+): Promise<string> {
+  const supabase = createClient();
+  const fileExt = file.name.split(".").pop();
+  const fileName = `${orgSlug}-${Date.now()}.${fileExt}`;
+
+  const { error } = await supabase.storage
+    .from("organization-logos")
+    .upload(fileName, file, { upsert: true });
+
+  if (error) {
+    throw new Error(`Erreur lors de l'upload du logo: ${error.message}`);
+  }
+
+  const { data: urlData } = supabase.storage
+    .from("organization-logos")
+    .getPublicUrl(fileName);
+
+  return urlData.publicUrl;
+}
+
+/**
  * Crée une nouvelle organisation via RPC (contourne RLS de manière sécurisée)
  */
 export async function createOrganization(

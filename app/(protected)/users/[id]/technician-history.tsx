@@ -1,10 +1,9 @@
 
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useMemo } from "react";
 import Image from "next/image";
 import { Loader2, History, ImageIcon, Package } from "lucide-react";
-import { toast } from "sonner";
 
 import {
   Card,
@@ -14,10 +13,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  getTechnicianStockMovements,
-  TechnicianStockMovement,
-} from "@/lib/supabase/queries/technicians";
+import { TechnicianStockMovement } from "@/lib/supabase/queries/technicians";
+import { useTechnicianMovements } from "@/hooks/queries";
 
 interface TechnicianHistoryProps {
   technicianId: string;
@@ -81,28 +78,7 @@ function groupMovementsIntoSessions(movements: TechnicianStockMovement[]): Resto
 export default function TechnicianHistory({
   technicianId,
 }: TechnicianHistoryProps) {
-  const [movements, setMovements] = useState<TechnicianStockMovement[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    loadMovements();
-  }, [technicianId]);
-
-  const loadMovements = async () => {
-    setIsLoading(true);
-    try {
-      const data = await getTechnicianStockMovements(technicianId);
-      setMovements(data);
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Erreur lors du chargement de l'historique"
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { data: movements = [], isLoading } = useTechnicianMovements(technicianId);
 
   const sessions = useMemo(() => groupMovementsIntoSessions(movements), [movements]);
   const totalItems = movements.reduce((sum, m) => sum + m.quantity, 0);

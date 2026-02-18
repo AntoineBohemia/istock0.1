@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { format } from "date-fns";
@@ -16,12 +16,10 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import {
-  getRecentMovements,
-  RecentMovement,
-} from "@/lib/supabase/queries/dashboard";
+import { RecentMovement } from "@/lib/supabase/queries/dashboard";
 import { MOVEMENT_TYPE_LABELS } from "@/lib/supabase/queries/stock-movements";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
+import { useRecentMovements } from "@/hooks/queries";
 
 const MOVEMENT_BADGE_STYLES: Record<string, string> = {
   entry:
@@ -108,28 +106,8 @@ function MovementItem({ movement, compact }: MovementItemProps) {
 
 export function RecentActivities() {
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
-  const [movements, setMovements] = useState<RecentMovement[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: movements = [], isLoading } = useRecentMovements(currentOrganization?.id, 6);
   const [isExpanded, setIsExpanded] = useState(false);
-
-  useEffect(() => {
-    async function loadData() {
-      if (!currentOrganization) return;
-
-      try {
-        const data = await getRecentMovements(6, currentOrganization.id);
-        setMovements(data);
-      } catch (error) {
-        console.error("Error loading recent movements:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    if (!isOrgLoading && currentOrganization) {
-      loadData();
-    }
-  }, [currentOrganization?.id, isOrgLoading]);
 
   if (isLoading || isOrgLoading) {
     return (

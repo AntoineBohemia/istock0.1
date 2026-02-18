@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Loader2, ImageIcon, Plus, Minus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -26,12 +26,10 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  restockTechnician,
-  addToTechnicianInventory,
-  getAvailableProductsForRestock,
-  RestockItem,
-} from "@/lib/supabase/queries/inventory";
+import { RestockItem } from "@/lib/supabase/queries/inventory";
+import { useAvailableProductsForRestock } from "@/hooks/queries";
+import { useRestockTechnician, useAddToTechnicianInventory } from "@/hooks/mutations";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 interface RestockDialogProps {
   technicianId: string;
@@ -55,41 +53,21 @@ export default function RestockDialog({
   onOpenChange,
   onSuccess,
 }: RestockDialogProps) {
-  const [products, setProducts] = useState<
-    Array<{
-      id: string;
-      name: string;
-      sku: string | null;
-      image_url: string | null;
-      stock_current: number;
-      stock_max: number;
-    }>
-  >([]);
+  const { currentOrganization } = useOrganizationStore();
+  const { data: products = [], isLoading } = useAvailableProductsForRestock(currentOrganization?.id);
+  const restockMutation = useRestockTechnician();
+  const addToInventoryMutation = useAddToTechnicianInventory();
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>(
     []
   );
   const [resetInventory, setResetInventory] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmitting = restockMutation.isPending || addToInventoryMutation.isPending;
 
   useEffect(() => {
     if (open) {
-      loadProducts();
       setSelectedProducts([]);
     }
   }, [open]);
-
-  const loadProducts = async () => {
-    setIsLoading(true);
-    try {
-      const data = await getAvailableProductsForRestock();
-      setProducts(data);
-    } catch (error) {
-      toast.error("Erreur lors du chargement des produits");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleAddProduct = (productId: string) => {
     const product = products.find((p) => p.id === productId);
@@ -133,35 +111,33 @@ export default function RestockDialog({
     );
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (selectedProducts.length === 0) {
       toast.error("Veuillez sélectionner au moins un produit");
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      const items: RestockItem[] = selectedProducts.map((p) => ({
-        productId: p.productId,
-        quantity: p.quantity,
-      }));
+    const items: RestockItem[] = selectedProducts.map((p) => ({
+      productId: p.productId,
+      quantity: p.quantity,
+    }));
 
-      if (resetInventory) {
-        await restockTechnician(technicianId, items);
-      } else {
-        await addToTechnicianInventory(technicianId, items);
+    const mutation = resetInventory ? restockMutation : addToInventoryMutation;
+    mutation.mutate(
+      { technicianId, items },
+      {
+        onSuccess: () => {
+          toast.success("Restock effectué avec succès");
+          onOpenChange(false);
+          onSuccess();
+        },
+        onError: (error) => {
+          toast.error(
+            error instanceof Error ? error.message : "Erreur lors du restock"
+          );
+        },
       }
-
-      toast.success("Restock effectué avec succès");
-      onOpenChange(false);
-      onSuccess();
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Erreur lors du restock"
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+    );
   };
 
   const totalItems = selectedProducts.reduce((sum, p) => sum + p.quantity, 0);

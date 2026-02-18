@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   ColumnDef,
@@ -60,12 +60,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  getTechnicians,
-  deleteTechnician,
-  TechnicianWithInventory,
-} from "@/lib/supabase/queries/technicians";
+import { TechnicianWithInventory } from "@/lib/supabase/queries/technicians";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
+import { useTechnicians } from "@/hooks/queries";
+import { useDeleteTechnician } from "@/hooks/mutations";
 
 function generateInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
@@ -82,60 +80,35 @@ function formatDate(dateString: string | null): string {
 
 export default function TechniciansList() {
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
-  const [technicians, setTechnicians] = useState<TechnicianWithInventory[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: technicians = [], isLoading } = useTechnicians(currentOrganization?.id);
+  const deleteTechnicianMutation = useDeleteTechnician();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [technicianToDelete, setTechnicianToDelete] =
     useState<TechnicianWithInventory | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
-  const loadTechnicians = async () => {
-    if (!currentOrganization) return;
-
-    setIsLoading(true);
-    try {
-      const data = await getTechnicians(currentOrganization.id);
-      setTechnicians(data);
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Erreur lors du chargement des techniciens"
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!isOrgLoading && currentOrganization) {
-      loadTechnicians();
-    }
-  }, [currentOrganization?.id, isOrgLoading]);
+  const isDeleting = deleteTechnicianMutation.isPending;
 
   const handleDelete = async () => {
     if (!technicianToDelete) return;
 
-    setIsDeleting(true);
-    try {
-      await deleteTechnician(technicianToDelete.id);
-      toast.success("Technicien supprimé avec succès");
-      setTechnicians((prev) =>
-        prev.filter((t) => t.id !== technicianToDelete.id)
-      );
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Erreur lors de la suppression"
-      );
-    } finally {
-      setIsDeleting(false);
-      setDeleteDialogOpen(false);
-      setTechnicianToDelete(null);
-    }
+    deleteTechnicianMutation.mutate(technicianToDelete.id, {
+      onSuccess: () => {
+        toast.success("Technicien supprimé avec succès");
+        setDeleteDialogOpen(false);
+        setTechnicianToDelete(null);
+      },
+      onError: (error) => {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Erreur lors de la suppression"
+        );
+        setDeleteDialogOpen(false);
+        setTechnicianToDelete(null);
+      },
+    });
   };
 
   const columns: ColumnDef<TechnicianWithInventory>[] = [

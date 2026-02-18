@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryStates, parseAsString, parseAsInteger } from "nuqs";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -84,12 +85,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-import {
-  getProducts,
-  deleteProduct,
-  ProductWithCategory,
-} from "@/lib/supabase/queries/products";
-import { getCategories, Category } from "@/lib/supabase/queries/categories";
+import { ProductWithCategory } from "@/lib/supabase/queries/products";
+import { Category } from "@/lib/supabase/queries/categories";
 import {
   calculateStockScore,
   getStockScoreBgColor,
@@ -99,28 +96,38 @@ import {
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import QuickStockMovementModal from "@/components/quick-stock-movement-modal";
 import { exportToCSV } from "@/lib/utils/csv-export";
+import { useProducts, useCategories } from "@/hooks/queries";
+import { useDeleteProduct } from "@/hooks/mutations";
 
 export default function ProductList() {
   const router = useRouter();
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
-  const [products, setProducts] = useState<ProductWithCategory[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState({});
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [filters, setFilters] = useQueryStates({
+    search: parseAsString.withDefault(""),
+    category: parseAsString.withDefault("all"),
+    page: parseAsInteger.withDefault(1),
+  });
+
+  const searchQuery = filters.search;
+  const selectedCategory = filters.category;
+  const page = filters.page;
+  const setSearchQuery = (value: string) => setFilters({ search: value, page: 1 });
+  const setSelectedCategory = (value: string) => setFilters({ category: value, page: 1 });
+  const setPage = (value: number | ((prev: number) => number)) => {
+    const newPage = typeof value === "function" ? value(page) : value;
+    setFilters({ page: newPage });
+  };
+
+  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] =
     useState<ProductWithCategory | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [stockModalOpen, setStockModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   const pageSize = 20;
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -132,60 +139,38 @@ export default function ProductList() {
     return () => clearTimeout(debounceRef.current);
   }, [searchQuery]);
 
-  // Reset page when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, selectedCategory]);
+  // React Query hooks
+  const { data: productsResult, isLoading } = useProducts({
+    organizationId: currentOrganization?.id,
+    search: debouncedSearch || undefined,
+    categoryId: selectedCategory !== "all" ? selectedCategory : undefined,
+    page,
+    pageSize,
+  });
+  const { data: categories = [] } = useCategories(currentOrganization?.id);
+  const deleteProductMutation = useDeleteProduct();
 
-  const loadData = useCallback(async () => {
-    if (!currentOrganization) return;
-
-    setIsLoading(true);
-    try {
-      const [productsResult, categoriesData] = await Promise.all([
-        getProducts({
-          organizationId: currentOrganization.id,
-          search: debouncedSearch || undefined,
-          categoryId: selectedCategory !== "all" ? selectedCategory : undefined,
-          page,
-          pageSize,
-        }),
-        getCategories(currentOrganization.id),
-      ]);
-      setProducts(productsResult.products);
-      setTotalCount(productsResult.total);
-      setCategories(categoriesData);
-    } catch (error) {
-      toast.error("Erreur lors du chargement des produits");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentOrganization?.id, page, debouncedSearch, selectedCategory]);
-
-  useEffect(() => {
-    if (!isOrgLoading && currentOrganization) {
-      loadData();
-    }
-  }, [currentOrganization?.id, isOrgLoading, page, debouncedSearch, selectedCategory]);
+  const products = productsResult?.products || [];
+  const totalCount = productsResult?.total || 0;
 
   const handleDelete = async () => {
     if (!productToDelete) return;
 
-    setIsDeleting(true);
-    try {
-      await deleteProduct(productToDelete.id);
-      toast.success("Produit supprimé avec succès");
-      setDeleteDialogOpen(false);
-      setProductToDelete(null);
-      loadData();
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Erreur lors de la suppression"
-      );
-    } finally {
-      setIsDeleting(false);
-    }
+    deleteProductMutation.mutate(productToDelete.id, {
+      onSuccess: () => {
+        toast.success("Produit supprimé avec succès");
+        setDeleteDialogOpen(false);
+        setProductToDelete(null);
+      },
+      onError: (error) => {
+        toast.error(
+          error instanceof Error ? error.message : "Erreur lors de la suppression"
+        );
+      },
+    });
   };
+
+  const isDeleting = deleteProductMutation.isPending;
 
   const handleExportCSV = () => {
     exportToCSV(products, "produits", [
@@ -618,7 +603,6 @@ export default function ProductList() {
         onClose={() => {
           setStockModalOpen(false);
           setSelectedProductId(null);
-          loadData(); // Refresh data after stock movement
         }}
         productId={selectedProductId}
       />

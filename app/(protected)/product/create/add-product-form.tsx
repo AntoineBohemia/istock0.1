@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -45,17 +45,12 @@ import {
 import { useFileUpload } from "@/hooks/use-file-upload";
 import AddNewCategory from "./add-category";
 import Link from "next/link";
-import {
-  getCategories,
-  Category,
-} from "@/lib/supabase/queries/categories";
-import {
-  createProduct,
-  updateProduct,
-  uploadProductImage,
-} from "@/lib/supabase/queries/products";
+import { Category } from "@/lib/supabase/queries/categories";
+import { uploadProductImage } from "@/lib/supabase/queries/products";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { ProductFormSchema, type ProductFormValues } from "@/lib/schemas/product-schema";
+import { useCategories } from "@/hooks/queries";
+import { useCreateProduct, useUpdateProduct } from "@/hooks/mutations";
 
 type FormValues = ProductFormValues;
 
@@ -70,9 +65,11 @@ export default function AddProductForm({
 }: AddProductFormProps) {
   const router = useRouter();
   const { currentOrganization } = useOrganizationStore();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { data: categories = [], isLoading: isLoadingCategories } = useCategories(currentOrganization?.id);
+  const createProductMutation = useCreateProduct();
+  const updateProductMutation = useUpdateProduct();
+  const isSubmitting = createProductMutation.isPending || updateProductMutation.isPending;
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(
     initialData?.image_url || null
   );
@@ -94,24 +91,8 @@ export default function AddProductForm({
     },
   });
 
-  // Charger les catégories au montage
-  useEffect(() => {
-    async function loadCategories() {
-      if (!currentOrganization) return;
-      try {
-        const cats = await getCategories(currentOrganization.id);
-        setCategories(cats);
-      } catch (error) {
-        toast.error("Erreur lors du chargement des catégories");
-      } finally {
-        setIsLoadingCategories(false);
-      }
-    }
-    loadCategories();
-  }, [currentOrganization]);
-
-  const handleCategoryCreated = (category: Category) => {
-    setCategories((prev) => [...prev, category]);
+  const handleCategoryCreated = (_category: Category) => {
+    // React Query will auto-refetch categories
   };
 
   const [
@@ -139,13 +120,13 @@ export default function AddProductForm({
       return;
     }
 
-    setIsSubmitting(true);
-
     try {
       // Upload de l'image si présente
       let imageUrl = existingImageUrl;
       if (files.length > 0 && files[0].file instanceof File) {
+        setIsUploadingImage(true);
         imageUrl = await uploadProductImage(files[0].file);
+        setIsUploadingImage(false);
       }
 
       const finalCategoryId = data.category_id || null;
@@ -167,25 +148,38 @@ export default function AddProductForm({
       };
 
       if (mode === "edit" && initialData?.id) {
-        await updateProduct(initialData.id, productData);
-        toast.success("Produit mis à jour avec succès");
-        router.push(`/product/${initialData.id}`);
+        updateProductMutation.mutate(
+          { id: initialData.id, data: productData },
+          {
+            onSuccess: () => {
+              toast.success("Produit mis à jour avec succès");
+              router.push(`/product/${initialData.id}`);
+            },
+            onError: (error) => {
+              toast.error(
+                error instanceof Error ? error.message : "Erreur lors de la mise à jour"
+              );
+            },
+          }
+        );
       } else {
-        await createProduct(productData);
-        toast.success("Produit créé avec succès");
-        router.push("/product");
+        createProductMutation.mutate(productData, {
+          onSuccess: () => {
+            toast.success("Produit créé avec succès");
+            router.push("/product");
+          },
+          onError: (error) => {
+            toast.error(
+              error instanceof Error ? error.message : "Erreur lors de la création"
+            );
+          },
+        });
       }
-      router.refresh();
     } catch (error) {
+      setIsUploadingImage(false);
       toast.error(
-        error instanceof Error
-          ? error.message
-          : mode === "edit"
-            ? "Erreur lors de la mise à jour"
-            : "Erreur lors de la création"
+        error instanceof Error ? error.message : "Erreur lors de l'upload de l'image"
       );
-    } finally {
-      setIsSubmitting(false);
     }
   }
 
@@ -220,8 +214,8 @@ export default function AddProductForm({
             >
               Annuler
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
+            <Button type="submit" disabled={isSubmitting || isUploadingImage}>
+              {(isSubmitting || isUploadingImage) && <Loader2 className="mr-2 size-4 animate-spin" />}
               {mode === "edit" ? "Enregistrer" : "Publier"}
             </Button>
           </div>

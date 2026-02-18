@@ -74,18 +74,12 @@ import { useOrganizationStore } from "@/lib/stores/organization-store";
 import {
   OrganizationMember,
   OrganizationInvitation,
-  getOrganizationMembers,
-  getPendingInvitations,
-  inviteUserToOrganization,
-  updateMemberRole,
-  removeMember,
-  cancelInvitation,
 } from "@/lib/supabase/queries/organizations";
 import { createClient } from "@/lib/supabase/client";
+import { useOrganizationMembers, usePendingInvitations } from "@/hooks/queries";
+import { useUpdateMemberRole, useRemoveMember, useInviteUser, useCancelInvitation } from "@/hooks/mutations";
 
-interface MemberWithEmail extends OrganizationMember {
-  email?: string;
-}
+type MemberWithEmail = OrganizationMember;
 
 const roleLabels: Record<string, { label: string; icon: React.ElementType }> = {
   owner: { label: "Propriétaire", icon: Crown },
@@ -95,12 +89,23 @@ const roleLabels: Record<string, { label: string; icon: React.ElementType }> = {
 
 export default function MembersPage() {
   const { currentOrganization } = useOrganizationStore();
-  const [members, setMembers] = useState<MemberWithEmail[]>([]);
-  const [invitations, setInvitations] = useState<OrganizationInvitation[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: members = [], isLoading: isLoadingMembers } = useOrganizationMembers(currentOrganization?.id);
+
+  const canManageMembers =
+    currentOrganization?.role === "owner" ||
+    currentOrganization?.role === "admin";
+
+  const { data: invitations = [], isLoading: isLoadingInvitations } = usePendingInvitations(
+    canManageMembers ? currentOrganization?.id : undefined
+  );
+
+  const updateRoleMutation = useUpdateMemberRole();
+  const removeMemberMutation = useRemoveMember();
+  const inviteUserMutation = useInviteUser();
+  const cancelInvitationMutation = useCancelInvitation();
+
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // Form states
@@ -108,111 +113,92 @@ export default function MembersPage() {
   const [inviteRole, setInviteRole] = useState<"admin" | "member">("member");
   const [memberToRemove, setMemberToRemove] = useState<MemberWithEmail | null>(null);
 
-  const canManageMembers =
-    currentOrganization?.role === "owner" ||
-    currentOrganization?.role === "admin";
+  const isLoading = isLoadingMembers || isLoadingInvitations;
+  const isSubmitting = removeMemberMutation.isPending || inviteUserMutation.isPending;
 
-  const loadData = async () => {
-    if (!currentOrganization) return;
-
-    setIsLoading(true);
-    try {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      setCurrentUserId(user?.id || null);
-
-      const [membersData, invitationsData] = await Promise.all([
-        getOrganizationMembers(currentOrganization.id),
-        canManageMembers ? getPendingInvitations(currentOrganization.id) : [],
-      ]);
-
-      // Try to get emails for members (this might not work without RLS bypass)
-      // For now, we'll just show user_id
-      setMembers(membersData);
-      setInvitations(invitationsData);
-    } catch (error) {
-      toast.error("Erreur lors du chargement des données");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Get current user ID
   useEffect(() => {
-    loadData();
-  }, [currentOrganization]);
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setCurrentUserId(user?.id || null);
+    });
+  }, []);
 
-  const handleInvite = async () => {
+  const handleInvite = () => {
     if (!currentOrganization || !inviteEmail.trim()) return;
 
-    setIsSubmitting(true);
-    try {
-      await inviteUserToOrganization(
-        currentOrganization.id,
-        inviteEmail.trim(),
-        inviteRole
-      );
-      toast.success(`Invitation envoyée à ${inviteEmail}`);
-      setIsInviteDialogOpen(false);
-      setInviteEmail("");
-      setInviteRole("member");
-      loadData();
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Erreur lors de l'invitation"
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+    inviteUserMutation.mutate(
+      {
+        organizationId: currentOrganization.id,
+        email: inviteEmail.trim(),
+        role: inviteRole,
+      },
+      {
+        onSuccess: () => {
+          toast.success(`Invitation envoyée à ${inviteEmail}`);
+          setIsInviteDialogOpen(false);
+          setInviteEmail("");
+          setInviteRole("member");
+        },
+        onError: (error) => {
+          toast.error(
+            error instanceof Error ? error.message : "Erreur lors de l'invitation"
+          );
+        },
+      }
+    );
   };
 
-  const handleUpdateRole = async (
-    userId: string,
-    newRole: "admin" | "member"
-  ) => {
+  const handleUpdateRole = (userId: string, newRole: "admin" | "member") => {
     if (!currentOrganization) return;
 
-    try {
-      await updateMemberRole(currentOrganization.id, userId, newRole);
-      toast.success("Rôle mis à jour");
-      loadData();
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Erreur lors de la mise à jour"
-      );
-    }
+    updateRoleMutation.mutate(
+      { organizationId: currentOrganization.id, userId, role: newRole },
+      {
+        onSuccess: () => toast.success("Rôle mis à jour"),
+        onError: (error) => {
+          toast.error(
+            error instanceof Error ? error.message : "Erreur lors de la mise à jour"
+          );
+        },
+      }
+    );
   };
 
-  const handleRemoveMember = async () => {
+  const handleRemoveMember = () => {
     if (!currentOrganization || !memberToRemove) return;
 
-    setIsSubmitting(true);
-    try {
-      await removeMember(currentOrganization.id, memberToRemove.user_id);
-      toast.success("Membre retiré de l'organisation");
-      setIsDeleteDialogOpen(false);
-      setMemberToRemove(null);
-      loadData();
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Erreur lors du retrait"
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+    removeMemberMutation.mutate(
+      { organizationId: currentOrganization.id, userId: memberToRemove.user_id },
+      {
+        onSuccess: () => {
+          toast.success("Membre retiré de l'organisation");
+          setIsDeleteDialogOpen(false);
+          setMemberToRemove(null);
+        },
+        onError: (error) => {
+          toast.error(
+            error instanceof Error ? error.message : "Erreur lors du retrait"
+          );
+        },
+      }
+    );
   };
 
-  const handleCancelInvitation = async (invitationId: string) => {
-    try {
-      await cancelInvitation(invitationId);
-      toast.success("Invitation annulée");
-      loadData();
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Erreur lors de l'annulation"
-      );
-    }
+  const handleCancelInvitation = (invitationId: string) => {
+    if (!currentOrganization) return;
+
+    cancelInvitationMutation.mutate(
+      { invitationId, organizationId: currentOrganization.id },
+      {
+        onSuccess: () => toast.success("Invitation annulée"),
+        onError: (error) => {
+          toast.error(
+            error instanceof Error ? error.message : "Erreur lors de l'annulation"
+          );
+        },
+      }
+    );
   };
 
   const openRemoveDialog = (member: MemberWithEmail) => {
@@ -300,7 +286,7 @@ export default function MembersPage() {
                           </Avatar>
                           <div>
                             <p className="font-medium">
-                              {member.email || "Utilisateur"}
+                              {member.user?.email || "Utilisateur"}
                               {isCurrentUser && (
                                 <span className="ml-2 text-xs text-muted-foreground">
                                   (vous)

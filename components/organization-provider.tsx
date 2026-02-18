@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import {
   getUserOrganizations,
@@ -118,6 +119,7 @@ export default function OrganizationProvider({
 // Hook pour changer d'organisation avec persistance
 export function useSwitchOrganization() {
   const { switchOrganization, organizations } = useOrganizationStore();
+  const queryClient = useQueryClient();
 
   const handleSwitch = async (orgId: string) => {
     const org = organizations.find((o) => o.id === orgId);
@@ -129,8 +131,8 @@ export function useSwitchOrganization() {
       } catch (error) {
         console.error("Erreur lors de la persistance de l'organisation:", error);
       }
-      // Recharger la page pour recuperer les nouvelles donnees
-      window.location.reload();
+      // Clear all cached queries - they'll refetch with the new orgId
+      queryClient.removeQueries();
     }
   };
 

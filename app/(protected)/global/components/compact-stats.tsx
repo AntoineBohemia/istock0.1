@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Package, Euro, ArrowDownToLine, ArrowUpFromLine, Loader2, AlertTriangle } from "lucide-react";
+import { Package, Euro, ArrowDownToLine, ArrowUpFromLine, Loader2 } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { getDashboardStats, DashboardStats } from "@/lib/supabase/queries/dashboard";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
+import { useDashboardStats } from "@/hooks/queries";
 import { cn } from "@/lib/utils";
 
 interface StatCardProps {
@@ -36,27 +35,7 @@ function StatCard({ icon, label, value, subValue, className, iconClassName }: St
 
 export function CompactStats() {
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    async function loadData() {
-      if (!currentOrganization) return;
-
-      try {
-        const data = await getDashboardStats(currentOrganization.id);
-        setStats(data);
-      } catch (error) {
-        console.error("Error loading stats:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    if (!isOrgLoading && currentOrganization) {
-      loadData();
-    }
-  }, [currentOrganization?.id, isOrgLoading]);
+  const { data: stats, isLoading } = useDashboardStats(currentOrganization?.id);
 
   if (isLoading || isOrgLoading || !stats) {
     return (

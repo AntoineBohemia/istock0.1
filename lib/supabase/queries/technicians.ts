@@ -60,72 +60,20 @@ export interface UpdateTechnicianData extends Partial<CreateTechnicianData> {}
 
 /**
  * Récupère la liste des techniciens avec leur nombre d'items en inventaire
+ * Utilise une RPC pour tout faire en une seule requête SQL (JOIN + aggregation)
  */
 export async function getTechnicians(organizationId?: string): Promise<TechnicianWithInventory[]> {
   const supabase = createClient();
 
-  // Récupérer les techniciens
-  let query = supabase
-    .from("technicians")
-    .select("*")
-    .order("last_name", { ascending: true });
-
-  if (organizationId) {
-    query = query.eq("organization_id", organizationId);
-  }
-
-  const { data: technicians, error: techError } = await query;
-
-  if (techError) {
-    throw new Error(`Erreur lors de la récupération des techniciens: ${techError.message}`);
-  }
-
-  if (!technicians || technicians.length === 0) {
-    return [];
-  }
-
-  // Récupérer l'inventaire pour tous les techniciens
-  const { data: inventoryData, error: invError } = await supabase
-    .from("technician_inventory")
-    .select("technician_id, quantity");
-
-  if (invError) {
-    throw new Error(`Erreur lors de la récupération de l'inventaire: ${invError.message}`);
-  }
-
-  // Récupérer le dernier restock pour chaque technicien
-  const { data: historyData, error: histError } = await supabase
-    .from("technician_inventory_history")
-    .select("technician_id, created_at")
-    .order("created_at", { ascending: false });
-
-  if (histError) {
-    throw new Error(`Erreur lors de la récupération de l'historique: ${histError.message}`);
-  }
-
-  // Calculer le nombre d'items par technicien
-  const inventoryCountMap: Record<string, number> = {};
-  inventoryData?.forEach((item) => {
-    if (!inventoryCountMap[item.technician_id]) {
-      inventoryCountMap[item.technician_id] = 0;
-    }
-    inventoryCountMap[item.technician_id] += item.quantity;
+  const { data, error } = await supabase.rpc("get_technicians_with_stats", {
+    p_organization_id: organizationId || null,
   });
 
-  // Récupérer le dernier restock par technicien
-  const lastRestockMap: Record<string, string> = {};
-  historyData?.forEach((entry) => {
-    if (!lastRestockMap[entry.technician_id]) {
-      lastRestockMap[entry.technician_id] = entry.created_at;
-    }
-  });
+  if (error) {
+    throw new Error(`Erreur lors de la récupération des techniciens: ${error.message}`);
+  }
 
-  return technicians.map((tech) => ({
-    ...tech,
-    inventory: [],
-    inventory_count: inventoryCountMap[tech.id] || 0,
-    last_restock_at: lastRestockMap[tech.id] || null,
-  }));
+  return (data as TechnicianWithInventory[]) || [];
 }
 
 /**

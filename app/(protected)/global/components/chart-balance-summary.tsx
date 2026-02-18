@@ -51,15 +51,15 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import {
-  getDashboardStats,
-  getGlobalStockEvolution,
   getProductStockEvolution,
   StockEvolutionData,
   DashboardStats,
 } from "@/lib/supabase/queries/dashboard";
-import { createClient } from "@/lib/supabase/client";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { Category } from "@/lib/supabase/queries/categories";
+import { useDashboardStats, useGlobalStockEvolution } from "@/hooks/queries";
+import { useCategories } from "@/hooks/queries";
+import { useProducts } from "@/hooks/queries";
 
 interface Product {
   id: string;
@@ -90,13 +90,23 @@ interface MultiProductChartData {
 export function BalanceSummeryChart() {
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isLoadingChart, setIsLoadingChart] = useState(false);
 
-  // Data for filters
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  // React Query hooks for data
+  const { data: stats = null, isLoading: isStatsLoading } = useDashboardStats(currentOrganization?.id);
+  const { data: globalChartData = [], isLoading: isEvolutionLoading } = useGlobalStockEvolution(currentOrganization?.id, 6);
+  const { data: categoriesData = [] } = useCategories(currentOrganization?.id);
+  const { data: productsResult } = useProducts({ organizationId: currentOrganization?.id, pageSize: 1000 });
+
+  const categories = categoriesData;
+  const products: Product[] = (productsResult?.products || []).map(p => ({
+    id: p.id,
+    name: p.name,
+    sku: p.sku,
+    category_id: p.category_id,
+  }));
+
+  const isLoading = isStatsLoading || isEvolutionLoading;
 
   // Selection state
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
@@ -105,7 +115,6 @@ export function BalanceSummeryChart() {
 
   // Chart data per product
   const [productChartData, setProductChartData] = useState<Record<string, StockEvolutionData[]>>({});
-  const [globalChartData, setGlobalChartData] = useState<StockEvolutionData[]>([]);
 
   // Filter products by category
   const filteredProducts = useMemo(() => {
@@ -200,45 +209,6 @@ export function BalanceSummeryChart() {
   const clearProducts = () => {
     setSelectedProductIds([]);
   };
-
-  // Load initial data
-  useEffect(() => {
-    async function loadData() {
-      if (!currentOrganization) return;
-
-      try {
-        const supabase = createClient();
-
-        const [statsData, evolutionData, categoriesData, productsData] = await Promise.all([
-          getDashboardStats(currentOrganization.id),
-          getGlobalStockEvolution(6, currentOrganization.id),
-          supabase
-            .from("categories")
-            .select("*")
-            .eq("organization_id", currentOrganization.id)
-            .order("name"),
-          supabase
-            .from("products")
-            .select("id, name, sku, category_id")
-            .eq("organization_id", currentOrganization.id)
-            .order("name"),
-        ]);
-
-        setStats(statsData);
-        setGlobalChartData(evolutionData);
-        setCategories(categoriesData.data || []);
-        setProducts(productsData.data || []);
-      } catch (error) {
-        console.error("Error loading chart data:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    if (!isOrgLoading && currentOrganization) {
-      loadData();
-    }
-  }, [currentOrganization?.id, isOrgLoading]);
 
   // Load chart data when selected products change
   useEffect(() => {

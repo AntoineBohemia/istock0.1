@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -9,29 +8,10 @@ import {
   TrendingDown,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getMovementsSummary } from "@/lib/supabase/queries/stock-movements";
+import { useMovementsSummary } from "@/hooks/queries";
 
 export default function MovementsOverview() {
-  const [summary, setSummary] = useState({
-    totalEntries: 0,
-    totalExits: 0,
-    recentMovements: 0,
-  });
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    async function loadSummary() {
-      try {
-        const data = await getMovementsSummary();
-        setSummary(data);
-      } catch (error) {
-        console.error("Error loading summary:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    loadSummary();
-  }, []);
+  const { data: summary = { totalEntries: 0, totalExits: 0, recentMovements: 0 } } = useMovementsSummary();
 
   const balance = summary.totalEntries - summary.totalExits;
   const isPositive = balance >= 0;

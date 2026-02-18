@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Edit2,
   Loader2,
@@ -53,43 +53,26 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import {
-  Category,
-  getCategories,
-  createCategory,
-  updateCategory,
-  deleteCategory,
-} from "@/lib/supabase/queries/categories";
+import { Category } from "@/lib/supabase/queries/categories";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
+import { useCategories } from "@/hooks/queries";
+import { useCreateCategory, useUpdateCategory, useDeleteCategory } from "@/hooks/mutations";
 
 export default function CategoriesPage() {
   const { currentOrganization } = useOrganizationStore();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: categories = [], isLoading } = useCategories(currentOrganization?.id);
+  const createCategoryMutation = useCreateCategory();
+  const updateCategoryMutation = useUpdateCategory();
+  const deleteCategoryMutation = useDeleteCategory();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form states
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [categoryName, setCategoryName] = useState("");
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
 
-  const loadCategories = async () => {
-    if (!currentOrganization) return;
-    try {
-      const data = await getCategories(currentOrganization.id);
-      setCategories(data);
-    } catch (error) {
-      toast.error("Erreur lors du chargement des catégories");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadCategories();
-  }, [currentOrganization]);
+  const isSubmitting = createCategoryMutation.isPending || updateCategoryMutation.isPending || deleteCategoryMutation.isPending;
 
   const openCreateDialog = () => {
     setEditingCategory(null);
@@ -108,7 +91,7 @@ export default function CategoriesPage() {
     setIsDeleteDialogOpen(true);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!currentOrganization) {
       toast.error("Aucune organisation sélectionnée");
       return;
@@ -119,45 +102,48 @@ export default function CategoriesPage() {
       return;
     }
 
-    setIsSubmitting(true);
-
-    try {
-      if (editingCategory) {
-        await updateCategory(editingCategory.id, categoryName.trim());
-        toast.success("Catégorie mise à jour avec succès");
-      } else {
-        await createCategory(currentOrganization.id, categoryName.trim());
-        toast.success("Catégorie créée avec succès");
-      }
-      setIsDialogOpen(false);
-      loadCategories();
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Une erreur est survenue"
+    if (editingCategory) {
+      updateCategoryMutation.mutate(
+        { id: editingCategory.id, name: categoryName.trim() },
+        {
+          onSuccess: () => {
+            toast.success("Catégorie mise à jour avec succès");
+            setIsDialogOpen(false);
+          },
+          onError: (error) => {
+            toast.error(error instanceof Error ? error.message : "Une erreur est survenue");
+          },
+        }
       );
-    } finally {
-      setIsSubmitting(false);
+    } else {
+      createCategoryMutation.mutate(
+        { organizationId: currentOrganization.id, name: categoryName.trim() },
+        {
+          onSuccess: () => {
+            toast.success("Catégorie créée avec succès");
+            setIsDialogOpen(false);
+          },
+          onError: (error) => {
+            toast.error(error instanceof Error ? error.message : "Une erreur est survenue");
+          },
+        }
+      );
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!categoryToDelete) return;
 
-    setIsSubmitting(true);
-
-    try {
-      await deleteCategory(categoryToDelete.id);
-      toast.success("Catégorie supprimée avec succès");
-      setIsDeleteDialogOpen(false);
-      setCategoryToDelete(null);
-      loadCategories();
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Une erreur est survenue"
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+    deleteCategoryMutation.mutate(categoryToDelete.id, {
+      onSuccess: () => {
+        toast.success("Catégorie supprimée avec succès");
+        setIsDeleteDialogOpen(false);
+        setCategoryToDelete(null);
+      },
+      onError: (error) => {
+        toast.error(error instanceof Error ? error.message : "Une erreur est survenue");
+      },
+    });
   };
 
   if (isLoading) {

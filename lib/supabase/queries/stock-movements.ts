@@ -165,6 +165,7 @@ export async function getProductMovements(
 
 /**
  * Crée une entrée de stock (augmente stock_current)
+ * Utilise une RPC atomique pour éviter les race conditions
  */
 export async function createEntry(
   organizationId: string,
@@ -174,68 +175,23 @@ export async function createEntry(
 ): Promise<StockMovement> {
   const supabase = createClient();
 
-  if (quantity <= 0) {
-    throw new Error("La quantité doit être positive");
-  }
-
-  // Créer le mouvement
-  const { data: movement, error: movementError } = await supabase
-    .from("stock_movements")
-    .insert({
-      organization_id: organizationId,
-      product_id: productId,
-      quantity,
-      movement_type: "entry",
-      notes: notes || null,
-    })
-    .select()
-    .single();
-
-  if (movementError) {
-    throw new Error(`Erreur lors de la création du mouvement: ${movementError.message}`);
-  }
-
-  // Mettre à jour le stock du produit
-  const { error: updateError } = await supabase.rpc("increment_stock", {
+  const { data, error } = await supabase.rpc("create_stock_entry", {
+    p_organization_id: organizationId,
     p_product_id: productId,
     p_quantity: quantity,
+    p_notes: notes || null,
   });
 
-  if (updateError) {
-    // Fallback si la fonction RPC n'existe pas
-    const { error: fallbackError } = await supabase
-      .from("products")
-      .update({
-        stock_current: supabase.rpc("add_to_stock", { current: "stock_current", add: quantity }),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", productId);
-
-    // Si le fallback échoue aussi, on fait une mise à jour simple
-    if (fallbackError) {
-      const { data: product } = await supabase
-        .from("products")
-        .select("stock_current")
-        .eq("id", productId)
-        .single();
-
-      if (product) {
-        await supabase
-          .from("products")
-          .update({
-            stock_current: product.stock_current + quantity,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", productId);
-      }
-    }
+  if (error) {
+    throw new Error(`Erreur lors de la création du mouvement: ${error.message}`);
   }
 
-  return movement;
+  return data as StockMovement;
 }
 
 /**
  * Crée une sortie de stock (diminue stock_current)
+ * Utilise une RPC atomique pour éviter les race conditions (TOCTOU)
  */
 export async function createExit(
   organizationId: string,
@@ -247,88 +203,20 @@ export async function createExit(
 ): Promise<StockMovement> {
   const supabase = createClient();
 
-  if (quantity <= 0) {
-    throw new Error("La quantité doit être positive");
+  const { data, error } = await supabase.rpc("create_stock_exit", {
+    p_organization_id: organizationId,
+    p_product_id: productId,
+    p_quantity: quantity,
+    p_type: type,
+    p_technician_id: technicianId || null,
+    p_notes: notes || null,
+  });
+
+  if (error) {
+    throw new Error(`Erreur lors de la création du mouvement: ${error.message}`);
   }
 
-  // Vérifier le stock disponible
-  const { data: product, error: productError } = await supabase
-    .from("products")
-    .select("stock_current, name")
-    .eq("id", productId)
-    .single();
-
-  if (productError || !product) {
-    throw new Error("Produit non trouvé");
-  }
-
-  if (product.stock_current < quantity) {
-    throw new Error(
-      `Stock insuffisant pour "${product.name}". Disponible: ${product.stock_current}, demandé: ${quantity}`
-    );
-  }
-
-  // Valider le technicien si type exit_technician
-  if (type === "exit_technician" && !technicianId) {
-    throw new Error("Un technicien doit être sélectionné pour ce type de sortie");
-  }
-
-  // Créer le mouvement
-  const { data: movement, error: movementError } = await supabase
-    .from("stock_movements")
-    .insert({
-      organization_id: organizationId,
-      product_id: productId,
-      quantity,
-      movement_type: type,
-      technician_id: type === "exit_technician" ? technicianId : null,
-      notes: notes || null,
-    })
-    .select()
-    .single();
-
-  if (movementError) {
-    throw new Error(`Erreur lors de la création du mouvement: ${movementError.message}`);
-  }
-
-  // Décrémenter le stock du produit
-  await supabase
-    .from("products")
-    .update({
-      stock_current: product.stock_current - quantity,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", productId);
-
-  // Si c'est une sortie vers un technicien, mettre à jour son inventaire
-  if (type === "exit_technician" && technicianId) {
-    // Vérifier si le technicien a déjà ce produit dans son inventaire
-    const { data: existingInventory } = await supabase
-      .from("technician_inventory")
-      .select("id, quantity")
-      .eq("technician_id", technicianId)
-      .eq("product_id", productId)
-      .single();
-
-    if (existingInventory) {
-      // Mettre à jour la quantité existante
-      await supabase
-        .from("technician_inventory")
-        .update({
-          quantity: existingInventory.quantity + quantity,
-        })
-        .eq("id", existingInventory.id);
-    } else {
-      // Créer une nouvelle entrée dans l'inventaire
-      await supabase.from("technician_inventory").insert({
-        technician_id: technicianId,
-        product_id: productId,
-        quantity: quantity,
-      });
-    }
-  }
-
-  return movement;
+  return data as StockMovement;
 }
 
 /**

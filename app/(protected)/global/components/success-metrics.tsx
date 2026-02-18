@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronUp, Loader2, Users } from "lucide-react";
 import { getInitials } from "@/lib/utils";
@@ -25,49 +25,17 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import {
-  getTechnicianStats,
-  getTechniciansNeedingRestock,
-  TechnicianNeedingRestock,
-} from "@/lib/supabase/queries/dashboard";
+import { TechnicianNeedingRestock } from "@/lib/supabase/queries/dashboard";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
+import { useTechnicianStatsForDashboard, useTechniciansNeedingRestock } from "@/hooks/queries";
 
 export function SuccessMetrics() {
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
-  const [stats, setStats] = useState({
-    total: 0,
-    withGoodStock: 0,
-    withLowStock: 0,
-    needingRestock: 0,
-  });
-  const [techniciansToRestock, setTechniciansToRestock] = useState<
-    TechnicianNeedingRestock[]
-  >([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: stats = { total: 0, withGoodStock: 0, withLowStock: 0, needingRestock: 0 }, isLoading: isStatsLoading } = useTechnicianStatsForDashboard(currentOrganization?.id);
+  const { data: techniciansData = [], isLoading: isTechLoading } = useTechniciansNeedingRestock(currentOrganization?.id, 7);
+  const techniciansToRestock = techniciansData.slice(0, 6);
   const [isExpanded, setIsExpanded] = useState(false);
-
-  useEffect(() => {
-    async function loadData() {
-      if (!currentOrganization) return;
-
-      try {
-        const [statsData, techniciansData] = await Promise.all([
-          getTechnicianStats(currentOrganization.id),
-          getTechniciansNeedingRestock(7, currentOrganization.id),
-        ]);
-        setStats(statsData);
-        setTechniciansToRestock(techniciansData.slice(0, 6));
-      } catch (error) {
-        console.error("Error loading technician stats:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    if (!isOrgLoading && currentOrganization) {
-      loadData();
-    }
-  }, [currentOrganization?.id, isOrgLoading]);
+  const isLoading = isStatsLoading || isTechLoading;
 
   if (isLoading || isOrgLoading) {
     return (

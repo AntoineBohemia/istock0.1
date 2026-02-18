@@ -62,13 +62,13 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 import { useOrganizationStore, Organization } from "@/lib/stores/organization-store";
+import { useOrganizations } from "@/hooks/queries";
 import {
-  getUserOrganizations,
-  createOrganization,
-  updateOrganization,
-  deleteOrganization,
-} from "@/lib/supabase/queries/organizations";
-import { createClient } from "@/lib/supabase/client";
+  useCreateOrganization,
+  useUpdateOrganization,
+  useDeleteOrganization,
+  useUploadOrganizationLogo,
+} from "@/hooks/mutations";
 
 interface OrganizationWithMeta extends Organization {
   memberCount?: number;
@@ -76,11 +76,20 @@ interface OrganizationWithMeta extends Organization {
 
 export default function OrganizationsPage() {
   const { currentOrganization, setOrganizations, setCurrentOrganization } = useOrganizationStore();
-  const [organizations, setLocalOrganizations] = useState<OrganizationWithMeta[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: organizations = [], isLoading } = useOrganizations();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const createMutation = useCreateOrganization();
+  const updateMutation = useUpdateOrganization();
+  const deleteMutation = useDeleteOrganization();
+  const uploadLogoMutation = useUploadOrganizationLogo();
+
+  const isSubmitting =
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    deleteMutation.isPending ||
+    uploadLogoMutation.isPending;
 
   // Form states
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
@@ -92,25 +101,14 @@ export default function OrganizationsPage() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [existingLogoUrl, setExistingLogoUrl] = useState<string | null>(null);
-  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const loadOrganizations = async () => {
-    setIsLoading(true);
-    try {
-      const orgs = await getUserOrganizations();
-      setLocalOrganizations(orgs);
-      setOrganizations(orgs);
-    } catch (error) {
-      toast.error("Erreur lors du chargement des organisations");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Sync organizations to Zustand store when they change
   useEffect(() => {
-    loadOrganizations();
-  }, []);
+    if (organizations.length > 0) {
+      setOrganizations(organizations);
+    }
+  }, [organizations, setOrganizations]);
 
   const generateSlug = (name: string) => {
     return name
@@ -183,26 +181,6 @@ export default function OrganizationsPage() {
     }
   };
 
-  const uploadLogo = async (file: File, orgSlug: string): Promise<string> => {
-    const supabase = createClient();
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${orgSlug}-${Date.now()}.${fileExt}`;
-
-    const { error } = await supabase.storage
-      .from("organization-logos")
-      .upload(fileName, file, { upsert: true });
-
-    if (error) {
-      throw new Error(`Erreur lors de l'upload du logo: ${error.message}`);
-    }
-
-    const { data: urlData } = supabase.storage
-      .from("organization-logos")
-      .getPublicUrl(fileName);
-
-    return urlData.publicUrl;
-  };
-
   const handleSubmit = async () => {
     if (!orgName.trim()) {
       toast.error("Le nom de l'organisation est requis");
@@ -214,26 +192,28 @@ export default function OrganizationsPage() {
       return;
     }
 
-    setIsSubmitting(true);
-
     try {
       let logoUrl: string | null | undefined = existingLogoUrl;
 
       // Upload new logo if selected
       if (logoFile) {
-        setIsUploadingLogo(true);
-        logoUrl = await uploadLogo(logoFile, orgSlug.trim());
-        setIsUploadingLogo(false);
+        logoUrl = await uploadLogoMutation.mutateAsync({
+          file: logoFile,
+          orgSlug: orgSlug.trim(),
+        });
       } else if (!existingLogoUrl && editingOrg?.logo_url) {
         // Logo was removed
         logoUrl = null;
       }
 
       if (editingOrg) {
-        await updateOrganization(editingOrg.id, {
-          name: orgName.trim(),
-          slug: orgSlug.trim(),
-          logo_url: logoUrl,
+        await updateMutation.mutateAsync({
+          id: editingOrg.id,
+          data: {
+            name: orgName.trim(),
+            slug: orgSlug.trim(),
+            logo_url: logoUrl,
+          },
         });
         toast.success("Organisation mise à jour");
 
@@ -247,18 +227,18 @@ export default function OrganizationsPage() {
           });
         }
       } else {
-        await createOrganization(orgName.trim(), orgSlug.trim(), logoUrl || undefined);
+        await createMutation.mutateAsync({
+          name: orgName.trim(),
+          slug: orgSlug.trim(),
+          logoUrl: logoUrl || undefined,
+        });
         toast.success("Organisation créée");
       }
       setIsDialogOpen(false);
-      loadOrganizations();
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Une erreur est survenue"
       );
-    } finally {
-      setIsSubmitting(false);
-      setIsUploadingLogo(false);
     }
   };
 
@@ -271,20 +251,15 @@ export default function OrganizationsPage() {
       return;
     }
 
-    setIsSubmitting(true);
-
     try {
-      await deleteOrganization(orgToDelete.id);
+      await deleteMutation.mutateAsync(orgToDelete.id);
       toast.success("Organisation supprimée");
       setIsDeleteDialogOpen(false);
       setOrgToDelete(null);
-      loadOrganizations();
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Une erreur est survenue"
       );
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -539,10 +514,10 @@ export default function OrganizationsPage() {
               Annuler
             </Button>
             <Button onClick={handleSubmit} disabled={isSubmitting}>
-              {(isSubmitting || isUploadingLogo) && (
+              {isSubmitting && (
                 <Loader2 className="mr-2 size-4 animate-spin" />
               )}
-              {isUploadingLogo
+              {uploadLogoMutation.isPending
                 ? "Upload du logo..."
                 : editingOrg
                   ? "Enregistrer"

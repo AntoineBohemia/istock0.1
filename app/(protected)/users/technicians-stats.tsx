@@ -1,36 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
-import { getTechniciansStats, TechniciansStats } from "@/lib/supabase/queries/technicians";
+import { useTechniciansStats } from "@/hooks/queries";
 
 export default function TechnicianStats() {
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
-  const [stats, setStats] = useState<TechniciansStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    async function loadStats() {
-      if (!currentOrganization) return;
-
-      setIsLoading(true);
-      try {
-        const data = await getTechniciansStats(currentOrganization.id);
-        setStats(data);
-      } catch (error) {
-        console.error("Erreur lors du chargement des statistiques:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    if (!isOrgLoading && currentOrganization) {
-      loadStats();
-    }
-  }, [currentOrganization?.id, isOrgLoading]);
+  const { data: stats, isLoading } = useTechniciansStats(currentOrganization?.id || "");
 
   if (isLoading || isOrgLoading || !stats) {
     return (
