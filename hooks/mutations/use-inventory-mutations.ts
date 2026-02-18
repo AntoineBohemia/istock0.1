@@ -31,10 +31,10 @@ export function useRestockTechnician() {
       // Mouvements : nouvelles entrees creees
       qc.invalidateQueries({ queryKey: queryKeys.movements.lists() });
       qc.invalidateQueries({ queryKey: queryKeys.movements.summary() });
-      // Dashboard : stats seulement
-      qc.invalidateQueries({ queryKey: queryKeys.dashboard.stats() });
+      // Dashboard : stats (prefix sans orgId pour matcher toutes les orgs)
+      qc.invalidateQueries({ queryKey: [...queryKeys.dashboard.all, "stats"] });
       // Inventaire dispo
-      qc.invalidateQueries({ queryKey: queryKeys.inventory.availableProducts() });
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
     },
   });
 }
@@ -62,10 +62,10 @@ export function useAddToTechnicianInventory() {
       // Mouvements : nouvelles entrees creees
       qc.invalidateQueries({ queryKey: queryKeys.movements.lists() });
       qc.invalidateQueries({ queryKey: queryKeys.movements.summary() });
-      // Dashboard : stats seulement
-      qc.invalidateQueries({ queryKey: queryKeys.dashboard.stats() });
+      // Dashboard : stats (prefix sans orgId pour matcher toutes les orgs)
+      qc.invalidateQueries({ queryKey: [...queryKeys.dashboard.all, "stats"] });
       // Inventaire dispo
-      qc.invalidateQueries({ queryKey: queryKeys.inventory.availableProducts() });
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
     },
   });
 }
