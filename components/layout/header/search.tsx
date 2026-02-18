@@ -1,10 +1,10 @@
 "use client";
 
 import React from "react";
-import { CommandIcon, SearchIcon, icons } from "lucide-react";
+import { CommandIcon, SearchIcon, icons, Package, Users, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { page_routes } from "@/lib/routes-config";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   CommandDialog,
@@ -19,6 +19,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
+import { useProducts, useTechnicians } from "@/hooks/queries";
 
 type CommandItemProps = {
   item: {
@@ -30,7 +32,18 @@ type CommandItemProps = {
 
 export default function Search() {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const router = useRouter();
+  const orgId = useOrganizationStore((s) => s.currentOrganization?.id);
+
+  useEffect(() => {
+    debounceRef.current = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [query]);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -43,6 +56,25 @@ export default function Search() {
     return () => document.removeEventListener("keydown", down);
   }, []);
 
+  const handleOpenChange = (value: boolean) => {
+    setOpen(value);
+    if (!value) {
+      setQuery("");
+      setDebouncedQuery("");
+    }
+  };
+
+  const { data: productsResult, isLoading: productsLoading } = useProducts({
+    organizationId: orgId,
+    search: debouncedQuery || undefined,
+    page: 1,
+    pageSize: 5,
+  });
+
+  const { data: technicians } = useTechnicians(open ? orgId : undefined);
+
+  const showProducts = debouncedQuery.length >= 2;
+
   const CommandItemComponent: React.FC<CommandItemProps> = ({ item }) => {
     // @ts-expect-error
     const LucideIcon = icons[item.icon];
@@ -50,7 +82,7 @@ export default function Search() {
     return (
       <CommandItem
         onSelect={() => {
-          setOpen(false);
+          handleOpenChange(false);
           router.push(item.href);
         }}
       >
@@ -80,15 +112,78 @@ export default function Search() {
           <SearchIcon />
         </Button>
       </div>
-      <CommandDialog open={open} onOpenChange={setOpen}>
+      <CommandDialog open={open} onOpenChange={handleOpenChange}>
         <VisuallyHidden>
           <DialogHeader>
             <DialogTitle></DialogTitle>
           </DialogHeader>
         </VisuallyHidden>
-        <CommandInput placeholder="Tappez une recherche" />
+        <CommandInput
+          placeholder="Rechercher un produit, technicien ou page..."
+          value={query}
+          onValueChange={setQuery}
+        />
         <CommandList>
           <CommandEmpty>Aucun résultat trouvé.</CommandEmpty>
+
+          {showProducts && (
+            <CommandGroup heading="Produits">
+              {productsLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
+                </div>
+              ) : productsResult?.products.length ? (
+                productsResult.products.map((product) => (
+                  <CommandItem
+                    key={product.id}
+                    value={`${product.name} ${product.sku ?? ""}`}
+                    onSelect={() => {
+                      handleOpenChange(false);
+                      router.push(`/product/${product.id}`);
+                    }}
+                  >
+                    <Package className="me-2 h-4 w-4 shrink-0" />
+                    <span>{product.name}</span>
+                    {product.sku && (
+                      <span className="text-muted-foreground ml-auto text-xs">
+                        {product.sku}
+                      </span>
+                    )}
+                  </CommandItem>
+                ))
+              ) : (
+                <div className="text-muted-foreground py-2 text-center text-sm">
+                  Aucun produit trouvé
+                </div>
+              )}
+            </CommandGroup>
+          )}
+
+          {technicians?.length ? (
+            <CommandGroup heading="Techniciens">
+              {technicians.map((tech) => (
+                <CommandItem
+                  key={tech.id}
+                  value={`${tech.first_name} ${tech.last_name} ${tech.email ?? ""}`}
+                  onSelect={() => {
+                    handleOpenChange(false);
+                    router.push(`/users/${tech.id}`);
+                  }}
+                >
+                  <Users className="me-2 h-4 w-4 shrink-0" />
+                  <span>
+                    {tech.first_name} {tech.last_name}
+                  </span>
+                  {tech.city && (
+                    <span className="text-muted-foreground ml-auto text-xs">
+                      {tech.city}
+                    </span>
+                  )}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          ) : null}
+
           {page_routes.map((route) => (
             <React.Fragment key={route.title}>
               <CommandGroup heading={route.title}>
