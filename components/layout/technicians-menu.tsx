@@ -132,11 +132,13 @@ export default function TechniciansMenu({ title, href, icon }: TechniciansMenuPr
 
       {/* Version expanded */}
       <Collapsible className="group/collapsible block group-data-[collapsible=icon]:hidden">
-        <CollapsibleTrigger asChild>
-          <SidebarMenuButton
-            className="hover:text-foreground! active:text-foreground! hover:bg-[var(--primary)]/10! active:bg-[var(--primary)]/10!"
-            tooltip={title}
-          >
+        <SidebarMenuButton
+          className="hover:text-foreground! active:text-foreground! hover:bg-[var(--primary)]/10! active:bg-[var(--primary)]/10!"
+          tooltip={title}
+          isActive={pathname === href || pathname.startsWith(`${href}/`)}
+          asChild
+        >
+          <Link href={href}>
             {icon && (
               <Icon
                 name={icon}
@@ -144,25 +146,23 @@ export default function TechniciansMenu({ title, href, icon }: TechniciansMenuPr
               />
             )}
             <span>{title}</span>
-            <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-          </SidebarMenuButton>
-        </CollapsibleTrigger>
+            <CollapsibleTrigger asChild>
+              <span
+                role="button"
+                className="ml-auto p-1 -mr-1 rounded-sm hover:bg-accent"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+              >
+                <ChevronRight className="size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+              </span>
+            </CollapsibleTrigger>
+          </Link>
+        </SidebarMenuButton>
         <CollapsibleContent>
           <ScrollArea className="max-h-48">
             <SidebarMenuSub>
-              {/* Liste des techniciens - premier élément */}
-              <SidebarMenuSubItem>
-                <SidebarMenuSubButton
-                  className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10 font-medium"
-                  isActive={pathname === href}
-                  asChild
-                >
-                  <Link href={href}>
-                    <span>Liste des techniciens</span>
-                  </Link>
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-              {/* Techniciens individuels */}
               {isLoading ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="size-4 animate-spin text-muted-foreground" />
@@ -171,7 +171,7 @@ export default function TechniciansMenu({ title, href, icon }: TechniciansMenuPr
                 technicians.map((tech) => (
                   <SidebarMenuSubItem key={tech.id}>
                     <SidebarMenuSubButton
-                      className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10 pl-4 text-muted-foreground"
+                      className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10 text-muted-foreground"
                       isActive={pathname === `/users/${tech.id}`}
                       asChild
                     >
