@@ -151,7 +151,6 @@ export default function TechniciansMenu({ title, href, icon }: TechniciansMenuPr
                 role="button"
                 className="ml-auto p-1 -mr-1 rounded-sm hover:bg-accent"
                 onClick={(e) => {
-                  e.preventDefault();
                   e.stopPropagation();
                 }}
               >

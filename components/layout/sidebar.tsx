@@ -206,7 +206,6 @@ export default function Sidebar() {
                                     role="button"
                                     className="ml-auto p-1 -mr-1 rounded-sm hover:bg-accent"
                                     onClick={(e) => {
-                                      e.preventDefault();
                                       e.stopPropagation();
                                     }}
                                   >
