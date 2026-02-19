@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -153,7 +153,12 @@ export function ActionTaskList() {
   const { data: tasks = [], isLoading } = useDashboardTasks();
   const { dismissTask } = useTaskDismissStore();
   const [showAll, setShowAll] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
+
+  // Fermer par défaut sur mobile, ouvert par défaut sur desktop
+  useEffect(() => {
+    setIsExpanded(window.matchMedia("(min-width: 1024px)").matches);
+  }, []);
 
   const handleDismiss = (task: DashboardTask) => {
     task.entity_ids.forEach((entityId) => dismissTask(task.type, entityId));
@@ -212,13 +217,12 @@ export function ActionTaskList() {
 
   return (
     <Card>
-      {/* Mobile: Collapsible */}
-      <Collapsible open={isExpanded} onOpenChange={setIsExpanded} className="lg:hidden">
+      <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
         <CollapsibleTrigger asChild>
           <CardHeader className="pb-3 cursor-pointer hover:bg-muted/50 transition-colors">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <CardTitle className="text-base">À faire</CardTitle>
+                <CardTitle className="text-base lg:text-lg">À faire</CardTitle>
                 {tasks.length > 0 && (
                   <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
                     {tasks.length}
@@ -239,23 +243,6 @@ export function ActionTaskList() {
           </CardContent>
         </CollapsibleContent>
       </Collapsible>
-
-      {/* Desktop: Always visible */}
-      <div className="hidden lg:block">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <CardTitle>À faire</CardTitle>
-            {tasks.length > 0 && (
-              <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                {tasks.length}
-              </Badge>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {taskContent}
-        </CardContent>
-      </div>
     </Card>
   );
 }
