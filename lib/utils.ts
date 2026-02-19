@@ -24,15 +24,14 @@ export function generateMeta({
   canonical: string;
 }): Metadata {
   return {
-    title: `${title} - Shadcn UI Kit`,
+    title: `${title} - iStock`,
     description: description,
-    metadataBase: new URL(`${process.env.BASE_URL}`),
-    alternates: {
-      canonical: `/dashboard${canonical}`,
-    },
-    openGraph: {
-      images: [`${process.env.ASSETS_URL}/seo.jpg`],
-    },
+    ...(process.env.BASE_URL && {
+      metadataBase: new URL(process.env.BASE_URL),
+      alternates: {
+        canonical: canonical,
+      },
+    }),
   };
 }
 
