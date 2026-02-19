@@ -33,8 +33,11 @@
       "Bash(npm test:*)",
       "Bash(./node_modules/.bin/vitest run:*)",
       "Bash(git pull:*)",
+      "Bash(pnpm list:*)",
       "Bash(pnpm test:*)",
-      "Bash(GIT_EDITOR=true git rebase:*)"
+      "Bash(git diff:*)",
+      "mcp__supabase__list_edge_functions",
+      "mcp__supabase__generate_typescript_types"
     ]
   },
   "enableAllProjectMcpServers": true,
