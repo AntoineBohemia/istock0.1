@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -18,7 +18,6 @@ import {
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
@@ -32,69 +31,123 @@ import type { DashboardTask } from "@/lib/supabase/queries/dashboard";
 
 const INITIAL_COUNT = 5;
 
-const TASK_ICONS: Record<string, { icon: typeof AlertTriangle; className: string }> = {
-  product_out_of_stock: { icon: AlertTriangle, className: "text-red-500" },
-  product_below_min: { icon: TrendingDown, className: "text-orange-500" },
-  product_overstocked: { icon: Package, className: "text-orange-500" },
-  technician_late_restock: { icon: Clock, className: "text-blue-500" },
-  technician_never_restocked: { icon: UserX, className: "text-red-500" },
-  product_dormant: { icon: Moon, className: "text-muted-foreground" },
+// ─── Config par type de tâche ────────────────────────────────────────
+
+const TASK_ICONS: Record<string, { icon: typeof AlertTriangle; className: string; bgClassName: string }> = {
+  product_out_of_stock: { icon: AlertTriangle, className: "text-red-500", bgClassName: "bg-red-100 dark:bg-red-950/40" },
+  product_below_min: { icon: TrendingDown, className: "text-orange-500", bgClassName: "bg-orange-100 dark:bg-orange-950/40" },
+  product_overstocked: { icon: Package, className: "text-orange-500", bgClassName: "bg-orange-100 dark:bg-orange-950/40" },
+  technician_late_restock: { icon: Clock, className: "text-blue-500", bgClassName: "bg-blue-100 dark:bg-blue-950/40" },
+  technician_never_restocked: { icon: UserX, className: "text-red-500", bgClassName: "bg-red-100 dark:bg-red-950/40" },
+  product_dormant: { icon: Moon, className: "text-muted-foreground", bgClassName: "bg-muted" },
 };
 
-const PRIORITY_BADGE: Record<string, { variant: "destructive" | "warning" | "secondary"; label: string }> = {
-  critical: { variant: "destructive", label: "Critique" },
-  important: { variant: "warning", label: "Important" },
-  informational: { variant: "secondary", label: "Info" },
+const PRIORITY_BORDER: Record<string, string> = {
+  critical: "border-l-red-500",
+  important: "border-l-orange-400",
+  informational: "border-l-muted-foreground/30",
 };
 
-interface TaskItemProps {
-  task: DashboardTask;
-  onDismiss: () => void;
+// ─── Config de groupes (ordre d'affichage) ───────────────────────────
+
+interface TaskGroup {
+  key: string;
+  label: string;
+  types: string[];
 }
 
-function TaskItem({ task, onDismiss }: TaskItemProps) {
+const TASK_GROUPS: TaskGroup[] = [
+  { key: "stock_critical", label: "Ruptures de stock", types: ["product_out_of_stock"] },
+  { key: "stock_low", label: "Stock faible", types: ["product_below_min"] },
+  { key: "stock_over", label: "Surstockage", types: ["product_overstocked"] },
+  { key: "tech_restock", label: "Techniciens à restocker", types: ["technician_never_restocked", "technician_late_restock"] },
+  { key: "dormant", label: "Produits dormants", types: ["product_dormant"] },
+];
+
+// ─── Sous-composants ─────────────────────────────────────────────────
+
+function TaskItem({ task, onDismiss }: { task: DashboardTask; onDismiss: () => void }) {
   const iconConfig = TASK_ICONS[task.type] ?? TASK_ICONS.product_dormant;
   const Icon = iconConfig.icon;
-  const badgeConfig = PRIORITY_BADGE[task.priority] ?? PRIORITY_BADGE.informational;
+  const borderClass = PRIORITY_BORDER[task.priority] ?? PRIORITY_BORDER.informational;
 
   return (
-    <div className="group flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted/50">
-      <div className={cn("shrink-0", iconConfig.className)}>
-        <Icon className="size-4" />
+    <Link
+      href={task.action_url}
+      className={cn(
+        "group flex items-center gap-3 rounded-r-lg py-2 pr-2 pl-3 border-l-3 transition-colors cursor-pointer hover:bg-muted/50",
+        borderClass
+      )}
+    >
+      <div className={cn("shrink-0 flex items-center justify-center rounded-full size-8", iconConfig.bgClassName)}>
+        <Icon className={cn("size-4", iconConfig.className)} />
       </div>
-      <Link href={task.action_url} className="flex-1 min-w-0">
-        <p className="text-sm truncate">{task.summary}</p>
-      </Link>
-      <Badge variant={badgeConfig.variant} className="shrink-0 text-[10px] px-1.5 py-0">
-        {badgeConfig.label}
-      </Badge>
+      <p className="flex-1 min-w-0 text-sm truncate">{task.summary}</p>
       <button
         onClick={(e) => {
           e.preventDefault();
+          e.stopPropagation();
           onDismiss();
         }}
-        className="shrink-0 rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+        className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
         aria-label="Masquer cette tâche"
       >
         <X className="size-3.5" />
       </button>
+    </Link>
+  );
+}
+
+function TaskGroupSection({
+  group,
+  tasks,
+  onDismiss,
+}: {
+  group: TaskGroup;
+  tasks: DashboardTask[];
+  onDismiss: (task: DashboardTask) => void;
+}) {
+  if (tasks.length === 0) return null;
+
+  const firstType = tasks[0].type;
+  const iconConfig = TASK_ICONS[firstType] ?? TASK_ICONS.product_dormant;
+  const Icon = iconConfig.icon;
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2 px-1 py-1">
+        <Icon className={cn("size-3.5", iconConfig.className)} />
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          {group.label}
+        </span>
+        <span className="text-xs text-muted-foreground">({tasks.length})</span>
+      </div>
+      <div className="space-y-0.5">
+        {tasks.map((task) => (
+          <TaskItem key={task.group_key} task={task} onDismiss={() => onDismiss(task)} />
+        ))}
+      </div>
     </div>
   );
 }
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center py-8 text-center">
-      <CheckCircle className="size-10 text-green-500 mb-3" />
-      <p className="text-sm font-medium text-green-600 dark:text-green-400">
-        Tout est en ordre
-      </p>
-      <p className="text-xs text-muted-foreground mt-1">
-        Aucune action requise pour le moment
-      </p>
+    <div className="flex items-center gap-3 rounded-lg border-l-3 border-l-emerald-500 bg-emerald-50 px-4 py-3 dark:bg-emerald-950/20">
+      <CheckCircle className="size-5 shrink-0 text-emerald-500" />
+      <div>
+        <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+          Tout est en ordre
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Aucune action requise pour le moment
+        </p>
+      </div>
     </div>
   );
 }
+
+// ─── Composant principal ─────────────────────────────────────────────
 
 export function ActionTaskList() {
   const { data: tasks = [], isLoading } = useDashboardTasks();
@@ -102,18 +155,26 @@ export function ActionTaskList() {
   const [showAll, setShowAll] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const visibleTasks = showAll ? tasks : tasks.slice(0, INITIAL_COUNT);
-  const remaining = tasks.length - INITIAL_COUNT;
-
   const handleDismiss = (task: DashboardTask) => {
     task.entity_ids.forEach((entityId) => dismissTask(task.type, entityId));
   };
+
+  // Grouper les tâches par type, en respectant l'ordre de TASK_GROUPS
+  const groupedTasks = useMemo(() => {
+    const taskList = showAll ? tasks : tasks.slice(0, INITIAL_COUNT);
+    return TASK_GROUPS.map((group) => ({
+      group,
+      tasks: taskList.filter((t) => group.types.includes(t.type)),
+    })).filter(({ tasks: t }) => t.length > 0);
+  }, [tasks, showAll]);
+
+  const remaining = tasks.length - INITIAL_COUNT;
 
   if (isLoading) {
     return (
       <Card>
         <CardHeader className="pb-3 lg:pb-6">
-          <CardTitle className="text-base lg:text-lg">A faire</CardTitle>
+          <CardTitle className="text-base lg:text-lg">À faire</CardTitle>
         </CardHeader>
         <CardContent className="flex h-32 lg:h-48 items-center justify-center">
           <Loader2 className="size-6 lg:size-8 animate-spin text-muted-foreground" />
@@ -127,23 +188,22 @@ export function ActionTaskList() {
       {tasks.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="space-y-1">
-          {visibleTasks.map((task) => (
-            <TaskItem
-              key={task.group_key}
-              task={task}
-              onDismiss={() => handleDismiss(task)}
+        <div className="space-y-4">
+          {groupedTasks.map(({ group, tasks: groupTasks }) => (
+            <TaskGroupSection
+              key={group.key}
+              group={group}
+              tasks={groupTasks}
+              onDismiss={handleDismiss}
             />
           ))}
           {remaining > 0 && !showAll && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full text-muted-foreground"
+            <button
               onClick={() => setShowAll(true)}
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               Voir les {remaining} autres tâches
-            </Button>
+            </button>
           )}
         </div>
       )}
@@ -158,7 +218,7 @@ export function ActionTaskList() {
           <CardHeader className="pb-3 cursor-pointer hover:bg-muted/50 transition-colors">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <CardTitle className="text-base">A faire</CardTitle>
+                <CardTitle className="text-base">À faire</CardTitle>
                 {tasks.length > 0 && (
                   <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
                     {tasks.length}
@@ -184,7 +244,7 @@ export function ActionTaskList() {
       <div className="hidden lg:block">
         <CardHeader>
           <div className="flex items-center gap-2">
-            <CardTitle>A faire</CardTitle>
+            <CardTitle>À faire</CardTitle>
             {tasks.length > 0 && (
               <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
                 {tasks.length}
