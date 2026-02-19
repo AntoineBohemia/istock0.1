@@ -70,10 +70,10 @@ iStock définit trois rôles au sein de chaque organisation. Un même utilisateu
 |--------|:---:|:---:|:---:|
 | Consulter le tableau de bord | Oui | Oui | Oui |
 | Consulter les produits | Oui | Oui | Oui |
-| Créer / modifier / supprimer un produit | Oui | Oui | Oui |
+| Créer / modifier / archiver un produit | Oui | Oui | Oui |
 | Enregistrer un mouvement de stock | Oui | Oui | Oui |
 | Consulter les techniciens | Oui | Oui | Oui |
-| Créer / modifier / supprimer un technicien | Oui | Oui | Oui |
+| Créer / modifier / archiver un technicien | Oui | Oui | Oui |
 | Restocker un technicien | Oui | Oui | Oui |
 | Gérer les catégories | Oui | Oui | Oui |
 | Inviter un nouveau membre | Oui | Oui | Non |
@@ -85,7 +85,7 @@ iStock définit trois rôles au sein de chaque organisation. Un même utilisateu
 
 > **Ambiguïté identifiée** : La modification des informations de l'organisation (nom, slug, logo) ne semble pas restreinte par rôle dans le code. Tout membre peut potentiellement modifier ces informations. Il est probable que cela soit un oubli et que seuls les propriétaires et administrateurs devraient y avoir accès.
 
-> **Ambiguïté identifiée** : Les opérations CRUD sur les produits et techniciens ne comportent aucune restriction par rôle dans le code actuel. Un simple membre a les mêmes capacités qu'un administrateur pour ces entités.
+> **Ambiguïté identifiée** : Les opérations de création, modification et archivage sur les produits et techniciens ne comportent aucune restriction par rôle dans le code actuel. Un simple membre a les mêmes capacités qu'un administrateur pour ces entités.
 
 ### 2.3 Propriétaire unique
 
@@ -164,7 +164,7 @@ L'état de progression de l'onboarding est sauvegardé localement dans le naviga
 
 Le tableau de bord est la page d'accueil de l'application une fois connecté. Il fournit une vue synthétique de l'état du stock et de l'activité récente. L'interface est **responsive** avec des mises en page distinctes pour mobile et desktop.
 
-**En-tête du tableau de bord** : titre "Tableau de bord", sous-titre "Vue d'ensemble de votre gestion de stock", et un **bouton "Restocker"** qui ouvre directement le formulaire de mouvement de stock rapide (voir section 3.7.2).
+**En-tête du tableau de bord** : titre "Tableau de bord", sous-titre "Vue d'ensemble de votre gestion de stock", et un **bouton "Restocker un technicien"** (mis en avant, taille large) qui ouvre un flux en deux étapes : d'abord un **sélecteur de technicien** (palette de recherche par nom, email ou ville), puis le **formulaire de restock** identique à celui de la fiche technicien (voir section 3.8.2).
 
 #### 3.3.1 Indicateurs clés (KPI)
 
@@ -344,23 +344,23 @@ La fiche d'un produit affiche :
 - **Tableau d'informations** : catégorie, fournisseur, périssable (oui/non), suivi stock (actif/désactivé)
 - **QR Code** : un QR code unique est généré pour chaque produit (voir section 3.8). Affiché dans la colonne de gauche sur grand écran, en bas de page sur mobile.
 - **Graphique d'évolution** : graphique en aires montrant les entrées et sorties des **3 derniers mois** (par jour), avec un résumé chiffré : total entrées, total sorties, balance nette
-- **Actions en haut de page** : Restocker (ouvre le formulaire de mouvement de stock pré-rempli), Modifier, Supprimer (avec confirmation)
+- **Actions en haut de page** : Restocker (ouvre le formulaire de mouvement de stock pré-rempli), Modifier, Archiver (avec confirmation)
 
 #### 3.4.4 Modification d'un produit
 
 Tous les champs renseignés à la création sont modifiables. La modification du stock actuel ne se fait pas par cette interface, mais exclusivement via les mouvements de stock (entrée ou sortie).
 
-#### 3.4.5 Suppression d'un produit
+#### 3.4.5 Archivage d'un produit
 
-La suppression d'un produit est irréversible. Une **boîte de dialogue de confirmation** s'affiche avec le message : "Vous allez supprimer [nom du produit]. Cette action est irréversible et supprimera définitivement ce produit de votre inventaire."
+L'archivage d'un produit est un **soft delete** : le produit n'est pas supprimé de la base de données mais marqué avec une date d'archivage (`archived_at`). Un produit archivé **n'apparaît plus** dans les listes, les statistiques, ni les sélecteurs (restock, mouvements).
 
-La suppression peut être déclenchée depuis :
-- La fiche produit (bouton poubelle)
-- Le menu contextuel de la liste des produits (menu "..." > Supprimer)
+Une **boîte de dialogue de confirmation** s'affiche avec le message : "[nom du produit] sera archivé et ne sera plus visible dans les listes et statistiques."
 
-Les mouvements de stock associés à ce produit sont également supprimés (suppression en cascade).
+L'archivage peut être déclenché depuis :
+- La fiche produit (bouton "Archiver")
+- Le menu contextuel de la liste des produits (menu "..." > Archiver)
 
-> **Risque identifié** : Supprimer un produit qui se trouve dans l'inventaire d'un technicien peut créer des incohérences. Le code ne vérifie pas si un produit est actuellement dans un inventaire de technicien avant sa suppression.
+Les mouvements de stock et données historiques associés au produit sont **conservés**.
 
 #### 3.4.6 Actions contextuelles sur la liste des produits
 
@@ -369,7 +369,7 @@ Chaque ligne de la liste de produits dispose d'un menu contextuel (icône "...")
 - **Voir détails** : redirige vers la fiche produit
 - **Modifier** : redirige vers le formulaire d'édition
 - **Copier l'ID** : copie l'identifiant technique du produit dans le presse-papiers
-- **Supprimer** : ouvre la confirmation de suppression
+- **Archiver** : ouvre la confirmation d'archivage
 
 De plus, la liste propose :
 - **Sélection multiple** : cases à cocher sur chaque ligne (la fonctionnalité d'action groupée n'est pas implémentée, seule la sélection visuelle existe)
@@ -444,11 +444,11 @@ La page affiche tous les techniciens de l'organisation avec :
 |-------|:-----------:|-------------|
 | Prénom | Oui (min 2 caractères) | Prénom du technicien |
 | Nom | Oui (min 2 caractères) | Nom de famille |
-| Email | Oui (format email valide) | Adresse email du technicien |
+| Email | Non (format email valide si renseigné) | Adresse email du technicien |
 | Téléphone | Non | Numéro de téléphone |
 | Ville | Non | Ville de rattachement |
 
-> **Contrainte** : L'adresse email doit être unique au sein de l'organisation. Deux techniciens ne peuvent pas avoir le même email.
+> **Contrainte** : Si renseignée, l'adresse email doit être unique au sein de l'organisation. Deux techniciens ne peuvent pas avoir le même email.
 
 #### 3.6.4 Fiche technicien détaillée
 
@@ -460,7 +460,10 @@ La fiche d'un technicien affiche :
 - Liste des produits en possession du technicien avec la quantité de chaque article
 - Pourcentage de couverture par rapport au stock maximum du produit (ex : si le technicien a 3 vis sur un stock max de 10, il est couvert à 30%)
 - Bouton de restock (réapprovisionnement)
-- Bouton d'ajout rapide au stock existant
+
+**Évolution (onglet "Evolution") :**
+- Graphique des mouvements de stock (`exit_technician`) des derniers mois pour ce technicien
+- Permet de visualiser l'historique des attributions de produits dans le temps
 
 **Historique des approvisionnements (onglet "Historique") :**
 - Les mouvements de sortie vers le technicien sont automatiquement **regroupés en "sessions de restock"** : tous les mouvements enregistrés dans un intervalle d'une minute sont considérés comme faisant partie du même restock
@@ -470,13 +473,19 @@ La fiche d'un technicien affiche :
 - Historique de toutes les sorties de stock attribuées à ce technicien
 - Chaque mouvement indique : le produit, la quantité, la date, et les notes éventuelles
 
-**Actions :** modifier le technicien, supprimer le technicien
+**Actions :** modifier le technicien, archiver le technicien
 
-#### 3.6.5 Suppression d'un technicien
+#### 3.6.5 Archivage d'un technicien
 
-La suppression d'un technicien est irréversible. Une **boîte de dialogue de confirmation** s'affiche avec le message : "Vous allez supprimer [nom du technicien]. Cette action est irréversible et supprimera définitivement ce technicien ainsi que tout son inventaire et historique." Son inventaire et son historique sont supprimés en cascade.
+L'archivage d'un technicien est un **soft delete** : le technicien n'est pas supprimé de la base de données mais marqué avec une date d'archivage (`archived_at`). Un technicien archivé **n'apparaît plus** dans les listes, les statistiques, ni les sélecteurs (restock depuis le tableau de bord).
 
-> **Risque identifié** : Les produits qui étaient dans l'inventaire du technicien supprimé ne sont pas remis en stock central. Supprimer un technicien avec un inventaire non vide entraîne une "disparition" de stock sans mouvement de retour.
+Une **boîte de dialogue de confirmation** s'affiche avec le message : "[nom du technicien] sera archivé et ne sera plus visible dans les listes et statistiques."
+
+L'archivage peut être déclenché depuis :
+- La fiche technicien (bouton "Archiver")
+- Le menu contextuel de la liste des techniciens (menu "..." > Archiver)
+
+L'inventaire et l'historique du technicien sont **conservés** dans la base de données.
 
 ---
 
@@ -597,40 +606,25 @@ Pour une **sortie**, l'opération :
 
 ### 3.8 Module Réapprovisionnement des techniciens (Restock)
 
-#### 3.8.1 Deux modes de réapprovisionnement
+#### 3.8.1 Mode de réapprovisionnement
 
-Il existe deux manières de fournir du stock à un technicien :
+Le réapprovisionnement d'un technicien fonctionne en **ajout à l'inventaire existant** :
 
-**Mode 1 : Restock complet (remplacement total)**
-- L'inventaire actuel du technicien est **entièrement sauvegardé** dans l'historique (snapshot)
-- L'inventaire actuel est **supprimé**
-- Les nouveaux articles sont **ajoutés** comme nouvel inventaire
-- Les mouvements de stock correspondants sont créés (sorties technicien)
-- Le stock central est décrémenté pour chaque produit
-
-Ce mode est conçu pour les scénarios où le technicien rapporte tout son matériel restant et repart avec un nouveau lot complet.
-
-> **Attention** : Le stock précédemment dans l'inventaire du technicien n'est **pas** réintégré au stock central lors d'un restock complet. Seul un snapshot (historique) est conservé. Il s'agit d'un choix de conception important.
-
-**Mode 2 : Ajout à l'inventaire existant (ajout partiel)**
 - L'inventaire actuel est sauvegardé dans l'historique (snapshot)
 - Les nouveaux articles sont **ajoutés** à l'inventaire existant
 - Si un produit est déjà dans l'inventaire, les quantités sont **additionnées**
-- Les mouvements de stock correspondants sont créés
-- Le stock central est décrémenté
+- Les mouvements de stock correspondants sont créés (sorties technicien)
+- Le stock central est décrémenté pour chaque produit
 
-Ce mode est conçu pour compléter le stock d'un technicien sans tout remplacer (ex : ajouter 5 câbles sans toucher au reste de son inventaire).
+Ce mode permet de compléter le stock d'un technicien sans affecter le reste de son inventaire (ex : ajouter 5 câbles sans toucher aux vis qu'il a déjà).
 
 #### 3.8.2 Interface de restock
 
-Le restock s'effectue via une **boîte de dialogue** accessible depuis la fiche du technicien (bouton "Restocker").
+Le restock s'effectue via une **boîte de dialogue** accessible depuis :
+- La **fiche du technicien** (bouton "Restocker") — le technicien est déjà sélectionné
+- Le **tableau de bord** (bouton "Restocker un technicien") — un sélecteur de technicien s'affiche d'abord, puis la même boîte de dialogue s'ouvre
 
-**Étape 1 : Choix du mode**
-Une case à cocher "Réinitialiser l'inventaire" est cochée par défaut :
-- **Cochée** (défaut) : restock complet — l'ancien inventaire est archivé puis supprimé
-- **Décochée** : ajout partiel — les produits sélectionnés sont ajoutés à l'inventaire existant
-
-**Étape 2 : Sélection des produits**
+**Sélection des produits :**
 Un menu déroulant permet d'ajouter des produits un par un. Seuls les produits dont le stock central est supérieur à 0 sont proposés. Les produits déjà sélectionnés sont masqués du menu.
 
 Pour chaque produit ajouté, l'interface affiche :
@@ -761,11 +755,25 @@ Depuis la page "Équipe" des paramètres :
 
 L'application dispose d'une barre de recherche accessible depuis l'en-tête. Elle utilise un raccourci clavier (**Ctrl+K** ou **Cmd+K**) pour un accès rapide. Sur mobile, un bouton loupe remplace la barre de recherche.
 
-La recherche ouvre une **palette de commande** (command palette) qui permet de naviguer rapidement vers les pages de l'application :
+La recherche ouvre une **palette de commande** (command palette) qui permet de rechercher et naviguer vers :
+
+**Groupe "Produits"** (recherche dynamique) :
+- Recherche **côté serveur** déclenchée à partir de 2 caractères, avec debounce de 300ms
+- Affiche jusqu'à 5 résultats avec icône, nom du produit et SKU
+- Un clic navigue directement vers la fiche produit (`/product/{id}`)
+- Un spinner s'affiche pendant le chargement
+
+**Groupe "Techniciens"** (recherche dynamique) :
+- La liste complète des techniciens est pré-chargée à l'ouverture de la palette
+- Le filtrage est effectué **côté client** nativement par cmdk (sur prénom, nom et email)
+- Chaque résultat affiche le nom complet et la ville
+- Un clic navigue directement vers la fiche technicien (`/users/{id}`)
+
+**Pages statiques :**
 - **Groupe "Stock"** : Vue d'ensemble, Stock produits, Catégories, Techniciens, Flux de stock
 - **Groupe "Configuration"** : Équipe, Organisations, Paramètres
 
-> **Limitation** : La palette de commande ne recherche **que dans les pages prédéfinies** de l'application. Elle ne permet pas de chercher un produit par nom, un technicien par nom, ou un mouvement spécifique. Pour rechercher un produit ou technicien, il faut utiliser les champs de recherche dédiés sur les pages de liste correspondantes.
+La palette remet à zéro la recherche à sa fermeture.
 
 ---
 
@@ -856,26 +864,23 @@ La page "Paramètres" générale est actuellement un **placeholder** affichant u
 
 ### 4.2 Flux : Équipement d'un technicien (restock)
 
-**Contexte** : Le technicien passe au dépôt. Le gestionnaire lui prépare un nouveau stock.
+**Contexte** : Le technicien passe au dépôt. Le gestionnaire lui prépare du stock complémentaire.
 
-**Scénario A : Restock complet (le technicien repart avec un lot neuf)**
+**Depuis la fiche technicien :**
 1. L'utilisateur accède à la fiche du technicien
 2. Il clique sur "Restocker"
-3. Il sélectionne les produits et les quantités à attribuer
-4. Il valide
-5. L'ancien inventaire du technicien est archivé dans l'historique
-6. L'ancien inventaire est supprimé
-7. Le nouvel inventaire est créé avec les produits sélectionnés
-8. Le stock central est décrémenté pour chaque produit attribué
-
-**Scénario B : Ajout complémentaire (on complète ce que le technicien a déjà)**
-1. L'utilisateur accède à la fiche du technicien
-2. Il clique sur "Ajouter au stock"
 3. Il sélectionne les produits et quantités à ajouter
 4. Il valide
-5. L'inventaire actuel est archivé (snapshot)
-6. Les quantités sont ajoutées à l'inventaire existant
-7. Le stock central est décrémenté
+5. L'inventaire actuel est archivé (snapshot dans l'historique)
+6. Les quantités sont ajoutées à l'inventaire existant (additionnées si le produit est déjà présent)
+7. Le stock central est décrémenté pour chaque produit attribué
+
+**Depuis le tableau de bord :**
+1. L'utilisateur clique sur "Restocker un technicien"
+2. Un sélecteur de technicien s'affiche (recherche par nom, email)
+3. Il sélectionne le technicien
+4. Le formulaire de restock s'ouvre (identique au formulaire ci-dessus)
+5. Il sélectionne les produits et quantités, puis valide
 
 ### 4.3 Flux : Constat de perte
 
@@ -1078,11 +1083,7 @@ Il n'y a aucun système de notifications réelles implémenté.
 
 ### 7.4 Données factices sur certaines pages
 
-Plusieurs composants affichent des **données codées en dur** (mock data) qui ne sont pas connectées aux vraies données :
-- La page "Flux de stock" contient un bloc de 4 cartes d'aperçu (cards-overview) avec des valeurs fictives (85.000, +€2,300, €4,530, €2,230) qui ne reflètent pas le stock réel
-- La fiche produit contient une section "Flux" (reviews.tsx) avec des mouvements fictifs ("Réapprovisionnement fournisseur principal", "Commande client chantier A") et un formulaire "Ajouter un flux" non fonctionnel
-
-Ces composants semblent être des vestiges d'un template ou des placeholders pour des fonctionnalités futures.
+Les composants à données fictives identifiés précédemment (cartes d'aperçu "Flux de stock", section "Flux" de la fiche produit) ont été **supprimés**. Toutes les données affichées dans l'application sont désormais connectées aux vraies données de l'organisation.
 
 ### 7.5 Envoi d'emails d'invitation
 
@@ -1108,9 +1109,9 @@ La liste des produits dispose de cases à cocher permettant de sélectionner plu
 
 ### 7.10 Retour de stock technicien
 
-Il n'existe aucun flux permettant à un technicien de **retourner** du stock au stock central. Lors d'un restock complet, l'ancien inventaire est archivé mais non réintégré. Pour corriger un inventaire de technicien, il faudrait :
+Il n'existe aucun flux permettant à un technicien de **retourner** du stock au stock central. Pour corriger un inventaire de technicien, il faudrait :
 - Créer manuellement des entrées de stock pour les produits retournés
-- Effectuer un nouveau restock avec les quantités corrigées
+- Ajuster l'inventaire du technicien manuellement
 
 ---
 
@@ -1130,7 +1131,7 @@ Il n'existe aucun flux permettant à un technicien de **retourner** du stock au 
 | **Sortie technicien** | Mouvement qui diminue le stock central et attribue les produits à un technicien identifié. |
 | **Sortie anonyme** | Mouvement qui diminue le stock central sans destinataire identifié. |
 | **Perte/Casse** | Mouvement qui diminue le stock central pour constater une perte, un vol ou une casse. |
-| **Restock** | Action de réapprovisionner un technicien en lui attribuant des produits depuis le stock central. Peut être complet (remplacement) ou partiel (complément). |
+| **Restock** | Action de réapprovisionner un technicien en lui attribuant des produits depuis le stock central. Les produits sont ajoutés à l'inventaire existant du technicien (les quantités sont additionnées si le produit est déjà présent). |
 | **Snapshot** | Photo instantanée de l'inventaire d'un technicien, enregistrée dans l'historique à chaque restock. Permet de retrouver l'état exact de l'inventaire à un moment donné. |
 | **Score de stock** | Indicateur de 0% à 100% reflétant la santé du stock d'un produit par rapport à ses seuils min et max. |
 | **SKU** | Stock Keeping Unit — référence unique d'un produit. Peut être saisie manuellement ou auto-générée. |
