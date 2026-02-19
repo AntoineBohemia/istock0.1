@@ -69,6 +69,8 @@ export const queryKeys = {
       [...queryKeys.dashboard.all, "productsNeedingRestock", orgId] as const,
     techniciansNeedingRestock: (orgId?: string) =>
       [...queryKeys.dashboard.all, "techniciansNeedingRestock", orgId] as const,
+    tasks: (orgId?: string) =>
+      [...queryKeys.dashboard.all, "tasks", orgId] as const,
   },
 
   organizations: {

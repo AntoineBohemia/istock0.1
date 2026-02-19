@@ -8,6 +8,7 @@ import { SuccessMetrics } from "@/app/(protected)/global/components";
 import { RecentActivities } from "./components/recent-activities";
 import { QuickActions } from "./components/quick-actions";
 import { CompactStats } from "./components/compact-stats";
+import { ActionTaskList } from "./components/action-task-list";
 import {
   Dialog,
   DialogContent,
@@ -66,6 +67,9 @@ export default function Page() {
         {/* Quick Actions - Most important on mobile */}
         <QuickActions />
 
+        {/* Action Tasks */}
+        <ActionTaskList />
+
         {/* Compact Stats Grid */}
         <CompactStats />
 
@@ -81,13 +85,16 @@ export default function Page() {
 
       {/* Desktop Layout */}
       <div className="hidden lg:block space-y-4">
-        {/* Top: Technicians (left) + Recent Activities (right) */}
+        {/* Action Tasks - Full width */}
+        <ActionTaskList />
+
+        {/* Technicians (left) + Recent Activities (right) */}
         <div className="grid gap-4 lg:grid-cols-2">
           <SuccessMetrics />
           <RecentActivities />
         </div>
 
-        {/* Bottom: Full width chart */}
+        {/* Full width chart */}
         <BalanceSummeryChart />
       </div>
 

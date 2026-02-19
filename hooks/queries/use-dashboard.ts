@@ -1,10 +1,12 @@
 "use client";
 
+import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { STALE_TIME } from "@/lib/query-stale-times";
 import {
   getDashboardStats,
+  getDashboardTasks,
   getRecentMovements,
   getGlobalStockEvolution,
   getProductStockEvolution,
@@ -13,6 +15,8 @@ import {
   getProductsNeedingRestock,
   getTechniciansNeedingRestock,
 } from "@/lib/supabase/queries/dashboard";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
+import { useTaskDismissStore } from "@/lib/stores/task-dismiss-store";
 
 export function useDashboardStats(orgId?: string) {
   return useQuery({
@@ -97,4 +101,32 @@ export function useTechniciansNeedingRestock(
     enabled: !!orgId,
     staleTime: STALE_TIME.MODERATE,
   });
+}
+
+export function useDashboardTasks() {
+  const orgId = useOrganizationStore((s) => s.currentOrganization?.id);
+  const { isTaskDismissed, clearExpired } = useTaskDismissStore();
+
+  const query = useQuery({
+    queryKey: queryKeys.dashboard.tasks(orgId),
+    queryFn: () => getDashboardTasks(orgId!),
+    enabled: !!orgId,
+    staleTime: STALE_TIME.MODERATE,
+  });
+
+  useEffect(() => {
+    clearExpired();
+  }, [query.data, clearExpired]);
+
+  const tasks = useMemo(() => {
+    if (!query.data) return [];
+    return query.data.filter(
+      (task) =>
+        !task.entity_ids.some((entityId) =>
+          isTaskDismissed(task.type, entityId)
+        )
+    );
+  }, [query.data, isTaskDismissed]);
+
+  return { ...query, data: tasks };
 }

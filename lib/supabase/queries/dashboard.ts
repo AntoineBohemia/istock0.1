@@ -2,6 +2,20 @@ import { createClient } from "@/lib/supabase/client";
 import { calculateStockScore } from "@/lib/utils/stock";
 // Note: calculateStockScore is still used by getProductsNeedingRestock and getTechnicianStats below
 
+export interface DashboardTask {
+  type: string;
+  priority: "critical" | "important" | "informational";
+  score: number;
+  group_key: string;
+  entity_type: "product" | "technician";
+  entity_ids: string[];
+  entity_names: string[];
+  count: number;
+  summary: string;
+  action_url: string;
+  metadata: Record<string, unknown>;
+}
+
 export interface DashboardStats {
   totalStock: number;
   totalValue: number;
@@ -74,6 +88,23 @@ export async function getDashboardStats(organizationId?: string): Promise<Dashbo
   }
 
   return data as unknown as DashboardStats;
+}
+
+/**
+ * Récupère les tâches actionnables du dashboard via la RPC get_dashboard_tasks
+ */
+export async function getDashboardTasks(organizationId: string): Promise<DashboardTask[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase.rpc("get_dashboard_tasks", {
+    p_organization_id: organizationId,
+  });
+
+  if (error) {
+    throw new Error(`Erreur lors de la récupération des tâches: ${error.message}`);
+  }
+
+  return (data as unknown as DashboardTask[]) || [];
 }
 
 /**

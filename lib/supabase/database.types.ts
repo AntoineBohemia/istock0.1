@@ -505,6 +505,10 @@ export type Database = {
         Args: { p_organization_id?: string }
         Returns: Json
       }
+      get_dashboard_tasks: {
+        Args: { p_organization_id: string }
+        Returns: Json
+      }
       get_technicians_with_stats: {
         Args: { p_organization_id?: string }
         Returns: Json
