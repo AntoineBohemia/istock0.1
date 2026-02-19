@@ -46,9 +46,7 @@ vi.mock("@/lib/supabase/queries/dashboard", () => ({
   getGlobalStockEvolution: vi.fn().mockResolvedValue([]),
   getProductStockEvolution: vi.fn().mockResolvedValue([]),
   getCategoryStockEvolution: vi.fn().mockResolvedValue([]),
-  getTechnicianStats: vi.fn().mockResolvedValue([]),
   getProductsNeedingRestock: vi.fn().mockResolvedValue([]),
-  getTechniciansNeedingRestock: vi.fn().mockResolvedValue([]),
 }));
 
 // ─── Import mocked functions ────────────────────────────────────────
@@ -58,7 +56,7 @@ import { getAvailableProductsForRestock } from "@/lib/supabase/queries/inventory
 import { getTechnicians, getTechnician, getTechniciansStats, getTechnicianInventoryHistory, getTechnicianStockMovements } from "@/lib/supabase/queries/technicians";
 import { getCategories, getCategoriesTree, getCategoryById } from "@/lib/supabase/queries/categories";
 import { getUserOrganizations, getOrganizationMembers, getPendingInvitations } from "@/lib/supabase/queries/organizations";
-import { getDashboardStats, getRecentMovements, getGlobalStockEvolution, getProductStockEvolution, getCategoryStockEvolution, getTechnicianStats, getProductsNeedingRestock, getTechniciansNeedingRestock } from "@/lib/supabase/queries/dashboard";
+import { getRecentMovements, getGlobalStockEvolution, getProductStockEvolution, getCategoryStockEvolution, getProductsNeedingRestock } from "@/lib/supabase/queries/dashboard";
 
 // ─── Import hooks ───────────────────────────────────────────────────
 import { useProducts, useProduct, useProductsStats } from "./use-products";
@@ -67,7 +65,7 @@ import { useAvailableProductsForRestock } from "./use-inventory";
 import { useTechnicians, useTechnician, useTechniciansStats, useTechnicianHistory, useTechnicianMovements } from "./use-technicians";
 import { useCategories, useCategoriesTree, useCategory } from "./use-categories";
 import { useOrganizations, useOrganizationMembers, usePendingInvitations } from "./use-organizations";
-import { useDashboardStats, useRecentMovements, useGlobalStockEvolution, useProductStockEvolution, useCategoryStockEvolution, useTechnicianStatsForDashboard, useProductsNeedingRestock, useTechniciansNeedingRestock } from "./use-dashboard";
+import { useRecentMovements, useGlobalStockEvolution, useProductStockEvolution, useCategoryStockEvolution, useProductsNeedingRestock } from "./use-dashboard";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -485,28 +483,6 @@ describe("usePendingInvitations", () => {
   });
 });
 
-// ─── useDashboardStats ──────────────────────────────────────────────
-describe("useDashboardStats", () => {
-  it("calls getDashboardStats with orgId", async () => {
-    const wrapper = createWrapper();
-
-    renderHook(() => useDashboardStats("org-1"), { wrapper });
-
-    await waitFor(() => {
-      expect(getDashboardStats).toHaveBeenCalledWith("org-1");
-    });
-  });
-
-  it("does not call when orgId is undefined", async () => {
-    const wrapper = createWrapper();
-
-    renderHook(() => useDashboardStats(undefined), { wrapper });
-
-    await new Promise((r) => setTimeout(r, 50));
-    expect(getDashboardStats).not.toHaveBeenCalled();
-  });
-});
-
 // ─── useRecentMovements ─────────────────────────────────────────────
 describe("useRecentMovements", () => {
   it("calls getRecentMovements with limit and orgId", async () => {
@@ -595,28 +571,6 @@ describe("useCategoryStockEvolution", () => {
   });
 });
 
-// ─── useTechnicianStatsForDashboard ─────────────────────────────────
-describe("useTechnicianStatsForDashboard", () => {
-  it("calls getTechnicianStats with orgId", async () => {
-    const wrapper = createWrapper();
-
-    renderHook(() => useTechnicianStatsForDashboard("org-1"), { wrapper });
-
-    await waitFor(() => {
-      expect(getTechnicianStats).toHaveBeenCalledWith("org-1", undefined);
-    });
-  });
-
-  it("does not call when orgId is undefined", async () => {
-    const wrapper = createWrapper();
-
-    renderHook(() => useTechnicianStatsForDashboard(undefined), { wrapper });
-
-    await new Promise((r) => setTimeout(r, 50));
-    expect(getTechnicianStats).not.toHaveBeenCalled();
-  });
-});
-
 // ─── useProductsNeedingRestock ──────────────────────────────────────
 describe("useProductsNeedingRestock", () => {
   it("calls getProductsNeedingRestock with limit and orgId", async () => {
@@ -639,24 +593,3 @@ describe("useProductsNeedingRestock", () => {
   });
 });
 
-// ─── useTechniciansNeedingRestock ───────────────────────────────────
-describe("useTechniciansNeedingRestock", () => {
-  it("calls getTechniciansNeedingRestock with daysThreshold and orgId", async () => {
-    const wrapper = createWrapper();
-
-    renderHook(() => useTechniciansNeedingRestock("org-1", 30), { wrapper });
-
-    await waitFor(() => {
-      expect(getTechniciansNeedingRestock).toHaveBeenCalledWith(30, "org-1");
-    });
-  });
-
-  it("does not call when orgId is undefined", async () => {
-    const wrapper = createWrapper();
-
-    renderHook(() => useTechniciansNeedingRestock(undefined), { wrapper });
-
-    await new Promise((r) => setTimeout(r, 50));
-    expect(getTechniciansNeedingRestock).not.toHaveBeenCalled();
-  });
-});

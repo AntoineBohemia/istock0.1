@@ -162,10 +162,6 @@ describe("queryKeys.dashboard", () => {
     expect(queryKeys.dashboard.all).toEqual(["dashboard"]);
   });
 
-  it("stats(orgId) starts with all prefix", () => {
-    expect(isPrefix(queryKeys.dashboard.all, queryKeys.dashboard.stats("org-1"))).toBe(true);
-  });
-
   it("recentMovements(orgId, limit) includes both params", () => {
     const key = queryKeys.dashboard.recentMovements("org-1", 10);
     expect(isPrefix(queryKeys.dashboard.all, key)).toBe(true);
@@ -191,17 +187,10 @@ describe("queryKeys.dashboard", () => {
     expect(key).toContain(6);
   });
 
-  it("technicianStats(orgId) includes orgId", () => {
-    expect(queryKeys.dashboard.technicianStats("org-1")).toContain("org-1");
-  });
-
   it("productsNeedingRestock(orgId) includes orgId", () => {
     expect(queryKeys.dashboard.productsNeedingRestock("org-1")).toContain("org-1");
   });
 
-  it("techniciansNeedingRestock(orgId) includes orgId", () => {
-    expect(queryKeys.dashboard.techniciansNeedingRestock("org-1")).toContain("org-1");
-  });
 });
 
 // ─── organizations ──────────────────────────────────────────────────
