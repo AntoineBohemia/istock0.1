@@ -146,10 +146,19 @@ export async function getTechniciansNeedingRestock(
     throw new Error(`Erreur lors de la récupération des techniciens: ${techniciansError.message}`);
   }
 
+  const technicianIds = technicians?.map((t) => t.id) || [];
+
+  // Si aucun technicien, pas besoin de requêter l'historique
+  if (technicianIds.length === 0) {
+    return [];
+  }
+
   // Récupérer le dernier restock de chaque technicien via l'historique
+  // Filtré par technician_id pour éviter toute fuite de données cross-tenant
   const { data: historyEntries, error: historyError } = await supabase
     .from("technician_inventory_history")
     .select("technician_id, created_at")
+    .in("technician_id", technicianIds)
     .order("created_at", { ascending: false });
 
   if (historyError) {
