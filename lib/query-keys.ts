@@ -67,12 +67,16 @@ export const queryKeys = {
       [...queryKeys.dashboard.all, "categoryEvolution", categoryId, months] as const,
     technicianStats: (orgId?: string) =>
       [...queryKeys.dashboard.all, "technicianStats", orgId] as const,
-    productsNeedingRestock: (orgId?: string) =>
-      [...queryKeys.dashboard.all, "productsNeedingRestock", orgId] as const,
+    productsNeedingRestock: (orgId?: string, scoreThreshold?: number) =>
+      [...queryKeys.dashboard.all, "productsNeedingRestock", orgId, scoreThreshold] as const,
     techniciansNeedingRestock: (orgId?: string) =>
       [...queryKeys.dashboard.all, "techniciansNeedingRestock", orgId] as const,
     tasks: (orgId?: string) =>
       [...queryKeys.dashboard.all, "tasks", orgId] as const,
+    healthScore: (orgId?: string) =>
+      [...queryKeys.dashboard.all, "healthScore", orgId] as const,
+    allTechnicians: (orgId?: string) =>
+      [...queryKeys.dashboard.all, "allTechnicians", orgId] as const,
   },
 
   organizations: {

@@ -3,12 +3,6 @@
 import { useState } from "react";
 import { PackagePlus, Users, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { BalanceSummeryChart } from "./components/chart-balance-summary";
-import { SuccessMetrics } from "@/app/(protected)/global/components";
-import { RecentActivities } from "./components/recent-activities";
-import { QuickActions } from "./components/quick-actions";
-import { CompactStats } from "./components/compact-stats";
-import { ActionTaskList } from "./components/action-task-list";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +22,11 @@ import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useTechnicians } from "@/hooks/queries";
 import RestockDialog from "@/app/(protected)/users/[id]/restock-dialog";
 
+import { DashboardHeader } from "./components/dashboard-header";
+import { DashboardTabs } from "./components/dashboard-tabs";
+import { ActionTaskList } from "./components/action-task-list";
+import { MobileTaskDrawer } from "./components/mobile-task-drawer";
+
 export default function Page() {
   const [techPickerOpen, setTechPickerOpen] = useState(false);
   const [selectedTechId, setSelectedTechId] = useState<string | null>(null);
@@ -42,6 +41,11 @@ export default function Page() {
     setRestockOpen(true);
   };
 
+  const handleRestockClick = (techId: string) => {
+    setSelectedTechId(techId);
+    setRestockOpen(true);
+  };
+
   const handleRestockClose = (open: boolean) => {
     setRestockOpen(open);
     if (!open) setSelectedTechId(null);
@@ -49,6 +53,7 @@ export default function Page() {
 
   return (
     <>
+      {/* Page header */}
       <div className="mb-4 flex flex-row items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Tableau de bord</h1>
@@ -58,44 +63,30 @@ export default function Page() {
         </div>
         <Button size="lg" onClick={() => setTechPickerOpen(true)}>
           <PackagePlus className="size-5" />
-          Restocker un technicien
+          <span className="hidden sm:inline">Restocker un technicien</span>
+          <span className="sm:hidden">Restocker</span>
         </Button>
       </div>
 
-      {/* Mobile Layout: Compact and efficient */}
-      <div className="lg:hidden space-y-3">
-        {/* Quick Actions - Most important on mobile */}
-        <QuickActions />
-
-        {/* Action Tasks */}
-        <ActionTaskList />
-
-        {/* Compact Stats Grid */}
-        <CompactStats />
-
-        {/* Recent Activities - Important for quick view */}
-        <RecentActivities />
-
-        {/* Technicians - Collapsible */}
-        <SuccessMetrics />
-
-        {/* Chart - Last on mobile, less critical */}
-        <BalanceSummeryChart />
-      </div>
-
-      {/* Desktop Layout */}
-      <div className="hidden lg:block space-y-4">
-        {/* Action Tasks - Full width */}
-        <ActionTaskList />
-
-        {/* Technicians (left) + Recent Activities (right) */}
-        <div className="grid gap-4 lg:grid-cols-2">
-          <SuccessMetrics />
-          <RecentActivities />
+      {/* Desktop layout: 2 columns */}
+      <div className="hidden lg:grid lg:grid-cols-[1fr_320px] lg:gap-6">
+        {/* Left column */}
+        <div className="space-y-6 min-w-0">
+          <DashboardHeader orgId={orgId} />
+          <DashboardTabs onRestockClick={handleRestockClick} />
         </div>
 
-        {/* Full width chart */}
-        <BalanceSummeryChart />
+        {/* Right column: sticky task list */}
+        <aside className="sticky top-20 self-start">
+          <ActionTaskList />
+        </aside>
+      </div>
+
+      {/* Mobile layout */}
+      <div className="lg:hidden space-y-4">
+        <DashboardHeader orgId={orgId} />
+        <DashboardTabs onRestockClick={handleRestockClick} />
+        <MobileTaskDrawer />
       </div>
 
       {/* Step 1: Technician picker */}
@@ -104,13 +95,13 @@ export default function Page() {
           <DialogHeader className="px-4 pt-4">
             <DialogTitle>Restocker un technicien</DialogTitle>
             <DialogDescription>
-              Sélectionnez le technicien à restocker
+              Selectionnez le technicien a restocker
             </DialogDescription>
           </DialogHeader>
           <Command className="border-t">
             <CommandInput placeholder="Rechercher un technicien..." />
             <CommandList>
-              <CommandEmpty>Aucun technicien trouvé.</CommandEmpty>
+              <CommandEmpty>Aucun technicien trouve.</CommandEmpty>
               {techLoading ? (
                 <div className="flex items-center justify-center py-6">
                   <Loader2 className="text-muted-foreground size-5 animate-spin" />
@@ -141,7 +132,7 @@ export default function Page() {
         </DialogContent>
       </Dialog>
 
-      {/* Step 2: Restock dialog (same as technician page) */}
+      {/* Step 2: Restock dialog */}
       {selectedTechId && (
         <RestockDialog
           technicianId={selectedTechId}

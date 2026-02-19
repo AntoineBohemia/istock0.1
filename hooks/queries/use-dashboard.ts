@@ -7,6 +7,7 @@ import { STALE_TIME } from "@/lib/query-stale-times";
 import {
   getDashboardStats,
   getDashboardTasks,
+  getHealthScore,
   getRecentMovements,
   getGlobalStockEvolution,
   getProductStockEvolution,
@@ -14,6 +15,7 @@ import {
   getTechnicianStats,
   getProductsNeedingRestock,
   getTechniciansNeedingRestock,
+  getAllTechniciansForDashboard,
 } from "@/lib/supabase/queries/dashboard";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useTaskDismissStore } from "@/lib/stores/task-dismiss-store";
@@ -23,6 +25,15 @@ export function useDashboardStats(orgId?: string) {
     queryKey: queryKeys.dashboard.stats(orgId),
     queryFn: () => getDashboardStats(orgId),
     enabled: !!orgId,
+  });
+}
+
+export function useHealthScore(orgId?: string) {
+  return useQuery({
+    queryKey: queryKeys.dashboard.healthScore(orgId),
+    queryFn: () => getHealthScore(orgId!),
+    enabled: !!orgId,
+    staleTime: STALE_TIME.MODERATE,
   });
 }
 
@@ -82,10 +93,10 @@ export function useTechnicianStatsForDashboard(
   });
 }
 
-export function useProductsNeedingRestock(orgId?: string, limit?: number) {
+export function useProductsNeedingRestock(orgId?: string, limit?: number, scoreThreshold?: number) {
   return useQuery({
-    queryKey: queryKeys.dashboard.productsNeedingRestock(orgId),
-    queryFn: () => getProductsNeedingRestock(limit, orgId),
+    queryKey: queryKeys.dashboard.productsNeedingRestock(orgId, scoreThreshold),
+    queryFn: () => getProductsNeedingRestock(limit, orgId, scoreThreshold),
     enabled: !!orgId,
     staleTime: STALE_TIME.MODERATE,
   });
@@ -98,6 +109,15 @@ export function useTechniciansNeedingRestock(
   return useQuery({
     queryKey: queryKeys.dashboard.techniciansNeedingRestock(orgId),
     queryFn: () => getTechniciansNeedingRestock(daysThreshold, orgId),
+    enabled: !!orgId,
+    staleTime: STALE_TIME.MODERATE,
+  });
+}
+
+export function useAllTechniciansForDashboard(orgId?: string) {
+  return useQuery({
+    queryKey: queryKeys.dashboard.allTechnicians(orgId),
+    queryFn: () => getAllTechniciansForDashboard(orgId!),
     enabled: !!orgId,
     staleTime: STALE_TIME.MODERATE,
   });

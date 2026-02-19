@@ -23,6 +23,40 @@ export interface DashboardStats {
   monthlyExits: number;
   totalProducts: number;
   lowStockCount: number;
+  prevMonthEntries?: number;
+  prevMonthExits?: number;
+  prevMonthStock?: number;
+  prevMonthValue?: number;
+}
+
+export interface HealthScorePenalty {
+  type: string;
+  points: number;
+  count: number;
+  details: string;
+}
+
+export interface HealthScoreKPI {
+  total_stock: number;
+  total_value: number;
+  entries_month: number;
+  exits_month: number;
+  entries_prev_month: number;
+  exits_prev_month: number;
+}
+
+export interface HealthScoreTrend {
+  previous_score: number | null;
+  direction: "up" | "down" | "stable";
+}
+
+export interface HealthScore {
+  score: number;
+  label: string;
+  color: "green" | "orange" | "red";
+  penalties: HealthScorePenalty[];
+  trend: HealthScoreTrend;
+  kpi: HealthScoreKPI;
 }
 
 export interface ProductNeedingRestock {
@@ -34,6 +68,18 @@ export interface ProductNeedingRestock {
   stock_min: number | null;
   stock_max: number | null;
   score: number;
+  last_movement_at: string | null;
+}
+
+export interface TechnicianDashboardRow {
+  id: string;
+  first_name: string;
+  last_name: string;
+  inventory_item_count: number;
+  total_inventory_quantity: number;
+  last_restock_at: string | null;
+  days_since_restock: number;
+  coverage_pct: number;
 }
 
 export interface TechnicianNeedingRestock {
@@ -91,6 +137,23 @@ export async function getDashboardStats(organizationId?: string): Promise<Dashbo
 }
 
 /**
+ * Récupère le score de santé unifié (score + penalties + trend + KPIs)
+ */
+export async function getHealthScore(organizationId: string): Promise<HealthScore> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase.rpc("get_health_score", {
+    p_organization_id: organizationId,
+  });
+
+  if (error) {
+    throw new Error(`Erreur lors de la récupération du score de santé: ${error.message}`);
+  }
+
+  return data as unknown as HealthScore;
+}
+
+/**
  * Récupère les tâches actionnables du dashboard via la RPC get_dashboard_tasks
  */
 export async function getDashboardTasks(organizationId: string): Promise<DashboardTask[]> {
@@ -108,11 +171,12 @@ export async function getDashboardTasks(organizationId: string): Promise<Dashboa
 }
 
 /**
- * Récupère les produits nécessitant un réapprovisionnement (score < 30%)
+ * Récupère les produits nécessitant un réapprovisionnement (score < scoreThreshold)
  */
 export async function getProductsNeedingRestock(
   limit: number = 10,
-  organizationId?: string
+  organizationId?: string,
+  scoreThreshold: number = 30
 ): Promise<ProductNeedingRestock[]> {
   const supabase = createClient();
 
@@ -132,6 +196,24 @@ export async function getProductsNeedingRestock(
     throw new Error(`Erreur lors de la récupération des produits: ${error.message}`);
   }
 
+  const productIds = products?.map((p) => p.id) || [];
+
+  // Fetch last movement per product
+  const lastMovementMap: Record<string, string> = {};
+  if (productIds.length > 0) {
+    const { data: movements } = await supabase
+      .from("stock_movements")
+      .select("product_id, created_at")
+      .in("product_id", productIds)
+      .order("created_at", { ascending: false });
+
+    movements?.forEach((m) => {
+      if (m.product_id && !lastMovementMap[m.product_id] && m.created_at) {
+        lastMovementMap[m.product_id] = m.created_at;
+      }
+    });
+  }
+
   // Filtrer et calculer le score
   const productsWithScore = products
     ?.map((product) => ({
@@ -141,8 +223,9 @@ export async function getProductsNeedingRestock(
         product.stock_min ?? 0,
         product.stock_max ?? 0
       ),
+      last_movement_at: lastMovementMap[product.id] || null,
     }))
-    .filter((product) => product.score < 30)
+    .filter((product) => product.score < scoreThreshold)
     .sort((a, b) => a.score - b.score)
     .slice(0, limit);
 
@@ -292,6 +375,92 @@ export async function getRecentMovements(
       product: productData as RecentMovement["product"],
       technician: technicianData as RecentMovement["technician"],
     };
+  });
+}
+
+/**
+ * Récupère tous les techniciens pour le dashboard avec stats d'inventaire
+ */
+export async function getAllTechniciansForDashboard(
+  organizationId: string
+): Promise<TechnicianDashboardRow[]> {
+  const supabase = createClient();
+
+  // Fetch all non-archived technicians with their inventory
+  const { data: technicians, error: techError } = await supabase
+    .from("technicians")
+    .select(`
+      id,
+      first_name,
+      last_name,
+      technician_inventory(id, quantity, product:products(stock_max))
+    `)
+    .eq("organization_id", organizationId)
+    .is("archived_at", null);
+
+  if (techError) {
+    throw new Error(`Erreur lors de la récupération des techniciens: ${techError.message}`);
+  }
+
+  if (!technicians || technicians.length === 0) return [];
+
+  const technicianIds = technicians.map((t) => t.id);
+
+  // Fetch last restock per technician
+  const { data: historyEntries } = await supabase
+    .from("technician_inventory_history")
+    .select("technician_id, created_at")
+    .in("technician_id", technicianIds)
+    .order("created_at", { ascending: false });
+
+  const lastRestockMap: Record<string, string> = {};
+  historyEntries?.forEach((entry) => {
+    if (!lastRestockMap[entry.technician_id] && entry.created_at) {
+      lastRestockMap[entry.technician_id] = entry.created_at;
+    }
+  });
+
+  const now = new Date();
+
+  return technicians.map((tech) => {
+    const inventory = Array.isArray(tech.technician_inventory) ? tech.technician_inventory : [];
+    const itemCount = inventory.length;
+    const totalQuantity = inventory.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
+
+    // Coverage: average of (quantity / stock_max) across items
+    let coveragePct = 0;
+    if (itemCount > 0) {
+      const totalCoverage = inventory.reduce((sum: number, item: any) => {
+        const max = item.product?.stock_max || 100;
+        return sum + Math.min(100, Math.round((item.quantity / max) * 100));
+      }, 0);
+      coveragePct = Math.round(totalCoverage / itemCount);
+    }
+
+    const lastRestock = lastRestockMap[tech.id] || null;
+    let daysSinceRestock = -1;
+    if (lastRestock) {
+      daysSinceRestock = Math.floor(
+        (now.getTime() - new Date(lastRestock).getTime()) / (1000 * 60 * 60 * 24)
+      );
+    }
+
+    return {
+      id: tech.id,
+      first_name: tech.first_name,
+      last_name: tech.last_name,
+      inventory_item_count: itemCount,
+      total_inventory_quantity: totalQuantity,
+      last_restock_at: lastRestock,
+      days_since_restock: daysSinceRestock,
+      coverage_pct: coveragePct,
+    };
+  }).sort((a, b) => {
+    // Never restocked first (days = -1), then by most days since restock
+    if (a.days_since_restock === -1 && b.days_since_restock !== -1) return -1;
+    if (b.days_since_restock === -1 && a.days_since_restock !== -1) return 1;
+    if (a.days_since_restock === -1 && b.days_since_restock === -1) return 0;
+    return b.days_since_restock - a.days_since_restock;
   });
 }
 

@@ -625,7 +625,7 @@ describe("useProductsNeedingRestock", () => {
     renderHook(() => useProductsNeedingRestock("org-1", 10), { wrapper });
 
     await waitFor(() => {
-      expect(getProductsNeedingRestock).toHaveBeenCalledWith(10, "org-1");
+      expect(getProductsNeedingRestock).toHaveBeenCalledWith(10, "org-1", undefined);
     });
   });
 
