@@ -15,18 +15,17 @@ describe("useCalendarEventStore", () => {
     vi.useRealTimers();
   });
 
-  it("initializes with events from data", () => {
-    expect(useCalendarEventStore.getState().events.length).toBeGreaterThan(0);
+  it("initializes with empty events", () => {
+    expect(useCalendarEventStore.getState().events).toEqual([]);
   });
 
   it("addEvent appends a new event", () => {
-    const initialCount = useCalendarEventStore.getState().events.length;
     useCalendarEventStore.getState().addEvent({
       id: "new-1",
       title: "New Event",
       start: new Date().toISOString(),
     });
-    expect(useCalendarEventStore.getState().events.length).toBe(initialCount + 1);
+    expect(useCalendarEventStore.getState().events.length).toBe(1);
   });
 
   it("setSelectedEvent updates the selected event", () => {

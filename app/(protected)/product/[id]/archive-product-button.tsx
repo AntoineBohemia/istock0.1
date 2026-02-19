@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Loader2 } from "lucide-react";
+import { Archive, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -17,36 +17,36 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { deleteTechnician } from "@/lib/supabase/queries/technicians";
+import { archiveProduct } from "@/lib/supabase/queries/products";
 
-interface DeleteTechnicianButtonProps {
-  technicianId: string;
-  technicianName: string;
+interface ArchiveProductButtonProps {
+  productId: string;
+  productName: string;
 }
 
-export default function DeleteTechnicianButton({
-  technicianId,
-  technicianName,
-}: DeleteTechnicianButtonProps) {
+export default function ArchiveProductButton({
+  productId,
+  productName,
+}: ArchiveProductButtonProps) {
   const router = useRouter();
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
   const [open, setOpen] = useState(false);
 
-  const handleDelete = async () => {
-    setIsDeleting(true);
+  const handleArchive = async () => {
+    setIsArchiving(true);
     try {
-      await deleteTechnician(technicianId);
-      toast.success("Technicien supprimé avec succès");
-      router.push("/users");
+      await archiveProduct(productId);
+      toast.success("Produit archivé avec succès");
+      router.push("/product");
       router.refresh();
     } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Erreur lors de la suppression"
+          : "Erreur lors de l'archivage"
       );
     } finally {
-      setIsDeleting(false);
+      setIsArchiving(false);
       setOpen(false);
     }
   };
@@ -55,27 +55,26 @@ export default function DeleteTechnicianButton({
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
         <Button variant="destructive" size="icon">
-          <Trash2 className="size-4" />
+          <Archive />
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Supprimer le technicien ?</AlertDialogTitle>
+          <AlertDialogTitle>Archiver le produit ?</AlertDialogTitle>
           <AlertDialogDescription>
-            Vous allez supprimer <strong>{technicianName}</strong>. Cette action
-            est irréversible et supprimera définitivement ce technicien ainsi
-            que tout son inventaire et historique.
+            <strong>{productName}</strong> sera archivé et ne sera plus visible
+            dans les listes et statistiques.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
+          <AlertDialogCancel disabled={isArchiving}>Annuler</AlertDialogCancel>
           <AlertDialogAction
-            onClick={handleDelete}
-            disabled={isDeleting}
+            onClick={handleArchive}
+            disabled={isArchiving}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {isDeleting && <Loader2 className="mr-2 size-4 animate-spin" />}
-            Supprimer
+            {isArchiving && <Loader2 className="mr-2 size-4 animate-spin" />}
+            Archiver
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

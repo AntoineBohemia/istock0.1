@@ -7,9 +7,11 @@ export const TechnicianFormSchema = z.object({
   last_name: z.string().min(2, {
     message: "Le nom doit contenir au moins 2 caractères.",
   }),
-  email: z.string().email({
-    message: "Veuillez entrer une adresse email valide.",
-  }),
+  email: z
+    .string()
+    .email({ message: "Veuillez entrer une adresse email valide." })
+    .optional()
+    .or(z.literal("")),
   phone: z.string().optional(),
   city: z.string().optional(),
 });

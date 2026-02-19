@@ -98,6 +98,9 @@ export async function getProducts(
     .from("products")
     .select("*, category:categories(*)", { count: "exact" });
 
+  // Exclure les produits archivés
+  query = query.is("archived_at", null);
+
   // Filtrer par organisation
   if (organizationId) {
     query = query.eq("organization_id", organizationId);
@@ -263,15 +266,18 @@ export async function updateProduct(
 }
 
 /**
- * Supprime un produit
+ * Archive un produit (soft-delete)
  */
-export async function deleteProduct(id: string): Promise<void> {
+export async function archiveProduct(id: string): Promise<void> {
   const supabase = createClient();
 
-  const { error } = await supabase.from("products").delete().eq("id", id);
+  const { error } = await supabase
+    .from("products")
+    .update({ archived_at: new Date().toISOString() })
+    .eq("id", id);
 
   if (error) {
-    throw new Error(`Erreur lors de la suppression du produit: ${error.message}`);
+    throw new Error(`Erreur lors de l'archivage du produit: ${error.message}`);
   }
 }
 
@@ -340,7 +346,8 @@ export async function getProductsStats(organizationId?: string): Promise<{
 
   let query = supabase
     .from("products")
-    .select("stock_current, stock_min, price");
+    .select("stock_current, stock_min, price")
+    .is("archived_at", null);
 
   if (organizationId) {
     query = query.eq("organization_id", organizationId);

@@ -119,6 +119,7 @@ export async function getProductsNeedingRestock(
   let query = supabase
     .from("products")
     .select("id, name, sku, image_url, stock_current, stock_min, stock_max")
+    .is("archived_at", null)
     .order("stock_current", { ascending: true });
 
   if (organizationId) {
@@ -157,7 +158,7 @@ export async function getTechniciansNeedingRestock(
 ): Promise<TechnicianNeedingRestock[]> {
   const supabase = createClient();
 
-  // Récupérer tous les techniciens avec leur inventaire
+  // Récupérer tous les techniciens avec leur inventaire (non archivés)
   let techniciansQuery = supabase
     .from("technicians")
     .select(`
@@ -165,7 +166,8 @@ export async function getTechniciansNeedingRestock(
       first_name,
       last_name,
       technician_inventory(id)
-    `);
+    `)
+    .is("archived_at", null);
 
   if (organizationId) {
     techniciansQuery = techniciansQuery.eq("organization_id", organizationId);
@@ -324,10 +326,11 @@ export async function getGlobalStockEvolution(
     throw new Error(`Erreur lors de la récupération des mouvements: ${error.message}`);
   }
 
-  // Récupérer le stock actuel total
+  // Récupérer le stock actuel total (non archivés)
   let productsQuery = supabase
     .from("products")
-    .select("stock_current");
+    .select("stock_current")
+    .is("archived_at", null);
 
   if (organizationId) {
     productsQuery = productsQuery.eq("organization_id", organizationId);
@@ -524,11 +527,12 @@ export async function getCategoryStockEvolution(
   startDate.setDate(1);
   startDate.setHours(0, 0, 0, 0);
 
-  // Récupérer tous les produits de la catégorie
+  // Récupérer tous les produits de la catégorie (non archivés)
   const { data: products, error: productsError } = await supabase
     .from("products")
     .select("id, stock_current")
-    .eq("category_id", categoryId);
+    .eq("category_id", categoryId)
+    .is("archived_at", null);
 
   if (productsError) {
     throw new Error(`Erreur lors de la récupération des produits: ${productsError.message}`);
@@ -822,7 +826,7 @@ export async function getTechnicianStats(
 }> {
   const supabase = createClient();
 
-  // Récupérer les techniciens avec leur inventaire
+  // Récupérer les techniciens avec leur inventaire (non archivés)
   let query = supabase
     .from("technicians")
     .select(`
@@ -831,7 +835,8 @@ export async function getTechnicianStats(
         quantity,
         product:products(stock_max)
       )
-    `);
+    `)
+    .is("archived_at", null);
 
   if (organizationId) {
     query = query.eq("organization_id", organizationId);

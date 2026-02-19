@@ -12,7 +12,7 @@ import {
   getTechnician,
   createTechnician,
   updateTechnician,
-  deleteTechnician,
+  archiveTechnician,
   getTechnicianInventoryHistory,
   getTechnicianStockMovements,
 } from "./technicians";
@@ -274,21 +274,23 @@ describe("updateTechnician", () => {
   });
 });
 
-// ─── deleteTechnician ────────────────────────────────────────────────
-describe("deleteTechnician", () => {
-  it("deletes a technician by id", async () => {
+// ─── archiveTechnician ───────────────────────────────────────────────
+describe("archiveTechnician", () => {
+  it("archives a technician by id (soft-delete via update)", async () => {
     mockClient._setResult({ data: null, error: null });
 
-    await deleteTechnician("tech-1");
+    await archiveTechnician("tech-1");
 
-    expect(mockClient.delete).toHaveBeenCalled();
+    expect(mockClient.update).toHaveBeenCalledWith(
+      expect.objectContaining({ archived_at: expect.any(String) })
+    );
     expect(mockClient.eq).toHaveBeenCalledWith("id", "tech-1");
   });
 
   it("throws on Supabase error", async () => {
-    mockClient._setResult({ data: null, error: { message: "Delete failed" } });
+    mockClient._setResult({ data: null, error: { message: "Archive failed" } });
 
-    await expect(deleteTechnician("tech-1")).rejects.toThrow("Delete failed");
+    await expect(archiveTechnician("tech-1")).rejects.toThrow("Archive failed");
   });
 });
 

@@ -6,7 +6,6 @@ import { Loader2, ImageIcon, Plus, Minus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { RestockItem } from "@/lib/supabase/queries/inventory";
 import { useAvailableProductsForRestock } from "@/hooks/queries";
-import { useRestockTechnician, useAddToTechnicianInventory } from "@/hooks/mutations";
+import { useAddToTechnicianInventory } from "@/hooks/mutations";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 interface RestockDialogProps {
@@ -55,13 +54,11 @@ export default function RestockDialog({
 }: RestockDialogProps) {
   const { currentOrganization } = useOrganizationStore();
   const { data: products = [], isLoading } = useAvailableProductsForRestock(currentOrganization?.id);
-  const restockMutation = useRestockTechnician();
   const addToInventoryMutation = useAddToTechnicianInventory();
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>(
     []
   );
-  const [resetInventory, setResetInventory] = useState(true);
-  const isSubmitting = restockMutation.isPending || addToInventoryMutation.isPending;
+  const isSubmitting = addToInventoryMutation.isPending;
 
   useEffect(() => {
     if (open) {
@@ -122,8 +119,7 @@ export default function RestockDialog({
       quantity: p.quantity,
     }));
 
-    const mutation = resetInventory ? restockMutation : addToInventoryMutation;
-    mutation.mutate(
+    addToInventoryMutation.mutate(
       { technicianId, items },
       {
         onSuccess: () => {
@@ -148,9 +144,7 @@ export default function RestockDialog({
         <DialogHeader>
           <DialogTitle>Restocker le technicien</DialogTitle>
           <DialogDescription>
-            {resetInventory
-              ? "Sélectionnez les produits et quantités à attribuer. L'ancien inventaire sera réinitialisé et archivé."
-              : "Sélectionnez les produits et quantités à ajouter à l'inventaire existant du technicien."}
+            Sélectionnez les produits et quantités à ajouter à l&apos;inventaire existant.
           </DialogDescription>
         </DialogHeader>
 
@@ -184,29 +178,6 @@ export default function RestockDialog({
                     ))}
                 </SelectContent>
               </Select>
-            </div>
-
-            {/* Reset inventory checkbox */}
-            <div className="flex items-start gap-3 rounded-lg border p-3">
-              <Checkbox
-                id="reset-inventory"
-                checked={resetInventory}
-                onCheckedChange={(checked) =>
-                  setResetInventory(checked === true)
-                }
-              />
-              <div className="space-y-1">
-                <Label
-                  htmlFor="reset-inventory"
-                  className="cursor-pointer text-sm font-medium leading-none"
-                >
-                  Réinitialiser l&apos;inventaire
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Décochez pour conserver l&apos;inventaire actuel et ajouter
-                  les produits sélectionnés
-                </p>
-              </div>
             </div>
 
             {/* Selected products list */}

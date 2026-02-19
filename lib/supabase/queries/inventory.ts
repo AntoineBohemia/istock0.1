@@ -12,43 +12,6 @@ export interface RestockResult {
 }
 
 /**
- * Restock un technicien avec de nouveaux items.
- * Cette opération est atomique et effectue les étapes suivantes:
- * 1. Sauvegarde l'inventaire actuel dans l'historique
- * 2. Supprime l'inventaire actuel
- * 3. Insère les nouveaux items
- * 4. Crée les mouvements de stock (exit_technician)
- * 5. Décrémente le stock des produits
- */
-export async function restockTechnician(
-  technicianId: string,
-  items: RestockItem[]
-): Promise<RestockResult> {
-  const supabase = createClient();
-
-  // Préparer les items au format attendu par la fonction PostgreSQL
-  const itemsJson = items.map((item) => ({
-    product_id: item.productId,
-    quantity: item.quantity,
-  }));
-
-  const { data, error } = await supabase.rpc("restock_technician", {
-    p_technician_id: technicianId,
-    p_items: itemsJson,
-  });
-
-  if (error) {
-    // Parser le message d'erreur pour les erreurs de stock insuffisant
-    if (error.message.includes("Stock insuffisant")) {
-      throw new Error("Stock insuffisant pour un ou plusieurs produits");
-    }
-    throw new Error(`Erreur lors du restock: ${error.message}`);
-  }
-
-  return data as unknown as RestockResult;
-}
-
-/**
  * Récupère les produits disponibles pour le restock (avec stock > 0)
  */
 export async function getAvailableProductsForRestock(organizationId: string): Promise<
@@ -67,6 +30,7 @@ export async function getAvailableProductsForRestock(organizationId: string): Pr
     .from("products")
     .select("id, name, sku, image_url, stock_current, stock_max")
     .eq("organization_id", organizationId)
+    .is("archived_at", null)
     .gt("stock_current", 0)
     .order("name", { ascending: true });
 

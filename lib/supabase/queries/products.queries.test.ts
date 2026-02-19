@@ -11,7 +11,7 @@ import {
   getProducts,
   getProduct,
   updateProduct,
-  deleteProduct,
+  archiveProduct,
   uploadProductImage,
   deleteProductImage,
   getProductsStats,
@@ -478,22 +478,24 @@ describe("updateProduct", () => {
   });
 });
 
-// ─── deleteProduct ───────────────────────────────────────────────────
-describe("deleteProduct", () => {
-  it("deletes a product by id", async () => {
+// ─── archiveProduct ──────────────────────────────────────────────────
+describe("archiveProduct", () => {
+  it("archives a product by id (soft-delete via update)", async () => {
     mockClient._setResult({ data: null, error: null });
 
-    await deleteProduct("prod-1");
+    await archiveProduct("prod-1");
 
     expect(mockClient.from).toHaveBeenCalledWith("products");
-    expect(mockClient.delete).toHaveBeenCalled();
+    expect(mockClient.update).toHaveBeenCalledWith(
+      expect.objectContaining({ archived_at: expect.any(String) })
+    );
     expect(mockClient.eq).toHaveBeenCalledWith("id", "prod-1");
   });
 
   it("throws on Supabase error", async () => {
-    mockClient._setResult({ data: null, error: { message: "Delete failed" } });
+    mockClient._setResult({ data: null, error: { message: "Archive failed" } });
 
-    await expect(deleteProduct("prod-1")).rejects.toThrow("Delete failed");
+    await expect(archiveProduct("prod-1")).rejects.toThrow("Archive failed");
   });
 });
 

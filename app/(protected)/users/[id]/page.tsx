@@ -24,8 +24,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createClient } from "@/lib/supabase/server";
 import TechnicianInventory from "./technician-inventory";
+import TechnicianEvolution from "./technician-evolution";
 import TechnicianHistory from "./technician-history";
-import DeleteTechnicianButton from "./delete-technician-button";
+import ArchiveTechnicianButton from "./archive-technician-button";
 
 export async function generateMetadata({
   params,
@@ -134,7 +135,9 @@ export default async function TechnicianDetailPage({
             <h1 className="text-2xl font-bold truncate">
               {technician.first_name} {technician.last_name}
             </h1>
-            <p className="text-muted-foreground truncate">{technician.email}</p>
+            {technician.email && (
+              <p className="text-muted-foreground truncate">{technician.email}</p>
+            )}
           </div>
         </div>
         <div className="flex gap-2">
@@ -144,7 +147,7 @@ export default async function TechnicianDetailPage({
               Modifier
             </Link>
           </Button>
-          <DeleteTechnicianButton
+          <ArchiveTechnicianButton
             technicianId={id}
             technicianName={`${technician.first_name} ${technician.last_name}`}
           />
@@ -160,7 +163,7 @@ export default async function TechnicianDetailPage({
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm text-muted-foreground">Email</p>
-              <p className="font-medium truncate">{technician.email}</p>
+              <p className="font-medium truncate">{technician.email || "-"}</p>
             </div>
           </CardContent>
         </Card>
@@ -208,10 +211,14 @@ export default async function TechnicianDetailPage({
       <Tabs defaultValue="inventory" className="space-y-4">
         <TabsList>
           <TabsTrigger value="inventory">Inventaire actuel</TabsTrigger>
+          <TabsTrigger value="evolution">Evolution</TabsTrigger>
           <TabsTrigger value="history">Historique</TabsTrigger>
         </TabsList>
         <TabsContent value="inventory">
           <TechnicianInventory technicianId={id} />
+        </TabsContent>
+        <TabsContent value="evolution">
+          <TechnicianEvolution technicianId={id} />
         </TabsContent>
         <TabsContent value="history">
           <TechnicianHistory technicianId={id} />

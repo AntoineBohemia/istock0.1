@@ -32,7 +32,9 @@
       "Bash(npx vitest run:*)",
       "Bash(npm test:*)",
       "Bash(./node_modules/.bin/vitest run:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(pnpm test:*)",
+      "Bash(GIT_EDITOR=true git rebase:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

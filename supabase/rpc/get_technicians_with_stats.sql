@@ -37,7 +37,8 @@ BEGIN
     FROM technician_inventory_history
     ORDER BY technician_id, created_at DESC
   ) hist ON hist.technician_id = t.id
-  WHERE (p_organization_id IS NULL OR t.organization_id = p_organization_id);
+  WHERE (p_organization_id IS NULL OR t.organization_id = p_organization_id)
+    AND t.archived_at IS NULL;
 
   RETURN v_result;
 END;

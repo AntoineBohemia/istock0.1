@@ -5,7 +5,7 @@ import { queryKeys } from "@/lib/query-keys";
 import {
   createTechnician,
   updateTechnician,
-  deleteTechnician,
+  archiveTechnician,
   type CreateTechnicianData,
   type UpdateTechnicianData,
   type TechnicianWithInventory,
@@ -76,10 +76,10 @@ export function useUpdateTechnician() {
   });
 }
 
-export function useDeleteTechnician() {
+export function useArchiveTechnician() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => deleteTechnician(id),
+    mutationFn: (id: string) => archiveTechnician(id),
     onMutate: async (id) => {
       await qc.cancelQueries({ queryKey: queryKeys.technicians.all });
       const previousLists: [readonly unknown[], TechnicianWithInventory[] | undefined][] = [];

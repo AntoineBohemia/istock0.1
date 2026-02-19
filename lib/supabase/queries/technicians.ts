@@ -56,7 +56,7 @@ export interface CreateTechnicianData {
   organization_id: string;
   first_name: string;
   last_name: string;
-  email: string;
+  email?: string | null;
   phone?: string | null;
   city?: string | null;
 }
@@ -144,7 +144,7 @@ export async function createTechnician(data: CreateTechnicianData): Promise<Tech
       organization_id: data.organization_id,
       first_name: data.first_name,
       last_name: data.last_name,
-      email: data.email,
+      email: data.email || null,
       phone: data.phone || null,
       city: data.city || null,
     })
@@ -174,7 +174,7 @@ export async function updateTechnician(
 
   if (data.first_name !== undefined) updateData.first_name = data.first_name;
   if (data.last_name !== undefined) updateData.last_name = data.last_name;
-  if (data.email !== undefined) updateData.email = data.email;
+  if (data.email !== undefined) updateData.email = data.email || null;
   if (data.phone !== undefined) updateData.phone = data.phone;
   if (data.city !== undefined) updateData.city = data.city;
 
@@ -196,15 +196,18 @@ export async function updateTechnician(
 }
 
 /**
- * Supprime un technicien (et son inventaire par cascade)
+ * Archive un technicien (soft-delete)
  */
-export async function deleteTechnician(id: string): Promise<void> {
+export async function archiveTechnician(id: string): Promise<void> {
   const supabase = createClient();
 
-  const { error } = await supabase.from("technicians").delete().eq("id", id);
+  const { error } = await supabase
+    .from("technicians")
+    .update({ archived_at: new Date().toISOString() })
+    .eq("id", id);
 
   if (error) {
-    throw new Error(`Erreur lors de la suppression du technicien: ${error.message}`);
+    throw new Error(`Erreur lors de l'archivage du technicien: ${error.message}`);
   }
 }
 
@@ -278,6 +281,55 @@ export async function getTechnicianStockMovements(
   })) as TechnicianStockMovement[];
 }
 
+export interface TechnicianEvolutionMovement {
+  id: string;
+  product_id: string;
+  quantity: number;
+  created_at: string;
+  product: {
+    id: string;
+    name: string;
+    sku: string | null;
+  } | null;
+}
+
+/**
+ * Récupère les mouvements exit_technician des N derniers mois pour un technicien,
+ * avec join produit (id, name, sku). Utilisé pour le graphique d'évolution.
+ */
+export async function getTechnicianEvolutionData(
+  technicianId: string,
+  months: number = 3
+): Promise<TechnicianEvolutionMovement[]> {
+  const supabase = createClient();
+
+  const sinceDate = new Date();
+  sinceDate.setMonth(sinceDate.getMonth() - months);
+
+  const { data, error } = await supabase
+    .from("stock_movements")
+    .select(`
+      id,
+      product_id,
+      quantity,
+      created_at,
+      product:products(id, name, sku)
+    `)
+    .eq("technician_id", technicianId)
+    .eq("movement_type", "exit_technician")
+    .gte("created_at", sinceDate.toISOString())
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throw new Error(`Erreur lors de la récupération de l'évolution: ${error.message}`);
+  }
+
+  return (data || []).map((item) => ({
+    ...item,
+    product: Array.isArray(item.product) ? item.product[0] : item.product,
+  })) as TechnicianEvolutionMovement[];
+}
+
 export interface TechniciansStats {
   totalTechnicians: number;
   emptyInventory: number;
@@ -291,11 +343,12 @@ export interface TechniciansStats {
 export async function getTechniciansStats(organizationId: string): Promise<TechniciansStats> {
   const supabase = createClient();
 
-  // Récupérer tous les techniciens
+  // Récupérer tous les techniciens (non archivés)
   const { data: technicians, error: techError } = await supabase
     .from("technicians")
     .select("id")
-    .eq("organization_id", organizationId);
+    .eq("organization_id", organizationId)
+    .is("archived_at", null);
 
   if (techError) {
     throw new Error(`Erreur lors de la récupération des techniciens: ${techError.message}`);

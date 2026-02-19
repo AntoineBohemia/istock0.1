@@ -49,6 +49,8 @@ export const queryKeys = {
       [...queryKeys.technicians.all, "history", techId] as const,
     movements: (techId: string) =>
       [...queryKeys.technicians.all, "movements", techId] as const,
+    evolution: (techId: string, months?: number) =>
+      [...queryKeys.technicians.all, "evolution", techId, months] as const,
   },
 
   dashboard: {

@@ -25,7 +25,7 @@ import {
   PlusCircle,
   RefreshCw,
   Search,
-  Trash2,
+  Archive,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -97,7 +97,7 @@ import { useOrganizationStore } from "@/lib/stores/organization-store";
 import QuickStockMovementModal from "@/components/quick-stock-movement-modal";
 import { exportToCSV } from "@/lib/utils/csv-export";
 import { useProducts, useCategories } from "@/hooks/queries";
-import { useDeleteProduct } from "@/hooks/mutations";
+import { useArchiveProduct } from "@/hooks/mutations";
 
 export default function ProductList() {
   const router = useRouter();
@@ -148,29 +148,29 @@ export default function ProductList() {
     pageSize,
   });
   const { data: categories = [] } = useCategories(currentOrganization?.id);
-  const deleteProductMutation = useDeleteProduct();
+  const archiveProductMutation = useArchiveProduct();
 
   const products = productsResult?.products || [];
   const totalCount = productsResult?.total || 0;
 
-  const handleDelete = async () => {
+  const handleArchive = async () => {
     if (!productToDelete) return;
 
-    deleteProductMutation.mutate(productToDelete.id, {
+    archiveProductMutation.mutate(productToDelete.id, {
       onSuccess: () => {
-        toast.success("Produit supprimé avec succès");
+        toast.success("Produit archivé avec succès");
         setDeleteDialogOpen(false);
         setProductToDelete(null);
       },
       onError: (error) => {
         toast.error(
-          error instanceof Error ? error.message : "Erreur lors de la suppression"
+          error instanceof Error ? error.message : "Erreur lors de l'archivage"
         );
       },
     });
   };
 
-  const isDeleting = deleteProductMutation.isPending;
+  const isArchiving = archiveProductMutation.isPending;
 
   const handleExportCSV = () => {
     exportToCSV(products, "produits", [
@@ -378,8 +378,8 @@ export default function ProductList() {
                   setDeleteDialogOpen(true);
                 }}
               >
-                <Trash2 className="mr-2 size-4" />
-                Supprimer
+                <Archive className="mr-2 size-4" />
+                Archiver
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -578,21 +578,21 @@ export default function ProductList() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer le produit</AlertDialogTitle>
+            <AlertDialogTitle>Archiver le produit</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer &quot;{productToDelete?.name}
-              &quot; ? Cette action est irréversible.
+              &quot;{productToDelete?.name}&quot; sera archivé et ne sera plus
+              visible dans les listes et statistiques.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
+            <AlertDialogCancel disabled={isArchiving}>Annuler</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDelete}
-              disabled={isDeleting}
+              onClick={handleArchive}
+              disabled={isArchiving}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeleting && <Loader2 className="mr-2 size-4 animate-spin" />}
-              Supprimer
+              {isArchiving && <Loader2 className="mr-2 size-4 animate-spin" />}
+              Archiver
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

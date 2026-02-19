@@ -199,7 +199,7 @@ describe("ProductFormSchema", () => {
 
 // ─── TechnicianFormSchema ───────────────────────────────────────────
 describe("TechnicianFormSchema", () => {
-  it("accepts valid technician data", () => {
+  it("accepts valid technician data with email", () => {
     const result = TechnicianFormSchema.safeParse({
       first_name: "Jean",
       last_name: "Dupont",
@@ -208,11 +208,27 @@ describe("TechnicianFormSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts technician data without email", () => {
+    const result = TechnicianFormSchema.safeParse({
+      first_name: "Jean",
+      last_name: "Dupont",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts empty string email", () => {
+    const result = TechnicianFormSchema.safeParse({
+      first_name: "Jean",
+      last_name: "Dupont",
+      email: "",
+    });
+    expect(result.success).toBe(true);
+  });
+
   it("rejects first_name shorter than 2 characters", () => {
     const result = TechnicianFormSchema.safeParse({
       first_name: "J",
       last_name: "Dupont",
-      email: "j@d.com",
     });
     expect(result.success).toBe(false);
   });

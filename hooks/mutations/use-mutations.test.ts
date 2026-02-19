@@ -7,7 +7,6 @@ import { queryKeys } from "@/lib/query-keys";
 // ─── Mock mutation functions ────────────────────────────────────────
 const mockCreateEntry = vi.fn().mockResolvedValue({ id: "mv-1" });
 const mockCreateExit = vi.fn().mockResolvedValue({ id: "mv-2" });
-const mockRestockTechnician = vi.fn().mockResolvedValue({ success: true, items_count: 2, previous_items_count: 1 });
 const mockAddToTechnicianInventory = vi.fn().mockResolvedValue({ success: true, items_count: 2, previous_items_count: 1 });
 
 vi.mock("@/lib/supabase/queries/stock-movements", () => ({
@@ -16,12 +15,11 @@ vi.mock("@/lib/supabase/queries/stock-movements", () => ({
 }));
 
 vi.mock("@/lib/supabase/queries/inventory", () => ({
-  restockTechnician: (...args: unknown[]) => mockRestockTechnician(...args),
   addToTechnicianInventory: (...args: unknown[]) => mockAddToTechnicianInventory(...args),
 }));
 
 import { useCreateStockEntry, useCreateStockExit } from "./use-stock-mutations";
-import { useRestockTechnician, useAddToTechnicianInventory } from "./use-inventory-mutations";
+import { useAddToTechnicianInventory } from "./use-inventory-mutations";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -272,67 +270,6 @@ describe("useCreateStockExit", () => {
     });
 
     expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: queryKeys.technicians.all });
-  });
-});
-
-// ─── useRestockTechnician ───────────────────────────────────────────
-describe("useRestockTechnician", () => {
-  it("calls restockTechnician with correct args", async () => {
-    const wrapper = createWrapper();
-    const { result } = renderHook(() => useRestockTechnician(), { wrapper });
-
-    const items = [
-      { productId: "p1", quantity: 5 },
-      { productId: "p2", quantity: 3 },
-    ];
-
-    await act(async () => {
-      await result.current.mutateAsync({ technicianId: "t1", items });
-    });
-
-    expect(mockRestockTechnician).toHaveBeenCalledWith("t1", items);
-  });
-
-  it("invalidates all required keys on settle", async () => {
-    const qc = createTestQueryClient();
-    const invalidateSpy = vi.spyOn(qc, "invalidateQueries");
-    const wrapper = createWrapper(qc);
-
-    const { result } = renderHook(() => useRestockTechnician(), { wrapper });
-
-    const items = [{ productId: "p1", quantity: 5 }];
-
-    await act(async () => {
-      await result.current.mutateAsync({ technicianId: "t1", items });
-    });
-
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.technicians.all });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.products.lists() });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.products.detail("p1") });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.movements.lists() });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.movements.summary() });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.dashboard.all });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.inventory.all });
-  });
-
-  it("invalidates detail for each product in items", async () => {
-    const qc = createTestQueryClient();
-    const invalidateSpy = vi.spyOn(qc, "invalidateQueries");
-    const wrapper = createWrapper(qc);
-
-    const { result } = renderHook(() => useRestockTechnician(), { wrapper });
-
-    const items = [
-      { productId: "p1", quantity: 5 },
-      { productId: "p2", quantity: 3 },
-    ];
-
-    await act(async () => {
-      await result.current.mutateAsync({ technicianId: "t1", items });
-    });
-
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.products.detail("p1") });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.products.detail("p2") });
   });
 });
 

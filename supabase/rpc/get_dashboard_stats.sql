@@ -29,6 +29,7 @@ BEGIN
       ) AS low_stock_count
     FROM products
     WHERE (p_organization_id IS NULL OR organization_id = p_organization_id)
+      AND archived_at IS NULL
   ),
   movement_stats AS (
     SELECT

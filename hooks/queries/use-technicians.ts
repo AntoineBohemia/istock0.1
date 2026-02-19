@@ -9,6 +9,7 @@ import {
   getTechniciansStats,
   getTechnicianInventoryHistory,
   getTechnicianStockMovements,
+  getTechnicianEvolutionData,
 } from "@/lib/supabase/queries/technicians";
 
 export function useTechnicians(orgId?: string) {
@@ -49,5 +50,14 @@ export function useTechnicianMovements(techId: string) {
     queryKey: queryKeys.technicians.movements(techId),
     queryFn: () => getTechnicianStockMovements(techId),
     enabled: !!techId,
+  });
+}
+
+export function useTechnicianEvolution(techId: string, months: number = 3) {
+  return useQuery({
+    queryKey: queryKeys.technicians.evolution(techId, months),
+    queryFn: () => getTechnicianEvolutionData(techId, months),
+    enabled: !!techId,
+    staleTime: STALE_TIME.SLOW,
   });
 }

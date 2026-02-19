@@ -5,7 +5,7 @@ import { queryKeys } from "@/lib/query-keys";
 import {
   createProduct,
   updateProduct,
-  deleteProduct,
+  archiveProduct,
   type CreateProductData,
   type UpdateProductData,
   type ProductsResult,
@@ -47,10 +47,10 @@ export function useUpdateProduct() {
   });
 }
 
-export function useDeleteProduct() {
+export function useArchiveProduct() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => deleteProduct(id),
+    mutationFn: (id: string) => archiveProduct(id),
     onMutate: async (id) => {
       await qc.cancelQueries({ queryKey: queryKeys.products.lists() });
       const previousLists: [readonly unknown[], ProductsResult | undefined][] = [];

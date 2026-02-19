@@ -27,7 +27,7 @@ import {
   getStockBadgeVariant,
   getStockScoreBgColor,
 } from "@/lib/utils/stock";
-import DeleteProductButton from "./delete-product-button";
+import ArchiveProductButton from "./archive-product-button";
 import RestockButton from "./restock-button";
 import StockEvolutionChart from "./stock-evolution-chart";
 import ProductQRCode from "@/components/product-qr-code";
@@ -140,7 +140,7 @@ export default async function Page({
               <span className="hidden sm:inline">Modifier</span>
             </Link>
           </Button>
-          <DeleteProductButton productId={id} productName={product.name} />
+          <ArchiveProductButton productId={id} productName={product.name} />
         </div>
       </div>
 

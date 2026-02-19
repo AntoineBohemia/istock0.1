@@ -20,7 +20,7 @@ import {
   Package,
   Eye,
   Pencil,
-  Trash2,
+  Archive,
   RefreshCw,
   Search,
 } from "lucide-react";
@@ -63,7 +63,7 @@ import {
 import { TechnicianWithInventory } from "@/lib/supabase/queries/technicians";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useTechnicians } from "@/hooks/queries";
-import { useDeleteTechnician } from "@/hooks/mutations";
+import { useArchiveTechnician } from "@/hooks/mutations";
 
 function generateInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
@@ -81,21 +81,21 @@ function formatDate(dateString: string | null): string {
 export default function TechniciansList() {
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
   const { data: technicians = [], isLoading } = useTechnicians(currentOrganization?.id);
-  const deleteTechnicianMutation = useDeleteTechnician();
+  const archiveTechnicianMutation = useArchiveTechnician();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [technicianToDelete, setTechnicianToDelete] =
     useState<TechnicianWithInventory | null>(null);
 
-  const isDeleting = deleteTechnicianMutation.isPending;
+  const isArchiving = archiveTechnicianMutation.isPending;
 
-  const handleDelete = async () => {
+  const handleArchive = async () => {
     if (!technicianToDelete) return;
 
-    deleteTechnicianMutation.mutate(technicianToDelete.id, {
+    archiveTechnicianMutation.mutate(technicianToDelete.id, {
       onSuccess: () => {
-        toast.success("Technicien supprimé avec succès");
+        toast.success("Technicien archivé avec succès");
         setDeleteDialogOpen(false);
         setTechnicianToDelete(null);
       },
@@ -103,7 +103,7 @@ export default function TechniciansList() {
         toast.error(
           error instanceof Error
             ? error.message
-            : "Erreur lors de la suppression"
+            : "Erreur lors de l'archivage"
         );
         setDeleteDialogOpen(false);
         setTechnicianToDelete(null);
@@ -133,9 +133,11 @@ export default function TechniciansList() {
             <div className="font-medium">
               {row.original.first_name} {row.original.last_name}
             </div>
-            <div className="text-sm text-muted-foreground">
-              {row.original.email}
-            </div>
+            {row.original.email && (
+              <div className="text-sm text-muted-foreground">
+                {row.original.email}
+              </div>
+            )}
           </div>
         </Link>
       ),
@@ -231,8 +233,8 @@ export default function TechniciansList() {
                 setDeleteDialogOpen(true);
               }}
             >
-              <Trash2 className="mr-2 size-4" />
-              Supprimer
+              <Archive className="mr-2 size-4" />
+              Archiver
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -368,25 +370,24 @@ export default function TechniciansList() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer le technicien ?</AlertDialogTitle>
+            <AlertDialogTitle>Archiver le technicien ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Vous allez supprimer{" "}
               <strong>
                 {technicianToDelete?.first_name} {technicianToDelete?.last_name}
-              </strong>
-              . Cette action est irréversible et supprimera également tout son
-              inventaire.
+              </strong>{" "}
+              sera archivé et ne sera plus visible dans les listes et
+              statistiques.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
+            <AlertDialogCancel disabled={isArchiving}>Annuler</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDelete}
-              disabled={isDeleting}
+              onClick={handleArchive}
+              disabled={isArchiving}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeleting && <Loader2 className="mr-2 size-4 animate-spin" />}
-              Supprimer
+              {isArchiving && <Loader2 className="mr-2 size-4 animate-spin" />}
+              Archiver
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
