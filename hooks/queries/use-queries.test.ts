@@ -603,7 +603,7 @@ describe("useTechnicianStatsForDashboard", () => {
     renderHook(() => useTechnicianStatsForDashboard("org-1"), { wrapper });
 
     await waitFor(() => {
-      expect(getTechnicianStats).toHaveBeenCalledWith("org-1");
+      expect(getTechnicianStats).toHaveBeenCalledWith("org-1", undefined);
     });
   });
 
