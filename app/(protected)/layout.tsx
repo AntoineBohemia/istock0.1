@@ -7,7 +7,6 @@ import Header from "@/components/layout/header";
 import ScanFab from "@/components/scan-fab";
 import OrganizationProvider from "@/components/organization-provider";
 import QueryProvider from "@/components/query-provider";
-import { MeshGradientBg } from "@/components/ui/mesh-gradient-bg";
 
 export default async function AuthLayout({
   children,
@@ -22,7 +21,6 @@ export default async function AuthLayout({
   return (
     <QueryProvider>
       <OrganizationProvider>
-        <MeshGradientBg />
         <SidebarProvider defaultOpen={defaultOpen}>
           <Sidebar />
           <SidebarInset>
