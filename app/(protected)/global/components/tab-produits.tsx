@@ -11,10 +11,11 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, ImageIcon, Loader2, CheckCircle } from "lucide-react";
+import { ArrowUpDown, ImageIcon, CheckCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -135,7 +136,7 @@ export function TabProduits() {
   const { currentOrganization } = useOrganizationStore();
   const orgId = currentOrganization?.id;
 
-  const { data: products = [], isLoading } = useProductsNeedingRestock(orgId, 50, 60);
+  const { data: products = [], isLoading } = useProductsNeedingRestock(orgId, 20, 60);
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: "score", desc: false },
   ]);
@@ -151,8 +152,40 @@ export function TabProduits() {
 
   if (isLoading) {
     return (
-      <div className="flex h-[300px] items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-48" />
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead><Skeleton className="h-4 w-16" /></TableHead>
+                <TableHead><Skeleton className="h-4 w-10" /></TableHead>
+                <TableHead><Skeleton className="h-4 w-16" /></TableHead>
+                <TableHead><Skeleton className="h-4 w-12" /></TableHead>
+                <TableHead><Skeleton className="h-4 w-20" /></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="size-8 rounded-md" />
+                      <div className="space-y-1">
+                        <Skeleton className="h-4 w-28" />
+                        <Skeleton className="h-3 w-16" />
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell><Skeleton className="h-4 w-8" /></TableCell>
+                  <TableCell><Skeleton className="h-3 w-14" /></TableCell>
+                  <TableCell><Skeleton className="h-2 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-3 w-16" /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     );
   }
