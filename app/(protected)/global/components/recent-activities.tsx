@@ -17,7 +17,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { RecentMovement } from "@/lib/supabase/queries/dashboard";
-import { MOVEMENT_TYPE_LABELS } from "@/lib/supabase/queries/stock-movements";
+
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useRecentMovements } from "@/hooks/queries";
 
