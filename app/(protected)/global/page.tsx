@@ -22,7 +22,7 @@ import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useTechnicians } from "@/hooks/queries";
 import RestockDialog from "@/app/(protected)/users/[id]/restock-dialog";
 
-import { DashboardHeader } from "./components/dashboard-header";
+import { HealthScoreHeader } from "./components/health-score-header";
 import { DashboardTabs } from "./components/dashboard-tabs";
 import { ActionTaskList } from "./components/action-task-list";
 import { MobileTaskDrawer } from "./components/mobile-task-drawer";
@@ -68,28 +68,26 @@ export default function Page() {
         </Button>
       </div>
 
-      {/* Desktop layout: 2 columns */}
-      <div className="hidden lg:grid lg:grid-cols-[1fr_320px] lg:gap-6">
-        {/* Left column */}
-        <div className="space-y-6 min-w-0">
-          <DashboardHeader orgId={orgId} />
+      {/* ─── Zone 1: Score + KPIs (full width) ─── */}
+      <HealthScoreHeader orgId={orgId} />
+
+      {/* ─── Desktop: Zone 2 (tabs) + Zone 3 (task list) ─── */}
+      <div className="mt-6 hidden lg:grid lg:grid-cols-[1fr_320px] lg:gap-6">
+        <div className="min-w-0">
           <DashboardTabs onRestockClick={handleRestockClick} />
         </div>
-
-        {/* Right column: sticky task list */}
         <aside className="sticky top-20 self-start">
           <ActionTaskList />
         </aside>
       </div>
 
-      {/* Mobile layout */}
-      <div className="lg:hidden space-y-4">
-        <DashboardHeader orgId={orgId} />
+      {/* ─── Mobile: Zone 2 (tabs) + Zone 3 (FAB drawer) ─── */}
+      <div className="mt-4 lg:hidden">
         <DashboardTabs onRestockClick={handleRestockClick} />
         <MobileTaskDrawer />
       </div>
 
-      {/* Step 1: Technician picker */}
+      {/* Technician picker dialog */}
       <Dialog open={techPickerOpen} onOpenChange={setTechPickerOpen}>
         <DialogContent className="p-0 sm:max-w-md">
           <DialogHeader className="px-4 pt-4">
@@ -132,7 +130,7 @@ export default function Page() {
         </DialogContent>
       </Dialog>
 
-      {/* Step 2: Restock dialog */}
+      {/* Restock dialog */}
       {selectedTechId && (
         <RestockDialog
           technicianId={selectedTechId}

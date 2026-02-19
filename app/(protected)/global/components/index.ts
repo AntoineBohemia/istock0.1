@@ -1,6 +1,4 @@
-export * from "./health-score-gauge";
-export * from "./dashboard-kpi-cards";
-export * from "./dashboard-header";
+export * from "./health-score-header";
 export * from "./dashboard-tabs";
 export * from "./tab-apercu";
 export * from "./tab-produits";
