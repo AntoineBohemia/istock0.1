@@ -59,6 +59,16 @@ export interface HealthScore {
   kpi: HealthScoreKPI;
 }
 
+export interface HealthScoreHistoryMonth {
+  month: string;
+  score: number;
+  penalties_total: number;
+  product_zero_count: number;
+  product_low_count: number;
+  technician_never_count: number;
+  technician_late_count: number;
+}
+
 export interface ProductNeedingRestock {
   id: string;
   name: string;
@@ -151,6 +161,27 @@ export async function getHealthScore(organizationId: string): Promise<HealthScor
   }
 
   return data as unknown as HealthScore;
+}
+
+/**
+ * Récupère l'historique du score de santé sur les N derniers mois
+ */
+export async function getHealthScoreHistory(
+  organizationId: string,
+  months: number = 6
+): Promise<HealthScoreHistoryMonth[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase.rpc("get_health_score_history", {
+    p_organization_id: organizationId,
+    p_months: months,
+  });
+
+  if (error) {
+    throw new Error(`Erreur lors de la récupération de l'historique du score: ${error.message}`);
+  }
+
+  return (data as unknown as HealthScoreHistoryMonth[]) || [];
 }
 
 /**

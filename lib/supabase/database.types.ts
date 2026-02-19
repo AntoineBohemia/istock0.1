@@ -505,6 +505,10 @@ export type Database = {
         Args: { p_organization_id: string }
         Returns: Json
       }
+      get_health_score_history: {
+        Args: { p_organization_id: string; p_months?: number }
+        Returns: Json
+      }
       get_dashboard_stats: {
         Args: { p_organization_id?: string }
         Returns: Json

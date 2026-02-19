@@ -8,6 +8,7 @@ import {
   getDashboardStats,
   getDashboardTasks,
   getHealthScore,
+  getHealthScoreHistory,
   getRecentMovements,
   getGlobalStockEvolution,
   getProductStockEvolution,
@@ -34,6 +35,15 @@ export function useHealthScore(orgId?: string) {
     queryFn: () => getHealthScore(orgId!),
     enabled: !!orgId,
     staleTime: STALE_TIME.MODERATE,
+  });
+}
+
+export function useHealthScoreHistory(orgId?: string, months?: number) {
+  return useQuery({
+    queryKey: queryKeys.dashboard.healthScoreHistory(orgId, months),
+    queryFn: () => getHealthScoreHistory(orgId!, months),
+    enabled: !!orgId,
+    staleTime: STALE_TIME.SLOW,
   });
 }
 

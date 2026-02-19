@@ -75,6 +75,8 @@ export const queryKeys = {
       [...queryKeys.dashboard.all, "tasks", orgId] as const,
     healthScore: (orgId?: string) =>
       [...queryKeys.dashboard.all, "healthScore", orgId] as const,
+    healthScoreHistory: (orgId?: string, months?: number) =>
+      [...queryKeys.dashboard.all, "healthScoreHistory", orgId, months] as const,
     allTechnicians: (orgId?: string) =>
       [...queryKeys.dashboard.all, "allTechnicians", orgId] as const,
   },
