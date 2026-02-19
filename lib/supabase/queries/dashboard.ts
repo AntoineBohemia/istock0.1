@@ -16,9 +16,9 @@ export interface ProductNeedingRestock {
   name: string;
   sku: string | null;
   image_url: string | null;
-  stock_current: number;
-  stock_min: number;
-  stock_max: number;
+  stock_current: number | null;
+  stock_min: number | null;
+  stock_max: number | null;
   score: number;
 }
 
@@ -35,7 +35,7 @@ export interface RecentMovement {
   id: string;
   quantity: number;
   movement_type: "entry" | "exit_technician" | "exit_anonymous" | "exit_loss";
-  created_at: string;
+  created_at: string | null;
   notes: string | null;
   product: {
     id: string;
@@ -66,14 +66,14 @@ export async function getDashboardStats(organizationId?: string): Promise<Dashbo
   const supabase = createClient();
 
   const { data, error } = await supabase.rpc("get_dashboard_stats", {
-    p_organization_id: organizationId || null,
+    p_organization_id: organizationId,
   });
 
   if (error) {
     throw new Error(`Erreur lors de la récupération des statistiques: ${error.message}`);
   }
 
-  return data as DashboardStats;
+  return data as unknown as DashboardStats;
 }
 
 /**
@@ -105,9 +105,9 @@ export async function getProductsNeedingRestock(
     ?.map((product) => ({
       ...product,
       score: calculateStockScore(
-        product.stock_current,
-        product.stock_min,
-        product.stock_max
+        product.stock_current ?? 0,
+        product.stock_min ?? 0,
+        product.stock_max ?? 0
       ),
     }))
     .filter((product) => product.score < 30)
@@ -168,7 +168,7 @@ export async function getTechniciansNeedingRestock(
   // Grouper par technicien (prendre le plus récent)
   const lastRestockByTechnician: Record<string, string> = {};
   historyEntries?.forEach((entry) => {
-    if (!lastRestockByTechnician[entry.technician_id]) {
+    if (!lastRestockByTechnician[entry.technician_id] && entry.created_at) {
       lastRestockByTechnician[entry.technician_id] = entry.created_at;
     }
   });
@@ -311,6 +311,7 @@ export async function getGlobalStockEvolution(
   const monthlyData: Record<string, { entries: number; exits: number }> = {};
 
   movements?.forEach((movement) => {
+    if (!movement.created_at) return;
     const date = new Date(movement.created_at);
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 
@@ -420,6 +421,7 @@ export async function getProductStockEvolution(
   const monthlyData: Record<string, { entries: number; exits: number }> = {};
 
   movements?.forEach((movement) => {
+    if (!movement.created_at) return;
     const date = new Date(movement.created_at);
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 
@@ -537,6 +539,7 @@ export async function getCategoryStockEvolution(
   const monthlyData: Record<string, { entries: number; exits: number }> = {};
 
   movements?.forEach((movement) => {
+    if (!movement.created_at) return;
     const date = new Date(movement.created_at);
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 

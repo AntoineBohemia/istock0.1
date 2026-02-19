@@ -72,7 +72,7 @@ export function CompletionStep() {
           organization_id: data.createdOrganizationId || null,
           current_step: "completed",
           completed_steps: completedSteps,
-          onboarding_data: data,
+          onboarding_data: data as unknown as import("@/lib/supabase/database.types").Json,
           completed_at: new Date().toISOString(),
         });
       }

@@ -63,16 +63,16 @@ export default function AcceptInvitationPage() {
         }
 
         // Check if expired
-        if (new Date(invitationData.expires_at) < new Date()) {
+        if (new Date(invitationData.expires_at ?? Date.now()) < new Date()) {
           setStatus("invalid");
           return;
         }
 
         setInvitation({
           email: invitationData.email,
-          role: invitationData.role,
+          role: invitationData.role ?? "",
           organizationName: invitationData.organization.name,
-          expiresAt: invitationData.expires_at,
+          expiresAt: invitationData.expires_at ?? "",
         });
         setStatus("valid");
       } catch (error) {

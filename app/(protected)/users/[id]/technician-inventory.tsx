@@ -123,7 +123,7 @@ export default function TechnicianInventory({
                         <Badge variant="secondary">{item.quantity}</Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {new Date(item.assigned_at).toLocaleDateString(
+                        {new Date(item.assigned_at ?? Date.now()).toLocaleDateString(
                           "fr-FR",
                           {
                             day: "numeric",

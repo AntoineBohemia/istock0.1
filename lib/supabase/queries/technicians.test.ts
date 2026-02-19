@@ -85,13 +85,13 @@ describe("getTechnicians", () => {
     expect(result[0].last_restock_at).toBeNull();
   });
 
-  it("passes null when no organizationId is provided", async () => {
+  it("passes undefined when no organizationId is provided", async () => {
     mockClient._setResult({ data: [], error: null });
 
     await getTechnicians();
 
     expect(mockClient.rpc).toHaveBeenCalledWith("get_technicians_with_stats", {
-      p_organization_id: null,
+      p_organization_id: undefined,
     });
   });
 

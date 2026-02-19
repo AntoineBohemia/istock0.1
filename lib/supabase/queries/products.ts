@@ -4,20 +4,21 @@ import { Category } from "./categories";
 export interface Product {
   id: string;
   name: string;
-  sku: string | null;
+  sku: string;
   description: string | null;
   image_url: string | null;
   price: number | null;
-  stock_current: number;
-  stock_min: number;
-  stock_max: number;
+  stock_current: number | null;
+  stock_min: number | null;
+  stock_max: number | null;
   category_id: string | null;
   supplier_name: string | null;
-  is_perishable: boolean;
-  track_stock: boolean;
-  organization_id: string;
-  created_at: string;
-  updated_at: string;
+  is_perishable: boolean | null;
+  track_stock: boolean | null;
+  organization_id: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  archived_at: string | null;
 }
 
 export interface ProductWithCategory extends Product {
@@ -144,9 +145,9 @@ export async function getProducts(
   // Apply stock status filter client-side (column-to-column comparison)
   if (stockStatus && stockStatus !== "all") {
     if (stockStatus === "low") {
-      products = products.filter((p) => p.stock_current <= p.stock_min);
+      products = products.filter((p) => (p.stock_current ?? 0) <= (p.stock_min ?? 0));
     } else if (stockStatus === "high") {
-      products = products.filter((p) => p.stock_current >= p.stock_max);
+      products = products.filter((p) => (p.stock_current ?? 0) >= (p.stock_max ?? 0));
     }
     total = products.length;
   }
@@ -354,11 +355,11 @@ export async function getProductsStats(organizationId?: string): Promise<{
   const products = data || [];
   const total = products.length;
   const lowStock = products.filter(
-    (p) => p.stock_current <= p.stock_min && p.stock_current > 0
+    (p) => (p.stock_current ?? 0) <= (p.stock_min ?? 0) && (p.stock_current ?? 0) > 0
   ).length;
-  const outOfStock = products.filter((p) => p.stock_current === 0).length;
+  const outOfStock = products.filter((p) => (p.stock_current ?? 0) === 0).length;
   const totalValue = products.reduce(
-    (sum, p) => sum + (p.price || 0) * p.stock_current,
+    (sum, p) => sum + (p.price || 0) * (p.stock_current ?? 0),
     0
   );
 

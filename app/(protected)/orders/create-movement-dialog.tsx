@@ -68,7 +68,7 @@ interface Product {
   name: string;
   sku: string | null;
   image_url: string | null;
-  stock_current: number;
+  stock_current: number | null;
 }
 
 interface Technician {
@@ -167,7 +167,7 @@ export default function CreateMovementDialog({
     } else {
       const exitTypeValue = data.exit_type || "exit_anonymous";
 
-      if (selectedProduct && data.quantity > selectedProduct.stock_current) {
+      if (selectedProduct && data.quantity > (selectedProduct.stock_current ?? 0)) {
         toast.error(`Stock insuffisant. Disponible: ${selectedProduct.stock_current}`);
         return;
       }
@@ -386,7 +386,7 @@ export default function CreateMovementDialog({
                         min={1}
                         max={
                           direction === "exit" && selectedProduct
-                            ? selectedProduct.stock_current
+                            ? (selectedProduct.stock_current ?? 0)
                             : undefined
                         }
                         {...field}

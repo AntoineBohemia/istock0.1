@@ -300,9 +300,9 @@ export default function ProductList() {
       cell: ({ row }) => {
         const product = row.original;
         const score = calculateStockScore(
-          product.stock_current,
-          product.stock_min,
-          product.stock_max
+          product.stock_current ?? 0,
+          product.stock_min ?? 0,
+          product.stock_max ?? 0
         );
         const bgColor = getStockScoreBgColor(score);
 
@@ -323,9 +323,9 @@ export default function ProductList() {
       cell: ({ row }) => {
         const product = row.original;
         const score = calculateStockScore(
-          product.stock_current,
-          product.stock_min,
-          product.stock_max
+          product.stock_current ?? 0,
+          product.stock_min ?? 0,
+          product.stock_max ?? 0
         );
         const variant = getStockBadgeVariant(score);
         const status = getStockStatus(score);

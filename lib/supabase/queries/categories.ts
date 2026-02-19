@@ -4,8 +4,8 @@ export interface Category {
   id: string;
   name: string;
   parent_id: string | null;
-  organization_id: string;
-  created_at: string;
+  organization_id: string | null;
+  created_at: string | null;
 }
 
 export interface CategoryWithChildren extends Category {

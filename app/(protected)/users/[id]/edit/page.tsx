@@ -60,7 +60,7 @@ export default async function EditTechnicianPage({
     id: technician.id,
     first_name: technician.first_name,
     last_name: technician.last_name,
-    email: technician.email,
+    email: technician.email ?? "",
     phone: technician.phone || "",
     city: technician.city || "",
   };

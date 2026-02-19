@@ -73,7 +73,7 @@ function MovementItem({ movement, compact }: MovementItemProps) {
           </Badge>
         </p>
         <p className={cn("text-muted-foreground", compact ? "text-[10px]" : "text-sm")}>
-          {format(new Date(movement.created_at), compact ? "dd MMM, HH:mm" : "dd MMM yyyy, HH:mm", {
+          {format(new Date(movement.created_at ?? Date.now()), compact ? "dd MMM, HH:mm" : "dd MMM yyyy, HH:mm", {
             locale: fr,
           })}
         </p>

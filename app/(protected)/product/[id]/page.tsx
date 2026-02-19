@@ -82,15 +82,15 @@ export default async function Page({
   }
 
   const stockScore = calculateStockScore(
-    product.stock_current,
-    product.stock_min,
-    product.stock_max
+    product.stock_current ?? 0,
+    product.stock_min ?? 0,
+    product.stock_max ?? 0
   );
   const stockStatus = getStockStatus(stockScore);
   const stockBadgeVariant = getStockBadgeVariant(stockScore);
   const stockBgColor = getStockScoreBgColor(stockScore);
 
-  const totalValue = (product.price || 0) * product.stock_current;
+  const totalValue = (product.price || 0) * (product.stock_current ?? 0);
 
   return (
     <div className="space-y-4 pb-20">
@@ -118,7 +118,7 @@ export default async function Page({
             )}
             <div>
               <span className="text-foreground font-semibold">Créé le :</span>{" "}
-              {new Date(product.created_at).toLocaleDateString("fr-FR", {
+              {new Date(product.created_at ?? Date.now()).toLocaleDateString("fr-FR", {
                 day: "numeric",
                 month: "short",
                 year: "numeric",
@@ -205,7 +205,7 @@ export default async function Page({
                     Stock actuel
                   </span>
                   <span className="text-sm sm:text-lg font-semibold">
-                    {product.stock_current}
+                    {product.stock_current ?? 0}
                   </span>
                 </div>
               </div>
@@ -231,11 +231,11 @@ export default async function Page({
           </div>
 
           {/* Stock Alert */}
-          {product.stock_current <= product.stock_min && (
+          {(product.stock_current ?? 0) <= (product.stock_min ?? 0) && (
             <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
               <AlertTriangle className="size-4 shrink-0" />
               <span>
-                {product.stock_current === 0
+                {(product.stock_current ?? 0) === 0
                   ? "Rupture de stock ! Réapprovisionnement urgent."
                   : "Stock bas ! Le niveau minimum est atteint."}
               </span>
@@ -263,14 +263,14 @@ export default async function Page({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span>
-                      {product.stock_current} / {product.stock_max} unités
+                      {product.stock_current ?? 0} / {product.stock_max ?? 0} unités
                     </span>
                     <Badge variant={stockBadgeVariant}>{stockStatus}</Badge>
                   </div>
                   <Progress value={stockScore} color={stockBgColor} />
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Min: {product.stock_min}</span>
-                    <span>Max: {product.stock_max}</span>
+                    <span>Min: {product.stock_min ?? 0}</span>
+                    <span>Max: {product.stock_max ?? 0}</span>
                   </div>
                 </div>
               </div>

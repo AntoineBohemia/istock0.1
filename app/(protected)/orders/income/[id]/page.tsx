@@ -75,7 +75,7 @@ export default async function EntryDetailPage({
     notFound();
   }
 
-  const entryDate = new Date(movement.created_at);
+  const entryDate = new Date(movement.created_at ?? Date.now());
   const unitPrice = movement.product?.price || 0;
   const totalValue = unitPrice * movement.quantity;
 

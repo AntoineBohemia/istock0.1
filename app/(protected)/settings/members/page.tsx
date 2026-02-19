@@ -271,7 +271,7 @@ export default function MembersPage() {
                 </TableRow>
               ) : (
                 members.map((member) => {
-                  const RoleIcon = roleLabels[member.role]?.icon || User;
+                  const RoleIcon = roleLabels[member.role ?? ""]?.icon || User;
                   const isCurrentUser = member.user_id === currentUserId;
                   const isOwner = member.role === "owner";
 
@@ -305,12 +305,12 @@ export default function MembersPage() {
                           className="gap-1"
                         >
                           <RoleIcon className="size-3" />
-                          {roleLabels[member.role]?.label || member.role}
+                          {roleLabels[member.role ?? ""]?.label || member.role}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground">
-                          {new Date(member.created_at).toLocaleDateString(
+                          {new Date(member.created_at ?? Date.now()).toLocaleDateString(
                             "fr-FR"
                           )}
                         </span>
@@ -403,12 +403,12 @@ export default function MembersPage() {
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {roleLabels[invitation.role]?.label || invitation.role}
+                        {roleLabels[invitation.role ?? ""]?.label || invitation.role}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <span className="text-sm text-muted-foreground">
-                        {new Date(invitation.expires_at).toLocaleDateString(
+                        {new Date(invitation.expires_at ?? Date.now()).toLocaleDateString(
                           "fr-FR"
                         )}
                       </span>

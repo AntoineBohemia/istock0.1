@@ -238,7 +238,7 @@ describe("createOrganization", () => {
     expect(mockClient.rpc).toHaveBeenCalledWith("create_organization_with_owner", {
       org_name: "My Org",
       org_slug: "my-org",
-      org_logo_url: null,
+      org_logo_url: undefined,
     });
     expect(result).toEqual({
       id: "org-1",

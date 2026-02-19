@@ -72,7 +72,7 @@ interface Product {
   name: string;
   sku: string | null;
   image_url: string | null;
-  stock_current: number;
+  stock_current: number | null;
   price: number | null;
 }
 
@@ -198,7 +198,7 @@ export default function QuickStockMovementModal({
     } else {
       const exitTypeValue = data.exit_type || "exit_anonymous";
 
-      if (data.quantity > product.stock_current) {
+      if (data.quantity > (product.stock_current ?? 0)) {
         toast.error(`Stock insuffisant. Disponible: ${product.stock_current}`);
         return;
       }
@@ -416,7 +416,7 @@ export default function QuickStockMovementModal({
                         type="number"
                         min={1}
                         max={
-                          direction === "exit" ? product.stock_current : undefined
+                          direction === "exit" ? (product.stock_current ?? 0) : undefined
                         }
                         {...field}
                         onChange={(e) =>

@@ -51,7 +51,7 @@ describe("createEntry", () => {
       p_organization_id: "org-1",
       p_product_id: "prod-1",
       p_quantity: 5,
-      p_notes: null,
+      p_notes: undefined,
     });
   });
 
@@ -78,8 +78,8 @@ describe("createExit", () => {
       p_product_id: "prod-1",
       p_quantity: 5,
       p_type: "exit_anonymous",
-      p_technician_id: null,
-      p_notes: null,
+      p_technician_id: undefined,
+      p_notes: undefined,
     });
   });
 

@@ -4,11 +4,12 @@ export interface Technician {
   id: string;
   first_name: string;
   last_name: string;
-  email: string;
+  email: string | null;
   phone: string | null;
   city: string | null;
-  organization_id: string;
-  created_at: string;
+  organization_id: string | null;
+  created_at: string | null;
+  archived_at: string | null;
 }
 
 export interface TechnicianInventoryItem {
@@ -16,13 +17,14 @@ export interface TechnicianInventoryItem {
   technician_id: string;
   product_id: string;
   quantity: number;
-  assigned_at: string;
+  assigned_at: string | null;
+  organization_id: string | null;
   product?: {
     id: string;
     name: string;
-    sku: string | null;
+    sku: string;
     image_url: string | null;
-    stock_max: number;
+    stock_max: number | null;
   };
 }
 
@@ -32,19 +34,22 @@ export interface TechnicianWithInventory extends Technician {
   last_restock_at: string | null;
 }
 
+export interface TechnicianInventoryHistorySnapshot {
+  items: Array<{
+    product_id: string;
+    product_name: string;
+    product_sku: string | null;
+    quantity: number;
+  }>;
+  total_items: number;
+}
+
 export interface TechnicianInventoryHistoryEntry {
   id: string;
   technician_id: string;
-  snapshot: {
-    items: Array<{
-      product_id: string;
-      product_name: string;
-      product_sku: string | null;
-      quantity: number;
-    }>;
-    total_items: number;
-  };
-  created_at: string;
+  organization_id: string | null;
+  snapshot: TechnicianInventoryHistorySnapshot;
+  created_at: string | null;
 }
 
 export interface CreateTechnicianData {
@@ -66,14 +71,14 @@ export async function getTechnicians(organizationId?: string): Promise<Technicia
   const supabase = createClient();
 
   const { data, error } = await supabase.rpc("get_technicians_with_stats", {
-    p_organization_id: organizationId || null,
+    p_organization_id: organizationId,
   });
 
   if (error) {
     throw new Error(`Erreur lors de la récupération des techniciens: ${error.message}`);
   }
 
-  return (data as TechnicianWithInventory[]) || [];
+  return (data as unknown as TechnicianWithInventory[]) || [];
 }
 
 /**
@@ -221,7 +226,7 @@ export async function getTechnicianInventoryHistory(
     throw new Error(`Erreur lors de la récupération de l'historique: ${error.message}`);
   }
 
-  return data || [];
+  return (data as unknown as TechnicianInventoryHistoryEntry[]) || [];
 }
 
 export interface TechnicianStockMovement {

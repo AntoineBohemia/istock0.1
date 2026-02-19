@@ -151,7 +151,7 @@ export default function MovementsList() {
 
   const handleExportCSV = () => {
     exportToCSV(movements, "mouvements", [
-      { header: "Date", accessor: (m) => new Date(m.created_at).toLocaleDateString("fr-FR") },
+      { header: "Date", accessor: (m) => new Date(m.created_at ?? Date.now()).toLocaleDateString("fr-FR") },
       { header: "Type", accessor: (m) => MOVEMENT_TYPE_LABELS[m.movement_type] },
       { header: "Produit", accessor: (m) => m.product?.name },
       { header: "Quantité", accessor: (m) => m.quantity },
@@ -174,7 +174,7 @@ export default function MovementsList() {
         </Button>
       ),
       cell: ({ row }) => {
-        const date = new Date(row.original.created_at);
+        const date = new Date(row.original.created_at ?? Date.now());
         return (
           <div className="text-sm">
             <div>{format(date, "dd MMM yyyy", { locale: fr })}</div>

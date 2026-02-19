@@ -209,7 +209,7 @@ export default function CategoriesPage() {
                     </TableCell>
                     <TableCell>
                       <span className="text-muted-foreground text-sm">
-                        {new Date(category.created_at).toLocaleDateString("fr-FR")}
+                        {new Date(category.created_at ?? Date.now()).toLocaleDateString("fr-FR")}
                       </span>
                     </TableCell>
                     <TableCell>

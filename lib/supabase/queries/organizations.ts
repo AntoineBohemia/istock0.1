@@ -5,9 +5,9 @@ export interface OrganizationMember {
   id: string;
   user_id: string;
   organization_id: string;
-  role: "owner" | "admin" | "member";
-  is_default: boolean;
-  created_at: string;
+  role: string | null;
+  is_default: boolean | null;
+  created_at: string | null;
   user?: {
     email: string;
     user_metadata?: {
@@ -21,12 +21,12 @@ export interface OrganizationInvitation {
   id: string;
   organization_id: string;
   email: string;
-  role: "admin" | "member";
+  role: string | null;
   token: string;
   invited_by: string | null;
-  expires_at: string;
+  expires_at: string | null;
   accepted_at: string | null;
-  created_at: string;
+  created_at: string | null;
 }
 
 /**
@@ -444,7 +444,7 @@ export async function createOrganization(
   const { data, error } = await supabase.rpc("create_organization_with_owner", {
     org_name: name,
     org_slug: slug,
-    org_logo_url: logoUrl || null,
+    org_logo_url: logoUrl || undefined,
   });
 
   if (error) {
@@ -454,11 +454,13 @@ export async function createOrganization(
     throw new Error(`Erreur lors de la création: ${error.message}`);
   }
 
+  const result = data as unknown as { id: string; name: string; slug: string; logo_url: string | null };
+
   return {
-    id: data.id,
-    name: data.name,
-    slug: data.slug,
-    logo_url: data.logo_url,
+    id: result.id,
+    name: result.name,
+    slug: result.slug,
+    logo_url: result.logo_url,
     role: "owner",
   };
 }

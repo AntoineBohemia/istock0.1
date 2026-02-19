@@ -104,7 +104,7 @@ export default async function OutcomeDetailPage({
     notFound();
   }
 
-  const exitDate = new Date(movement.created_at);
+  const exitDate = new Date(movement.created_at ?? Date.now());
   const exitType = movement.movement_type as string;
   const config = EXIT_TYPE_CONFIG[exitType] || EXIT_TYPE_CONFIG.exit_anonymous;
   const unitPrice = movement.product?.price || 0;

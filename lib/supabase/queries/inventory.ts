@@ -45,7 +45,7 @@ export async function restockTechnician(
     throw new Error(`Erreur lors du restock: ${error.message}`);
   }
 
-  return data as RestockResult;
+  return data as unknown as RestockResult;
 }
 
 /**
@@ -55,10 +55,10 @@ export async function getAvailableProductsForRestock(organizationId: string): Pr
   Array<{
     id: string;
     name: string;
-    sku: string | null;
+    sku: string;
     image_url: string | null;
-    stock_current: number;
-    stock_max: number;
+    stock_current: number | null;
+    stock_max: number | null;
   }>
 > {
   const supabase = createClient();
@@ -105,7 +105,7 @@ export async function addToTechnicianInventory(
     throw new Error(`Erreur lors de l'ajout à l'inventaire: ${error.message}`);
   }
 
-  return data as RestockResult;
+  return data as unknown as RestockResult;
 }
 
 /**

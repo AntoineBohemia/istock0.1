@@ -43,7 +43,7 @@ interface SelectedProduct {
   name: string;
   sku: string | null;
   image_url: string | null;
-  stock_current: number;
+  stock_current: number | null;
   quantity: number;
 }
 
@@ -95,7 +95,7 @@ export default function RestockDialog({
     const product = selectedProducts.find((p) => p.productId === productId);
     if (!product) return;
 
-    const maxQuantity = product.stock_current;
+    const maxQuantity = product.stock_current ?? 0;
     const newQuantity = Math.max(1, Math.min(quantity, maxQuantity));
 
     setSelectedProducts(
@@ -259,7 +259,7 @@ export default function RestockDialog({
                           <Input
                             type="number"
                             min={1}
-                            max={product.stock_current}
+                            max={product.stock_current ?? 0}
                             value={product.quantity}
                             onChange={(e) =>
                               handleQuantityChange(
@@ -279,7 +279,7 @@ export default function RestockDialog({
                                 product.quantity + 1
                               )
                             }
-                            disabled={product.quantity >= product.stock_current}
+                            disabled={product.quantity >= (product.stock_current ?? 0)}
                           >
                             <Plus className="size-4" />
                           </Button>

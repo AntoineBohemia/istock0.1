@@ -9,12 +9,12 @@ export interface StockMovement {
   movement_type: MovementType;
   technician_id: string | null;
   notes: string | null;
-  organization_id: string;
-  created_at: string;
+  organization_id: string | null;
+  created_at: string | null;
   product?: {
     id: string;
     name: string;
-    sku: string | null;
+    sku: string;
     image_url: string | null;
   };
   technician?: {
@@ -179,14 +179,14 @@ export async function createEntry(
     p_organization_id: organizationId,
     p_product_id: productId,
     p_quantity: quantity,
-    p_notes: notes || null,
+    p_notes: notes || undefined,
   });
 
   if (error) {
     throw new Error(`Erreur lors de la création du mouvement: ${error.message}`);
   }
 
-  return data as StockMovement;
+  return data as unknown as StockMovement;
 }
 
 /**
@@ -208,15 +208,15 @@ export async function createExit(
     p_product_id: productId,
     p_quantity: quantity,
     p_type: type,
-    p_technician_id: technicianId || null,
-    p_notes: notes || null,
+    p_technician_id: technicianId || undefined,
+    p_notes: notes || undefined,
   });
 
   if (error) {
     throw new Error(`Erreur lors de la création du mouvement: ${error.message}`);
   }
 
-  return data as StockMovement;
+  return data as unknown as StockMovement;
 }
 
 /**
@@ -254,7 +254,7 @@ export async function getProductMovementStats(
   const dailyStats: Record<string, { entries: number; exits: number }> = {};
 
   data?.forEach((movement) => {
-    const date = new Date(movement.created_at).toISOString().split("T")[0];
+    const date = new Date(movement.created_at!).toISOString().split("T")[0];
 
     if (!dailyStats[date]) {
       dailyStats[date] = { entries: 0, exits: 0 };
