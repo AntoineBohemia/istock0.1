@@ -60,10 +60,19 @@ export function useCategoryStockEvolution(
   });
 }
 
-export function useTechnicianStatsForDashboard(orgId?: string) {
+/**
+ * Fetches technician stats for the dashboard.
+ * Accepts an optional pre-fetched needingRestockCount to avoid a duplicate
+ * call to getTechniciansNeedingRestock (already executed by useTechniciansNeedingRestock).
+ * Query key includes needingRestockCount so React Query refetches when it changes.
+ */
+export function useTechnicianStatsForDashboard(
+  orgId?: string,
+  needingRestockCount?: number
+) {
   return useQuery({
-    queryKey: queryKeys.dashboard.technicianStats(orgId),
-    queryFn: () => getTechnicianStats(orgId),
+    queryKey: [...queryKeys.dashboard.technicianStats(orgId), needingRestockCount],
+    queryFn: () => getTechnicianStats(orgId, needingRestockCount),
     enabled: !!orgId,
     staleTime: STALE_TIME.MODERATE,
   });

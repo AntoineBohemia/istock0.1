@@ -31,8 +31,10 @@ import { useTechnicianStatsForDashboard, useTechniciansNeedingRestock } from "@/
 
 export function SuccessMetrics() {
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
-  const { data: stats = { total: 0, withGoodStock: 0, withLowStock: 0, needingRestock: 0 }, isLoading: isStatsLoading } = useTechnicianStatsForDashboard(currentOrganization?.id);
+  // Fetch technicians needing restock first (single source of truth)
   const { data: techniciansData = [], isLoading: isTechLoading } = useTechniciansNeedingRestock(currentOrganization?.id, 7);
+  // Pass pre-fetched count to avoid duplicate getTechniciansNeedingRestock call
+  const { data: stats = { total: 0, withGoodStock: 0, withLowStock: 0, needingRestock: 0 }, isLoading: isStatsLoading } = useTechnicianStatsForDashboard(currentOrganization?.id, techniciansData.length);
   const techniciansToRestock = techniciansData.slice(0, 6);
   const [isExpanded, setIsExpanded] = useState(false);
   const isLoading = isStatsLoading || isTechLoading;

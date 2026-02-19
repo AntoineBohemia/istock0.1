@@ -773,9 +773,14 @@ export async function getGlobalBreakdown(
 }
 
 /**
- * Récupère les statistiques des techniciens pour le dashboard
+ * Récupère les statistiques des techniciens pour le dashboard.
+ * Le paramètre needingRestockCount évite une double exécution de
+ * getTechniciansNeedingRestock (déjà appelé via useTechniciansNeedingRestock).
  */
-export async function getTechnicianStats(organizationId?: string): Promise<{
+export async function getTechnicianStats(
+  organizationId?: string,
+  needingRestockCount?: number
+): Promise<{
   total: number;
   withGoodStock: number;
   withLowStock: number;
@@ -833,13 +838,17 @@ export async function getTechnicianStats(organizationId?: string): Promise<{
     }
   });
 
-  // Récupérer les techniciens à restocker
-  const techniciansNeedingRestock = await getTechniciansNeedingRestock(7, organizationId);
+  // Utiliser le count pré-calculé si fourni, sinon fallback sur un appel direct
+  let restockCount = needingRestockCount;
+  if (restockCount === undefined) {
+    const techniciansNeedingRestock = await getTechniciansNeedingRestock(7, organizationId);
+    restockCount = techniciansNeedingRestock.length;
+  }
 
   return {
     total: technicians?.length || 0,
     withGoodStock,
     withLowStock,
-    needingRestock: techniciansNeedingRestock.length,
+    needingRestock: restockCount,
   };
 }
