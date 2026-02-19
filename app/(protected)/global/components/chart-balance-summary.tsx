@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { CartesianGrid, XAxis, YAxis, Area, AreaChart, Bar, BarChart } from "recharts";
 import { Loader2, ChevronDown, ChevronUp, BarChart3, Package, Folder, X } from "lucide-react";
 import { format } from "date-fns";
@@ -53,13 +53,14 @@ import { cn } from "@/lib/utils";
 import {
   getProductStockEvolution,
   StockEvolutionData,
-  DashboardStats,
 } from "@/lib/supabase/queries/dashboard";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
-import { Category } from "@/lib/supabase/queries/categories";
 import { useDashboardStats, useGlobalStockEvolution } from "@/hooks/queries";
 import { useCategories } from "@/hooks/queries";
 import { useProducts } from "@/hooks/queries";
+import { useQueries } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
+import { STALE_TIME } from "@/lib/query-stale-times";
 
 interface Product {
   id: string;
@@ -90,7 +91,6 @@ interface MultiProductChartData {
 export function BalanceSummeryChart() {
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isLoadingChart, setIsLoadingChart] = useState(false);
 
   // React Query hooks for data
   const { data: stats = null, isLoading: isStatsLoading } = useDashboardStats(currentOrganization?.id);
@@ -113,8 +113,29 @@ export function BalanceSummeryChart() {
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [productPopoverOpen, setProductPopoverOpen] = useState(false);
 
-  // Chart data per product
-  const [productChartData, setProductChartData] = useState<Record<string, StockEvolutionData[]>>({});
+  // Fetch per-product stock evolution via React Query (replaces raw useEffect)
+  const productEvolutionQueries = useQueries({
+    queries: selectedProductIds.map((productId) => ({
+      queryKey: queryKeys.dashboard.productEvolution(productId, 6),
+      queryFn: () => getProductStockEvolution(productId, 6),
+      enabled: !!productId && !isLoading,
+      staleTime: STALE_TIME.SLOW,
+    })),
+  });
+
+  const isLoadingChart = productEvolutionQueries.some((q) => q.isLoading);
+
+  // Build productChartData from React Query results
+  const productChartData = useMemo(() => {
+    const data: Record<string, StockEvolutionData[]> = {};
+    selectedProductIds.forEach((productId, index) => {
+      const queryResult = productEvolutionQueries[index];
+      if (queryResult?.data) {
+        data[productId] = queryResult.data;
+      }
+    });
+    return data;
+  }, [selectedProductIds, productEvolutionQueries]);
 
   // Filter products by category
   const filteredProducts = useMemo(() => {
@@ -209,37 +230,6 @@ export function BalanceSummeryChart() {
   const clearProducts = () => {
     setSelectedProductIds([]);
   };
-
-  // Load chart data when selected products change
-  useEffect(() => {
-    if (isLoading || selectedProductIds.length === 0) return;
-
-    async function loadProductData() {
-      setIsLoadingChart(true);
-      try {
-        const newData: Record<string, StockEvolutionData[]> = {};
-
-        await Promise.all(
-          selectedProductIds.map(async (productId) => {
-            if (!productChartData[productId]) {
-              const data = await getProductStockEvolution(productId, 6);
-              newData[productId] = data;
-            }
-          })
-        );
-
-        if (Object.keys(newData).length > 0) {
-          setProductChartData(prev => ({ ...prev, ...newData }));
-        }
-      } catch (error) {
-        console.error("Error loading product chart data:", error);
-      } finally {
-        setIsLoadingChart(false);
-      }
-    }
-
-    loadProductData();
-  }, [selectedProductIds, isLoading]);
 
   // Get color for a product
   const getProductColor = (productId: string) => {
