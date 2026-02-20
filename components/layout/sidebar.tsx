@@ -187,13 +187,12 @@ export default function Sidebar() {
                             </DropdownMenu>
                           </div>
                           <Collapsible className="group/collapsible block group-data-[collapsible=icon]:hidden">
-                            <SidebarMenuButton
-                              className="hover:text-foreground! active:text-foreground! hover:bg-[var(--primary)]/10! active:bg-[var(--primary)]/10!"
-                              tooltip={item.title}
-                              isActive={pathname === item.href || pathname.startsWith(`${item.href}/`)}
-                              asChild
-                            >
-                              <Link href={item.href}>
+                            <CollapsibleTrigger asChild>
+                              <SidebarMenuButton
+                                className="hover:text-foreground! active:text-foreground! hover:bg-[var(--primary)]/10! active:bg-[var(--primary)]/10!"
+                                tooltip={item.title}
+                                isActive={pathname === item.href || pathname.startsWith(`${item.href}/`)}
+                              >
                                 {item.icon && (
                                   <Icon
                                     name={item.icon}
@@ -201,19 +200,9 @@ export default function Sidebar() {
                                   />
                                 )}
                                 <span>{item.title}</span>
-                                <CollapsibleTrigger asChild>
-                                  <span
-                                    role="button"
-                                    className="ml-auto p-1 -mr-1 rounded-sm hover:bg-accent"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                    }}
-                                  >
-                                    <ChevronRight className="size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                                  </span>
-                                </CollapsibleTrigger>
-                              </Link>
-                            </SidebarMenuButton>
+                                <ChevronRight className="ml-auto size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                              </SidebarMenuButton>
+                            </CollapsibleTrigger>
                             <CollapsibleContent>
                               <SidebarMenuSub>
                                 {item.items.map((subItem, key) => (

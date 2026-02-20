@@ -132,13 +132,12 @@ export default function TechniciansMenu({ title, href, icon }: TechniciansMenuPr
 
       {/* Version expanded */}
       <Collapsible className="group/collapsible block group-data-[collapsible=icon]:hidden">
-        <SidebarMenuButton
-          className="hover:text-foreground! active:text-foreground! hover:bg-[var(--primary)]/10! active:bg-[var(--primary)]/10!"
-          tooltip={title}
-          isActive={pathname === href || pathname.startsWith(`${href}/`)}
-          asChild
-        >
-          <Link href={href}>
+        <CollapsibleTrigger asChild>
+          <SidebarMenuButton
+            className="hover:text-foreground! active:text-foreground! hover:bg-[var(--primary)]/10! active:bg-[var(--primary)]/10!"
+            tooltip={title}
+            isActive={pathname === href || pathname.startsWith(`${href}/`)}
+          >
             {icon && (
               <Icon
                 name={icon}
@@ -146,19 +145,9 @@ export default function TechniciansMenu({ title, href, icon }: TechniciansMenuPr
               />
             )}
             <span>{title}</span>
-            <CollapsibleTrigger asChild>
-              <span
-                role="button"
-                className="ml-auto p-1 -mr-1 rounded-sm hover:bg-accent"
-                onClick={(e) => {
-                  e.stopPropagation();
-                }}
-              >
-                <ChevronRight className="size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-              </span>
-            </CollapsibleTrigger>
-          </Link>
-        </SidebarMenuButton>
+            <ChevronRight className="ml-auto size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+          </SidebarMenuButton>
+        </CollapsibleTrigger>
         <CollapsibleContent>
           <ScrollArea className="max-h-48">
             <SidebarMenuSub>
