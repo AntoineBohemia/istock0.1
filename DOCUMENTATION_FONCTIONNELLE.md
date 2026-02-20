@@ -1,7 +1,7 @@
 # Documentation fonctionnelle - iStock
 
 **Version** : 0.1
-**Date** : 18 février 2026
+**Date** : 20 février 2026
 **Statut** : Application en cours de développement (certaines fonctionnalités non implémentées)
 
 ---
@@ -162,104 +162,143 @@ L'état de progression de l'onboarding est sauvegardé localement dans le naviga
 
 ### 3.3 Module Tableau de bord
 
-Le tableau de bord est la page d'accueil de l'application une fois connecté. Il fournit une vue synthétique de l'état du stock et de l'activité récente. L'interface est **responsive** avec des mises en page distinctes pour mobile et desktop.
+Le tableau de bord est la page d'accueil de l'application une fois connecté. Il fournit une vue synthétique de l'état du stock et de l'activité. L'interface est organisée en **3 zones** avec une navigation par **onglets** et un comportement **responsive** adapté mobile/desktop.
 
 **En-tête du tableau de bord** : titre "Tableau de bord", sous-titre "Vue d'ensemble de votre gestion de stock", et un **bouton "Restocker un technicien"** (mis en avant, taille large) qui ouvre un flux en deux étapes : d'abord un **sélecteur de technicien** (palette de recherche par nom, email ou ville), puis le **formulaire de restock** identique à celui de la fiche technicien (voir section 3.8.2).
 
-#### 3.3.1 Indicateurs clés (KPI)
+#### 3.3.1 Score de santé (Health Score)
 
-Les indicateurs sont affichés différemment selon le contexte :
+En haut du tableau de bord, une carte affiche le **score de santé global** de l'organisation, de 0 à 100 points. Ce score est calculé côté base de données en appliquant des **pénalités** à partir d'un score initial de 100 (voir section 5.7 pour le détail de l'algorithme).
 
-**Sur mobile (CompactStats) — grille 2×2 en haut de page :**
+**Sur desktop** : un panneau à gauche affiche le score en grand (ex : "82/100"), une barre de progression colorée selon la zone (vert ≥ 70, orange ≥ 40, rouge < 40), un libellé descriptif (ex : "Quelques points d'attention"), la tendance en points par rapport au mois précédent (ex : "+5 pts"), et les 3 principales pénalités. Les 4 cartes KPI sont affichées à droite.
 
-| Indicateur | Description |
-|------------|-------------|
-| **Stock total** | Somme de toutes les quantités en stock, avec nombre de produits en sous-texte |
-| **Valeur** | Valeur totale du stock en euros |
-| **Entrées (mois)** | Nombre d'unités entrées durant le mois en cours (en vert) |
-| **Sorties (mois)** | Nombre d'unités sorties du stock (en rouge), avec nombre de produits en alerte si > 0 |
+**Sur mobile** : une version compacte affiche le score, la tendance et le libellé avec la barre de progression. Les cartes KPI sont en dessous.
 
-**Sur desktop (dans la section graphiques) — 4 cartes KPI :**
+#### 3.3.2 Indicateurs clés (KPI)
+
+Quatre cartes KPI sont affichées en grille (2×2 sur mobile, 4 colonnes sur desktop) :
 
 | Indicateur | Description |
 |------------|-------------|
-| **Stock actuel** | Quantité totale en stock |
-| **Valeur totale** | Valeur en euros du stock |
-| **Entrées (mois)** | Unités entrées ce mois (vert) |
-| **Sorties (mois)** | Unités sorties ce mois (rouge) |
+| **Stock actuel** | Quantité totale en stock, avec badge de tendance (↑/↓/→ + %) vs mois précédent |
+| **Valeur totale** | Valeur en euros du stock, avec badge de tendance |
+| **Entrées (mois)** | Unités entrées ce mois (fond vert, préfixe "+") |
+| **Sorties (mois)** | Unités sorties ce mois (fond rose, préfixe "-") |
 
-Ces statistiques sont calculées en une seule opération côté base de données.
+Les badges de tendance comparent les valeurs actuelles à celles du mois précédent. Le stock du mois précédent est reconstitué par rétro-calcul (stock actuel + sorties du mois - entrées du mois). Ces statistiques sont calculées en une seule opération côté base de données via le RPC `get_health_score`.
 
-#### 3.3.2 Graphiques d'évolution du stock
+#### 3.3.3 Navigation par onglets
 
-La section graphiques (collapsible sur mobile) contient :
+Le contenu principal du tableau de bord est organisé en **4 onglets** dans une carte. Sur petit écran, les libellés sont abrégés (Vue, Prod., Tech., Flux).
 
-**Graphique principal — Courbe d'évolution (Area Chart) :**
-- Affiche l'évolution du stock sur les **6 derniers mois**
-- Par défaut : vue globale de tout le stock
-- **Filtre par catégorie** : menu déroulant permettant de filtrer les produits affichés
-- **Sélection multi-produits** : bouton popover permettant de sélectionner jusqu'à **6 produits** individuels, avec recherche par nom/SKU. Chaque produit sélectionné apparaît comme une courbe colorée distincte, avec un badge amovible en dessous du graphique
-- Le graphique affiche : le stock total à la fin de chaque mois
+| Onglet | Contenu |
+|--------|---------|
+| **Aperçu** | Graphiques d'évolution du score et des flux (onglet par défaut) |
+| **Produits** | Tableau des produits à risque |
+| **Techniciens** | Tableau de tous les techniciens avec statut |
+| **Flux** | Tableau des 20 derniers mouvements de stock |
+
+#### 3.3.4 Onglet Aperçu
+
+Cet onglet contient deux graphiques empilés :
+
+**Graphique principal — Évolution du score (Area Chart) :**
+- Affiche le **score de santé global** sur les **6 derniers mois** sous forme de courbe en aires
+- Trois bandes de couleur horizontales en arrière-plan : rouge (0-40), orange (40-70), vert (70-100)
+- **Filtre par catégorie** : menu déroulant pour restreindre les produits
+- **Sélection multi-produits** : popover de recherche permettant de sélectionner jusqu'à **6 produits** individuels par nom ou SKU. Lorsque des produits sont sélectionnés, le graphique bascule du score global vers les **scores de stock individuels** de chaque produit, affichés comme des courbes colorées distinctes. Les produits sélectionnés apparaissent comme des badges amovibles sous les filtres
+- Un bouton "Effacer la sélection" permet de revenir à la vue globale
+- Un overlay de chargement s'affiche pendant le chargement des données par produit
 
 **Graphique secondaire — Flux mensuels (Bar Chart) :**
-- Visible uniquement en **vue globale** (pas quand des produits sont sélectionnés)
+- Visible uniquement en **vue globale** (masqué quand des produits sont sélectionnés)
 - Barres vertes pour les entrées, barres rouges pour les sorties, mois par mois
 
-Le calcul du stock historique fonctionne en rétro-calcul : à partir du stock actuel, l'application "remonte le temps" en soustrayant les entrées et en ajoutant les sorties de chaque mois.
+Le calcul du score historique est effectué côté base de données : pour chaque mois passé, le stock de chaque produit est reconstitué en annulant les mouvements postérieurs, puis les 6 règles de pénalité sont appliquées.
 
-#### 3.3.3 Actions rapides (mobile uniquement)
+#### 3.3.5 Onglet Produits
 
-Sur mobile, un bloc de **4 boutons d'action rapide** est affiché en premier :
-- **Scanner** : ouvre le scanner QR code pour enregistrer un mouvement via la caméra
-- **Mouvement** : redirige vers la page de mouvement de stock (`/stock`)
-- **Produits** : redirige vers la liste des produits (`/product`)
-- **Historique** : redirige vers la page des flux de stock (`/orders`)
+Un tableau liste les **produits à risque** (score de stock inférieur à 60%), triés par score croissant (les pires en premier) :
 
-> **Note** : Ce bloc n'est pas affiché sur desktop, où l'utilisateur accède à ces fonctions via le menu latéral.
+| Colonne | Description |
+|---------|-------------|
+| **Produit** | Image, nom et SKU |
+| **Stock** | Quantité actuelle (triable) |
+| **Min / Max** | Seuils configurés |
+| **Score** | Barre de progression colorée + pourcentage (triable) |
+| **Dernier mouvement** | Date relative en français (ex : "il y a 3 jours") |
 
-#### 3.3.4 Techniciens à restocker
+Chaque ligne est cliquable et redirige vers la fiche produit (`/product/{id}`).
 
-Une carte dédiée affiche le suivi des techniciens :
+**État vide** : si tous les produits ont un score ≥ 60%, un message vert "Tous les produits sont en bon état" s'affiche.
 
-- **Nombre total** de techniciens actifs (affiché en grand)
-- **Techniciens à restocker** : avatars des 6 premiers techniciens nécessitant un restock, affichés en rangée superposée. Au survol de chaque avatar, une infobulle indique le nom et le nombre de jours depuis le dernier restock (ou "Jamais restocké"). Un clic sur l'avatar redirige vers la fiche du technicien.
-- **Aperçu statistique** :
-  - "Stock en bonne état" (vert) : nombre de techniciens bien équipés
-  - "Stock faible" (rouge) : nombre de techniciens avec stock bas
-  - "À restocker (7 jours)" (orange) : nombre de techniciens dont le dernier restock date de plus de 7 jours
+#### 3.3.6 Onglet Techniciens
 
-**État vide** : si aucun technicien n'est enregistré, un message "Aucun technicien" s'affiche avec un bouton "Ajouter un technicien" redirigeant vers le formulaire de création.
+Un tableau liste **tous les techniciens actifs** (non archivés) de l'organisation :
 
-Sur mobile, cette carte est **collapsible** (repliable) pour économiser de l'espace.
+| Colonne | Description |
+|---------|-------------|
+| **Technicien** | Avatar avec initiales + nom complet |
+| **Articles** | Nombre de produits distincts + quantité totale |
+| **Dernier restock** | Date relative, colorée : rouge si > 14 jours ou jamais, orange si > 7 jours |
+| **Couverture** | Pourcentage moyen de couverture (quantité / stock_max par produit), orange si < 50% |
+| **Action** | Bouton "Restocker" qui ouvre directement le formulaire de restock sans quitter le tableau de bord |
 
-#### 3.3.5 Activités récentes
+Les colonnes Articles, Dernier restock et Couverture sont **triables**. Le tri par défaut place les techniciens jamais restockés en premier, puis ceux avec le restock le plus ancien.
 
-Une carte affiche les **6 derniers mouvements de stock** (3 sur mobile en mode compact) :
+Un clic sur le nom du technicien redirige vers sa fiche (`/users/{id}`).
 
-Chaque mouvement affiche :
-- L'image du produit (ou une icône par défaut)
-- Le nom du produit
-- Un badge coloré indiquant le type : "Entrée" (vert) ou "Sortie" (rouge/bleu/gris selon le sous-type)
-- La date et l'heure (format court sur mobile, complet sur desktop)
-- La quantité avec signe (+/-) et couleur
-- La valeur monétaire du mouvement (desktop uniquement)
+#### 3.3.7 Onglet Flux
+
+Un tableau affiche les **20 derniers mouvements de stock** :
+
+| Colonne | Description |
+|---------|-------------|
+| **Produit** | Image + nom du produit |
+| **Type** | Badge coloré : "Entrée" (vert), "Sortie tech." (bleu), "Sortie anon." (gris), "Perte" (rouge) |
+| **Quantité** | Avec signe et couleur : vert "+N" pour les entrées, rouge "-N" pour les sorties |
+| **Technicien** | Nom du technicien (pour les sorties technicien) ou "-" |
+| **Date** | Date formatée en français |
+
+**Filtre par type** : un menu déroulant permet de filtrer par "Tous", "Entrées", "Sorties tech.", "Sorties anon.", "Pertes".
+
+Chaque ligne est cliquable et redirige vers la fiche détaillée du mouvement (`/orders/{id}`).
 
 Un bouton "Voir tout l'historique" en bas redirige vers la page complète des flux (`/orders`).
 
-Sur mobile, cette carte est **collapsible**.
+#### 3.3.8 Liste des tâches à faire (Action Task List)
 
-#### 3.3.6 Disposition responsive
+Une liste de **tâches prioritaires** générées automatiquement est affichée à côté des onglets. Les tâches sont calculées côté base de données via le RPC `get_dashboard_tasks` et regroupées par catégorie :
 
-**Mobile** : les éléments s'empilent verticalement dans cet ordre :
-1. Actions rapides
-2. Indicateurs compacts (CompactStats)
-3. Activités récentes
-4. Techniciens
-5. Graphiques
+| Catégorie | Priorité | Condition |
+|-----------|----------|-----------|
+| **Ruptures de stock** | Critique (score 1000) | Produits avec stock = 0 |
+| **Stock faible** | Important (score 500+) | Produits avec 0 < stock ≤ stock_min |
+| **Surstockage** | Important (score 300) | Produits avec stock ≥ 2 × stock_max |
+| **Techniciens jamais restockés** | Critique (score 900) | Aucun historique d'inventaire |
+| **Techniciens à restocker** | Important (score 600+) | Dernier restock > 7 jours |
+| **Produits dormants** | Informatif (score 100) | Aucun mouvement depuis 60 jours |
 
-**Desktop** : disposition en grille :
-- Ligne 1 : Techniciens (gauche) + Activités récentes (droite)
-- Ligne 2 : Graphiques (pleine largeur)
+Chaque tâche affiche une bordure colorée à gauche (rouge = critique, orange = important, gris = informatif), une icône teintée et un résumé cliquable qui redirige vers la page concernée. Un badge rouge sur l'en-tête indique le nombre total de tâches.
+
+**Regroupement** : si plus de 3 tâches du même type existent, elles sont agrégées en une seule tâche groupée (ex : "5 produits en rupture de stock") avec un lien vers la liste filtrée.
+
+**Masquage** : chaque tâche peut être masquée (bouton ×, visible au survol) pour **24 heures**. Les masquages sont stockés localement dans le navigateur via un store Zustand persisté. Les masquages expirés sont automatiquement nettoyés.
+
+**Limite d'affichage** : les 5 premières tâches sont visibles par défaut, avec un lien "Voir les N autres tâches" pour afficher le reste.
+
+**État vide** : quand toutes les tâches sont résolues, un bandeau vert "Tout est en ordre" s'affiche.
+
+#### 3.3.9 Disposition responsive
+
+**Desktop (≥ 1024px)** : disposition en deux colonnes :
+- **Colonne gauche** (principale) : Score de santé + KPI, puis onglets avec leur contenu
+- **Colonne droite** (320px, sticky) : Liste des tâches à faire
+
+**Mobile (< 1024px)** : disposition en une seule colonne :
+1. Score de santé compact + KPI
+2. Onglets (libellés abrégés)
+3. Un **bouton flottant** (FAB) en bas à droite affiche un badge rouge avec le nombre de tâches. Un tap ouvre un **tiroir latéral droit** (Sheet) contenant la liste des tâches. Ce tiroir se ferme automatiquement lors d'un changement de page. Le FAB est positionné au-dessus du bouton de scan QR code pour éviter le chevauchement.
 
 ---
 
@@ -1022,6 +1061,36 @@ Si l'utilisateur ne saisit pas de référence SKU lors de la création d'un prod
 
 > **Remarque** : Le SKU auto-généré peut contenir des caractères accentués (issus du nom du produit), ce qui pourrait poser des problèmes d'intégration avec certains systèmes externes.
 
+### 5.7 Algorithme du score de santé (Health Score)
+
+Le tableau de bord affiche un **score de santé global** de l'organisation, calculé côté base de données via le RPC `get_health_score`. Le score part de **100 points** et des **pénalités** sont soustraites selon l'état du stock et des techniciens. Le score est borné entre 0 et 100.
+
+**Les 6 règles de pénalité :**
+
+| # | Règle | Pénalité | Plafond |
+|---|-------|----------|---------|
+| 1 | Produits en rupture de stock (stock = 0) | -15 pts / produit | 60 pts max |
+| 2 | Produits sous le seuil minimum (0 < stock ≤ stock_min) | -4 pts / produit | 20 pts max |
+| 3 | Techniciens jamais restockés (aucun historique d'inventaire) | -8 pts / technicien | 40 pts max |
+| 4 | Techniciens non restockés depuis 7+ jours | -5 pts / technicien | 20 pts max |
+| 5 | Sorties > entrées de 30% sur les 30 derniers jours | -10 pts (fixe) | 10 pts |
+| 6 | Aucune entrée de stock depuis 14 jours | -5 pts (fixe) | 5 pts |
+
+> **Note** : Les produits et techniciens archivés sont exclus du calcul des pénalités.
+
+**Interprétation visuelle :**
+
+| Score | Couleur | Libellé |
+|-------|---------|---------|
+| ≥ 90 | Vert | "Excellent" |
+| ≥ 70 | Vert | "Quelques points d'attention" |
+| ≥ 40 | Orange | "Attention requise" |
+| < 40 | Rouge | "Situation critique" |
+
+**Tendance mensuelle** : le score du mois précédent est reconstitué en rétro-calculant le stock de chaque produit (stock actuel + sorties du mois - entrées du mois), puis en appliquant les mêmes 6 règles. La direction (hausse, baisse, stable) et l'écart en points sont affichés.
+
+**Historique** : le RPC `get_health_score_history` reconstitue le score pour chacun des 6 derniers mois en annulant tous les mouvements postérieurs à chaque fin de mois, permettant d'afficher la courbe d'évolution du score dans l'onglet Aperçu.
+
 ---
 
 ## 6. Intégrations externes
@@ -1134,6 +1203,8 @@ Il n'existe aucun flux permettant à un technicien de **retourner** du stock au 
 | **Restock** | Action de réapprovisionner un technicien en lui attribuant des produits depuis le stock central. Les produits sont ajoutés à l'inventaire existant du technicien (les quantités sont additionnées si le produit est déjà présent). |
 | **Snapshot** | Photo instantanée de l'inventaire d'un technicien, enregistrée dans l'historique à chaque restock. Permet de retrouver l'état exact de l'inventaire à un moment donné. |
 | **Score de stock** | Indicateur de 0% à 100% reflétant la santé du stock d'un produit par rapport à ses seuils min et max. |
+| **Score de santé (Health Score)** | Indicateur global de 0 à 100 points reflétant la santé de l'ensemble du stock et des techniciens d'une organisation. Calculé par soustraction de pénalités (ruptures, sous-stock, techniciens non restockés, etc.) depuis un score initial de 100. |
+| **Archivage (soft delete)** | Mécanisme de suppression logique : l'entité (produit ou technicien) est marquée avec une date d'archivage et disparaît des listes et statistiques, mais ses données historiques sont conservées en base de données. |
 | **SKU** | Stock Keeping Unit — référence unique d'un produit. Peut être saisie manuellement ou auto-générée. |
 | **Slug** | Identifiant court et unique d'une organisation, composé de lettres minuscules, chiffres et tirets. Généré à partir du nom. |
 | **QR Code** | Code-barres 2D imprimable, généré pour chaque produit, permettant de scanner le produit avec un téléphone pour accéder rapidement au formulaire de mouvement de stock. |
