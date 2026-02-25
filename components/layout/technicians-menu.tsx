@@ -151,6 +151,17 @@ export default function TechniciansMenu({ title, href, icon }: TechniciansMenuPr
         <CollapsibleContent>
           <ScrollArea className="max-h-48">
             <SidebarMenuSub>
+              <SidebarMenuSubItem>
+                <SidebarMenuSubButton
+                  className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10 font-medium"
+                  isActive={pathname === href}
+                  asChild
+                >
+                  <Link href={href}>
+                    <span>Liste des techniciens</span>
+                  </Link>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
               {isLoading ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="size-4 animate-spin text-muted-foreground" />
