@@ -149,8 +149,7 @@ export default function TechniciansMenu({ title, href, icon }: TechniciansMenuPr
           </SidebarMenuButton>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <ScrollArea className="max-h-48">
-            <SidebarMenuSub>
+          <SidebarMenuSub className="max-h-52 overflow-y-auto">
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
                   className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10 font-medium"
@@ -181,8 +180,7 @@ export default function TechniciansMenu({ title, href, icon }: TechniciansMenuPr
                   </SidebarMenuSubItem>
                 ))
               )}
-            </SidebarMenuSub>
-          </ScrollArea>
+          </SidebarMenuSub>
         </CollapsibleContent>
       </Collapsible>
     </Fragment>
