@@ -1,3 +1,21 @@
+-- Fix: technician_inventory and technician_inventory_history rows missing organization_id
+-- The RPC add_to_technician_inventory was not setting organization_id on insert
+
+-- 1. Backfill technician_inventory rows with NULL organization_id
+UPDATE technician_inventory ti
+SET organization_id = t.organization_id
+FROM technicians t
+WHERE ti.technician_id = t.id
+  AND ti.organization_id IS NULL;
+
+-- 2. Backfill technician_inventory_history rows with NULL organization_id
+UPDATE technician_inventory_history tih
+SET organization_id = t.organization_id
+FROM technicians t
+WHERE tih.technician_id = t.id
+  AND tih.organization_id IS NULL;
+
+-- 3. Recreate the RPC with organization_id included in inserts
 CREATE OR REPLACE FUNCTION add_to_technician_inventory(
   p_technician_id UUID,
   p_items JSONB
