@@ -4,7 +4,6 @@ import { cookies } from "next/headers";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
-import ScanFab from "@/components/scan-fab";
 import OrganizationProvider from "@/components/organization-provider";
 import QueryProvider from "@/components/query-provider";
 
@@ -29,7 +28,6 @@ export default async function AuthLayout({
               {children}
             </div>
           </SidebarInset>
-          <ScanFab />
         </SidebarProvider>
       </OrganizationProvider>
     </QueryProvider>
