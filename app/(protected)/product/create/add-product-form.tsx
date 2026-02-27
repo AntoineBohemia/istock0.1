@@ -42,6 +42,9 @@ import {
   UploadIcon,
   XIcon,
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import IconPicker from "@/components/icon-picker";
+import ProductIconDisplay from "@/components/product-icon-display";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import AddNewCategory from "./add-category";
 import AddNewSupplier from "@/components/add-new-supplier";
@@ -58,7 +61,7 @@ type FormValues = ProductFormValues;
 
 interface AddProductFormProps {
   mode?: "create" | "edit";
-  initialData?: Partial<FormValues> & { id?: string; image_url?: string };
+  initialData?: Partial<FormValues> & { id?: string; image_url?: string; icon_name?: string | null; icon_color?: string | null };
 }
 
 export default function AddProductForm({
@@ -75,6 +78,14 @@ export default function AddProductForm({
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(
     initialData?.image_url || null
+  );
+  const [iconValue, setIconValue] = useState<{ name: string; color: string } | null>(
+    initialData?.icon_name ? { name: initialData.icon_name, color: initialData.icon_color ?? "#475569" } : null
+  );
+  const hasInitialIcon = !!initialData?.icon_name;
+  const hasInitialImage = !!initialData?.image_url;
+  const [activeVisualTab, setActiveVisualTab] = useState<string>(
+    hasInitialImage && !hasInitialIcon ? "photo" : "icon"
   );
 
   const form = useForm<FormValues>({
@@ -138,12 +149,20 @@ export default function AddProductForm({
 
       const finalCategoryId = data.category_id || null;
 
+      // Mutual exclusion: icon or image, not both
+      const useIcon = activeVisualTab === "icon" && iconValue;
+      const finalIconName = useIcon ? iconValue.name : null;
+      const finalIconColor = useIcon ? iconValue.color : null;
+      const finalImageUrl = useIcon ? null : (imageUrl || null);
+
       const productData = {
         organization_id: currentOrganization.id,
         name: data.name,
         sku: data.sku || undefined,
         description: data.description || undefined,
-        image_url: imageUrl || undefined,
+        icon_name: finalIconName,
+        icon_color: finalIconColor,
+        image_url: finalImageUrl || undefined,
         price: data.price ? parseFloat(data.price) : undefined,
         stock_current: data.stock_current ? parseInt(data.stock_current) : 0,
         stock_min: data.stock_min ? parseInt(data.stock_min) : 10,
@@ -290,112 +309,135 @@ export default function AddProductForm({
 
             <Card>
               <CardHeader>
-                <CardTitle>Image du produit</CardTitle>
+                <CardTitle>Visuel du produit</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col gap-2">
-                  {existingImageUrl && files.length === 0 && (
-                    <div className="relative mb-4">
-                      <img
-                        src={existingImageUrl}
-                        alt="Image actuelle"
-                        className="h-40 w-40 rounded-lg object-cover"
-                      />
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="destructive"
-                        className="absolute -right-2 -top-2 size-6"
-                        onClick={() => setExistingImageUrl(null)}
-                      >
-                        <XIcon className="size-3" />
-                      </Button>
-                    </div>
-                  )}
-                  <div
-                    onDragEnter={handleDragEnter}
-                    onDragLeave={handleDragLeave}
-                    onDragOver={handleDragOver}
-                    onDrop={handleDrop}
-                    data-dragging={isDragging || undefined}
-                    data-files={files.length > 0 || undefined}
-                    className="border-input data-[dragging=true]:bg-accent/50 has-[input:focus]:border-ring has-[input:focus]:ring-ring/50 relative flex min-h-40 flex-col items-center overflow-hidden rounded-xl border border-dashed p-4 transition-colors not-data-[files]:justify-center has-[input:focus]:ring-[3px]"
-                  >
-                    <input
-                      {...getInputProps()}
-                      className="sr-only"
-                      aria-label="Upload image file"
-                    />
-                    {files.length > 0 ? (
-                      <div className="flex w-full flex-col gap-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <h3 className="truncate text-sm font-medium">
-                            Nouvelle image
-                          </h3>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => clearFiles()}
-                          >
-                            Supprimer
-                          </Button>
-                        </div>
-                        <div className="flex justify-center">
-                          {files.map((file) => (
-                            <div
-                              key={file.id}
-                              className="bg-accent relative aspect-square w-40 rounded-md border"
-                            >
-                              <img
-                                src={file.preview}
-                                alt={file.file.name}
-                                className="size-full rounded-[inherit] object-cover"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center px-4 py-3 text-center">
-                        <div
-                          className="bg-background mb-2 flex size-11 shrink-0 items-center justify-center rounded-full border"
-                          aria-hidden="true"
-                        >
-                          <ImageIcon className="size-4 opacity-60" />
-                        </div>
-                        <p className="mb-1.5 text-sm font-medium">
-                          Déposez votre image ici
-                        </p>
-                        <p className="text-muted-foreground text-xs">
-                          PNG ou JPG (max. 5MB)
-                        </p>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="mt-4"
-                          onClick={openFileDialog}
-                        >
-                          <UploadIcon
-                            className="-ms-1 opacity-60"
-                            aria-hidden="true"
-                          />
-                          Sélectionner une image
-                        </Button>
+                <Tabs value={activeVisualTab} onValueChange={setActiveVisualTab}>
+                  <TabsList className="mb-4 w-full">
+                    <TabsTrigger value="icon" className="flex-1">Icône</TabsTrigger>
+                    <TabsTrigger value="photo" className="flex-1">Photo</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="icon">
+                    <IconPicker value={iconValue} onChange={setIconValue} />
+                    {iconValue && (
+                      <div className="mt-4 flex items-center gap-3">
+                        <span className="text-sm text-muted-foreground">Aperçu :</span>
+                        <ProductIconDisplay
+                          iconName={iconValue.name}
+                          iconColor={iconValue.color}
+                          size="lg"
+                        />
                       </div>
                     )}
-                  </div>
+                  </TabsContent>
 
-                  {errors.length > 0 && (
-                    <div
-                      className="text-destructive flex items-center gap-1 text-xs"
-                      role="alert"
-                    >
-                      <AlertCircleIcon className="size-3 shrink-0" />
-                      <span>{errors[0]}</span>
+                  <TabsContent value="photo">
+                    <div className="flex flex-col gap-2">
+                      {existingImageUrl && files.length === 0 && (
+                        <div className="relative mb-4">
+                          <img
+                            src={existingImageUrl}
+                            alt="Image actuelle"
+                            className="h-40 w-40 rounded-lg object-cover"
+                          />
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="destructive"
+                            className="absolute -right-2 -top-2 size-6"
+                            onClick={() => setExistingImageUrl(null)}
+                          >
+                            <XIcon className="size-3" />
+                          </Button>
+                        </div>
+                      )}
+                      <div
+                        onDragEnter={handleDragEnter}
+                        onDragLeave={handleDragLeave}
+                        onDragOver={handleDragOver}
+                        onDrop={handleDrop}
+                        data-dragging={isDragging || undefined}
+                        data-files={files.length > 0 || undefined}
+                        className="border-input data-[dragging=true]:bg-accent/50 has-[input:focus]:border-ring has-[input:focus]:ring-ring/50 relative flex min-h-40 flex-col items-center overflow-hidden rounded-xl border border-dashed p-4 transition-colors not-data-[files]:justify-center has-[input:focus]:ring-[3px]"
+                      >
+                        <input
+                          {...getInputProps()}
+                          className="sr-only"
+                          aria-label="Upload image file"
+                        />
+                        {files.length > 0 ? (
+                          <div className="flex w-full flex-col gap-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <h3 className="truncate text-sm font-medium">
+                                Nouvelle image
+                              </h3>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => clearFiles()}
+                              >
+                                Supprimer
+                              </Button>
+                            </div>
+                            <div className="flex justify-center">
+                              {files.map((file) => (
+                                <div
+                                  key={file.id}
+                                  className="bg-accent relative aspect-square w-40 rounded-md border"
+                                >
+                                  <img
+                                    src={file.preview}
+                                    alt={file.file.name}
+                                    className="size-full rounded-[inherit] object-cover"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center px-4 py-3 text-center">
+                            <div
+                              className="bg-background mb-2 flex size-11 shrink-0 items-center justify-center rounded-full border"
+                              aria-hidden="true"
+                            >
+                              <ImageIcon className="size-4 opacity-60" />
+                            </div>
+                            <p className="mb-1.5 text-sm font-medium">
+                              Déposez votre image ici
+                            </p>
+                            <p className="text-muted-foreground text-xs">
+                              PNG ou JPG (max. 5MB)
+                            </p>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="mt-4"
+                              onClick={openFileDialog}
+                            >
+                              <UploadIcon
+                                className="-ms-1 opacity-60"
+                                aria-hidden="true"
+                              />
+                              Sélectionner une image
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+
+                      {errors.length > 0 && (
+                        <div
+                          className="text-destructive flex items-center gap-1 text-xs"
+                          role="alert"
+                        >
+                          <AlertCircleIcon className="size-3 shrink-0" />
+                          <span>{errors[0]}</span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
 

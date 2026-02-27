@@ -19,6 +19,8 @@ export async function getAvailableProductsForRestock(organizationId: string): Pr
     id: string;
     name: string;
     sku: string;
+    icon_name: string | null;
+    icon_color: string | null;
     image_url: string | null;
     stock_current: number | null;
     stock_max: number | null;
@@ -28,7 +30,7 @@ export async function getAvailableProductsForRestock(organizationId: string): Pr
 
   const { data, error } = await supabase
     .from("products")
-    .select("id, name, sku, image_url, stock_current, stock_max")
+    .select("id, name, sku, icon_name, icon_color, image_url, stock_current, stock_max")
     .eq("organization_id", organizationId)
     .is("archived_at", null)
     .gt("stock_current", 0)

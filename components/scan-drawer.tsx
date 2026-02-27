@@ -1,13 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { Html5Qrcode } from "html5-qrcode";
 import {
   ArrowLeft,
   Camera,
   CameraOff,
-  ImageIcon,
   Loader2,
   Minus,
   Plus,
@@ -37,6 +35,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
+import ProductIconDisplay from "@/components/product-icon-display";
 import { useTechnicians, useAvailableProductsForRestock } from "@/hooks/queries";
 import { useAddToTechnicianInventory } from "@/hooks/mutations";
 import type { RestockItem } from "@/lib/supabase/queries/inventory";
@@ -51,6 +50,8 @@ interface SelectedProduct {
   productId: string;
   name: string;
   sku: string | null;
+  icon_name: string | null;
+  icon_color: string | null;
   image_url: string | null;
   stock_current: number | null;
   quantity: number;
@@ -172,6 +173,8 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
             productId: product.id,
             name: product.name,
             sku: product.sku,
+            icon_name: product.icon_name ?? null,
+            icon_color: product.icon_color ?? null,
             image_url: product.image_url,
             stock_current: product.stock_current,
             quantity: 1,
@@ -284,6 +287,8 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
           productId: product.id,
           name: product.name,
           sku: product.sku,
+          icon_name: product.icon_name ?? null,
+          icon_color: product.icon_color ?? null,
           image_url: product.image_url,
           stock_current: product.stock_current,
           quantity: 1,
@@ -459,19 +464,13 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
                           onSelect={() => handleAddManual(p.id)}
                           className="flex items-center gap-3"
                         >
-                          <figure className="flex size-8 items-center justify-center rounded border bg-muted shrink-0">
-                            {p.image_url ? (
-                              <Image
-                                src={p.image_url}
-                                width={32}
-                                height={32}
-                                alt={p.name}
-                                className="size-full rounded object-cover"
-                              />
-                            ) : (
-                              <ImageIcon className="size-4 text-muted-foreground" />
-                            )}
-                          </figure>
+                          <ProductIconDisplay
+                            iconName={p.icon_name}
+                            iconColor={p.icon_color}
+                            imageUrl={p.image_url}
+                            size="sm"
+                            className="shrink-0"
+                          />
                           <div className="flex-1 min-w-0">
                             <p className="truncate text-sm font-medium">{p.name}</p>
                             <p className="text-xs text-muted-foreground">
@@ -495,19 +494,13 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
                         key={product.productId}
                         className="flex items-center gap-3 rounded-lg border p-2"
                       >
-                        <figure className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-muted">
-                          {product.image_url ? (
-                            <Image
-                              src={product.image_url}
-                              width={40}
-                              height={40}
-                              alt={product.name}
-                              className="size-full rounded-lg object-cover"
-                            />
-                          ) : (
-                            <ImageIcon className="size-5 text-muted-foreground" />
-                          )}
-                        </figure>
+                        <ProductIconDisplay
+                          iconName={product.icon_name}
+                          iconColor={product.icon_color}
+                          imageUrl={product.image_url}
+                          size="md"
+                          className="shrink-0"
+                        />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium">{product.name}</p>
                           {product.sku && (

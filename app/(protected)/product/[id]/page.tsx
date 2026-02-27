@@ -159,7 +159,11 @@ export default async function Page({
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Left Column - Image & QR Code */}
         <div className="space-y-4 lg:col-span-1">
-          <ProductImageGallery imageUrl={product.image_url} />
+          <ProductImageGallery
+            imageUrl={product.image_url}
+            iconName={product.icon_name}
+            iconColor={product.icon_color}
+          />
 
           {/* QR Code - Hidden on mobile, shown on lg+ */}
           <div className="hidden lg:block">

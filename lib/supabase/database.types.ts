@@ -177,6 +177,8 @@ export type Database = {
           category_id: string | null
           created_at: string | null
           description: string | null
+          icon_color: string | null
+          icon_name: string | null
           id: string
           image_url: string | null
           is_perishable: boolean | null
@@ -196,6 +198,8 @@ export type Database = {
           category_id?: string | null
           created_at?: string | null
           description?: string | null
+          icon_color?: string | null
+          icon_name?: string | null
           id?: string
           image_url?: string | null
           is_perishable?: boolean | null
@@ -215,6 +219,8 @@ export type Database = {
           category_id?: string | null
           created_at?: string | null
           description?: string | null
+          icon_color?: string | null
+          icon_name?: string | null
           id?: string
           image_url?: string | null
           is_perishable?: boolean | null

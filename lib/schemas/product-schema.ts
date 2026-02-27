@@ -34,6 +34,8 @@ export const ProductFormSchema = z.object({
       (val) => !val || !Number.isNaN(parseInt(val, 10)),
       { message: "Le stock maximum doit être un nombre valide." }
     ),
+  icon_name: z.string().nullable().optional(),
+  icon_color: z.string().nullable().optional(),
   category_id: z.string().optional(),
   supplier_id: z.string().optional(),
   is_perishable: z.boolean(),

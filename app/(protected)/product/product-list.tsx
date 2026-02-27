@@ -27,7 +27,6 @@ import {
   Search,
   Archive,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -98,6 +97,7 @@ import QuickStockMovementModal from "@/components/quick-stock-movement-modal";
 import { exportToCSV } from "@/lib/utils/csv-export";
 import { useProducts, useCategories } from "@/hooks/queries";
 import { useArchiveProduct } from "@/hooks/mutations";
+import ProductIconDisplay from "@/components/product-icon-display";
 
 export default function ProductList() {
   const router = useRouter();
@@ -226,19 +226,12 @@ export default function ProductList() {
             href={`/product/${product.id}`}
             className="flex items-center gap-4 hover:underline"
           >
-            <figure className="flex size-12 items-center justify-center rounded-lg border bg-muted">
-              {product.image_url ? (
-                <Image
-                  src={product.image_url}
-                  width={48}
-                  height={48}
-                  className="rounded-lg object-cover"
-                  alt={product.name}
-                />
-              ) : (
-                <Package className="size-5 text-muted-foreground" />
-              )}
-            </figure>
+            <ProductIconDisplay
+              iconName={product.icon_name}
+              iconColor={product.icon_color}
+              imageUrl={product.image_url}
+              size="lg"
+            />
             <div>
               <div className="font-medium">{product.name}</div>
               {product.sku && (

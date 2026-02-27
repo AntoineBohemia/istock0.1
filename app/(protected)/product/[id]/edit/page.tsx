@@ -89,6 +89,8 @@ export default async function EditProductPage({
     is_perishable: product.is_perishable || false,
     track_stock: product.track_stock ?? true,
     image_url: product.image_url || undefined,
+    icon_name: product.icon_name || null,
+    icon_color: product.icon_color || null,
   };
 
   return <AddProductForm mode="edit" initialData={initialData} />;
