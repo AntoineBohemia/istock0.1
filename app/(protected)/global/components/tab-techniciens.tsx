@@ -37,8 +37,8 @@ interface TabTechniciensProps {
 
 function getDaysSinceColor(days: number): string {
   if (days === -1) return "text-red-500";
-  if (days > 14) return "text-red-500";
-  if (days > 7) return "text-orange-500";
+  if (days > 21) return "text-red-500";
+  if (days > 14) return "text-orange-500";
   return "text-muted-foreground";
 }
 

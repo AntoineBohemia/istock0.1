@@ -35,7 +35,7 @@ export const ProductFormSchema = z.object({
       { message: "Le stock maximum doit être un nombre valide." }
     ),
   category_id: z.string().optional(),
-  supplier_name: z.string().optional(),
+  supplier_id: z.string().optional(),
   is_perishable: z.boolean(),
   track_stock: z.boolean(),
 });

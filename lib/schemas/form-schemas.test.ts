@@ -74,7 +74,7 @@ describe("ProductFormSchema", () => {
       stock_min: "5",
       stock_max: "100",
       category_id: "cat-1",
-      supplier_name: "Fournisseur A",
+      supplier_id: "sup-1",
       is_perishable: false,
       track_stock: true,
     });

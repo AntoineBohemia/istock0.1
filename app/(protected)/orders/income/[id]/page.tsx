@@ -45,7 +45,7 @@ async function getMovement(id: string) {
     .select(
       `
       *,
-      product:products(id, name, sku, image_url, price, stock_current, supplier_name)
+      product:products(id, name, sku, image_url, price, stock_current, supplier:suppliers(name, website_url))
     `
     )
     .eq("id", id)
@@ -122,7 +122,7 @@ export default async function EntryDetailPage({
                   <Truck01 className="size-4" />
                   Fournisseur
                 </h3>
-                <p>{movement.product?.supplier_name || "Non spécifié"}</p>
+                <p>{movement.product?.supplier?.name || "Non spécifié"}</p>
               </div>
               {movement.notes && (
                 <div className="space-y-2">

@@ -267,7 +267,7 @@ export async function getProductsNeedingRestock(
  * Récupère les techniciens dont le dernier restock date de plus de X jours
  */
 export async function getTechniciansNeedingRestock(
-  daysThreshold: number = 7,
+  daysThreshold: number = 14,
   organizationId?: string
 ): Promise<TechnicianNeedingRestock[]> {
   const supabase = createClient();
@@ -1080,7 +1080,7 @@ export async function getTechnicianStats(
   // Utiliser le count pré-calculé si fourni, sinon fallback sur un appel direct
   let restockCount = needingRestockCount;
   if (restockCount === undefined) {
-    const techniciansNeedingRestock = await getTechniciansNeedingRestock(7, organizationId);
+    const techniciansNeedingRestock = await getTechniciansNeedingRestock(14, organizationId);
     restockCount = techniciansNeedingRestock.length;
   }
 

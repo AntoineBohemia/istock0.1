@@ -187,7 +187,7 @@ export type Database = {
           stock_current: number | null
           stock_max: number | null
           stock_min: number | null
-          supplier_name: string | null
+          supplier_id: string | null
           track_stock: boolean | null
           updated_at: string | null
         }
@@ -206,7 +206,7 @@ export type Database = {
           stock_current?: number | null
           stock_max?: number | null
           stock_min?: number | null
-          supplier_name?: string | null
+          supplier_id?: string | null
           track_stock?: boolean | null
           updated_at?: string | null
         }
@@ -225,7 +225,7 @@ export type Database = {
           stock_current?: number | null
           stock_max?: number | null
           stock_min?: number | null
-          supplier_name?: string | null
+          supplier_id?: string | null
           track_stock?: boolean | null
           updated_at?: string | null
         }
@@ -239,6 +239,45 @@ export type Database = {
           },
           {
             foreignKeyName: "products_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          organization_id: string | null
+          website_url: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          organization_id?: string | null
+          website_url?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          organization_id?: string | null
+          website_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"

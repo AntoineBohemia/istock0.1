@@ -109,7 +109,7 @@ describe("createProduct", () => {
     expect(insertCall.stock_min).toBe(10);
     expect(insertCall.stock_max).toBe(100);
     expect(insertCall.category_id).toBeNull();
-    expect(insertCall.supplier_name).toBeNull();
+    expect(insertCall.supplier_id).toBeNull();
     expect(insertCall.is_perishable).toBe(false);
     expect(insertCall.track_stock).toBe(true);
   });
@@ -128,7 +128,7 @@ describe("createProduct", () => {
       stock_min: 5,
       stock_max: 200,
       category_id: "cat-1",
-      supplier_name: "Fournisseur A",
+      supplier_id: "sup-1",
       is_perishable: true,
       track_stock: false,
     });
@@ -141,7 +141,7 @@ describe("createProduct", () => {
     expect(insertCall.stock_min).toBe(5);
     expect(insertCall.stock_max).toBe(200);
     expect(insertCall.category_id).toBe("cat-1");
-    expect(insertCall.supplier_name).toBe("Fournisseur A");
+    expect(insertCall.supplier_id).toBe("sup-1");
     expect(insertCall.is_perishable).toBe(true);
     expect(insertCall.track_stock).toBe(false);
   });

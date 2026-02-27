@@ -392,16 +392,16 @@ export async function getTechniciansStats(organizationId: string): Promise<Techn
     (id) => !inventoryByTechnician[id] || inventoryByTechnician[id] === 0
   ).length;
 
-  // Restocks récents (7 derniers jours)
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  // Restocks récents (14 derniers jours)
+  const fourteenDaysAgo = new Date();
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
   const { data: recentRestocksData, error: restockError } = await supabase
     .from("stock_movements")
     .select("technician_id")
     .eq("movement_type", "exit_technician")
     .in("technician_id", technicianIds)
-    .gte("created_at", sevenDaysAgo.toISOString());
+    .gte("created_at", fourteenDaysAgo.toISOString());
 
   if (restockError) {
     throw new Error(`Erreur lors de la récupération des restocks: ${restockError.message}`);

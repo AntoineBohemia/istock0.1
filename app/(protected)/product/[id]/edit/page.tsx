@@ -29,7 +29,7 @@ async function getProduct(id: string) {
 
   const { data: product, error } = await supabase
     .from("products")
-    .select("*, category:categories(*)")
+    .select("*, category:categories(*), supplier:suppliers(*)")
     .eq("id", id)
     .single();
 
@@ -85,7 +85,7 @@ export default async function EditProductPage({
     stock_max: product.stock_max?.toString() || "100",
     category_id: isSubCategory ? parentCategoryId : (product.category_id || ""),
     sub_category_id: isSubCategory ? product.category_id || "" : "",
-    supplier_name: product.supplier_name || "",
+    supplier_id: product.supplier_id || "",
     is_perishable: product.is_perishable || false,
     track_stock: product.track_stock ?? true,
     image_url: product.image_url || undefined,

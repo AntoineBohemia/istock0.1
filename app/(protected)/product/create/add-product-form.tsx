@@ -44,12 +44,14 @@ import {
 } from "lucide-react";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import AddNewCategory from "./add-category";
+import AddNewSupplier from "@/components/add-new-supplier";
 import Link from "next/link";
 import { Category } from "@/lib/supabase/queries/categories";
+import { Supplier } from "@/lib/supabase/queries/suppliers";
 import { uploadProductImage } from "@/lib/supabase/queries/products";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { ProductFormSchema, type ProductFormValues } from "@/lib/schemas/product-schema";
-import { useCategories } from "@/hooks/queries";
+import { useCategories, useSuppliers } from "@/hooks/queries";
 import { useCreateProduct, useUpdateProduct } from "@/hooks/mutations";
 
 type FormValues = ProductFormValues;
@@ -66,6 +68,7 @@ export default function AddProductForm({
   const router = useRouter();
   const { currentOrganization } = useOrganizationStore();
   const { data: categories = [], isLoading: isLoadingCategories } = useCategories(currentOrganization?.id);
+  const { data: suppliers = [], isLoading: isLoadingSuppliers } = useSuppliers(currentOrganization?.id);
   const createProductMutation = useCreateProduct();
   const updateProductMutation = useUpdateProduct();
   const isSubmitting = createProductMutation.isPending || updateProductMutation.isPending;
@@ -85,7 +88,7 @@ export default function AddProductForm({
       stock_min: initialData?.stock_min || "10",
       stock_max: initialData?.stock_max || "100",
       category_id: initialData?.category_id || "",
-      supplier_name: initialData?.supplier_name || "",
+      supplier_id: initialData?.supplier_id || "",
       is_perishable: initialData?.is_perishable || false,
       track_stock: initialData?.track_stock ?? true,
     },
@@ -93,6 +96,10 @@ export default function AddProductForm({
 
   const handleCategoryCreated = (_category: Category) => {
     // React Query will auto-refetch categories
+  };
+
+  const handleSupplierCreated = (_supplier: Supplier) => {
+    // React Query will auto-refetch suppliers
   };
 
   const [
@@ -142,7 +149,7 @@ export default function AddProductForm({
         stock_min: data.stock_min ? parseInt(data.stock_min) : 10,
         stock_max: data.stock_max ? parseInt(data.stock_max) : 100,
         category_id: finalCategoryId,
-        supplier_name: data.supplier_name || undefined,
+        supplier_id: data.supplier_id || null,
         is_perishable: data.is_perishable,
         track_stock: data.track_stock,
       };
@@ -399,17 +406,66 @@ export default function AddProductForm({
               <CardContent>
                 <FormField
                   control={form.control}
-                  name="supplier_name"
+                  name="supplier_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nom du fournisseur</FormLabel>
+                      <FormLabel>Fournisseur</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ex: Leroy Merlin" {...field} />
+                        <div className="flex gap-2">
+                          <div className="grow">
+                            <Select
+                              value={field.value}
+                              onValueChange={field.onChange}
+                              disabled={isLoadingSuppliers}
+                            >
+                              <SelectTrigger className="w-full">
+                                {isLoadingSuppliers ? (
+                                  <Loader2 className="size-4 animate-spin" />
+                                ) : (
+                                  <SelectValue placeholder="Sélectionnez un fournisseur" />
+                                )}
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectGroup>
+                                  {suppliers.map((sup) => (
+                                    <SelectItem key={sup.id} value={sup.id}>
+                                      {sup.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <AddNewSupplier
+                            onSupplierCreated={handleSupplierCreated}
+                          />
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+                {(() => {
+                  const selectedSupplier = suppliers.find(
+                    (s) => s.id === form.watch("supplier_id")
+                  );
+                  if (selectedSupplier?.website_url) {
+                    return (
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Site web :{" "}
+                        <a
+                          href={selectedSupplier.website_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary underline"
+                        >
+                          {selectedSupplier.website_url}
+                        </a>
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
               </CardContent>
             </Card>
           </div>

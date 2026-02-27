@@ -58,7 +58,7 @@ async function getProduct(id: string) {
 
   const { data: product, error } = await supabase
     .from("products")
-    .select("*, category:categories(*)")
+    .select("*, category:categories(*), supplier:suppliers(*)")
     .eq("id", id)
     .single();
 
@@ -108,12 +108,23 @@ export default async function Page({
             </h1>
           </div>
           <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-sm pl-12 sm:pl-0">
-            {product.supplier_name && (
+            {product.supplier?.name && (
               <div>
                 <span className="text-foreground font-semibold">
                   Fournisseur :
                 </span>{" "}
-                {product.supplier_name}
+                {product.supplier.website_url ? (
+                  <a
+                    href={product.supplier.website_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline"
+                  >
+                    {product.supplier.name}
+                  </a>
+                ) : (
+                  product.supplier.name
+                )}
               </div>
             )}
             <div>
@@ -290,7 +301,22 @@ export default async function Page({
                       <TableRow>
                         <TableCell className="font-medium text-sm">Fournisseur</TableCell>
                         <TableCell className="text-right text-sm">
-                          {product.supplier_name || "-"}
+                          {product.supplier?.name ? (
+                            product.supplier.website_url ? (
+                              <a
+                                href={product.supplier.website_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary underline"
+                              >
+                                {product.supplier.name}
+                              </a>
+                            ) : (
+                              product.supplier.name
+                            )
+                          ) : (
+                            "-"
+                          )}
                         </TableCell>
                       </TableRow>
                       <TableRow>

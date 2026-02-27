@@ -51,7 +51,10 @@
       "Bash(ORG=\"a3e01fc4-8efa-47bf-bdfb-21bda643bdc8\")",
       "Bash(gh api:*)",
       "Bash(winget install:*)",
-      "Bash(scoop install:*)"
+      "Bash(scoop install:*)",
+      "Bash(head:*)",
+      "Bash(cat:*)",
+      "Bash(cd /c/Users/AntoineMoulin/Documents/Projets/test/istock0.1 && npx shadcn@latest add drawer --yes 2>&1)"
     ]
   },
   "enableAllProjectMcpServers": true,

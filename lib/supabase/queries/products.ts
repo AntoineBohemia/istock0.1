@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { Category } from "./categories";
+import { Supplier } from "./suppliers";
 
 export interface Product {
   id: string;
@@ -12,7 +13,7 @@ export interface Product {
   stock_min: number | null;
   stock_max: number | null;
   category_id: string | null;
-  supplier_name: string | null;
+  supplier_id: string | null;
   is_perishable: boolean | null;
   track_stock: boolean | null;
   organization_id: string | null;
@@ -21,9 +22,13 @@ export interface Product {
   archived_at: string | null;
 }
 
-export interface ProductWithCategory extends Product {
+export interface ProductWithRelations extends Product {
   category?: Category | null;
+  supplier?: Supplier | null;
 }
+
+/** @deprecated Use ProductWithRelations instead */
+export type ProductWithCategory = ProductWithRelations;
 
 export interface ProductFilters {
   organizationId?: string;
@@ -55,7 +60,7 @@ export interface CreateProductData {
   stock_min?: number;
   stock_max?: number;
   category_id?: string | null;
-  supplier_name?: string | null;
+  supplier_id?: string | null;
   is_perishable?: boolean;
   track_stock?: boolean;
 }
@@ -96,7 +101,7 @@ export async function getProducts(
   // Construire la requête de base
   let query = supabase
     .from("products")
-    .select("*, category:categories(*)", { count: "exact" });
+    .select("*, category:categories(*), supplier:suppliers(*)", { count: "exact" });
 
   // Exclure les produits archivés
   query = query.is("archived_at", null);
@@ -172,7 +177,7 @@ export async function getProduct(id: string): Promise<ProductWithCategory | null
 
   const { data, error } = await supabase
     .from("products")
-    .select("*, category:categories(*)")
+    .select("*, category:categories(*), supplier:suppliers(*)")
     .eq("id", id)
     .single();
 
@@ -206,7 +211,7 @@ export async function createProduct(data: CreateProductData): Promise<Product> {
     stock_min: data.stock_min ?? 10,
     stock_max: data.stock_max ?? 100,
     category_id: data.category_id || null,
-    supplier_name: data.supplier_name || null,
+    supplier_id: data.supplier_id || null,
     is_perishable: data.is_perishable ?? false,
     track_stock: data.track_stock ?? true,
   };
@@ -247,7 +252,7 @@ export async function updateProduct(
   if (data.stock_min !== undefined) updateData.stock_min = data.stock_min;
   if (data.stock_max !== undefined) updateData.stock_max = data.stock_max;
   if (data.category_id !== undefined) updateData.category_id = data.category_id;
-  if (data.supplier_name !== undefined) updateData.supplier_name = data.supplier_name;
+  if (data.supplier_id !== undefined) updateData.supplier_id = data.supplier_id;
   if (data.is_perishable !== undefined) updateData.is_perishable = data.is_perishable;
   if (data.track_stock !== undefined) updateData.track_stock = data.track_stock;
 

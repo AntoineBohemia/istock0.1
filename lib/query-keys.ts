@@ -75,6 +75,12 @@ export const queryKeys = {
       [...queryKeys.dashboard.all, "allTechnicians", orgId] as const,
   },
 
+  suppliers: {
+    all: ["suppliers"] as const,
+    list: (orgId?: string) =>
+      [...queryKeys.suppliers.all, "list", orgId] as const,
+  },
+
   organizations: {
     all: ["organizations"] as const,
     list: () => [...queryKeys.organizations.all, "list"] as const,
