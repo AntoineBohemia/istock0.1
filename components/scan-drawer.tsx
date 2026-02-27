@@ -23,9 +23,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Command,
   CommandEmpty,
@@ -334,10 +332,10 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-h-[90vh]">
+      <DrawerContent className="!max-h-[96vh]">
         {step === "technician" ? (
           <>
-            <DrawerHeader>
+            <DrawerHeader className="pb-2">
               <DrawerTitle>Choisir un technicien</DrawerTitle>
               <DrawerDescription>
                 Selectionnez le technicien a restocker
@@ -346,20 +344,20 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
 
             <div className="flex-1 overflow-auto px-4 pb-4">
               {isLoadingTechnicians ? (
-                <div className="flex h-40 items-center justify-center">
+                <div className="flex h-32 items-center justify-center">
                   <Loader2 className="size-8 animate-spin text-muted-foreground" />
                 </div>
               ) : technicians.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">
+                <p className="py-6 text-center text-sm text-muted-foreground">
                   Aucun technicien trouve
                 </p>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {technicians.map((tech) => (
                     <Button
                       key={tech.id}
                       variant="outline"
-                      className="w-full min-h-12 justify-start text-left"
+                      className="w-full min-h-11 justify-start text-left"
                       onClick={() => {
                         setSelectedTechnicianId(tech.id);
                         setStep("scan");
@@ -379,43 +377,43 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
           </>
         ) : (
           <>
-            {/* Scan step header */}
-            <DrawerHeader className="flex-row items-center gap-2 pb-2">
+            {/* Scan step header - compact */}
+            <DrawerHeader className="flex-row items-center gap-2 py-2 px-3">
               <Button
                 variant="ghost"
                 size="icon"
-                className="shrink-0"
+                className="shrink-0 size-8"
                 onClick={() => {
                   setStep("technician");
                   setSelectedProducts([]);
                 }}
               >
-                <ArrowLeft className="size-5" />
+                <ArrowLeft className="size-4" />
               </Button>
               <div className="min-w-0 flex-1">
-                <DrawerTitle className="truncate">
+                <DrawerTitle className="truncate text-sm">
                   {selectedTechnician?.first_name} {selectedTechnician?.last_name}
                 </DrawerTitle>
-                <DrawerDescription>
+                <DrawerDescription className="text-xs">
                   Scannez ou recherchez des produits
                 </DrawerDescription>
               </div>
             </DrawerHeader>
 
-            <div className="flex-1 overflow-auto px-4 space-y-3">
-              {/* Camera zone */}
+            <div className="flex-1 overflow-auto px-3 space-y-2">
+              {/* Camera zone - compact */}
               {cameraActive && (
                 <div className="relative overflow-hidden rounded-lg bg-black">
                   <div
                     id="qr-reader-drawer"
                     className="w-full"
-                    style={{ minHeight: "240px" }}
+                    style={{ minHeight: "200px", maxHeight: "35vh" }}
                   />
                   {cameraStarting && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/50">
                       <div className="text-center text-white">
-                        <Camera className="mx-auto size-8 animate-pulse" />
-                        <p className="mt-2 text-sm">Demarrage de la camera...</p>
+                        <Camera className="mx-auto size-6 animate-pulse" />
+                        <p className="mt-1 text-xs">Demarrage...</p>
                       </div>
                     </div>
                   )}
@@ -426,35 +424,35 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
               <div className="flex gap-2">
                 <Button
                   variant={cameraActive ? "default" : "outline"}
-                  className="flex-1 min-h-12"
+                  className="flex-1 min-h-10"
                   onClick={() => setCameraActive(!cameraActive)}
                 >
                   {cameraActive ? (
                     <>
-                      <CameraOff className="mr-2 size-5" />
-                      Arreter la camera
+                      <CameraOff className="mr-1.5 size-4" />
+                      Arreter
                     </>
                   ) : (
                     <>
-                      <Camera className="mr-2 size-5" />
-                      Scanner un QR
+                      <Camera className="mr-1.5 size-4" />
+                      Scanner
                     </>
                   )}
                 </Button>
                 <Button
                   variant="outline"
-                  className="min-h-12"
+                  className="min-h-10"
                   onClick={() => setShowSearch(!showSearch)}
                 >
-                  <Search className="size-5" />
+                  <Search className="size-4" />
                 </Button>
               </div>
 
               {/* Manual search */}
               {showSearch && (
                 <Command className="rounded-lg border">
-                  <CommandInput placeholder="Rechercher par nom ou SKU..." />
-                  <CommandList className="max-h-48">
+                  <CommandInput placeholder="Rechercher..." />
+                  <CommandList className="max-h-40">
                     <CommandEmpty>Aucun produit trouve</CommandEmpty>
                     <CommandGroup>
                       {products.map((p) => (
@@ -462,7 +460,7 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
                           key={p.id}
                           value={`${p.name} ${p.sku}`}
                           onSelect={() => handleAddManual(p.id)}
-                          className="flex items-center gap-3"
+                          className="flex items-center gap-2"
                         >
                           <ProductIconDisplay
                             iconName={p.icon_name}
@@ -474,7 +472,6 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
                           <div className="flex-1 min-w-0">
                             <p className="truncate text-sm font-medium">{p.name}</p>
                             <p className="text-xs text-muted-foreground">
-                              {p.sku && <span className="font-mono">{p.sku} - </span>}
                               Stock: {p.stock_current}
                             </p>
                           </div>
@@ -487,105 +484,83 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
 
               {/* Scanned products list */}
               {selectedProducts.length > 0 && (
-                <ScrollArea className="max-h-48 rounded-md border">
-                  <div className="space-y-2 p-3">
-                    {selectedProducts.map((product) => (
-                      <div
-                        key={product.productId}
-                        className="flex items-center gap-3 rounded-lg border p-2"
-                      >
-                        <ProductIconDisplay
-                          iconName={product.icon_name}
-                          iconColor={product.icon_color}
-                          imageUrl={product.image_url}
-                          size="md"
-                          className="shrink-0"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{product.name}</p>
-                          {product.sku && (
-                            <p className="text-xs font-mono text-muted-foreground">
-                              {product.sku}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex shrink-0 items-center gap-1">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="size-8"
-                            onClick={() =>
-                              handleQuantityChange(product.productId, product.quantity - 1)
-                            }
-                            disabled={product.quantity <= 1}
-                          >
-                            <Minus className="size-4" />
-                          </Button>
-                          <Input
-                            type="number"
-                            min={1}
-                            max={product.stock_current ?? 0}
-                            value={product.quantity}
-                            onChange={(e) =>
-                              handleQuantityChange(
-                                product.productId,
-                                parseInt(e.target.value) || 1
-                              )
-                            }
-                            className="w-12 text-center h-8 px-1"
-                          />
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="size-8"
-                            onClick={() =>
-                              handleQuantityChange(product.productId, product.quantity + 1)
-                            }
-                            disabled={product.quantity >= (product.stock_current ?? 0)}
-                          >
-                            <Plus className="size-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-8 text-destructive hover:text-destructive"
-                            onClick={() => handleRemoveProduct(product.productId)}
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </div>
+                <div className="space-y-1.5">
+                  {selectedProducts.map((product) => (
+                    <div
+                      key={product.productId}
+                      className="flex items-center gap-2 rounded-lg border p-2"
+                    >
+                      <ProductIconDisplay
+                        iconName={product.icon_name}
+                        iconColor={product.icon_color}
+                        imageUrl={product.image_url}
+                        size="sm"
+                        className="shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium leading-tight">{product.name}</p>
                       </div>
-                    ))}
-                  </div>
-                </ScrollArea>
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="size-7"
+                          onClick={() =>
+                            handleQuantityChange(product.productId, product.quantity - 1)
+                          }
+                          disabled={product.quantity <= 1}
+                        >
+                          <Minus className="size-3" />
+                        </Button>
+                        <span className="w-7 text-center text-sm font-medium tabular-nums">
+                          {product.quantity}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="size-7"
+                          onClick={() =>
+                            handleQuantityChange(product.productId, product.quantity + 1)
+                          }
+                          disabled={product.quantity >= (product.stock_current ?? 0)}
+                        >
+                          <Plus className="size-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 text-destructive hover:text-destructive"
+                          onClick={() => handleRemoveProduct(product.productId)}
+                        >
+                          <Trash2 className="size-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
 
               {selectedProducts.length === 0 && !showSearch && !cameraActive && (
-                <div className="rounded-lg border border-dashed p-6 text-center">
+                <div className="rounded-lg border border-dashed p-4 text-center">
                   <p className="text-sm text-muted-foreground">
-                    Scannez un QR code ou recherchez un produit pour commencer
+                    Scannez un QR code ou recherchez un produit
                   </p>
                 </div>
               )}
             </div>
 
-            {/* Sticky footer */}
-            <DrawerFooter className="border-t">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">
-                  {selectedProducts.length > 0
-                    ? `${selectedProducts.length} produit(s), ${totalItems} item(s)`
-                    : "Aucun produit"}
-                </span>
-                <Button
-                  className="min-h-12 px-8"
-                  disabled={selectedProducts.length === 0 || isSubmitting}
-                  onClick={handleSubmit}
-                >
-                  {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
-                  Enregistrer
-                </Button>
-              </div>
+            {/* Sticky footer - always visible */}
+            <DrawerFooter className="border-t py-3 px-3">
+              <Button
+                className="w-full min-h-11"
+                disabled={selectedProducts.length === 0 || isSubmitting}
+                onClick={handleSubmit}
+              >
+                {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
+                {selectedProducts.length > 0
+                  ? `Enregistrer (${totalItems} item${totalItems > 1 ? "s" : ""})`
+                  : "Enregistrer"}
+              </Button>
             </DrawerFooter>
           </>
         )}
