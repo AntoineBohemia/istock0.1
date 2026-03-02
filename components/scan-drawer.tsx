@@ -61,9 +61,10 @@ type Step = "technician" | "scan";
 interface ScanDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  preselectedTechnicianId?: string | null;
 }
 
-export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
+export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId }: ScanDrawerProps) {
   const { currentOrganization } = useOrganizationStore();
   const orgId = currentOrganization?.id;
 
@@ -97,6 +98,14 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
       return fullName.includes(query);
     });
   }, [technicians, technicianSearch]);
+
+  // Skip technician step when preselected
+  useEffect(() => {
+    if (open && preselectedTechnicianId) {
+      setSelectedTechnicianId(preselectedTechnicianId);
+      setStep("scan");
+    }
+  }, [open, preselectedTechnicianId]);
 
   // Reset state when drawer closes
   useEffect(() => {
