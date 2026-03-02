@@ -1,7 +1,7 @@
 # Documentation fonctionnelle - iStock
 
 **Version** : 0.1
-**Date** : 20 février 2026
+**Date** : 2 mars 2026
 **Statut** : Application en cours de développement (certaines fonctionnalités non implémentées)
 
 ---
@@ -307,7 +307,7 @@ Chaque tâche affiche une bordure colorée à gauche (rouge = critique, orange =
 #### 3.4.1 Liste des produits
 
 La page des produits affiche la liste de tous les produits de l'organisation active, avec :
-- Image du produit (si disponible)
+- Icône BTP colorée ou image du produit (si disponible)
 - Nom du produit
 - Référence SKU (si renseignée)
 - Catégorie (si assignée)
@@ -342,15 +342,20 @@ Le formulaire de création est organisé en plusieurs sections (cards) :
 | Prix unitaire (€) | Non | Prix d'une unité du produit | - |
 | Description | Non | Description libre du produit | - |
 
-**Section "Image du produit" :**
+**Section "Visuel du produit" :**
 
-L'image peut être ajoutée par **glisser-déposer** (drag & drop) ou en cliquant sur "Sélectionner une image". Formats acceptés : PNG et JPG. Taille maximale : 5 Mo. Un aperçu de l'image s'affiche avant la soumission.
+Le produit peut être identifié visuellement de deux manières (mutuellement exclusives) :
+
+- **Icône BTP** : sélection d'une icône parmi un catalogue d'icônes métier (Lucide icons) avec un **sélecteur de couleur** permettant de personnaliser la teinte de l'icône. Les icônes disponibles couvrent les domaines du BTP et de la maintenance (outils, matériaux, équipements, etc.). L'icône et sa couleur sont stockées dans les champs `icon_name` et `icon_color` du produit.
+- **Image personnalisée** : ajout par **glisser-déposer** (drag & drop) ou en cliquant sur "Sélectionner une image". Formats acceptés : PNG et JPG. Taille maximale : 5 Mo. Un aperçu de l'image s'affiche avant la soumission.
+
+Si une icône est sélectionnée, elle est prioritaire sur l'image. L'icône s'affiche dans toutes les listes de produits, les fiches détaillées, les sélecteurs de restock et les résultats de recherche.
 
 **Section "Fournisseur" :**
 
 | Champ | Obligatoire | Description |
 |-------|:-----------:|-------------|
-| Nom du fournisseur | Non | Nom du fournisseur habituel pour ce produit |
+| Fournisseur | Non | Sélection d'un fournisseur parmi la liste des fournisseurs de l'organisation (voir section 3.17) |
 
 **Section "Niveau de stock" :**
 
@@ -376,7 +381,7 @@ L'image peut être ajoutée par **glisser-déposer** (drag & drop) ou en cliquan
 
 La fiche d'un produit affiche :
 
-- **En-tête** : nom, SKU, catégorie, image, prix
+- **En-tête** : nom, SKU, catégorie, icône ou image, prix
 - **4 indicateurs compacts** : Prix unitaire, Niveau (score %), Stock actuel, Valeur (prix × quantité)
 - **Alerte visuelle** : si le stock est inférieur ou égal au minimum, un bandeau rouge s'affiche avec le message "Rupture de stock ! Réapprovisionnement urgent." (stock = 0) ou "Stock bas ! Le niveau minimum est atteint." (stock > 0 mais <= min)
 - **Barre de progression** du stock avec les seuils min et max, code couleur, et statut textuel (Critique, Bas, Attention, Bon, Optimal)
@@ -657,25 +662,35 @@ Le réapprovisionnement d'un technicien fonctionne en **ajout à l'inventaire ex
 
 Ce mode permet de compléter le stock d'un technicien sans affecter le reste de son inventaire (ex : ajouter 5 câbles sans toucher aux vis qu'il a déjà).
 
-#### 3.8.2 Interface de restock
+#### 3.8.2 Interface de restock (Scan Drawer)
 
-Le restock s'effectue via une **boîte de dialogue** accessible depuis :
-- La **fiche du technicien** (bouton "Restocker") — le technicien est déjà sélectionné
-- Le **tableau de bord** (bouton "Restocker un technicien") — un sélecteur de technicien s'affiche d'abord, puis la même boîte de dialogue s'ouvre
+Le restock s'effectue via un **drawer mobile-first** (panneau coulissant depuis le bas) quasi plein écran (96vh), conçu pour une utilisation native-like sur mobile. Il est accessible depuis :
+- Le **bouton de scan** dans l'en-tête de l'application (visible sur mobile)
+- La **fiche du technicien** (bouton "Restocker")
 
-**Sélection des produits :**
-Un menu déroulant permet d'ajouter des produits un par un. Seuls les produits dont le stock central est supérieur à 0 sont proposés. Les produits déjà sélectionnés sont masqués du menu.
+**Étape 1 : Sélection du technicien**
 
-Pour chaque produit ajouté, l'interface affiche :
-- Le nom, l'image, et le stock disponible dans le stock central
-- Des boutons **+** et **-** pour ajuster la quantité
-- Un champ numérique pour saisir directement la quantité
-- Un bouton poubelle pour retirer le produit de la sélection
+Une liste de tous les techniciens de l'organisation s'affiche avec pour chacun le nombre d'items actuellement en inventaire. Un **champ de recherche** (sticky en haut de liste) permet de filtrer les techniciens par nom en temps réel.
+
+**Étape 2 : Scan / Recherche de produits**
+
+Après sélection du technicien, le drawer passe en mode scan avec le layout suivant (de haut en bas) :
+
+- **En-tête compact** (sticky) : bouton retour, nom du technicien, sous-titre "Scannez ou recherchez des produits"
+- **Barre d'actions** (sticky) : boutons "Scanner" (toggle caméra) et "Rechercher" (toggle recherche manuelle), toujours visibles même en scrollant
+- **Zone caméra** (compacte, max 25vh) : la caméra démarre **automatiquement** à l'arrivée sur cette étape. Elle reste active pendant qu'on consulte la liste des produits en dessous (scan continu)
+- **Compteur résumé** : ligne "X produits · Y items" au-dessus de la liste
+- **Liste des produits scannés** (scrollable, prend l'espace restant) : chaque produit affiche son icône/image, son nom, le stock disponible, et des contrôles de quantité (+/-/supprimer)
+- **Footer** (sticky, avec safe-area pour iPhone) : bouton "Enregistrer (N items)"
+
+**Ajout de produits :**
+- **Par scan QR** : la caméra détecte automatiquement les QR codes. Un retour haptique (vibration 200ms) et un toast confirment l'ajout. Scanner le même QR code incrémente la quantité.
+- **Par recherche manuelle** : un panneau Command s'affiche avec recherche textuelle parmi les produits disponibles (stock > 0), affichant icône, nom et stock de chaque produit.
 
 La quantité est bornée entre 1 et le stock disponible.
 
 **Étape 3 : Validation**
-Un récapitulatif en bas affiche le nombre de produits et le nombre total d'items. Le bouton "Valider le restock" lance l'opération.
+Le bouton "Enregistrer" en bas affiche le nombre total d'items. Il lance l'opération de restock.
 
 #### 3.8.3 Historique des restocks
 
@@ -705,13 +720,18 @@ Il est affiché sur la fiche détaillée de chaque produit.
 
 #### 3.9.2 Scan de QR codes
 
-Le scan de QR codes est accessible via un **bouton flottant** visible uniquement sur mobile (en bas à droite de l'écran). Ce bouton active la caméra du téléphone pour scanner un QR code.
+Le scan de QR codes est accessible via le **bouton de scan** dans l'en-tête de l'application sur mobile. Ce bouton ouvre le drawer de restock (voir section 3.8.2) qui intègre directement le scanner dans le flux de réapprovisionnement technicien.
 
 Le scanner reconnaît deux formats :
-- **Format actuel** : `https://istock-app.space/stock?product={id}` — ouvre le formulaire de mouvement de stock pré-rempli avec le produit
+- **Format actuel** : `https://istock-app.space/stock?product={id}` — identifie le produit et l'ajoute à la liste de restock
 - **Format hérité** : `smpr://product/{id}` — rétrocompatibilité avec d'anciens QR codes
 
-Après le scan, l'utilisateur est redirigé vers la page de mouvement de stock avec le produit déjà sélectionné, prêt à enregistrer une entrée ou une sortie.
+**Comportement du scan :**
+- La caméra démarre automatiquement à l'ouverture du step scan
+- Le scan est **continu** : la caméra reste active pendant que l'utilisateur voit la liste des produits ajoutés
+- Un **debounce** de 2 secondes empêche la double lecture du même QR code
+- Scanner un produit déjà dans la liste **incrémente sa quantité** au lieu de l'ajouter en doublon
+- Un **retour haptique** (vibration) et un **toast** confirment chaque scan réussi
 
 ---
 
@@ -866,7 +886,7 @@ Certains éléments de menu peuvent porter des badges : "Coming" (grisé) pour l
 
 #### 3.15.3 Menu dynamique des techniciens
 
-Le menu "Techniciens" est spécial : il est **collapsible** et liste dynamiquement tous les techniciens de l'organisation. Chaque technicien apparaît comme un sous-élément cliquable redirigeant directement vers sa fiche. En mode "icônes seulement", un menu déroulant secondaire affiche la liste avec défilement.
+Le menu "Techniciens" est spécial : le **clic sur le label** "Techniciens" navigue vers la page liste des techniciens, tandis que le **clic sur le chevron** (flèche) ouvre/ferme le sous-menu. Ce sous-menu liste dynamiquement tous les techniciens de l'organisation avec un défilement si la liste est longue (hauteur maximale limitée). Chaque technicien apparaît comme un sous-élément cliquable redirigeant directement vers sa fiche. En mode "icônes seulement", un menu déroulant secondaire affiche la liste avec défilement.
 
 #### 3.15.4 Comportement responsive
 
@@ -874,6 +894,27 @@ Le menu "Techniciens" est spécial : il est **collapsible** et liste dynamiqueme
 - Sur **tablette**, elle se replie automatiquement en mode icônes
 - Sur **mobile**, elle se ferme automatiquement à chaque changement de page
 - Un bouton dans l'en-tête permet de l'afficher/masquer manuellement
+
+---
+
+### 3.17 Module Fournisseurs
+
+#### 3.17.1 Gestion des fournisseurs
+
+Les fournisseurs sont des entités rattachées à une organisation, utilisées pour identifier la provenance des produits. Chaque fournisseur possède :
+
+| Champ | Obligatoire | Description |
+|-------|:-----------:|-------------|
+| Nom | Oui | Nom du fournisseur |
+| Site web | Non | URL du site web du fournisseur |
+
+Les fournisseurs sont gérés depuis le **formulaire de création/modification d'un produit** : un sélecteur permet de choisir un fournisseur existant, et un bouton "+" ouvre une boîte de dialogue pour en créer un nouveau sans quitter la page.
+
+#### 3.17.2 Règles métier
+
+- Un fournisseur ne peut pas être supprimé s'il est encore associé à au moins un produit
+- Les fournisseurs sont isolés par organisation (RLS)
+- Il n'existe pas de page dédiée de gestion des fournisseurs ; ils sont gérés de manière contextuelle depuis le formulaire produit
 
 ---
 
@@ -961,17 +1002,19 @@ La page "Paramètres" générale est actuellement un **placeholder** affichant u
 9. Il voit un tutoriel sur les mouvements de stock
 10. Il est redirigé vers le tableau de bord avec son organisation opérationnelle
 
-### 4.6 Flux : Scan QR code sur mobile
+### 4.6 Flux : Scan QR code pour restock technicien sur mobile
 
-**Contexte** : Un magasinier scanne un produit en rayon pour enregistrer un mouvement rapidement.
+**Contexte** : Un responsable prépare le matériel d'un technicien en scannant les produits qu'il va lui attribuer.
 
 1. L'utilisateur ouvre l'application sur son téléphone
-2. Il appuie sur le bouton flottant de scan (en bas à droite)
-3. La caméra s'active
-4. Il scanne le QR code collé sur le produit ou l'étagère
-5. L'application identifie le produit à partir du QR code
-6. Le formulaire de mouvement s'ouvre avec le produit pré-sélectionné
-7. L'utilisateur choisit entrée/sortie, saisit la quantité, et valide
+2. Il appuie sur le bouton de scan dans l'en-tête
+3. Le drawer de restock s'ouvre avec la liste des techniciens
+4. Il recherche et sélectionne le technicien à restocker
+5. La caméra démarre automatiquement
+6. Il scanne les QR codes des produits un par un — chaque scan ajoute le produit à la liste visible en dessous
+7. Il ajuste les quantités si nécessaire (+/-)
+8. Il peut aussi chercher manuellement un produit via le bouton Rechercher
+9. Il appuie sur "Enregistrer" pour valider le restock
 
 ---
 
@@ -1027,6 +1070,7 @@ Toutes les données sont **cloisonnées par organisation**. Un utilisateur ne vo
 - Techniciens
 - Mouvements de stock
 - Inventaires des techniciens
+- Fournisseurs
 
 Il n'existe aucune vue inter-organisations pour un utilisateur standard.
 
@@ -1204,6 +1248,7 @@ Il n'existe aucun flux permettant à un technicien de **retourner** du stock au 
 | **Snapshot** | Photo instantanée de l'inventaire d'un technicien, enregistrée dans l'historique à chaque restock. Permet de retrouver l'état exact de l'inventaire à un moment donné. |
 | **Score de stock** | Indicateur de 0% à 100% reflétant la santé du stock d'un produit par rapport à ses seuils min et max. |
 | **Score de santé (Health Score)** | Indicateur global de 0 à 100 points reflétant la santé de l'ensemble du stock et des techniciens d'une organisation. Calculé par soustraction de pénalités (ruptures, sous-stock, techniciens non restockés, etc.) depuis un score initial de 100. |
+| **Fournisseur** | Entité représentant un fournisseur de produits, rattachée à une organisation. Possède un nom et un site web optionnel. Associé aux produits via une relation un-à-plusieurs. |
 | **Archivage (soft delete)** | Mécanisme de suppression logique : l'entité (produit ou technicien) est marquée avec une date d'archivage et disparaît des listes et statistiques, mais ses données historiques sont conservées en base de données. |
 | **SKU** | Stock Keeping Unit — référence unique d'un produit. Peut être saisie manuellement ou auto-générée. |
 | **Slug** | Identifiant court et unique d'une organisation, composé de lettres minuscules, chiffres et tirets. Généré à partir du nom. |
