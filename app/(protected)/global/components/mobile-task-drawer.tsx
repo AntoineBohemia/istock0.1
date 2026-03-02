@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { ClipboardList } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -14,9 +14,10 @@ import {
 } from "@/components/ui/drawer";
 import { ActionTaskList } from "./action-task-list";
 import { useDashboardTasks } from "@/hooks/queries";
+import { useTaskDrawerStore } from "@/lib/stores/task-drawer-store";
 
 export function MobileTaskDrawer() {
-  const [open, setOpen] = useState(false);
+  const { open, setOpen } = useTaskDrawerStore();
   const { data: tasks = [] } = useDashboardTasks();
   const taskCount = tasks.length;
 
@@ -28,7 +29,7 @@ export function MobileTaskDrawer() {
       setOpen(false);
     }
     prevPathname.current = pathname;
-  }, [pathname, open]);
+  }, [pathname, open, setOpen]);
 
   return (
     <>

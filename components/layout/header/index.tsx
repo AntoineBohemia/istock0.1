@@ -9,10 +9,12 @@ import UserMenu from "@/components/layout/header/user-menu";
 import ThemeSwitch from "@/components/layout/header/theme-switch";
 // import Notifications from "@/components/layout/header/notifications";
 import { Button } from "@/components/ui/button";
+import { useTaskDrawerStore } from "@/lib/stores/task-drawer-store";
 //import { ThemeCustomizerPanel } from "@/components/theme-customizer";
 
 export default function Header() {
   const { toggleSidebar } = useSidebar();
+  const openTaskDrawer = useTaskDrawerStore((s) => s.setOpen);
 
   return (
     <div className="sticky top-0 z-50 flex flex-col">
@@ -30,6 +32,7 @@ export default function Header() {
           size="icon"
           variant="outline"
           className="sm:hidden"
+          onClick={() => openTaskDrawer(true)}
         >
           <ClipboardList className="size-5" />
           <span className="sr-only">A faire</span>
