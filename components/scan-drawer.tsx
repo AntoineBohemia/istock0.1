@@ -225,7 +225,7 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
 
         await scanner.start(
           { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 300, height: 300 } },
+          { fps: 10, qrbox: { width: 350, height: 350 } },
           (text) => handleScanResult(text),
           () => {
             /* no QR in frame - ignore */
