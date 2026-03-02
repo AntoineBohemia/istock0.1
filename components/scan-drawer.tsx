@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import {
   ArrowLeft,
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Command,
   CommandEmpty,
@@ -78,6 +79,7 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraStarting, setCameraStarting] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [technicianSearch, setTechnicianSearch] = useState("");
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const lastScanRef = useRef<{ text: string; time: number } | null>(null);
@@ -85,6 +87,16 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
   const isSubmitting = addToInventoryMutation.isPending;
 
   const selectedTechnician = technicians.find((t) => t.id === selectedTechnicianId);
+
+  // Filter technicians by search query
+  const filteredTechnicians = useMemo(() => {
+    if (!technicianSearch.trim()) return technicians;
+    const query = technicianSearch.toLowerCase().trim();
+    return technicians.filter((t) => {
+      const fullName = `${t.first_name} ${t.last_name}`.toLowerCase();
+      return fullName.includes(query);
+    });
+  }, [technicians, technicianSearch]);
 
   // Reset state when drawer closes
   useEffect(() => {
@@ -96,6 +108,7 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
         setSelectedProducts([]);
         setCameraActive(false);
         setShowSearch(false);
+        setTechnicianSearch("");
       }, 300);
       return () => clearTimeout(timer);
     }
@@ -183,6 +196,13 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
     },
     [products]
   );
+
+  // Auto-start camera when entering scan step
+  useEffect(() => {
+    if (step === "scan" && open) {
+      setCameraActive(true);
+    }
+  }, [step, open]);
 
   // Start/stop scanner when cameraActive changes
   useEffect(() => {
@@ -352,33 +372,52 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
                   Aucun technicien trouve
                 </p>
               ) : (
-                <div className="space-y-1.5">
-                  {technicians.map((tech) => (
-                    <Button
-                      key={tech.id}
-                      variant="outline"
-                      className="w-full min-h-11 justify-start text-left"
-                      onClick={() => {
-                        setSelectedTechnicianId(tech.id);
-                        setStep("scan");
-                      }}
-                    >
-                      <span className="truncate">
-                        {tech.first_name} {tech.last_name}
-                      </span>
-                      <Badge variant="secondary" className="ml-auto shrink-0">
-                        {tech.inventory_count} items
-                      </Badge>
-                    </Button>
-                  ))}
-                </div>
+                <>
+                  <div className="sticky top-0 z-10 bg-background pb-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        placeholder="Rechercher un technicien..."
+                        value={technicianSearch}
+                        onChange={(e) => setTechnicianSearch(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    {filteredTechnicians.length === 0 ? (
+                      <p className="py-6 text-center text-sm text-muted-foreground">
+                        Aucun technicien trouve
+                      </p>
+                    ) : (
+                      filteredTechnicians.map((tech) => (
+                        <Button
+                          key={tech.id}
+                          variant="outline"
+                          className="w-full min-h-11 justify-start text-left"
+                          onClick={() => {
+                            setSelectedTechnicianId(tech.id);
+                            setStep("scan");
+                          }}
+                        >
+                          <span className="truncate">
+                            {tech.first_name} {tech.last_name}
+                          </span>
+                          <Badge variant="secondary" className="ml-auto shrink-0">
+                            {tech.inventory_count} items
+                          </Badge>
+                        </Button>
+                      ))
+                    )}
+                  </div>
+                </>
               )}
             </div>
           </>
         ) : (
-          <>
-            {/* Scan step header - compact */}
-            <DrawerHeader className="flex-row items-center gap-2 py-2 px-3">
+          <div className="flex flex-1 flex-col overflow-hidden">
+            {/* Scan step header - compact & sticky */}
+            <DrawerHeader className="flex-row items-center gap-2 py-2 px-3 shrink-0">
               <Button
                 variant="ghost"
                 size="icon"
@@ -386,6 +425,7 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
                 onClick={() => {
                   setStep("technician");
                   setSelectedProducts([]);
+                  setShowSearch(false);
                 }}
               >
                 <ArrowLeft className="size-4" />
@@ -400,14 +440,43 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
               </div>
             </DrawerHeader>
 
-            <div className="flex-1 overflow-auto px-3 space-y-2">
+            {/* Sticky action bar */}
+            <div className="flex gap-2 px-3 pb-2 shrink-0">
+              <Button
+                variant={cameraActive ? "default" : "outline"}
+                className="flex-1 min-h-10"
+                onClick={() => setCameraActive(!cameraActive)}
+              >
+                {cameraActive ? (
+                  <>
+                    <CameraOff className="mr-1.5 size-4" />
+                    Arreter
+                  </>
+                ) : (
+                  <>
+                    <Camera className="mr-1.5 size-4" />
+                    Scanner
+                  </>
+                )}
+              </Button>
+              <Button
+                variant={showSearch ? "default" : "outline"}
+                className="min-h-10"
+                onClick={() => setShowSearch(!showSearch)}
+              >
+                <Search className="size-4" />
+              </Button>
+            </div>
+
+            {/* Scrollable content area */}
+            <div className="relative flex-1 overflow-auto px-3 space-y-2">
               {/* Camera zone - compact */}
               {cameraActive && (
                 <div className="relative overflow-hidden rounded-lg bg-black">
                   <div
                     id="qr-reader-drawer"
                     className="w-full"
-                    style={{ minHeight: "200px", maxHeight: "35vh" }}
+                    style={{ minHeight: "150px", maxHeight: "25vh" }}
                   />
                   {cameraStarting && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/50">
@@ -420,39 +489,11 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
                 </div>
               )}
 
-              {/* Camera toggle + search button */}
-              <div className="flex gap-2">
-                <Button
-                  variant={cameraActive ? "default" : "outline"}
-                  className="flex-1 min-h-10"
-                  onClick={() => setCameraActive(!cameraActive)}
-                >
-                  {cameraActive ? (
-                    <>
-                      <CameraOff className="mr-1.5 size-4" />
-                      Arreter
-                    </>
-                  ) : (
-                    <>
-                      <Camera className="mr-1.5 size-4" />
-                      Scanner
-                    </>
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="min-h-10"
-                  onClick={() => setShowSearch(!showSearch)}
-                >
-                  <Search className="size-4" />
-                </Button>
-              </div>
-
-              {/* Manual search */}
+              {/* Manual search - overlay style */}
               {showSearch && (
                 <Command className="rounded-lg border">
-                  <CommandInput placeholder="Rechercher..." />
-                  <CommandList className="max-h-40">
+                  <CommandInput placeholder="Rechercher un produit..." />
+                  <CommandList className="max-h-48">
                     <CommandEmpty>Aucun produit trouve</CommandEmpty>
                     <CommandGroup>
                       {products.map((p) => (
@@ -482,9 +523,16 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
                 </Command>
               )}
 
+              {/* Summary counter */}
+              {selectedProducts.length > 0 && (
+                <p className="text-xs text-muted-foreground px-0.5">
+                  {selectedProducts.length} produit{selectedProducts.length > 1 ? "s" : ""} · {totalItems} item{totalItems > 1 ? "s" : ""}
+                </p>
+              )}
+
               {/* Scanned products list */}
               {selectedProducts.length > 0 && (
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 pb-2">
                   {selectedProducts.map((product) => (
                     <div
                       key={product.productId}
@@ -499,6 +547,9 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
                       />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium leading-tight">{product.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Stock: {product.stock_current ?? 0}
+                        </p>
                       </div>
                       <div className="flex shrink-0 items-center gap-0.5">
                         <Button
@@ -549,8 +600,8 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
               )}
             </div>
 
-            {/* Sticky footer - always visible */}
-            <DrawerFooter className="border-t py-3 px-3">
+            {/* Sticky footer with safe area */}
+            <DrawerFooter className="border-t py-3 px-3 shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
               <Button
                 className="w-full min-h-11"
                 disabled={selectedProducts.length === 0 || isSubmitting}
@@ -562,7 +613,7 @@ export default function ScanDrawer({ open, onOpenChange }: ScanDrawerProps) {
                   : "Enregistrer"}
               </Button>
             </DrawerFooter>
-          </>
+          </div>
         )}
       </DrawerContent>
     </Drawer>
