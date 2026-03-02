@@ -60,7 +60,8 @@ const TASK_GROUPS: TaskGroup[] = [
   { key: "stock_critical", label: "Ruptures de stock", types: ["product_out_of_stock"] },
   { key: "stock_low", label: "Stock faible", types: ["product_below_min"] },
   { key: "stock_over", label: "Surstockage", types: ["product_overstocked"] },
-  { key: "tech_restock", label: "Techniciens à restocker", types: ["technician_never_restocked", "technician_late_restock"] },
+  // TEMPORAIRE : techniciens à restocker masqués le temps de stabiliser la feature
+  // { key: "tech_restock", label: "Techniciens à restocker", types: ["technician_never_restocked", "technician_late_restock"] },
   { key: "dormant", label: "Produits dormants", types: ["product_dormant"] },
 ];
 

@@ -38,6 +38,26 @@ import ProductIconDisplay from "@/components/product-icon-display";
 import { useTechnicians, useAvailableProductsForRestock } from "@/hooks/queries";
 import { useAddToTechnicianInventory } from "@/hooks/mutations";
 import type { RestockItem } from "@/lib/supabase/queries/inventory";
+import { cn } from "@/lib/utils";
+
+function daysSinceRestock(dateString: string | null): number | null {
+  if (!dateString) return null;
+  const diff = Date.now() - new Date(dateString).getTime();
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
+}
+
+function restockBadgeLabel(days: number | null): string {
+  if (days === null) return "Jamais";
+  if (days === 0) return "Aujourd'hui";
+  if (days === 1) return "Hier";
+  return `${days}j`;
+}
+
+function restockBadgeVariant(days: number | null): "destructive" | "secondary" | "outline" {
+  if (days === null || days > 21) return "destructive";
+  if (days > 14) return "secondary";
+  return "outline";
+}
 
 // QR code patterns (same as legacy qr-scanner-modal)
 const LEGACY_PATTERN = /^smpr:\/\/product\/([a-zA-Z0-9-]+)$/;
@@ -399,24 +419,27 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
                         Aucun technicien trouve
                       </p>
                     ) : (
-                      filteredTechnicians.map((tech) => (
-                        <Button
-                          key={tech.id}
-                          variant="outline"
-                          className="w-full min-h-11 justify-start text-left"
-                          onClick={() => {
-                            setSelectedTechnicianId(tech.id);
-                            setStep("scan");
-                          }}
-                        >
-                          <span className="truncate">
-                            {tech.first_name} {tech.last_name}
-                          </span>
-                          <Badge variant="secondary" className="ml-auto shrink-0">
-                            {tech.inventory_count} items
-                          </Badge>
-                        </Button>
-                      ))
+                      filteredTechnicians.map((tech) => {
+                        const days = daysSinceRestock(tech.last_restock_at);
+                        return (
+                          <Button
+                            key={tech.id}
+                            variant="outline"
+                            className="w-full min-h-11 justify-start text-left"
+                            onClick={() => {
+                              setSelectedTechnicianId(tech.id);
+                              setStep("scan");
+                            }}
+                          >
+                            <span className="truncate">
+                              {tech.first_name} {tech.last_name}
+                            </span>
+                            <Badge variant={restockBadgeVariant(days)} className="ml-auto shrink-0">
+                              {restockBadgeLabel(days)}
+                            </Badge>
+                          </Button>
+                        );
+                      })
                     )}
                   </div>
                 </>

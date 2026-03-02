@@ -19,11 +19,11 @@
 --   → priority = important, score = 300
 --   → Toujours agrégés
 --
--- CTE 4 — never_restocked : techniciens sans aucun historique de restock
+-- CTE 4 — never_restocked : TEMPORAIREMENT DÉSACTIVÉ
 --   → priority = critical, score = 900
 --   → Une tâche par technicien
 --
--- CTE 5 — late_restock : techniciens dont le dernier restock > 7 jours
+-- CTE 5 — late_restock : TEMPORAIREMENT DÉSACTIVÉ
 --   → priority = important, score = 600 + jours_de_retard, plafonné à 999
 --   → Une tâche par technicien
 --
@@ -201,70 +201,71 @@ BEGIN
   ),
 
   -- =========================================================================
-  -- CTE 4 — Techniciens jamais restockés
+  -- TEMPORAIREMENT DÉSACTIVÉ : CTE 4 & 5 (techniciens restock)
+  -- Réactiver quand prêt.
   -- =========================================================================
-  never_restocked AS (
-    SELECT
-      t.id,
-      t.first_name,
-      t.last_name
-    FROM technicians t
-    LEFT JOIN technician_inventory_history h
-      ON h.technician_id = t.id
-      AND h.organization_id = p_organization_id
-    WHERE t.organization_id = p_organization_id
-      AND t.archived_at IS NULL
-      AND h.id IS NULL
-  ),
-  never_restocked_tasks AS (
-    SELECT
-      'technician_never_restocked'::TEXT AS type,
-      'critical'::TEXT AS priority,
-      900 AS score,
-      'never_restocked_' || id AS group_key,
-      'technician'::TEXT AS entity_type,
-      ARRAY[id] AS entity_ids,
-      ARRAY[first_name || ' ' || last_name] AS entity_names,
-      1 AS count,
-      first_name || ' ' || last_name || ' n''a jamais été restocké' AS summary,
-      '/users/' || id AS action_url,
-      '{}'::JSONB AS metadata
-    FROM never_restocked
-  ),
 
-  -- =========================================================================
+  -- CTE 4 — Techniciens jamais restockés
+  -- never_restocked AS (
+  --   SELECT
+  --     t.id,
+  --     t.first_name,
+  --     t.last_name
+  --   FROM technicians t
+  --   LEFT JOIN technician_inventory_history h
+  --     ON h.technician_id = t.id
+  --     AND h.organization_id = p_organization_id
+  --   WHERE t.organization_id = p_organization_id
+  --     AND t.archived_at IS NULL
+  --     AND h.id IS NULL
+  -- ),
+  -- never_restocked_tasks AS (
+  --   SELECT
+  --     'technician_never_restocked'::TEXT AS type,
+  --     'critical'::TEXT AS priority,
+  --     900 AS score,
+  --     'never_restocked_' || id AS group_key,
+  --     'technician'::TEXT AS entity_type,
+  --     ARRAY[id] AS entity_ids,
+  --     ARRAY[first_name || ' ' || last_name] AS entity_names,
+  --     1 AS count,
+  --     first_name || ' ' || last_name || ' n''a jamais été restocké' AS summary,
+  --     '/users/' || id AS action_url,
+  --     '{}'::JSONB AS metadata
+  --   FROM never_restocked
+  -- ),
+
   -- CTE 5 — Techniciens avec restock en retard (> 7 jours)
-  -- =========================================================================
-  late_restock AS (
-    SELECT
-      t.id,
-      t.first_name,
-      t.last_name,
-      EXTRACT(DAY FROM NOW() - MAX(h.created_at))::INTEGER AS days_since_restock
-    FROM technicians t
-    INNER JOIN technician_inventory_history h
-      ON h.technician_id = t.id
-      AND h.organization_id = p_organization_id
-    WHERE t.organization_id = p_organization_id
-      AND t.archived_at IS NULL
-    GROUP BY t.id, t.first_name, t.last_name
-    HAVING EXTRACT(DAY FROM NOW() - MAX(h.created_at)) > 7
-  ),
-  late_restock_tasks AS (
-    SELECT
-      'technician_late_restock'::TEXT AS type,
-      'important'::TEXT AS priority,
-      LEAST(600 + days_since_restock, 999) AS score,
-      'late_restock_' || id AS group_key,
-      'technician'::TEXT AS entity_type,
-      ARRAY[id] AS entity_ids,
-      ARRAY[first_name || ' ' || last_name] AS entity_names,
-      1 AS count,
-      first_name || ' ' || last_name || ' : dernier restock il y a ' || days_since_restock || ' jours' AS summary,
-      '/users/' || id AS action_url,
-      jsonb_build_object('days_since_restock', days_since_restock) AS metadata
-    FROM late_restock
-  ),
+  -- late_restock AS (
+  --   SELECT
+  --     t.id,
+  --     t.first_name,
+  --     t.last_name,
+  --     EXTRACT(DAY FROM NOW() - MAX(h.created_at))::INTEGER AS days_since_restock
+  --   FROM technicians t
+  --   INNER JOIN technician_inventory_history h
+  --     ON h.technician_id = t.id
+  --     AND h.organization_id = p_organization_id
+  --   WHERE t.organization_id = p_organization_id
+  --     AND t.archived_at IS NULL
+  --   GROUP BY t.id, t.first_name, t.last_name
+  --   HAVING EXTRACT(DAY FROM NOW() - MAX(h.created_at)) > 7
+  -- ),
+  -- late_restock_tasks AS (
+  --   SELECT
+  --     'technician_late_restock'::TEXT AS type,
+  --     'important'::TEXT AS priority,
+  --     LEAST(600 + days_since_restock, 999) AS score,
+  --     'late_restock_' || id AS group_key,
+  --     'technician'::TEXT AS entity_type,
+  --     ARRAY[id] AS entity_ids,
+  --     ARRAY[first_name || ' ' || last_name] AS entity_names,
+  --     1 AS count,
+  --     first_name || ' ' || last_name || ' : dernier restock il y a ' || days_since_restock || ' jours' AS summary,
+  --     '/users/' || id AS action_url,
+  --     jsonb_build_object('days_since_restock', days_since_restock) AS metadata
+  --   FROM late_restock
+  -- ),
 
   -- =========================================================================
   -- CTE 6 — Produits dormants (aucun mouvement depuis 60 jours)
@@ -309,10 +310,11 @@ BEGIN
     SELECT * FROM below_min_tasks
     UNION ALL
     SELECT * FROM overstocked_tasks
-    UNION ALL
-    SELECT * FROM never_restocked_tasks
-    UNION ALL
-    SELECT * FROM late_restock_tasks
+    -- TEMPORAIREMENT DÉSACTIVÉ :
+    -- UNION ALL
+    -- SELECT * FROM never_restocked_tasks
+    -- UNION ALL
+    -- SELECT * FROM late_restock_tasks
     UNION ALL
     SELECT * FROM dormant_tasks
     ORDER BY score DESC

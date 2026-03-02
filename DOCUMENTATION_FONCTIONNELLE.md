@@ -275,9 +275,11 @@ Une liste de **tâches prioritaires** générées automatiquement est affichée 
 | **Ruptures de stock** | Critique (score 1000) | Produits avec stock = 0 |
 | **Stock faible** | Important (score 500+) | Produits avec 0 < stock ≤ stock_min |
 | **Surstockage** | Important (score 300) | Produits avec stock ≥ 2 × stock_max |
-| **Techniciens jamais restockés** | Critique (score 900) | Aucun historique d'inventaire |
-| **Techniciens à restocker** | Important (score 600+) | Dernier restock > 7 jours |
+| ~~**Techniciens jamais restockés**~~ | ~~Critique (score 900)~~ | ~~Aucun historique d'inventaire~~ — **TEMPORAIREMENT DÉSACTIVÉ** |
+| ~~**Techniciens à restocker**~~ | ~~Important (score 600+)~~ | ~~Dernier restock > 7 jours~~ — **TEMPORAIREMENT DÉSACTIVÉ** |
 | **Produits dormants** | Informatif (score 100) | Aucun mouvement depuis 60 jours |
+
+> **Note temporaire** : Les tâches liées aux techniciens (jamais restockés et restock en retard) sont temporairement masquées le temps de stabiliser la feature. Les CTEs correspondantes sont commentées dans `get_dashboard_tasks.sql` et le groupe `tech_restock` est commenté dans `action-task-list.tsx`.
 
 Chaque tâche affiche une bordure colorée à gauche (rouge = critique, orange = important, gris = informatif), une icône teintée et un résumé cliquable qui redirige vers la page concernée. Un badge rouge sur l'en-tête indique le nombre total de tâches.
 
@@ -1115,8 +1117,8 @@ Le tableau de bord affiche un **score de santé global** de l'organisation, calc
 |---|-------|----------|---------|
 | 1 | Produits en rupture de stock (stock = 0) | -15 pts / produit | 60 pts max |
 | 2 | Produits sous le seuil minimum (0 < stock ≤ stock_min) | -4 pts / produit | 20 pts max |
-| 3 | Techniciens jamais restockés (aucun historique d'inventaire) | -8 pts / technicien | 40 pts max |
-| 4 | Techniciens non restockés depuis 7+ jours | -5 pts / technicien | 20 pts max |
+| 3 | ~~Techniciens jamais restockés (aucun historique d'inventaire)~~ — **TEMPORAIREMENT DÉSACTIVÉ** | -8 pts / technicien | 40 pts max |
+| 4 | ~~Techniciens non restockés depuis 7+ jours~~ — **TEMPORAIREMENT DÉSACTIVÉ** | -5 pts / technicien | 20 pts max |
 | 5 | Sorties > entrées de 30% sur les 30 derniers jours | -10 pts (fixe) | 10 pts |
 | 6 | Aucune entrée de stock depuis 14 jours | -5 pts (fixe) | 5 pts |
 

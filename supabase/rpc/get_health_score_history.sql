@@ -30,8 +30,8 @@
 -- Penalty grid (same as get_health_score):
 --   1. product_out_of_stock  : -15/product, cap 60
 --   2. product_below_min     : -4/product,  cap 20
---   3. tech_never_restocked  : -8/tech,     cap 40
---   4. tech_late_restock     : -5/tech,     cap 20
+--   3. tech_never_restocked  : TEMPORAIREMENT DÉSACTIVÉ  -8/tech,     cap 40
+--   4. tech_late_restock     : TEMPORAIREMENT DÉSACTIVÉ  -5/tech,     cap 20
 --   5. exits_exceed_entries  : -10 fixed (exits_30d > entries_30d × 1.3)
 --   6. no_recent_entries     : -5 fixed  (0 entries in 14 days before month end)
 -- ============================================================================
@@ -150,43 +150,46 @@ BEGIN
     --                     is older than 7 days before v_month_end
     -- ════════════════════════════════════════════════════════════════════════
 
-    -- Penalty 3: tech_never_restocked (-8/tech, cap 40)
-    SELECT COUNT(*) INTO v_tech_never
-    FROM technicians t
-    WHERE t.organization_id = p_organization_id
-      AND t.archived_at IS NULL
-      AND NOT EXISTS (
-        SELECT 1 FROM technician_inventory_history h
-        WHERE h.technician_id = t.id
-          AND h.created_at < v_month_end
-      );
+    -- TEMPORAIREMENT DÉSACTIVÉ : Penalty 3 & 4 (techniciens restock)
+    -- Réactiver quand prêt.
+    v_tech_never := 0;
+    v_tech_late  := 0;
 
-    IF v_tech_never > 0 THEN
-      v_penalties_total := v_penalties_total + LEAST(v_tech_never * 8, 40);
-    END IF;
+    -- Penalty 3: tech_never_restocked (-8/tech, cap 40)
+    -- SELECT COUNT(*) INTO v_tech_never
+    -- FROM technicians t
+    -- WHERE t.organization_id = p_organization_id
+    --   AND t.archived_at IS NULL
+    --   AND NOT EXISTS (
+    --     SELECT 1 FROM technician_inventory_history h
+    --     WHERE h.technician_id = t.id
+    --       AND h.created_at < v_month_end
+    --   );
+    --
+    -- IF v_tech_never > 0 THEN
+    --   v_penalties_total := v_penalties_total + LEAST(v_tech_never * 8, 40);
+    -- END IF;
 
     -- Penalty 4: tech_late_restock (-5/tech, cap 20)
-    -- Techs who HAVE been restocked before v_month_end, but whose
-    -- most recent restock before v_month_end is > 7 days old.
-    SELECT COUNT(*) INTO v_tech_late
-    FROM technicians t
-    WHERE t.organization_id = p_organization_id
-      AND t.archived_at IS NULL
-      AND EXISTS (
-        SELECT 1 FROM technician_inventory_history h
-        WHERE h.technician_id = t.id
-          AND h.created_at < v_month_end
-      )
-      AND (
-        SELECT MAX(h.created_at)
-        FROM technician_inventory_history h
-        WHERE h.technician_id = t.id
-          AND h.created_at < v_month_end
-      ) < v_month_end - INTERVAL '7 days';
-
-    IF v_tech_late > 0 THEN
-      v_penalties_total := v_penalties_total + LEAST(v_tech_late * 5, 20);
-    END IF;
+    -- SELECT COUNT(*) INTO v_tech_late
+    -- FROM technicians t
+    -- WHERE t.organization_id = p_organization_id
+    --   AND t.archived_at IS NULL
+    --   AND EXISTS (
+    --     SELECT 1 FROM technician_inventory_history h
+    --     WHERE h.technician_id = t.id
+    --       AND h.created_at < v_month_end
+    --   )
+    --   AND (
+    --     SELECT MAX(h.created_at)
+    --     FROM technician_inventory_history h
+    --     WHERE h.technician_id = t.id
+    --       AND h.created_at < v_month_end
+    --   ) < v_month_end - INTERVAL '7 days';
+    --
+    -- IF v_tech_late > 0 THEN
+    --   v_penalties_total := v_penalties_total + LEAST(v_tech_late * 5, 20);
+    -- END IF;
 
     -- ════════════════════════════════════════════════════════════════════════
     -- STEP 4: Flow-based penalties using movements within month M

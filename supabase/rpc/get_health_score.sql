@@ -16,8 +16,8 @@
 -- Penalty rules (budget = 100):
 --   1. product_out_of_stock   : stock=0, track_stock, non-archived        → -15/product, cap 60
 --   2. product_below_min      : 0 < stock ≤ stock_min                     → -4/product,  cap 20
---   3. tech_never_restocked   : no history row, non-archived              → -8/tech,     cap 40
---   4. tech_late_restock      : last restock > 7 days ago                 → -5/tech,     cap 20
+--   3. tech_never_restocked   : TEMPORAIREMENT DÉSACTIVÉ                  → -8/tech,     cap 40
+--   4. tech_late_restock      : TEMPORAIREMENT DÉSACTIVÉ                  → -5/tech,     cap 20
 --   5. exits_exceed_entries   : exits_30d > entries_30d × 1.3             → -10 fixed
 --   6. no_recent_entries      : 0 entries in last 14 days                 → -5 fixed
 --
@@ -147,55 +147,57 @@ BEGIN
   END IF;
 
   -- ══════════════════════════════════════════════════════════════════════
+  -- TEMPORAIREMENT DÉSACTIVÉ : Penalty 3 & 4 (techniciens restock)
+  -- Les pénalités techniciens sont désactivées le temps de stabiliser
+  -- la feature. Réactiver quand prêt.
+  -- ══════════════════════════════════════════════════════════════════════
+
   -- Penalty 3: tech_never_restocked (-8/tech, cap 40)
-  -- ══════════════════════════════════════════════════════════════════════
-  SELECT COUNT(*) INTO v_count
-  FROM technicians t
-  WHERE t.organization_id = p_organization_id
-    AND t.archived_at IS NULL
-    AND NOT EXISTS (
-      SELECT 1 FROM technician_inventory_history h
-      WHERE h.technician_id = t.id
-    );
+  -- SELECT COUNT(*) INTO v_count
+  -- FROM technicians t
+  -- WHERE t.organization_id = p_organization_id
+  --   AND t.archived_at IS NULL
+  --   AND NOT EXISTS (
+  --     SELECT 1 FROM technician_inventory_history h
+  --     WHERE h.technician_id = t.id
+  --   );
+  --
+  -- IF v_count > 0 THEN
+  --   v_points := LEAST(v_count * 8, 40);
+  --   v_score  := v_score - v_points;
+  --   v_penalties := v_penalties || jsonb_build_array(jsonb_build_object(
+  --     'type',    'tech_never_restocked',
+  --     'points',  v_points,
+  --     'count',   v_count,
+  --     'details', v_count || ' technicien(s) jamais restocké(s)'
+  --   ));
+  -- END IF;
 
-  IF v_count > 0 THEN
-    v_points := LEAST(v_count * 8, 40);
-    v_score  := v_score - v_points;
-    v_penalties := v_penalties || jsonb_build_array(jsonb_build_object(
-      'type',    'tech_never_restocked',
-      'points',  v_points,
-      'count',   v_count,
-      'details', v_count || ' technicien(s) jamais restocké(s)'
-    ));
-  END IF;
-
-  -- ══════════════════════════════════════════════════════════════════════
   -- Penalty 4: tech_late_restock (-5/tech, cap 20)
-  -- ══════════════════════════════════════════════════════════════════════
-  SELECT COUNT(*) INTO v_count
-  FROM technicians t
-  WHERE t.organization_id = p_organization_id
-    AND t.archived_at IS NULL
-    AND EXISTS (
-      SELECT 1 FROM technician_inventory_history h
-      WHERE h.technician_id = t.id
-    )
-    AND (
-      SELECT MAX(h.created_at)
-      FROM technician_inventory_history h
-      WHERE h.technician_id = t.id
-    ) < NOW() - INTERVAL '7 days';
-
-  IF v_count > 0 THEN
-    v_points := LEAST(v_count * 5, 20);
-    v_score  := v_score - v_points;
-    v_penalties := v_penalties || jsonb_build_array(jsonb_build_object(
-      'type',    'tech_late_restock',
-      'points',  v_points,
-      'count',   v_count,
-      'details', v_count || ' technicien(s) non restocké(s) depuis 7+ jours'
-    ));
-  END IF;
+  -- SELECT COUNT(*) INTO v_count
+  -- FROM technicians t
+  -- WHERE t.organization_id = p_organization_id
+  --   AND t.archived_at IS NULL
+  --   AND EXISTS (
+  --     SELECT 1 FROM technician_inventory_history h
+  --     WHERE h.technician_id = t.id
+  --   )
+  --   AND (
+  --     SELECT MAX(h.created_at)
+  --     FROM technician_inventory_history h
+  --     WHERE h.technician_id = t.id
+  --   ) < NOW() - INTERVAL '7 days';
+  --
+  -- IF v_count > 0 THEN
+  --   v_points := LEAST(v_count * 5, 20);
+  --   v_score  := v_score - v_points;
+  --   v_penalties := v_penalties || jsonb_build_array(jsonb_build_object(
+  --     'type',    'tech_late_restock',
+  --     'points',  v_points,
+  --     'count',   v_count,
+  --     'details', v_count || ' technicien(s) non restocké(s) depuis 7+ jours'
+  --   ));
+  -- END IF;
 
   -- ══════════════════════════════════════════════════════════════════════
   -- Penalty 5: exits_exceed_entries — exits_30d > entries_30d × 1.3 (-10)
@@ -302,41 +304,42 @@ BEGIN
     v_prev_score := v_prev_score - LEAST(v_points * 4, 20);
   END IF;
 
+  -- TEMPORAIREMENT DÉSACTIVÉ : Penalty 3 & 4 prev (techniciens restock)
   -- Penalty 3 prev: techs never restocked as of prev month end
-  SELECT COUNT(*) INTO v_count
-  FROM technicians t
-  WHERE t.organization_id = p_organization_id
-    AND t.archived_at IS NULL
-    AND NOT EXISTS (
-      SELECT 1 FROM technician_inventory_history h
-      WHERE h.technician_id = t.id
-        AND h.created_at < v_month_start
-    );
-
-  IF v_count > 0 THEN
-    v_prev_score := v_prev_score - LEAST(v_count * 8, 40);
-  END IF;
+  -- SELECT COUNT(*) INTO v_count
+  -- FROM technicians t
+  -- WHERE t.organization_id = p_organization_id
+  --   AND t.archived_at IS NULL
+  --   AND NOT EXISTS (
+  --     SELECT 1 FROM technician_inventory_history h
+  --     WHERE h.technician_id = t.id
+  --       AND h.created_at < v_month_start
+  --   );
+  --
+  -- IF v_count > 0 THEN
+  --   v_prev_score := v_prev_score - LEAST(v_count * 8, 40);
+  -- END IF;
 
   -- Penalty 4 prev: techs with last restock > 7d as of prev month end
-  SELECT COUNT(*) INTO v_count
-  FROM technicians t
-  WHERE t.organization_id = p_organization_id
-    AND t.archived_at IS NULL
-    AND EXISTS (
-      SELECT 1 FROM technician_inventory_history h
-      WHERE h.technician_id = t.id
-        AND h.created_at < v_month_start
-    )
-    AND (
-      SELECT MAX(h.created_at)
-      FROM technician_inventory_history h
-      WHERE h.technician_id = t.id
-        AND h.created_at < v_month_start
-    ) < v_month_start - INTERVAL '7 days';
-
-  IF v_count > 0 THEN
-    v_prev_score := v_prev_score - LEAST(v_count * 5, 20);
-  END IF;
+  -- SELECT COUNT(*) INTO v_count
+  -- FROM technicians t
+  -- WHERE t.organization_id = p_organization_id
+  --   AND t.archived_at IS NULL
+  --   AND EXISTS (
+  --     SELECT 1 FROM technician_inventory_history h
+  --     WHERE h.technician_id = t.id
+  --       AND h.created_at < v_month_start
+  --   )
+  --   AND (
+  --     SELECT MAX(h.created_at)
+  --     FROM technician_inventory_history h
+  --     WHERE h.technician_id = t.id
+  --       AND h.created_at < v_month_start
+  --   ) < v_month_start - INTERVAL '7 days';
+  --
+  -- IF v_count > 0 THEN
+  --   v_prev_score := v_prev_score - LEAST(v_count * 5, 20);
+  -- END IF;
 
   -- Penalty 5 prev: exits > entries 30d window ending at prev month end
   SELECT
