@@ -149,7 +149,7 @@ function EmptyState() {
 
 // ─── Composant principal ─────────────────────────────────────────────
 
-export function ActionTaskList() {
+export function ActionTaskList({ embedded = false }: { embedded?: boolean }) {
   const { data: tasks = [], isLoading } = useDashboardTasks();
   const { dismissTask } = useTaskDismissStore();
   const [showAll, setShowAll] = useState(false);
@@ -176,6 +176,13 @@ export function ActionTaskList() {
   const remaining = tasks.length - INITIAL_COUNT;
 
   if (isLoading) {
+    if (embedded) {
+      return (
+        <div className="flex h-32 items-center justify-center">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
     return (
       <Card>
         <CardHeader className="pb-3 lg:pb-6">
@@ -214,6 +221,10 @@ export function ActionTaskList() {
       )}
     </>
   );
+
+  if (embedded) {
+    return taskContent;
+  }
 
   return (
     <Card>

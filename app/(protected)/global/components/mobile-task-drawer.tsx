@@ -6,13 +6,12 @@ import { ClipboardList } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import { ActionTaskList } from "./action-task-list";
 import { useDashboardTasks } from "@/hooks/queries";
 
@@ -32,42 +31,46 @@ export function MobileTaskDrawer() {
   }, [pathname, open]);
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        {/* bottom-24 on <sm to stack above QR scan FAB (bottom-6, size-14) */}
-        <Button
-          size="icon"
-          className="fixed bottom-24 right-6 z-40 size-14 rounded-full shadow-lg sm:bottom-6 lg:hidden"
-        >
-          <ClipboardList className="size-6" />
-          {taskCount > 0 && (
-            <Badge
-              variant="destructive"
-              className="absolute -top-1 -right-1 size-5 p-0 flex items-center justify-center text-[10px]"
-            >
-              {taskCount}
-            </Badge>
-          )}
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="right" className="overflow-y-auto">
-        <SheetHeader>
-          <div className="flex items-center gap-2">
-            <SheetTitle>A faire</SheetTitle>
-            {taskCount > 0 && (
-              <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                {taskCount}
-              </Badge>
-            )}
+    <>
+      {/* FAB button */}
+      <Button
+        size="icon"
+        onClick={() => setOpen(true)}
+        className="fixed bottom-24 right-6 z-40 size-14 rounded-full shadow-lg sm:bottom-6 lg:hidden"
+      >
+        <ClipboardList className="size-6" />
+        {taskCount > 0 && (
+          <Badge
+            variant="destructive"
+            className="absolute -top-1 -right-1 size-5 p-0 flex items-center justify-center text-[10px]"
+          >
+            {taskCount}
+          </Badge>
+        )}
+      </Button>
+
+      {/* Drawer */}
+      <Drawer open={open} onOpenChange={setOpen}>
+        <DrawerContent className="!max-h-[92vh]">
+          <DrawerHeader className="pb-2">
+            <div className="flex items-center justify-center gap-2">
+              <DrawerTitle>À faire</DrawerTitle>
+              {taskCount > 0 && (
+                <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                  {taskCount}
+                </Badge>
+              )}
+            </div>
+            <DrawerDescription>
+              Actions recommandées pour votre stock
+            </DrawerDescription>
+          </DrawerHeader>
+
+          <div className="flex-1 overflow-auto px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+            <ActionTaskList embedded />
           </div>
-          <SheetDescription>
-            Actions recommandees pour votre stock
-          </SheetDescription>
-        </SheetHeader>
-        <div className="px-4 pb-4">
-          <ActionTaskList />
-        </div>
-      </SheetContent>
-    </Sheet>
+        </DrawerContent>
+      </Drawer>
+    </>
   );
 }
