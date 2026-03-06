@@ -4,9 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Html5Qrcode } from "html5-qrcode";
 import {
-  ArrowLeft,
   Camera,
-  CameraOff,
   Loader2,
   Minus,
   Plus,
@@ -477,201 +475,151 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
           </>
         ) : (
           <div className="flex flex-1 flex-col overflow-hidden">
-            {/* Scan step header - compact & sticky */}
-            <DrawerHeader className="flex-row items-center gap-2 py-2 px-3 shrink-0">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="shrink-0 size-8"
-                onClick={() => {
-                  setStep("technician");
-                  setSelectedProducts([]);
-                  setShowSearch(false);
-                }}
-              >
-                <ArrowLeft className="size-4" />
-              </Button>
-              <div className="min-w-0 flex-1">
-                <DrawerTitle className="truncate text-sm">
-                  {selectedTechnician?.first_name} {selectedTechnician?.last_name}
-                </DrawerTitle>
-                <DrawerDescription className="text-xs">
-                  Scannez ou recherchez des produits
-                </DrawerDescription>
-              </div>
-            </DrawerHeader>
-
-            {/* Sticky action bar */}
-            <div className="flex gap-2 px-3 pb-2 shrink-0">
-              <Button
-                variant={cameraActive ? "default" : "outline"}
-                className="flex-1 min-h-10"
-                onClick={() => setCameraActive(!cameraActive)}
-              >
-                {cameraActive ? (
-                  <>
-                    <CameraOff className="mr-1.5 size-4" />
-                    Arreter
-                  </>
-                ) : (
-                  <>
-                    <Camera className="mr-1.5 size-4" />
-                    Scanner
-                  </>
-                )}
-              </Button>
-              <Button
-                variant={showSearch ? "default" : "outline"}
-                className="min-h-10"
-                onClick={() => setShowSearch(!showSearch)}
-              >
-                <Search className="size-4" />
-              </Button>
+            {/* Search bar to add products manually */}
+            <div className="shrink-0 px-3 pt-2 pb-1">
+              <Command className="rounded-lg border" shouldFilter={true}>
+                <CommandInput
+                  placeholder="Ajouter un produit..."
+                  onFocus={() => setShowSearch(true)}
+                  onBlur={() => setTimeout(() => setShowSearch(false), 200)}
+                />
+                <CommandList className={cn(
+                  "transition-all duration-200",
+                  showSearch ? "max-h-48" : "max-h-0 border-t-0"
+                )}>
+                  <CommandEmpty>Aucun produit trouve</CommandEmpty>
+                  <CommandGroup>
+                    {products.map((p) => (
+                      <CommandItem
+                        key={p.id}
+                        value={`${p.name} ${p.sku}`}
+                        onSelect={() => handleAddManual(p.id)}
+                        className="flex items-center gap-2"
+                      >
+                        <ProductIconDisplay
+                          iconName={p.icon_name}
+                          iconColor={p.icon_color}
+                          imageUrl={p.image_url}
+                          size="sm"
+                          className="shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="truncate text-sm font-medium">{p.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Stock: {p.stock_current}
+                          </p>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
             </div>
 
-            {/* Scrollable content area */}
-            <div className="relative min-h-0 overflow-auto px-3 space-y-2">
-              {/* Camera zone */}
-              {cameraActive && (
-                <div className="relative overflow-hidden rounded-lg bg-black">
-                  <div
-                    id="qr-reader-drawer"
-                    className="w-full"
-                  />
-                  {cameraStarting && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                      <div className="text-center text-white">
-                        <Camera className="mx-auto size-6 animate-pulse" />
-                        <p className="mt-1 text-xs">Demarrage...</p>
-                      </div>
+            {/* Camera zone - takes remaining space */}
+            {cameraActive && (
+              <div className="relative flex-1 min-h-0 mx-3 overflow-hidden rounded-lg bg-black">
+                <div
+                  id="qr-reader-drawer"
+                  className="w-full"
+                />
+                {cameraStarting && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                    <div className="text-center text-white">
+                      <Camera className="mx-auto size-6 animate-pulse" />
+                      <p className="mt-1 text-xs">Demarrage...</p>
                     </div>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
+            )}
 
-              {/* Manual search - overlay style */}
-              {showSearch && (
-                <Command className="rounded-lg border">
-                  <CommandInput placeholder="Rechercher un produit..." />
-                  <CommandList className="max-h-48">
-                    <CommandEmpty>Aucun produit trouve</CommandEmpty>
-                    <CommandGroup>
-                      {products.map((p) => (
-                        <CommandItem
-                          key={p.id}
-                          value={`${p.name} ${p.sku}`}
-                          onSelect={() => handleAddManual(p.id)}
-                          className="flex items-center gap-2"
-                        >
-                          <ProductIconDisplay
-                            iconName={p.icon_name}
-                            iconColor={p.icon_color}
-                            imageUrl={p.image_url}
-                            size="sm"
-                            className="shrink-0"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="truncate text-sm font-medium">{p.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Stock: {p.stock_current}
-                            </p>
-                          </div>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              )}
-
-              {/* Summary counter */}
-              {selectedProducts.length > 0 && (
-                <p className="text-xs text-muted-foreground px-0.5">
+            {/* Scanned products list - compact, no scroll */}
+            {selectedProducts.length > 0 && (
+              <div className="shrink-0 px-3 pt-2 space-y-1">
+                <p className="text-xs text-muted-foreground">
                   {selectedProducts.length} produit{selectedProducts.length > 1 ? "s" : ""} · {totalItems} item{totalItems > 1 ? "s" : ""}
                 </p>
-              )}
-
-              {/* Scanned products list */}
-              {selectedProducts.length > 0 && (
-                <div className="space-y-1.5 pb-2">
-                  {selectedProducts.map((product) => (
-                    <div
-                      key={product.productId}
-                      className="flex items-center gap-2 rounded-lg border p-2"
-                    >
-                      <ProductIconDisplay
-                        iconName={product.icon_name}
-                        iconColor={product.icon_color}
-                        imageUrl={product.image_url}
-                        size="sm"
-                        className="shrink-0"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium leading-tight">{product.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Stock: {product.stock_current ?? 0}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-0.5">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="size-7"
-                          onClick={() =>
-                            handleQuantityChange(product.productId, product.quantity - 1)
-                          }
-                          disabled={product.quantity <= 1}
-                        >
-                          <Minus className="size-3" />
-                        </Button>
-                        <span className="w-7 text-center text-sm font-medium tabular-nums">
-                          {product.quantity}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="size-7"
-                          onClick={() =>
-                            handleQuantityChange(product.productId, product.quantity + 1)
-                          }
-                          disabled={product.quantity >= (product.stock_current ?? 0)}
-                        >
-                          <Plus className="size-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-7 text-destructive hover:text-destructive"
-                          onClick={() => handleRemoveProduct(product.productId)}
-                        >
-                          <Trash2 className="size-3" />
-                        </Button>
-                      </div>
+                {selectedProducts.map((product) => (
+                  <div
+                    key={product.productId}
+                    className="flex items-center gap-2 rounded-lg border p-2"
+                  >
+                    <ProductIconDisplay
+                      iconName={product.icon_name}
+                      iconColor={product.icon_color}
+                      imageUrl={product.image_url}
+                      size="sm"
+                      className="shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium leading-tight">{product.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Stock: {product.stock_current ?? 0}
+                      </p>
                     </div>
-                  ))}
-                </div>
-              )}
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="size-7"
+                        onClick={() =>
+                          handleQuantityChange(product.productId, product.quantity - 1)
+                        }
+                        disabled={product.quantity <= 1}
+                      >
+                        <Minus className="size-3" />
+                      </Button>
+                      <span className="w-7 text-center text-sm font-medium tabular-nums">
+                        {product.quantity}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="size-7"
+                        onClick={() =>
+                          handleQuantityChange(product.productId, product.quantity + 1)
+                        }
+                        disabled={product.quantity >= (product.stock_current ?? 0)}
+                      >
+                        <Plus className="size-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 text-destructive hover:text-destructive"
+                        onClick={() => handleRemoveProduct(product.productId)}
+                      >
+                        <Trash2 className="size-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
-              {selectedProducts.length === 0 && !showSearch && !cameraActive && (
-                <div className="rounded-lg border border-dashed p-4 text-center">
-                  <p className="text-sm text-muted-foreground">
-                    Scannez un QR code ou recherchez un produit
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Sticky footer with safe area */}
+            {/* Footer: Annuler | Enregistrer */}
             <DrawerFooter className="border-t py-3 px-3 shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-              <Button
-                className="w-full min-h-11"
-                disabled={selectedProducts.length === 0 || isSubmitting}
-                onClick={handleSubmit}
-              >
-                {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
-                {selectedProducts.length > 0
-                  ? `Enregistrer (${totalItems} item${totalItems > 1 ? "s" : ""})`
-                  : "Enregistrer"}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 min-h-11"
+                  disabled={isSubmitting}
+                  onClick={() => onOpenChange(false)}
+                >
+                  Annuler
+                </Button>
+                <Button
+                  className="flex-1 min-h-11"
+                  disabled={selectedProducts.length === 0 || isSubmitting}
+                  onClick={handleSubmit}
+                >
+                  {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
+                  {selectedProducts.length > 0
+                    ? `Enregistrer (${totalItems})`
+                    : "Enregistrer"}
+                </Button>
+              </div>
             </DrawerFooter>
           </div>
         )}
