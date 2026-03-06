@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
-  Command,
+  CommandDialog,
   CommandEmpty,
   CommandGroup,
   CommandInput,
@@ -37,7 +37,6 @@ import ProductIconDisplay from "@/components/product-icon-display";
 import { useTechnicians, useAvailableProductsForRestock } from "@/hooks/queries";
 import { useAddToTechnicianInventory } from "@/hooks/mutations";
 import type { RestockItem } from "@/lib/supabase/queries/inventory";
-import { cn } from "@/lib/utils";
 import { parseProductQr } from "@/lib/utils/qr";
 import { getRearCameraId } from "@/lib/utils/camera";
 
@@ -475,46 +474,49 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
           </>
         ) : (
           <div className="flex flex-1 flex-col overflow-hidden">
-            {/* Search bar to add products manually */}
+            {/* Button to open manual product search */}
             <div className="shrink-0 px-3 pt-2 pb-1">
-              <Command className="rounded-lg border" shouldFilter={true}>
-                <CommandInput
-                  placeholder="Ajouter un produit..."
-                  onFocus={() => setShowSearch(true)}
-                  onBlur={() => setTimeout(() => setShowSearch(false), 200)}
-                />
-                <CommandList className={cn(
-                  "transition-all duration-200",
-                  showSearch ? "max-h-48" : "max-h-0 border-t-0"
-                )}>
-                  <CommandEmpty>Aucun produit trouve</CommandEmpty>
-                  <CommandGroup>
-                    {products.map((p) => (
-                      <CommandItem
-                        key={p.id}
-                        value={`${p.name} ${p.sku}`}
-                        onSelect={() => handleAddManual(p.id)}
-                        className="flex items-center gap-2"
-                      >
-                        <ProductIconDisplay
-                          iconName={p.icon_name}
-                          iconColor={p.icon_color}
-                          imageUrl={p.image_url}
-                          size="sm"
-                          className="shrink-0"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="truncate text-sm font-medium">{p.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Stock: {p.stock_current}
-                          </p>
-                        </div>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
+              <Button
+                variant="outline"
+                className="w-full min-h-10 justify-start text-muted-foreground"
+                onClick={() => setShowSearch(true)}
+              >
+                <Search className="mr-2 size-4" />
+                Ajouter un produit...
+              </Button>
             </div>
+
+            {/* Product search dialog */}
+            <CommandDialog open={showSearch} onOpenChange={setShowSearch}>
+              <CommandInput placeholder="Rechercher un produit..." />
+              <CommandList>
+                <CommandEmpty>Aucun produit trouve</CommandEmpty>
+                <CommandGroup>
+                  {products.map((p) => (
+                    <CommandItem
+                      key={p.id}
+                      value={`${p.name} ${p.sku}`}
+                      onSelect={() => handleAddManual(p.id)}
+                      className="flex items-center gap-2"
+                    >
+                      <ProductIconDisplay
+                        iconName={p.icon_name}
+                        iconColor={p.icon_color}
+                        imageUrl={p.image_url}
+                        size="sm"
+                        className="shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate text-sm font-medium">{p.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Stock: {p.stock_current}
+                        </p>
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </CommandDialog>
 
             {/* Camera zone - takes remaining space */}
             {cameraActive && (
