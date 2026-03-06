@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { X, Camera, AlertCircle } from "lucide-react";
 
@@ -12,18 +12,14 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { parseProductQr } from "@/lib/utils/qr";
+import { getRearCameraId } from "@/lib/utils/camera";
 
 interface QrScannerModalProps {
   open: boolean;
   onClose: () => void;
   onScan: (productId: string) => void;
 }
-
-// Support both formats:
-// - Legacy: smpr://product/{id}
-// - New: https://istock-app.space/stock?product={id}
-const LEGACY_PATTERN = /^smpr:\/\/product\/([a-zA-Z0-9-]+)$/;
-const URL_PATTERN = /^https?:\/\/[^/]+\/stock\?product=([a-zA-Z0-9-]+)/;
 
 export default function QrScannerModal({
   open,
@@ -34,6 +30,26 @@ export default function QrScannerModal({
   const [isStarting, setIsStarting] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Stable refs for callbacks to avoid stale closures in scanner
+  const onScanRef = useRef(onScan);
+  const onCloseRef = useRef(onClose);
+  onScanRef.current = onScan;
+  onCloseRef.current = onClose;
+
+  const stopScanner = useCallback(async () => {
+    if (scannerRef.current) {
+      try {
+        const state = scannerRef.current.getState();
+        if (state === 2) {
+          await scannerRef.current.stop();
+        }
+      } catch {
+        // Ignore stop errors
+      }
+      scannerRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -52,37 +68,39 @@ export default function QrScannerModal({
         const scanner = new Html5Qrcode("qr-reader");
         scannerRef.current = scanner;
 
-        await scanner.start(
-          { facingMode: "environment" },
-          {
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
+        const scanConfig = {
+          fps: 5,
+          qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+            const size = Math.min(viewfinderWidth, viewfinderHeight) * 0.7;
+            return { width: size, height: size };
           },
-          (decodedText) => {
-            // QR code scanned successfully
-            // Try legacy format first
-            let match = decodedText.match(LEGACY_PATTERN);
-
-            // If not legacy, try URL format
-            if (!match) {
-              match = decodedText.match(URL_PATTERN);
-            }
-
-            if (match) {
-              const productId = match[1];
-              handleStop();
-              onScan(productId);
-              onClose();
-            } else {
-              setError(
-                `Format QR invalide.\nReçu: ${decodedText}`
-              );
-            }
-          },
-          () => {
-            // QR code scan error (no QR found in frame) - ignore
+        };
+        const onSuccess = (decodedText: string) => {
+          const productId = parseProductQr(decodedText);
+          if (productId) {
+            stopScanner();
+            onScanRef.current(productId);
+            onCloseRef.current();
+          } else {
+            setError(`Format QR invalide.\nReçu: ${decodedText}`);
           }
-        );
+        };
+        const onFailure = () => {/* no QR in frame - ignore */};
+
+        // Try to get rear camera by deviceId (most reliable on iPhone)
+        const rearId = await getRearCameraId();
+
+        if (rearId) {
+          await scanner.start(
+            { deviceId: { exact: rearId } },
+            scanConfig, onSuccess, onFailure
+          );
+        } else {
+          await scanner.start(
+            { facingMode: "environment" },
+            scanConfig, onSuccess, onFailure
+          );
+        }
 
         if (mounted) {
           setIsStarting(false);
@@ -115,27 +133,12 @@ export default function QrScannerModal({
 
     return () => {
       mounted = false;
-      handleStop();
+      stopScanner();
     };
-  }, [open]);
-
-  const handleStop = async () => {
-    if (scannerRef.current) {
-      try {
-        const state = scannerRef.current.getState();
-        if (state === 2) {
-          // Html5QrcodeScannerState.SCANNING
-          await scannerRef.current.stop();
-        }
-      } catch {
-        // Ignore stop errors
-      }
-      scannerRef.current = null;
-    }
-  };
+  }, [open, stopScanner]);
 
   const handleClose = () => {
-    handleStop();
+    stopScanner();
     onClose();
   };
 

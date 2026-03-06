@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Html5Qrcode } from "html5-qrcode";
 import {
   ArrowLeft,
@@ -39,6 +40,8 @@ import { useTechnicians, useAvailableProductsForRestock } from "@/hooks/queries"
 import { useAddToTechnicianInventory } from "@/hooks/mutations";
 import type { RestockItem } from "@/lib/supabase/queries/inventory";
 import { cn } from "@/lib/utils";
+import { parseProductQr } from "@/lib/utils/qr";
+import { getRearCameraId } from "@/lib/utils/camera";
 
 function daysSinceRestock(dateString: string | null): number | null {
   if (!dateString) return null;
@@ -58,10 +61,6 @@ function restockBadgeVariant(days: number | null): "destructive" | "secondary" |
   if (days > 14) return "secondary";
   return "outline";
 }
-
-// QR code patterns (same as legacy qr-scanner-modal)
-const LEGACY_PATTERN = /^smpr:\/\/product\/([a-zA-Z0-9-]+)$/;
-const URL_PATTERN = /^https?:\/\/[^/]+\/stock\?product=([a-zA-Z0-9-]+)/;
 
 const SCAN_DEBOUNCE_MS = 2000;
 
@@ -87,6 +86,7 @@ interface ScanDrawerProps {
 export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId }: ScanDrawerProps) {
   const { currentOrganization } = useOrganizationStore();
   const orgId = currentOrganization?.id;
+  const pathname = usePathname();
 
   const { data: technicians = [], isLoading: isLoadingTechnicians } =
     useTechnicians(orgId);
@@ -127,6 +127,12 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
     }
   }, [open, preselectedTechnicianId]);
 
+  // Close drawer on route change
+  useEffect(() => {
+    if (open) onOpenChange(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
   // Reset state when drawer closes
   useEffect(() => {
     if (!open) {
@@ -159,44 +165,14 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
     }
   }, []);
 
-  const handleScanResult = useCallback(
-    (decodedText: string) => {
-      // Debounce: ignore same QR within SCAN_DEBOUNCE_MS
-      const now = Date.now();
-      if (
-        lastScanRef.current &&
-        lastScanRef.current.text === decodedText &&
-        now - lastScanRef.current.time < SCAN_DEBOUNCE_MS
-      ) {
-        return;
-      }
-      lastScanRef.current = { text: decodedText, time: now };
-
-      // Parse QR
-      let match = decodedText.match(LEGACY_PATTERN);
-      if (!match) {
-        match = decodedText.match(URL_PATTERN);
-      }
-
-      if (!match) {
-        toast.error("Format QR invalide");
-        return;
-      }
-
-      const productId = match[1];
+  const addOrIncrementProduct = useCallback(
+    (productId: string) => {
       const product = products.find((p) => p.id === productId);
-
       if (!product) {
         toast.error("Produit non trouve dans le stock");
         return;
       }
 
-      // Haptic feedback
-      if (navigator.vibrate) {
-        navigator.vibrate(200);
-      }
-
-      // Add or increment
       setSelectedProducts((prev) => {
         const existing = prev.find((p) => p.productId === productId);
         if (existing) {
@@ -226,6 +202,35 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
     [products]
   );
 
+  const handleScanResult = useCallback(
+    (decodedText: string) => {
+      // Debounce: ignore same QR within SCAN_DEBOUNCE_MS
+      const now = Date.now();
+      if (
+        lastScanRef.current &&
+        lastScanRef.current.text === decodedText &&
+        now - lastScanRef.current.time < SCAN_DEBOUNCE_MS
+      ) {
+        return;
+      }
+      lastScanRef.current = { text: decodedText, time: now };
+
+      const productId = parseProductQr(decodedText);
+      if (!productId) {
+        toast.error("Format QR invalide");
+        return;
+      }
+
+      // Haptic feedback
+      if (navigator.vibrate) {
+        navigator.vibrate(200);
+      }
+
+      addOrIncrementProduct(productId);
+    },
+    [addOrIncrementProduct]
+  );
+
   // Auto-start camera when entering scan step
   useEffect(() => {
     if (step === "scan" && open) {
@@ -248,18 +253,34 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
       await new Promise((r) => setTimeout(r, 100));
       if (!mounted) return;
 
+      const scanConfig = {
+        fps: 5,
+        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+          const size = Math.min(viewfinderWidth, viewfinderHeight) * 0.7;
+          return { width: size, height: size };
+        },
+      };
+      const onSuccess = (text: string) => handleScanResult(text);
+      const onFailure = () => {/* no QR in frame - ignore */};
+
       try {
         const scanner = new Html5Qrcode("qr-reader-drawer");
         scannerRef.current = scanner;
 
-        await scanner.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 350, height: 350 } },
-          (text) => handleScanResult(text),
-          () => {
-            /* no QR in frame - ignore */
-          }
-        );
+        // Try to get rear camera by deviceId (most reliable on iPhone)
+        const rearId = await getRearCameraId();
+
+        if (rearId) {
+          await scanner.start(
+            { deviceId: { exact: rearId } },
+            scanConfig, onSuccess, onFailure
+          );
+        } else {
+          await scanner.start(
+            { facingMode: "environment" },
+            scanConfig, onSuccess, onFailure
+          );
+        }
 
         if (mounted) setCameraStarting(false);
       } catch (err) {
@@ -302,7 +323,7 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
   const handleQuantityChange = (productId: string, quantity: number) => {
     const product = selectedProducts.find((p) => p.productId === productId);
     if (!product) return;
-    const max = product.stock_current ?? 0;
+    const max = product.stock_current ?? 999;
     const clamped = Math.max(1, Math.min(quantity, max));
     setSelectedProducts((prev) =>
       prev.map((p) =>
@@ -316,33 +337,7 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
   };
 
   const handleAddManual = (productId: string) => {
-    const product = products.find((p) => p.id === productId);
-    if (!product) return;
-
-    setSelectedProducts((prev) => {
-      const existing = prev.find((p) => p.productId === productId);
-      if (existing) {
-        toast.success(`${product.name} - quantite augmentee`);
-        return prev.map((p) =>
-          p.productId === productId
-            ? { ...p, quantity: Math.min(p.quantity + 1, p.stock_current ?? 999) }
-            : p
-        );
-      }
-      return [
-        {
-          productId: product.id,
-          name: product.name,
-          sku: product.sku,
-          icon_name: product.icon_name ?? null,
-          icon_color: product.icon_color ?? null,
-          image_url: product.image_url,
-          stock_current: product.stock_current,
-          quantity: 1,
-        },
-        ...prev,
-      ];
-    });
+    addOrIncrementProduct(productId);
     setShowSearch(false);
   };
 
@@ -380,8 +375,8 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
   // ── Render ─────────────────────────────────────────────────────────
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="!max-h-[96vh]">
+    <Drawer open={open} onOpenChange={onOpenChange} dismissible={!isSubmitting}>
+      <DrawerContent className="!max-h-[100dvh]">
         {step === "technician" ? (
           <>
             <DrawerHeader className="pb-2">
@@ -508,7 +503,7 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
                   <div
                     id="qr-reader-drawer"
                     className="w-full"
-                    style={{ minHeight: "150px", maxHeight: "25vh" }}
+                    style={{ minHeight: "200px", maxHeight: "40vh" }}
                   />
                   {cameraStarting && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/50">
