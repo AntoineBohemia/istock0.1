@@ -376,7 +376,7 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange} dismissible={!isSubmitting}>
-      <DrawerContent className="!max-h-[100dvh]">
+      <DrawerContent className="!h-[95dvh]">
         {step === "technician" ? (
           <>
             <DrawerHeader className="pb-2">
@@ -496,14 +496,13 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
             </div>
 
             {/* Scrollable content area */}
-            <div className="relative flex-1 overflow-auto px-3 space-y-2">
-              {/* Camera zone - compact */}
+            <div className="relative flex-1 min-h-0 overflow-auto px-3 flex flex-col gap-2">
+              {/* Camera zone - takes all available space */}
               {cameraActive && (
-                <div className="relative overflow-hidden rounded-lg bg-black">
+                <div className="relative flex-1 min-h-0 overflow-hidden rounded-lg bg-black">
                   <div
                     id="qr-reader-drawer"
-                    className="w-full"
-                    style={{ minHeight: "200px", maxHeight: "40vh" }}
+                    className="h-full w-full"
                   />
                   {cameraStarting && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/50">
@@ -518,7 +517,7 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
 
               {/* Manual search - overlay style */}
               {showSearch && (
-                <Command className="rounded-lg border">
+                <Command className="shrink-0 rounded-lg border">
                   <CommandInput placeholder="Rechercher un produit..." />
                   <CommandList className="max-h-48">
                     <CommandEmpty>Aucun produit trouve</CommandEmpty>
@@ -552,14 +551,14 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
 
               {/* Summary counter */}
               {selectedProducts.length > 0 && (
-                <p className="text-xs text-muted-foreground px-0.5">
+                <p className="shrink-0 text-xs text-muted-foreground px-0.5">
                   {selectedProducts.length} produit{selectedProducts.length > 1 ? "s" : ""} · {totalItems} item{totalItems > 1 ? "s" : ""}
                 </p>
               )}
 
               {/* Scanned products list */}
               {selectedProducts.length > 0 && (
-                <div className="space-y-1.5 pb-2">
+                <div className="shrink-0 space-y-1.5 pb-2">
                   {selectedProducts.map((product) => (
                     <div
                       key={product.productId}
