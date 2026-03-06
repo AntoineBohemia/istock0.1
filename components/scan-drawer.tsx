@@ -154,7 +154,10 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
   const stopScanner = useCallback(async () => {
     // Unlock height when stopping
     const el = document.getElementById("qr-reader-drawer");
-    if (el) el.style.height = "";
+    if (el) {
+      el.style.maxHeight = "";
+      el.style.overflow = "";
+    }
 
     if (scannerRef.current) {
       try {
@@ -288,24 +291,29 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
 
         if (mounted) {
           setCameraStarting(false);
-          // Lock the container height to the actual video size
-          // so it doesn't stretch when products are added below
+          // Lock container height to actual video aspect ratio
+          // html5-qrcode renders a container taller than the video;
+          // we compute the real video height from its native aspect ratio
           requestAnimationFrame(() => {
             const el = document.getElementById("qr-reader-drawer");
-            if (el) {
-              const video = el.querySelector("video");
-              if (video) {
-                const lock = () => {
-                  if (video.videoHeight > 0) {
-                    el.style.height = `${el.offsetHeight}px`;
-                  }
-                };
-                if (video.readyState >= 2) {
-                  lock();
-                } else {
-                  video.addEventListener("loadeddata", lock, { once: true });
-                }
+            if (!el) return;
+            const video = el.querySelector("video");
+            if (!video) return;
+
+            const lock = () => {
+              const containerWidth = el.offsetWidth;
+              const aspectRatio = video.videoWidth / video.videoHeight;
+              if (aspectRatio > 0) {
+                const videoHeight = Math.round(containerWidth / aspectRatio);
+                el.style.maxHeight = `${videoHeight}px`;
+                el.style.overflow = "hidden";
               }
+            };
+
+            if (video.readyState >= 2 && video.videoWidth > 0) {
+              lock();
+            } else {
+              video.addEventListener("loadeddata", lock, { once: true });
             }
           });
         }
