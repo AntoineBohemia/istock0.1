@@ -152,6 +152,10 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
   // ── Scanner logic ──────────────────────────────────────────────────
 
   const stopScanner = useCallback(async () => {
+    // Unlock height when stopping
+    const el = document.getElementById("qr-reader-drawer");
+    if (el) el.style.height = "";
+
     if (scannerRef.current) {
       try {
         const state = scannerRef.current.getState();
@@ -282,7 +286,29 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
           );
         }
 
-        if (mounted) setCameraStarting(false);
+        if (mounted) {
+          setCameraStarting(false);
+          // Lock the container height to the actual video size
+          // so it doesn't stretch when products are added below
+          requestAnimationFrame(() => {
+            const el = document.getElementById("qr-reader-drawer");
+            if (el) {
+              const video = el.querySelector("video");
+              if (video) {
+                const lock = () => {
+                  if (video.videoHeight > 0) {
+                    el.style.height = `${el.offsetHeight}px`;
+                  }
+                };
+                if (video.readyState >= 2) {
+                  lock();
+                } else {
+                  video.addEventListener("loadeddata", lock, { once: true });
+                }
+              }
+            }
+          });
+        }
       } catch (err) {
         if (!mounted) return;
         setCameraStarting(false);
@@ -496,10 +522,10 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
             </div>
 
             {/* Scrollable content area */}
-            <div className="relative flex-1 min-h-0 overflow-auto px-3 space-y-2">
+            <div className="relative min-h-0 overflow-auto px-3 space-y-2">
               {/* Camera zone */}
               {cameraActive && (
-                <div className="relative shrink-0 overflow-hidden rounded-lg bg-black">
+                <div className="relative overflow-hidden rounded-lg bg-black">
                   <div
                     id="qr-reader-drawer"
                     className="w-full"
