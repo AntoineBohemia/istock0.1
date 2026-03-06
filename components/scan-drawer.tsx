@@ -538,7 +538,7 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
 
             {/* Scanned products list - compact, no scroll */}
             {selectedProducts.length > 0 && (
-              <div className="shrink-0 px-3 pt-2 space-y-1">
+              <div className="shrink-0 px-3 py-2 space-y-1">
                 <p className="text-xs text-muted-foreground">
                   {selectedProducts.length} produit{selectedProducts.length > 1 ? "s" : ""} · {totalItems} item{totalItems > 1 ? "s" : ""}
                 </p>
