@@ -376,7 +376,7 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange} dismissible={!isSubmitting}>
-      <DrawerContent className="!h-[95dvh]">
+      <DrawerContent className="!max-h-[95dvh]">
         {step === "technician" ? (
           <>
             <DrawerHeader className="pb-2">
