@@ -515,9 +515,31 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      organization_members_view: {
+        Row: {
+          avatar_url: string | null
+          display_name: string | null
+          email: string | null
+          id: string | null
+          is_default: boolean | null
+          joined_at: string | null
+          organization_id: string | null
+          role: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_organizations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      accept_invitation_secure: { Args: { p_token: string }; Returns: Json }
       add_to_technician_inventory: {
         Args: { p_items: Json; p_technician_id: string }
         Returns: Json
@@ -573,7 +595,9 @@ export type Database = {
         Args: { p_org_id: string; p_user_id: string }
         Returns: boolean
       }
+      get_invitation_details: { Args: { p_token: string }; Returns: Json }
       is_organization_owner: { Args: { org_id: string }; Returns: boolean }
+      leave_organization: { Args: { p_organization_id: string }; Returns: Json }
       restock_technician:
         | { Args: { p_items: Json; p_technician_id: string }; Returns: Json }
         | {
@@ -585,6 +609,10 @@ export type Database = {
             }
             Returns: undefined
           }
+      transfer_ownership: {
+        Args: { p_new_owner_id: string; p_organization_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       stock_movement_type:

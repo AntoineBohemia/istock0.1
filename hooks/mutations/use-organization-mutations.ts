@@ -12,6 +12,8 @@ import {
   updateOrganization,
   deleteOrganization,
   uploadOrganizationLogo,
+  leaveOrganization,
+  transferOwnership,
 } from "@/lib/supabase/queries/organizations";
 
 export function useCreateOrganization() {
@@ -162,6 +164,35 @@ export function useInviteUser() {
     onSettled: (_data, _err, { organizationId }) => {
       qc.invalidateQueries({
         queryKey: queryKeys.organizations.invitations(organizationId),
+      });
+    },
+  });
+}
+
+export function useLeaveOrganization() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (organizationId: string) => leaveOrganization(organizationId),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.organizations.list() });
+    },
+  });
+}
+
+export function useTransferOwnership() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      organizationId,
+      newOwnerId,
+    }: {
+      organizationId: string;
+      newOwnerId: string;
+    }) => transferOwnership(organizationId, newOwnerId),
+    onSettled: (_data, _err, { organizationId }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.organizations.list() });
+      qc.invalidateQueries({
+        queryKey: queryKeys.organizations.members(organizationId),
       });
     },
   });

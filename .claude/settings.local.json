@@ -54,7 +54,18 @@
       "Bash(scoop install:*)",
       "Bash(head:*)",
       "Bash(cat:*)",
-      "Bash(cd /c/Users/AntoineMoulin/Documents/Projets/test/istock0.1 && npx shadcn@latest add drawer --yes 2>&1)"
+      "Bash(cd /c/Users/AntoineMoulin/Documents/Projets/test/istock0.1 && npx shadcn@latest add drawer --yes 2>&1)",
+      "Bash(find /c/Users/AntoineMoulin/Documents/Projets/test/istock0.1 -type f \\\\\\( -name \"*.sql\" -o -name \"*.ts\" -o -name \"*.js\" \\\\\\) | xargs grep -l \"get_user_organization_ids\" | head -5)",
+      "Bash(find /c/Users/AntoineMoulin/Documents/Projets/test/istock0.1/app -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" \\\\\\) | xargs grep -l \"switcher\\\\|organization.*select\\\\|select.*organization\" 2>/dev/null | head -20)",
+      "Bash(find /c/Users/AntoineMoulin/Documents/Projets/test/istock0.1 -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" \\\\\\) -path \"*/app/*\" | xargs grep -l \"email\\\\|nodemailer\\\\|sendgrid\\\\|resend\\\\|invitation\\\\|invite\" 2>/dev/null | head -20)",
+      "Bash(find /c/Users/AntoineMoulin/Documents/Projets/test/istock0.1 -type f \\\\\\( -name \"*.ts\" -o -name \"*.tsx\" \\\\\\) -path \"*/hooks/*\" | xargs grep -l \"invite\\\\|Invite\" 2>/dev/null | head -10)",
+      "Bash(find /c/Users/AntoineMoulin/Documents/Projets/test/istock0.1 -type f -name \"*.ts\" -o -name \"*.tsx\" | xargs grep -l \"nodemail\\\\|sendgrid\\\\|resend\\\\|email.*send\" 2>/dev/null | head -10)",
+      "Bash(grep -r \"send.*email\\\\|email.*invite\\\\|notify\" /c/Users/AntoineMoulin/Documents/Projets/test/istock0.1/supabase/rpc/*.sql 2>/dev/null | head -20)",
+      "mcp__supabase__list_edge_functions",
+      "mcp__supabase__generate_typescript_types",
+      "Bash(grep -r RESEND /c/Users/AntoineMoulin/Documents/Projets/test/istock0.1 --include=*.env* --include=*.ts --include=*.js --include=*.toml)",
+      "Bash(grep -i \"resend\\\\|email\" /c/Users/AntoineMoulin/Documents/Projets/test/istock0.1/app/invite/[token]/page.tsx)",
+      "mcp__supabase__deploy_edge_function"
     ]
   },
   "enableAllProjectMcpServers": true,

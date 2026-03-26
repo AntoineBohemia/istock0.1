@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import {
+  ArrowRightLeft,
+  Copy,
   Crown,
   Loader2,
   Mail,
@@ -68,7 +70,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import {
@@ -77,7 +79,7 @@ import {
 } from "@/lib/supabase/queries/organizations";
 import { createClient } from "@/lib/supabase/client";
 import { useOrganizationMembers, usePendingInvitations } from "@/hooks/queries";
-import { useUpdateMemberRole, useRemoveMember, useInviteUser, useCancelInvitation } from "@/hooks/mutations";
+import { useUpdateMemberRole, useRemoveMember, useInviteUser, useCancelInvitation, useTransferOwnership } from "@/hooks/mutations";
 
 type MemberWithEmail = OrganizationMember;
 
@@ -103,18 +105,28 @@ export default function MembersPage() {
   const removeMemberMutation = useRemoveMember();
   const inviteUserMutation = useInviteUser();
   const cancelInvitationMutation = useCancelInvitation();
+  const transferOwnershipMutation = useTransferOwnership();
 
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // Form states
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "member">("member");
   const [memberToRemove, setMemberToRemove] = useState<MemberWithEmail | null>(null);
+  const [memberToTransfer, setMemberToTransfer] = useState<MemberWithEmail | null>(null);
+  const [transferConfirmName, setTransferConfirmName] = useState("");
 
   const isLoading = isLoadingMembers || isLoadingInvitations;
   const isSubmitting = removeMemberMutation.isPending || inviteUserMutation.isPending;
+
+  const copyInviteLink = (token: string) => {
+    const link = `${window.location.origin}/invite/${token}`;
+    navigator.clipboard.writeText(link);
+    toast.success("Lien d'invitation copié !");
+  };
 
   // Get current user ID
   useEffect(() => {
@@ -134,8 +146,12 @@ export default function MembersPage() {
         role: inviteRole,
       },
       {
-        onSuccess: () => {
-          toast.success(`Invitation envoyée à ${inviteEmail}`);
+        onSuccess: (data) => {
+          const link = `${window.location.origin}/invite/${data.token}`;
+          navigator.clipboard.writeText(link);
+          toast.success(`Invitation créée ! Lien copié dans le presse-papier.`, {
+            duration: 5000,
+          });
           setIsInviteDialogOpen(false);
           setInviteEmail("");
           setInviteRole("member");
@@ -195,6 +211,32 @@ export default function MembersPage() {
         onError: (error) => {
           toast.error(
             error instanceof Error ? error.message : "Erreur lors de l'annulation"
+          );
+        },
+      }
+    );
+  };
+
+  const handleTransferOwnership = () => {
+    if (!currentOrganization || !memberToTransfer) return;
+
+    transferOwnershipMutation.mutate(
+      {
+        organizationId: currentOrganization.id,
+        newOwnerId: memberToTransfer.user_id,
+      },
+      {
+        onSuccess: () => {
+          toast.success(
+            `Propriété transférée à ${memberToTransfer.display_name || memberToTransfer.email}`
+          );
+          setIsTransferDialogOpen(false);
+          setMemberToTransfer(null);
+          setTransferConfirmName("");
+        },
+        onError: (error) => {
+          toast.error(
+            error instanceof Error ? error.message : "Erreur lors du transfert"
           );
         },
       }
@@ -280,21 +322,26 @@ export default function MembersPage() {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar className="size-8">
+                            {member.avatar_url && (
+                              <AvatarImage src={member.avatar_url} alt={member.display_name} />
+                            )}
                             <AvatarFallback className="text-xs">
-                              {member.user_id.substring(0, 2).toUpperCase()}
+                              {(member.display_name || member.email || "?")
+                                .substring(0, 2)
+                                .toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <div>
                             <p className="font-medium">
-                              {member.user?.email || "Utilisateur"}
+                              {member.display_name || member.email}
                               {isCurrentUser && (
                                 <span className="ml-2 text-xs text-muted-foreground">
                                   (vous)
                                 </span>
                               )}
                             </p>
-                            <p className="text-xs text-muted-foreground font-mono">
-                              {member.user_id.substring(0, 8)}...
+                            <p className="text-xs text-muted-foreground">
+                              {member.email}
                             </p>
                           </div>
                         </div>
@@ -310,7 +357,7 @@ export default function MembersPage() {
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground">
-                          {new Date(member.created_at ?? Date.now()).toLocaleDateString(
+                          {new Date(member.joined_at ?? Date.now()).toLocaleDateString(
                             "fr-FR"
                           )}
                         </span>
@@ -347,6 +394,21 @@ export default function MembersPage() {
                                     <User className="mr-2 size-4" />
                                     Rétrograder membre
                                   </DropdownMenuItem>
+                                )}
+                                {currentOrganization?.role === "owner" && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        setMemberToTransfer(member);
+                                        setTransferConfirmName("");
+                                        setIsTransferDialogOpen(true);
+                                      }}
+                                    >
+                                      <ArrowRightLeft className="mr-2 size-4" />
+                                      Transférer la propriété
+                                    </DropdownMenuItem>
+                                  </>
                                 )}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
@@ -414,14 +476,25 @@ export default function MembersPage() {
                       </span>
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 text-destructive hover:text-destructive"
-                        onClick={() => handleCancelInvitation(invitation.id)}
-                      >
-                        <X className="size-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          onClick={() => copyInviteLink(invitation.token)}
+                          title="Copier le lien d'invitation"
+                        >
+                          <Copy className="size-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8 text-destructive hover:text-destructive"
+                          onClick={() => handleCancelInvitation(invitation.id)}
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -499,6 +572,60 @@ export default function MembersPage() {
             >
               {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
               Envoyer l'invitation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Transfer Ownership Dialog */}
+      <Dialog open={isTransferDialogOpen} onOpenChange={setIsTransferDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Transférer la propriété</DialogTitle>
+            <DialogDescription>
+              Vous êtes sur le point de transférer la propriété de{" "}
+              <strong>{currentOrganization?.name}</strong> à{" "}
+              <strong>
+                {memberToTransfer?.display_name || memberToTransfer?.email}
+              </strong>
+              .
+              <br />
+              <br />
+              Vous deviendrez administrateur. Cette action est difficilement
+              réversible — seul le nouveau propriétaire pourra vous redonner ce
+              rôle.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2 py-4">
+            <Label htmlFor="confirm-name">
+              Tapez <strong>{currentOrganization?.name}</strong> pour confirmer
+            </Label>
+            <Input
+              id="confirm-name"
+              value={transferConfirmName}
+              onChange={(e) => setTransferConfirmName(e.target.value)}
+              placeholder={currentOrganization?.name}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsTransferDialogOpen(false)}
+            >
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleTransferOwnership}
+              disabled={
+                transferConfirmName !== currentOrganization?.name ||
+                transferOwnershipMutation.isPending
+              }
+            >
+              {transferOwnershipMutation.isPending && (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              )}
+              Transférer
             </Button>
           </DialogFooter>
         </DialogContent>

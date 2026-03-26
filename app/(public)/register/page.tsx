@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -25,6 +26,10 @@ const registerSchema = z.object({
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function Page() {
+  const searchParams = useSearchParams();
+  const prefillEmail = searchParams.get("email") || "";
+  const returnUrl = searchParams.get("returnUrl") || "";
+
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -35,7 +40,7 @@ export default function Page() {
     defaultValues: {
       firstName: "",
       lastName: "",
-      email: "",
+      email: prefillEmail,
       password: "",
     },
   });
@@ -49,7 +54,9 @@ export default function Page() {
       email: data.email,
       password: data.password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${window.location.origin}/auth/callback${
+          returnUrl ? `?next=${encodeURIComponent(returnUrl)}` : ""
+        }`,
         data: {
           first_name: data.firstName,
           last_name: data.lastName,

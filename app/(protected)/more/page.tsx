@@ -11,6 +11,7 @@ import {
   Tags,
   ChevronRight,
   Check,
+  Mail,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
@@ -20,6 +21,7 @@ const links = [
   { title: "Flux de stock", href: "/orders", icon: ArrowLeftRight },
   { title: "Catégories", href: "/settings/categories", icon: Tags },
   { title: "Équipe", href: "/settings/members", icon: Users },
+  { title: "Mes invitations", href: "/settings/invitations", icon: Mail },
   { title: "Organisations", href: "/settings/organizations", icon: Building2 },
   { title: "Paramètres", href: "/settings", icon: Settings },
 ];

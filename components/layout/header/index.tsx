@@ -7,6 +7,7 @@ import { useSidebar } from "@/components/ui/sidebar";
 import Search from "@/components/layout/header/search";
 import UserMenu from "@/components/layout/header/user-menu";
 import ThemeSwitch from "@/components/layout/header/theme-switch";
+import OrgSwitcher from "@/components/layout/header/org-switcher";
 // import Notifications from "@/components/layout/header/notifications";
 import { Button } from "@/components/ui/button";
 import { useTaskDrawerStore } from "@/lib/stores/task-drawer-store";
@@ -27,6 +28,7 @@ export default function Header() {
         >
           <PanelLeftIcon />
         </Button>
+        <OrgSwitcher />
         <Search />
         <Button
           size="icon"

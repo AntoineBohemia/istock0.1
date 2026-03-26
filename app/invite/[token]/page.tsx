@@ -71,7 +71,7 @@ export default function AcceptInvitationPage() {
         setInvitation({
           email: invitationData.email,
           role: invitationData.role ?? "",
-          organizationName: invitationData.organization.name,
+          organizationName: invitationData.organization_name,
           expiresAt: invitationData.expires_at ?? "",
         });
         setStatus("valid");
@@ -110,7 +110,7 @@ export default function AcceptInvitationPage() {
 
   const handleLoginRedirect = () => {
     // Redirect to login with return URL
-    router.push(`/login?returnUrl=/invite/${token}`);
+    router.push(`/login?redirectTo=/invite/${token}`);
   };
 
   if (status === "loading") {

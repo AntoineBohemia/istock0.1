@@ -640,7 +640,7 @@ describe("getInvitationByToken", () => {
     const result = await getInvitationByToken("tok-1");
 
     expect(result).not.toBeNull();
-    expect(result!.organization.name).toBe("My Org");
+    expect(result!.organization_name).toBe("My Org");
   });
 
   it("returns null on error", async () => {

@@ -7,14 +7,10 @@ export interface OrganizationMember {
   organization_id: string;
   role: string | null;
   is_default: boolean | null;
-  created_at: string | null;
-  user?: {
-    email: string;
-    user_metadata?: {
-      full_name?: string;
-      avatar_url?: string;
-    };
-  };
+  joined_at: string | null;
+  email: string;
+  display_name: string;
+  avatar_url: string | null;
 }
 
 export interface OrganizationInvitation {
@@ -164,11 +160,13 @@ export async function getOrganizationMembers(
 ): Promise<OrganizationMember[]> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
-    .from("user_organizations")
+  // La vue n'est pas dans les types générés, on cast
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
+    .from("organization_members_view")
     .select("*")
     .eq("organization_id", organizationId)
-    .order("created_at", { ascending: true });
+    .order("joined_at", { ascending: true });
 
   if (error) {
     throw new Error(
@@ -176,7 +174,7 @@ export async function getOrganizationMembers(
     );
   }
 
-  return data || [];
+  return (data || []) as OrganizationMember[];
 }
 
 /**
@@ -254,6 +252,34 @@ export async function inviteUserToOrganization(
     throw new Error(`Erreur lors de l'invitation: ${error.message}`);
   }
 
+  // Récupérer le nom de l'org pour l'email
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("name")
+    .eq("id", organizationId)
+    .single();
+
+  const inviterName =
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.first_name ||
+    user?.email ||
+    "Quelqu'un";
+
+  // Envoyer l'email via Edge Function (best-effort, ne bloque pas l'invitation)
+  try {
+    await supabase.functions.invoke("send-invitation-email", {
+      body: {
+        email: email.toLowerCase(),
+        token: data.token,
+        organization_name: org?.name || "Organisation",
+        role,
+        invited_by_name: inviterName,
+      },
+    });
+  } catch (emailError) {
+    console.error("Erreur envoi email invitation:", emailError);
+  }
+
   return data;
 }
 
@@ -283,77 +309,42 @@ export async function getPendingInvitations(
 }
 
 /**
- * Accepte une invitation
+ * Accepte une invitation via RPC sécurisé (atomique, avec verrouillage)
  */
 export async function acceptInvitation(token: string): Promise<{
   organization: Organization;
 }> {
   const supabase = createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase.rpc as any)("accept_invitation_secure", {
+    p_token: token,
+  });
 
-  if (!user) {
-    throw new Error("Vous devez être connecté pour accepter une invitation");
+  if (error) {
+    throw new Error("Erreur lors de l'acceptation de l'invitation");
   }
 
-  // Récupérer l'invitation
-  const { data: invitation, error: fetchError } = await supabase
-    .from("organization_invitations")
-    .select("*, organization:organizations(*)")
-    .eq("token", token)
-    .is("accepted_at", null)
-    .gt("expires_at", new Date().toISOString())
-    .single();
+  const result = data as { success: boolean; error?: string; expected_email?: string; organization?: { id: string; name: string; slug: string; logo_url: string | null }; role?: string };
 
-  if (fetchError || !invitation) {
-    throw new Error("Invitation invalide ou expirée");
+  if (!result.success) {
+    const messages: Record<string, string> = {
+      invitation_not_found: "Invitation invalide ou expirée",
+      already_accepted: "Cette invitation a déjà été acceptée",
+      expired: "Cette invitation a expiré",
+      email_mismatch: `Cette invitation est destinée à ${result.expected_email}`,
+      already_member: "Vous êtes déjà membre de cette organisation",
+    };
+    throw new Error(messages[result.error || ""] || "Erreur inconnue");
   }
-
-  // Vérifier que l'email correspond
-  if (invitation.email.toLowerCase() !== user.email?.toLowerCase()) {
-    throw new Error(
-      "Cette invitation est destinée à une autre adresse email"
-    );
-  }
-
-  // Ajouter l'utilisateur à l'organisation
-  const { error: joinError } = await supabase
-    .from("user_organizations")
-    .insert({
-      user_id: user.id,
-      organization_id: invitation.organization_id,
-      role: invitation.role,
-      is_default: false,
-    });
-
-  if (joinError) {
-    if (joinError.code === "23505") {
-      throw new Error("Vous êtes déjà membre de cette organisation");
-    }
-    throw new Error(
-      `Erreur lors de l'acceptation de l'invitation: ${joinError.message}`
-    );
-  }
-
-  // Marquer l'invitation comme acceptée
-  await supabase
-    .from("organization_invitations")
-    .update({ accepted_at: new Date().toISOString() })
-    .eq("id", invitation.id);
-
-  const org = Array.isArray(invitation.organization)
-    ? invitation.organization[0]
-    : invitation.organization;
 
   return {
     organization: {
-      id: org.id,
-      name: org.name,
-      slug: org.slug,
-      logo_url: org.logo_url,
-      role: invitation.role as "admin" | "member",
+      id: result.organization!.id,
+      name: result.organization!.name,
+      slug: result.organization!.slug,
+      logo_url: result.organization!.logo_url,
+      role: result.role as "admin" | "member",
     },
   };
 }
@@ -377,31 +368,27 @@ export async function cancelInvitation(invitationId: string): Promise<void> {
 }
 
 /**
- * Récupère une invitation par son token (pour la page d'acceptation)
+ * Récupère les détails d'une invitation par token via RPC sécurisé
  */
-export async function getInvitationByToken(
-  token: string
-): Promise<OrganizationInvitation & { organization: { name: string } } | null> {
+export async function getInvitationByToken(token: string) {
   const supabase = createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase.rpc as any)("get_invitation_details", {
+    p_token: token,
+  });
 
-  const { data, error } = await supabase
-    .from("organization_invitations")
-    .select("*, organization:organizations(name)")
-    .eq("token", token)
-    .is("accepted_at", null)
-    .single();
-
-  if (error) {
+  if (error || !data || !data.valid) {
     return null;
   }
 
-  const org = Array.isArray(data.organization)
-    ? data.organization[0]
-    : data.organization;
-
-  return {
-    ...data,
-    organization: { name: org?.name || "" },
+  return data as {
+    valid: boolean;
+    email: string;
+    masked_email: string;
+    role: string;
+    expires_at: string;
+    organization_name: string;
+    organization_logo_url: string | null;
   };
 }
 
@@ -554,4 +541,87 @@ export async function getAllOrganizations(): Promise<
     role: "owner" as const,
     memberCount: org.user_organizations?.[0]?.count || 0,
   }));
+}
+
+/**
+ * Récupère les invitations en attente pour l'utilisateur connecté (par email)
+ */
+export async function getMyPendingInvitations() {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user?.email) return [];
+
+  const { data, error } = await supabase
+    .from("organization_invitations")
+    .select("*, organization:organizations(name, logo_url)")
+    .eq("email", user.email.toLowerCase())
+    .is("accepted_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false });
+
+  if (error) return [];
+  return data || [];
+}
+
+/**
+ * Quitter une organisation via RPC sécurisé
+ */
+export async function leaveOrganization(
+  organizationId: string
+): Promise<{ action: string }> {
+  const supabase = createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase.rpc as any)("leave_organization", {
+    p_organization_id: organizationId,
+  });
+
+  if (error) {
+    throw new Error(`Erreur: ${error.message}`);
+  }
+
+  const result = data as { success: boolean; error?: string; message?: string; action?: string };
+
+  if (!result.success) {
+    const messages: Record<string, string> = {
+      not_member: "Vous n'êtes pas membre de cette organisation",
+      owner_must_transfer:
+        "Vous devez transférer la propriété avant de quitter",
+    };
+    throw new Error(messages[result.error || ""] || result.message || "Erreur inconnue");
+  }
+
+  return { action: result.action || "left" };
+}
+
+/**
+ * Transférer la propriété d'une organisation via RPC sécurisé
+ */
+export async function transferOwnership(
+  organizationId: string,
+  newOwnerId: string
+): Promise<void> {
+  const supabase = createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase.rpc as any)("transfer_ownership", {
+    p_organization_id: organizationId,
+    p_new_owner_id: newOwnerId,
+  });
+
+  if (error) {
+    throw new Error(`Erreur: ${error.message}`);
+  }
+
+  const result = data as { success: boolean; error?: string };
+
+  if (!result.success) {
+    const messages: Record<string, string> = {
+      not_owner: "Seul le propriétaire peut transférer la propriété",
+      target_not_member: "Cet utilisateur n'est pas membre de l'organisation",
+      same_user: "Vous ne pouvez pas transférer à vous-même",
+    };
+    throw new Error(messages[result.error || ""] || "Erreur inconnue");
+  }
 }

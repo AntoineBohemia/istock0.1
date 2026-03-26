@@ -5,6 +5,7 @@ import {
   Building2,
   Edit2,
   Loader2,
+  LogOut,
   MoreHorizontal,
   Plus,
   Trash2,
@@ -36,6 +37,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -68,6 +70,7 @@ import {
   useUpdateOrganization,
   useDeleteOrganization,
   useUploadOrganizationLogo,
+  useLeaveOrganization,
 } from "@/hooks/mutations";
 
 interface OrganizationWithMeta extends Organization {
@@ -84,18 +87,22 @@ export default function OrganizationsPage() {
   const updateMutation = useUpdateOrganization();
   const deleteMutation = useDeleteOrganization();
   const uploadLogoMutation = useUploadOrganizationLogo();
+  const leaveMutation = useLeaveOrganization();
 
   const isSubmitting =
     createMutation.isPending ||
     updateMutation.isPending ||
     deleteMutation.isPending ||
-    uploadLogoMutation.isPending;
+    uploadLogoMutation.isPending ||
+    leaveMutation.isPending;
 
   // Form states
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
   const [orgName, setOrgName] = useState("");
   const [orgSlug, setOrgSlug] = useState("");
   const [orgToDelete, setOrgToDelete] = useState<Organization | null>(null);
+  const [orgToLeave, setOrgToLeave] = useState<Organization | null>(null);
+  const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
 
   // Logo states
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -242,6 +249,31 @@ export default function OrganizationsPage() {
     }
   };
 
+  const handleLeave = async () => {
+    if (!orgToLeave) return;
+
+    try {
+      await leaveMutation.mutateAsync(orgToLeave.id);
+      toast.success(`Vous avez quitté ${orgToLeave.name}`);
+      setIsLeaveDialogOpen(false);
+      setOrgToLeave(null);
+
+      // If we left the current org, switch to another one
+      if (orgToLeave.id === currentOrganization?.id) {
+        const remaining = organizations.filter((o) => o.id !== orgToLeave.id);
+        if (remaining.length > 0) {
+          setCurrentOrganization(remaining[0]);
+        } else {
+          window.location.href = "/onboarding-flow";
+        }
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Une erreur est survenue"
+      );
+    }
+  };
+
   const handleDelete = async () => {
     if (!orgToDelete) return;
 
@@ -371,36 +403,53 @@ export default function OrganizationsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {isOwner && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="size-8"
-                              >
-                                <MoreHorizontal className="size-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => openEditDialog(org)}
-                              >
-                                <Edit2 className="mr-2 size-4" />
-                                Modifier
-                              </DropdownMenuItem>
-                              {!isCurrent && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8"
+                            >
+                              <MoreHorizontal className="size-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {isOwner && (
+                              <>
                                 <DropdownMenuItem
-                                  onClick={() => openDeleteDialog(org)}
+                                  onClick={() => openEditDialog(org)}
+                                >
+                                  <Edit2 className="mr-2 size-4" />
+                                  Modifier
+                                </DropdownMenuItem>
+                                {!isCurrent && (
+                                  <DropdownMenuItem
+                                    onClick={() => openDeleteDialog(org)}
+                                    className="text-destructive"
+                                  >
+                                    <Trash2 className="mr-2 size-4" />
+                                    Supprimer
+                                  </DropdownMenuItem>
+                                )}
+                              </>
+                            )}
+                            {!isOwner && (
+                              <>
+                                {isOwner && <DropdownMenuSeparator />}
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setOrgToLeave(org);
+                                    setIsLeaveDialogOpen(true);
+                                  }}
                                   className="text-destructive"
                                 >
-                                  <Trash2 className="mr-2 size-4" />
-                                  Supprimer
+                                  <LogOut className="mr-2 size-4" />
+                                  Quitter l'organisation
                                 </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   );
@@ -526,6 +575,38 @@ export default function OrganizationsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Leave Confirmation Dialog */}
+      <AlertDialog
+        open={isLeaveDialogOpen}
+        onOpenChange={setIsLeaveDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Quitter l'organisation</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir quitter &quot;{orgToLeave?.name}&quot; ?
+              <br />
+              <br />
+              Vous perdrez l'accès à toutes les données de cette organisation.
+              Un administrateur devra vous ré-inviter si vous changez d'avis.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmitting}>
+              Annuler
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleLeave}
+              disabled={isSubmitting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
+              Quitter
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog
