@@ -24,5 +24,5 @@ CREATE POLICY "Users can view own invitations by email"
   FOR SELECT
   TO authenticated
   USING (
-    lower(email) = lower((SELECT email FROM auth.users WHERE id = auth.uid()))
+    lower(email) = lower(auth.jwt() ->> 'email')
   );

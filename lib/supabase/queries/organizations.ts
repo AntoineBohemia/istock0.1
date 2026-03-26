@@ -389,6 +389,7 @@ export async function getInvitationByToken(token: string) {
     expires_at: string;
     organization_name: string;
     organization_logo_url: string | null;
+    user_exists: boolean;
   };
 }
 

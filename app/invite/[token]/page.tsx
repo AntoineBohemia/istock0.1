@@ -29,6 +29,7 @@ interface InvitationData {
   role: string;
   organizationName: string;
   expiresAt: string;
+  userExists: boolean;
 }
 
 export default function AcceptInvitationPage() {
@@ -73,6 +74,7 @@ export default function AcceptInvitationPage() {
           role: invitationData.role ?? "",
           organizationName: invitationData.organization_name,
           expiresAt: invitationData.expires_at ?? "",
+          userExists: invitationData.user_exists ?? false,
         });
         setStatus("valid");
       } catch (error) {
@@ -247,9 +249,10 @@ export default function AcceptInvitationPage() {
           {isLoggedIn === false && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-900/20 p-4">
               <p className="text-sm text-amber-800 dark:text-amber-200">
-                Vous devez vous connecter avec l'adresse{" "}
-                <strong>{invitation?.email}</strong> pour accepter cette
-                invitation.
+                {invitation?.userExists
+                  ? <>Vous devez vous connecter avec l'adresse{" "}<strong>{invitation?.email}</strong> pour accepter cette invitation.</>
+                  : <>Vous devez créer un compte avec l'adresse{" "}<strong>{invitation?.email}</strong> pour accepter cette invitation.</>
+                }
               </p>
             </div>
           )}
@@ -266,14 +269,17 @@ export default function AcceptInvitationPage() {
         <CardFooter className="flex flex-col gap-2">
           {isLoggedIn === false ? (
             <>
-              <Button onClick={handleLoginRedirect} className="w-full">
-                Se connecter
-              </Button>
-              <Button variant="outline" asChild className="w-full">
-                <Link href={`/register?email=${invitation?.email}&returnUrl=/invite/${token}`}>
-                  Créer un compte
-                </Link>
-              </Button>
+              {invitation?.userExists ? (
+                <Button onClick={handleLoginRedirect} className="w-full">
+                  Se connecter
+                </Button>
+              ) : (
+                <Button asChild className="w-full">
+                  <Link href={`/register?email=${invitation?.email}&returnUrl=/invite/${token}`}>
+                    Créer un compte
+                  </Link>
+                </Button>
+              )}
             </>
           ) : (
             <>
