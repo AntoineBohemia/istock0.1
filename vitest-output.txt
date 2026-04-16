@@ -1,0 +1,31 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/AntoineMoulin/Documents/Projets/test/istock0.1[39m
+
+ [32m✓[39m lib/utils/stock.test.ts [2m([22m[2m33 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m lib/schemas/form-schemas.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m lib/supabase/queries/inventory.queries.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m lib/supabase/queries/categories.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 41[2mms[22m[39m
+ [32m✓[39m lib/supabase/queries/technicians.test.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 56[2mms[22m[39m
+ [32m✓[39m lib/supabase/queries/dashboard.test.ts [2m([22m[2m30 tests[22m[2m)[22m[32m 51[2mms[22m[39m
+ [32m✓[39m lib/supabase/queries/organizations.test.ts [2m([22m[2m42 tests[22m[2m)[22m[32m 57[2mms[22m[39m
+ [32m✓[39m lib/supabase/queries/stock-movements.queries.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 63[2mms[22m[39m
+ [32m✓[39m lib/supabase/queries/products.queries.test.ts [2m([22m[2m44 tests[22m[2m)[22m[32m 63[2mms[22m[39m
+ [32m✓[39m hooks/mutations/use-mutations.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 193[2mms[22m[39m
+ [32m✓[39m hooks/queries/use-queries.test.ts [2m([22m[2m53 tests[22m[2m)[22m[33m 2197[2mms[22m[39m
+ [32m✓[39m lib/query-keys.test.ts [2m([22m[2m43 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m lib/utils.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 39[2mms[22m[39m
+ [32m✓[39m app/(onboarding)/onboarding-flow/store.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+ [32m✓[39m components/qr-scanner-modal.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m app/(protected)/calendar/useCalendarEventStore.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m proxy.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m lib/stores/organization-store.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m hooks/use-file-upload.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m lib/supabase/queries/products.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m lib/supabase/queries/stock-movements.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m lib/supabase/queries/inventory.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m22 passed[39m[22m[90m (22)[39m
+[2m      Tests [22m [1m[32m457 passed[39m[22m[90m (457)[39m
+[2m   Start at [22m 16:14:38
+[2m   Duration [22m 9.42s[2m (transform 4.23s, setup 7.37s, import 7.80s, tests 3.01s, environment 57.00s)[22m
+

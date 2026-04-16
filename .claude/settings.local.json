@@ -65,7 +65,8 @@
       "mcp__supabase__generate_typescript_types",
       "Bash(grep -r RESEND /c/Users/AntoineMoulin/Documents/Projets/test/istock0.1 --include=*.env* --include=*.ts --include=*.js --include=*.toml)",
       "Bash(grep -i \"resend\\\\|email\" /c/Users/AntoineMoulin/Documents/Projets/test/istock0.1/app/invite/[token]/page.tsx)",
-      "mcp__supabase__deploy_edge_function"
+      "mcp__supabase__deploy_edge_function",
+      "mcp__supabase__get_edge_function"
     ]
   },
   "enableAllProjectMcpServers": true,
