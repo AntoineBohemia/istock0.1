@@ -1,12 +1,14 @@
 import { create, StateCreator } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
+export type Role = "owner" | "admin" | "member" | "guest";
+
 export interface Organization {
   id: string;
   name: string;
   slug: string;
   logo_url: string | null;
-  role: "owner" | "admin" | "member";
+  role: Role;
 }
 
 interface OrganizationStore {
@@ -55,7 +57,7 @@ export const useOrganizationStore = create<OrganizationStore>()(
   })
 );
 
-// Helper pour vérifier les permissions
+// Helpers de permissions
 export function canInvite(role: string): boolean {
   return role === "owner" || role === "admin";
 }
@@ -70,4 +72,16 @@ export function canDeleteOrganization(role: string): boolean {
 
 export function canManageAdmins(role: string): boolean {
   return role === "owner";
+}
+
+export function canAccessDashboard(role: string): boolean {
+  return role !== "guest";
+}
+
+export function canAccessSettings(role: string): boolean {
+  return role !== "guest";
+}
+
+export function isReadOnlyMember(role: string): boolean {
+  return role === "guest";
 }

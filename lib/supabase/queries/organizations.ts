@@ -183,7 +183,7 @@ export async function getOrganizationMembers(
 export async function updateMemberRole(
   organizationId: string,
   userId: string,
-  role: "admin" | "member"
+  role: "admin" | "member" | "guest"
 ): Promise<void> {
   const supabase = createClient();
 
@@ -226,7 +226,7 @@ export async function removeMember(
 export async function inviteUserToOrganization(
   organizationId: string,
   email: string,
-  role: "admin" | "member" = "member"
+  role: "admin" | "member" | "guest" = "member"
 ): Promise<OrganizationInvitation> {
   const supabase = createClient();
 

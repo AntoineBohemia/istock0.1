@@ -7,6 +7,7 @@ import Header from "@/components/layout/header";
 import MobileTopBar from "@/components/layout/mobile-top-bar";
 import MobileBottomBar from "@/components/layout/mobile-bottom-bar";
 import OrganizationProvider from "@/components/organization-provider";
+import { GuestRouteGuard } from "@/components/guest-route-guard";
 import QueryProvider from "@/components/query-provider";
 
 export default async function AuthLayout({
@@ -22,6 +23,7 @@ export default async function AuthLayout({
   return (
     <QueryProvider>
       <OrganizationProvider>
+        <GuestRouteGuard>
         <SidebarProvider defaultOpen={defaultOpen}>
           <Sidebar />
           <SidebarInset>
@@ -36,6 +38,7 @@ export default async function AuthLayout({
           {/* Mobile bottom tabs — hidden on desktop */}
           <MobileBottomBar />
         </SidebarProvider>
+        </GuestRouteGuard>
       </OrganizationProvider>
     </QueryProvider>
   );

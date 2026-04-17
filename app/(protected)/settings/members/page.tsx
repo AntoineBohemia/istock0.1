@@ -16,6 +16,7 @@ import {
   UserPlus,
   Clock,
   X,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -87,6 +88,7 @@ const roleLabels: Record<string, { label: string; icon: React.ElementType }> = {
   owner: { label: "Propriétaire", icon: Crown },
   admin: { label: "Administrateur", icon: Shield },
   member: { label: "Membre", icon: User },
+  guest: { label: "Invité", icon: Eye },
 };
 
 export default function MembersPage() {
@@ -114,7 +116,7 @@ export default function MembersPage() {
 
   // Form states
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"admin" | "member">("member");
+  const [inviteRole, setInviteRole] = useState<"admin" | "member" | "guest">("member");
   const [memberToRemove, setMemberToRemove] = useState<MemberWithEmail | null>(null);
   const [memberToTransfer, setMemberToTransfer] = useState<MemberWithEmail | null>(null);
   const [transferConfirmName, setTransferConfirmName] = useState("");
@@ -165,7 +167,7 @@ export default function MembersPage() {
     );
   };
 
-  const handleUpdateRole = (userId: string, newRole: "admin" | "member") => {
+  const handleUpdateRole = (userId: string, newRole: "admin" | "member" | "guest") => {
     if (!currentOrganization) return;
 
     updateRoleMutation.mutate(
@@ -376,16 +378,37 @@ export default function MembersPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                {member.role === "member" ? (
+                                {member.role === "guest" && (
                                   <DropdownMenuItem
                                     onClick={() =>
-                                      handleUpdateRole(member.user_id, "admin")
+                                      handleUpdateRole(member.user_id, "member")
                                     }
                                   >
-                                    <Shield className="mr-2 size-4" />
-                                    Promouvoir admin
+                                    <User className="mr-2 size-4" />
+                                    Promouvoir membre
                                   </DropdownMenuItem>
-                                ) : (
+                                )}
+                                {member.role === "member" && (
+                                  <>
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        handleUpdateRole(member.user_id, "admin")
+                                      }
+                                    >
+                                      <Shield className="mr-2 size-4" />
+                                      Promouvoir admin
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        handleUpdateRole(member.user_id, "guest")
+                                      }
+                                    >
+                                      <Eye className="mr-2 size-4" />
+                                      Rétrograder invité
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                                {member.role === "admin" && (
                                   <DropdownMenuItem
                                     onClick={() =>
                                       handleUpdateRole(member.user_id, "member")
@@ -530,7 +553,7 @@ export default function MembersPage() {
               <Label htmlFor="role">Rôle</Label>
               <Select
                 value={inviteRole}
-                onValueChange={(value: "admin" | "member") =>
+                onValueChange={(value: "admin" | "member" | "guest") =>
                   setInviteRole(value)
                 }
                 disabled={isSubmitting}
@@ -551,10 +574,20 @@ export default function MembersPage() {
                       Administrateur
                     </div>
                   </SelectItem>
+                  <SelectItem value="guest">
+                    <div className="flex items-center gap-2">
+                      <Eye className="size-4" />
+                      Invité
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Les administrateurs peuvent inviter et gérer les membres.
+                {inviteRole === "guest"
+                  ? "Accès restreint : peut voir Techniciens, Stock, Flux de stock et faire des restocks/sorties. Pas d'accès au Dashboard ni aux paramètres."
+                  : inviteRole === "admin"
+                  ? "Les administrateurs peuvent inviter et gérer les membres."
+                  : "Accès standard : peut voir et gérer le stock, les produits, les techniciens."}
               </p>
             </div>
           </div>

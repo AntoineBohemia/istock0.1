@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect } from "react";
 import Link from "next/link";
-import { page_routes } from "@/lib/routes-config";
+import { page_routes, filterRoutesByRole } from "@/lib/routes-config";
 import { ChevronRight, ChevronsUpDown, Loader2, Check } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
@@ -130,7 +130,7 @@ export default function Sidebar() {
       </SidebarHeader>
       <SidebarContent className="overflow-hidden">
         <ScrollArea className="h-full">
-          {page_routes.map((route, key) => (
+          {filterRoutesByRole(page_routes, currentOrganization?.role).map((route, key) => (
             <SidebarGroup key={key}>
               <SidebarGroupLabel className="text-xs tracking-wider uppercase">
                 {route.title}

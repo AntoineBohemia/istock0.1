@@ -223,7 +223,11 @@ export default function AcceptInvitationPage() {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Rôle</span>
                 <Badge variant="secondary">
-                  {invitation.role === "admin" ? "Administrateur" : "Membre"}
+                  {invitation.role === "admin"
+                    ? "Administrateur"
+                    : invitation.role === "guest"
+                    ? "Invité"
+                    : "Membre"}
                 </Badge>
               </div>
               <div className="flex items-center justify-between">

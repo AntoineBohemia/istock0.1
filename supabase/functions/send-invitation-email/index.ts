@@ -61,7 +61,10 @@ Deno.serve(async (req: Request) => {
     }
 
     const inviteUrl = `${APP_URL}/invite/${token}`;
-    const roleLabel = role === "admin" ? "Administrateur" : "Membre";
+    const roleLabel =
+      role === "admin" ? "Administrateur" :
+      role === "guest" ? "Invité" :
+      "Membre";
     const inviterText = invited_by_name
       ? `${invited_by_name} vous invite`
       : "Vous \u00eates invit\u00e9(e)";

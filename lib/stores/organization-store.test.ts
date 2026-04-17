@@ -5,6 +5,9 @@ import {
   canManageMembers,
   canDeleteOrganization,
   canManageAdmins,
+  canAccessDashboard,
+  canAccessSettings,
+  isReadOnlyMember,
   type Organization,
 } from "./organization-store";
 
@@ -37,6 +40,10 @@ describe("canInvite", () => {
   it("returns false for member", () => {
     expect(canInvite("member")).toBe(false);
   });
+
+  it("returns false for guest", () => {
+    expect(canInvite("guest")).toBe(false);
+  });
 });
 
 describe("canManageMembers", () => {
@@ -47,6 +54,10 @@ describe("canManageMembers", () => {
   it("returns false for member", () => {
     expect(canManageMembers("member")).toBe(false);
   });
+
+  it("returns false for guest", () => {
+    expect(canManageMembers("guest")).toBe(false);
+  });
 });
 
 describe("canDeleteOrganization", () => {
@@ -54,6 +65,7 @@ describe("canDeleteOrganization", () => {
     expect(canDeleteOrganization("owner")).toBe(true);
     expect(canDeleteOrganization("admin")).toBe(false);
     expect(canDeleteOrganization("member")).toBe(false);
+    expect(canDeleteOrganization("guest")).toBe(false);
   });
 });
 
@@ -61,6 +73,40 @@ describe("canManageAdmins", () => {
   it("returns true only for owner", () => {
     expect(canManageAdmins("owner")).toBe(true);
     expect(canManageAdmins("admin")).toBe(false);
+    expect(canManageAdmins("guest")).toBe(false);
+  });
+});
+
+describe("canAccessDashboard", () => {
+  it("allows owner/admin/member", () => {
+    expect(canAccessDashboard("owner")).toBe(true);
+    expect(canAccessDashboard("admin")).toBe(true);
+    expect(canAccessDashboard("member")).toBe(true);
+  });
+
+  it("blocks guest", () => {
+    expect(canAccessDashboard("guest")).toBe(false);
+  });
+});
+
+describe("canAccessSettings", () => {
+  it("allows owner/admin/member", () => {
+    expect(canAccessSettings("owner")).toBe(true);
+    expect(canAccessSettings("admin")).toBe(true);
+    expect(canAccessSettings("member")).toBe(true);
+  });
+
+  it("blocks guest", () => {
+    expect(canAccessSettings("guest")).toBe(false);
+  });
+});
+
+describe("isReadOnlyMember", () => {
+  it("is true only for guest", () => {
+    expect(isReadOnlyMember("guest")).toBe(true);
+    expect(isReadOnlyMember("owner")).toBe(false);
+    expect(isReadOnlyMember("admin")).toBe(false);
+    expect(isReadOnlyMember("member")).toBe(false);
   });
 });
 
