@@ -1,20 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQueryState } from "nuqs";
 import { Package, Scan, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import dynamic from "next/dynamic";
 import QuickStockMovementModal from "@/components/quick-stock-movement-modal";
-import QrScannerModal from "@/components/qr-scanner-modal";
+
+const QrScannerModal = dynamic(() => import("@/components/qr-scanner-modal"), { ssr: false });
 
 export default function StockPage() {
   const [productParam, setProductParam] = useQueryState("product");
@@ -22,12 +18,8 @@ export default function StockPage() {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scannedProductId, setScannedProductId] = useState<string | null>(null);
 
-  // Auto-open modal when product param is present
-  useEffect(() => {
-    if (productParam) {
-      setIsModalOpen(true);
-    }
-  }, [productParam]);
+  // Modal is open when there's a product param or manually opened
+  const isEffectiveModalOpen = isModalOpen || !!productParam;
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
@@ -69,11 +61,7 @@ export default function StockPage() {
             <p className="text-sm text-muted-foreground mb-4">
               Le QR code se trouve sur l'étiquette du produit ou sur sa fiche produit.
             </p>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => setIsScannerOpen(true)}
-            >
+            <Button variant="outline" className="w-full" onClick={() => setIsScannerOpen(true)}>
               <Scan className="size-4" />
               Ouvrir le scanner
             </Button>
@@ -86,13 +74,12 @@ export default function StockPage() {
               <Package className="size-5" />
               Sélectionner un produit
             </CardTitle>
-            <CardDescription>
-              Recherchez un produit dans votre catalogue
-            </CardDescription>
+            <CardDescription>Recherchez un produit dans votre catalogue</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
-              Accédez à la liste des produits et cliquez sur "Restocker" pour enregistrer un mouvement.
+              Accédez à la liste des produits et cliquez sur "Restocker" pour enregistrer un
+              mouvement.
             </p>
             <Button variant="outline" className="w-full" asChild>
               <Link href="/product">
@@ -111,7 +98,7 @@ export default function StockPage() {
       />
 
       <QuickStockMovementModal
-        open={isModalOpen}
+        open={isEffectiveModalOpen}
         onClose={handleCloseModal}
         productId={activeProductId}
       />

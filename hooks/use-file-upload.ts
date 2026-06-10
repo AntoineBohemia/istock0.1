@@ -87,15 +87,11 @@ export const useFileUpload = (
     (file: File | FileMetadata): string | null => {
       if (file instanceof File) {
         if (file.size > maxSize) {
-          return `File "${file.name}" exceeds the maximum size of ${formatBytes(
-            maxSize
-          )}.`;
+          return `File "${file.name}" exceeds the maximum size of ${formatBytes(maxSize)}.`;
         }
       } else {
         if (file.size > maxSize) {
-          return `File "${file.name}" exceeds the maximum size of ${formatBytes(
-            maxSize
-          )}.`;
+          return `File "${file.name}" exceeds the maximum size of ${formatBytes(maxSize)}.`;
         }
       }
 
@@ -103,9 +99,7 @@ export const useFileUpload = (
         const acceptedTypes = accept.split(",").map((type) => type.trim());
         const fileType = file instanceof File ? file.type || "" : file.type;
         const fileExtension = `.${
-          file instanceof File
-            ? file.name.split(".").pop()
-            : file.name.split(".").pop()
+          file instanceof File ? file.name.split(".").pop() : file.name.split(".").pop()
         }`;
 
         const isAccepted = acceptedTypes.some((type) => {
@@ -131,21 +125,16 @@ export const useFileUpload = (
     [accept, maxSize]
   );
 
-  const createPreview = useCallback(
-    (file: File | FileMetadata): string | undefined => {
-      if (file instanceof File) {
-        return URL.createObjectURL(file);
-      }
-      return file.url;
-    },
-    []
-  );
+  const createPreview = useCallback((file: File | FileMetadata): string | undefined => {
+    if (file instanceof File) {
+      return URL.createObjectURL(file);
+    }
+    return file.url;
+  }, []);
 
   const generateUniqueId = useCallback((file: File | FileMetadata): string => {
     if (file instanceof File) {
-      return `${file.name}-${Date.now()}-${Math.random()
-        .toString(36)
-        .substring(2, 9)}`;
+      return `${file.name}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     }
     return file.id;
   }, []);
@@ -154,11 +143,7 @@ export const useFileUpload = (
     setState((prev) => {
       // Clean up object URLs
       prev.files.forEach((file) => {
-        if (
-          file.preview &&
-          file.file instanceof File &&
-          file.file.type.startsWith("image/")
-        ) {
+        if (file.preview && file.file instanceof File && file.file.type.startsWith("image/")) {
           URL.revokeObjectURL(file.preview);
         }
       });
@@ -211,8 +196,7 @@ export const useFileUpload = (
         if (multiple) {
           const isDuplicate = state.files.some(
             (existingFile) =>
-              existingFile.file.name === file.name &&
-              existingFile.file.size === file.size
+              existingFile.file.name === file.name && existingFile.file.size === file.size
           );
 
           // Skip duplicate files silently
@@ -249,9 +233,7 @@ export const useFileUpload = (
         onFilesAdded?.(validFiles);
 
         setState((prev) => {
-          const newFiles = !multiple
-            ? validFiles
-            : [...prev.files, ...validFiles];
+          const newFiles = !multiple ? validFiles : [...prev.files, ...validFiles];
           onFilesChange?.(newFiles);
           return {
             ...prev,
@@ -413,7 +395,7 @@ export const useFileUpload = (
 
 // Helper function to format bytes to human-readable format
 export const formatBytes = (bytes: number, decimals = 2): string => {
-  if (bytes === 0) return "0 Bytes";
+  if (bytes <= 0) return "0 Bytes";
 
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
@@ -421,5 +403,5 @@ export const formatBytes = (bytes: number, decimals = 2): string => {
 
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
-  return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + sizes[i];
+  return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
 };

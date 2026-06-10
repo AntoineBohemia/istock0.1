@@ -24,8 +24,13 @@ import {
   getAllOrganizations,
 } from "./organizations";
 
+// Save the original then so we can restore it if a test overrides it
+const originalThen = mockClient.then;
+
 beforeEach(() => {
   vi.clearAllMocks();
+  mockClient.then = originalThen;
+  mockClient._setResult({ data: null, error: null });
 });
 
 // ─── inviteUserToOrganization ───────────────────────────────────────
@@ -35,10 +40,10 @@ describe("inviteUserToOrganization", () => {
       data: { user: { id: "user-1" } },
       error: null,
     });
-    mockClient._setResult({
-      data: { id: "inv-1", email: "test@example.com" },
-      error: null,
-    });
+    mockClient._setResults([
+      { data: { id: "inv-1", email: "test@example.com", token: "tok-1" }, error: null },
+      { data: { name: "My Org" }, error: null },
+    ]);
 
     await inviteUserToOrganization("org-1", "Test@Example.COM");
 
@@ -56,9 +61,9 @@ describe("inviteUserToOrganization", () => {
       error: { code: "23505", message: "duplicate" },
     });
 
-    await expect(
-      inviteUserToOrganization("org-1", "test@example.com")
-    ).rejects.toThrow("Une invitation a déjà été envoyée à cet email");
+    await expect(inviteUserToOrganization("org-1", "test@example.com")).rejects.toThrow(
+      "Une invitation a déjà été envoyée à cet email"
+    );
   });
 
   it("throws generic error for other failures", async () => {
@@ -71,9 +76,9 @@ describe("inviteUserToOrganization", () => {
       error: { code: "42P01", message: "Table not found" },
     });
 
-    await expect(
-      inviteUserToOrganization("org-1", "test@example.com")
-    ).rejects.toThrow("Table not found");
+    await expect(inviteUserToOrganization("org-1", "test@example.com")).rejects.toThrow(
+      "Table not found"
+    );
   });
 
   it("sets invited_by from current user", async () => {
@@ -81,7 +86,10 @@ describe("inviteUserToOrganization", () => {
       data: { user: { id: "user-42" } },
       error: null,
     });
-    mockClient._setResult({ data: { id: "inv-2" }, error: null });
+    mockClient._setResults([
+      { data: { id: "inv-2", token: "tok-2" }, error: null },
+      { data: { name: "Org" }, error: null },
+    ]);
 
     await inviteUserToOrganization("org-1", "test@test.com", "admin");
 
@@ -91,139 +99,84 @@ describe("inviteUserToOrganization", () => {
   });
 });
 
-// ─── acceptInvitation ───────────────────────────────────────────────
+// ─── acceptInvitation (RPC-based) ───────────────────────────────────
 describe("acceptInvitation", () => {
-  it("throws when user is not authenticated", async () => {
-    mockClient.auth.getUser = vi.fn().mockResolvedValue({
-      data: { user: null },
-      error: null,
-    });
-
-    await expect(acceptInvitation("token-1")).rejects.toThrow(
-      "Vous devez être connecté"
-    );
-  });
-
-  it("throws for expired/invalid invitation", async () => {
-    mockClient.auth.getUser = vi.fn().mockResolvedValue({
-      data: { user: { id: "user-1", email: "test@test.com" } },
-      error: null,
-    });
+  it("throws when RPC returns error", async () => {
     mockClient._setResult({
       data: null,
-      error: { message: "No rows found" },
+      error: { message: "RPC error" },
     });
 
-    await expect(acceptInvitation("bad-token")).rejects.toThrow(
-      "Invitation invalide ou expirée"
-    );
+    await expect(acceptInvitation("token-1")).rejects.toThrow("Erreur lors de l'acceptation");
+  });
+
+  it("throws for expired invitation", async () => {
+    mockClient._setResult({
+      data: { success: false, error: "expired" },
+      error: null,
+    });
+
+    await expect(acceptInvitation("bad-token")).rejects.toThrow("Cette invitation a expiré");
+  });
+
+  it("throws for invitation_not_found", async () => {
+    mockClient._setResult({
+      data: { success: false, error: "invitation_not_found" },
+      error: null,
+    });
+
+    await expect(acceptInvitation("bad-token")).rejects.toThrow("Invitation invalide ou expirée");
   });
 
   it("throws when email does not match", async () => {
-    mockClient.auth.getUser = vi.fn().mockResolvedValue({
-      data: { user: { id: "user-1", email: "other@test.com" } },
+    mockClient._setResult({
+      data: {
+        success: false,
+        error: "email_mismatch",
+        expected_email: "original@test.com",
+      },
       error: null,
     });
 
-    let callCount = 0;
-    const originalThen = mockClient.then;
-    mockClient.then = (resolve: any, reject?: any) => {
-      callCount++;
-      if (callCount === 1) {
-        // Fetch invitation
-        return Promise.resolve({
-          data: {
-            id: "inv-1",
-            email: "original@test.com",
-            role: "member",
-            organization_id: "org-1",
-            organization: { id: "org-1", name: "Test", slug: "test", logo_url: null },
-          },
-          error: null,
-        }).then(resolve, reject);
-      }
-      return Promise.resolve({ data: null, error: null }).then(resolve, reject);
-    };
-
     await expect(acceptInvitation("token-1")).rejects.toThrow(
-      "Cette invitation est destinée à une autre adresse email"
+      "Cette invitation est destinée à original@test.com"
     );
-
-    mockClient.then = originalThen;
   });
 
   it("successfully accepts invitation and returns organization", async () => {
-    mockClient.auth.getUser = vi.fn().mockResolvedValue({
-      data: { user: { id: "user-1", email: "test@test.com" } },
+    mockClient._setResult({
+      data: {
+        success: true,
+        organization: {
+          id: "org-1",
+          name: "Test Org",
+          slug: "test-org",
+          logo_url: null,
+        },
+        role: "member",
+      },
       error: null,
     });
 
-    let callCount = 0;
-    const originalThen = mockClient.then;
-    mockClient.then = (resolve: any, reject?: any) => {
-      callCount++;
-      if (callCount === 1) {
-        // Fetch invitation
-        return Promise.resolve({
-          data: {
-            id: "inv-1",
-            email: "test@test.com",
-            role: "member",
-            organization_id: "org-1",
-            organization: { id: "org-1", name: "Test Org", slug: "test-org", logo_url: null },
-          },
-          error: null,
-        }).then(resolve, reject);
-      }
-      // Join org + mark accepted
-      return Promise.resolve({ data: null, error: null }).then(resolve, reject);
-    };
-
     const result = await acceptInvitation("token-1");
+
+    expect(mockClient.rpc).toHaveBeenCalledWith("accept_invitation_secure", {
+      p_token: "token-1",
+    });
     expect(result.organization.id).toBe("org-1");
     expect(result.organization.name).toBe("Test Org");
     expect(result.organization.role).toBe("member");
-
-    mockClient.then = originalThen;
   });
 
-  it("handles duplicate membership (23505) gracefully", async () => {
-    mockClient.auth.getUser = vi.fn().mockResolvedValue({
-      data: { user: { id: "user-1", email: "test@test.com" } },
+  it("throws for already_member", async () => {
+    mockClient._setResult({
+      data: { success: false, error: "already_member" },
       error: null,
     });
-
-    let callCount = 0;
-    const originalThen = mockClient.then;
-    mockClient.then = (resolve: any, reject?: any) => {
-      callCount++;
-      if (callCount === 1) {
-        return Promise.resolve({
-          data: {
-            id: "inv-1",
-            email: "test@test.com",
-            role: "member",
-            organization_id: "org-1",
-            organization: { id: "org-1", name: "Test", slug: "test", logo_url: null },
-          },
-          error: null,
-        }).then(resolve, reject);
-      }
-      if (callCount === 2) {
-        // Join fails with duplicate
-        return Promise.resolve({
-          data: null,
-          error: { code: "23505", message: "duplicate" },
-        }).then(resolve, reject);
-      }
-      return Promise.resolve({ data: null, error: null }).then(resolve, reject);
-    };
 
     await expect(acceptInvitation("token-1")).rejects.toThrow(
       "Vous êtes déjà membre de cette organisation"
     );
-
-    mockClient.then = originalThen;
   });
 });
 
@@ -305,24 +258,13 @@ describe("deleteOrganization", () => {
       data: { user: { id: "user-1" } },
       error: null,
     });
-
-    let callCount = 0;
-    const originalThen = mockClient.then;
-
-    mockClient.then = (resolve: any, reject?: any) => {
-      callCount++;
-      if (callCount === 1) {
-        // Membership check
-        return Promise.resolve({ data: { role: "owner" }, error: null }).then(resolve, reject);
-      }
-      // Delete org
-      return Promise.resolve({ data: null, error: null }).then(resolve, reject);
-    };
+    mockClient._setResults([
+      { data: { role: "owner" }, error: null },
+      { data: null, error: null },
+    ]);
 
     await deleteOrganization("org-1");
     expect(mockClient.from).toHaveBeenCalled();
-
-    mockClient.then = originalThen;
   });
 
   it("throws when user is not authenticated", async () => {
@@ -351,21 +293,12 @@ describe("deleteOrganization", () => {
       data: { user: { id: "user-1" } },
       error: null,
     });
-
-    let callCount = 0;
-    const originalThen = mockClient.then;
-
-    mockClient.then = (resolve: any, reject?: any) => {
-      callCount++;
-      if (callCount === 1) {
-        return Promise.resolve({ data: { role: "owner" }, error: null }).then(resolve, reject);
-      }
-      return Promise.resolve({ data: null, error: { message: "Delete error" } }).then(resolve, reject);
-    };
+    mockClient._setResults([
+      { data: { role: "owner" }, error: null },
+      { data: null, error: { message: "Delete error" } },
+    ]);
 
     await expect(deleteOrganization("org-1")).rejects.toThrow("Delete error");
-
-    mockClient.then = originalThen;
   });
 });
 
@@ -466,25 +399,14 @@ describe("setDefaultOrganization", () => {
       data: { user: { id: "user-1" } },
       error: null,
     });
-
-    let callCount = 0;
-    const originalThen = mockClient.then;
-
-    mockClient.then = (resolve: any, reject?: any) => {
-      callCount++;
-      if (callCount === 1) {
-        // Reset all defaults
-        return Promise.resolve({ data: null, error: null }).then(resolve, reject);
-      }
-      // Set new default
-      return Promise.resolve({ data: null, error: null }).then(resolve, reject);
-    };
+    mockClient._setResults([
+      { data: null, error: null },
+      { data: null, error: null },
+    ]);
 
     await setDefaultOrganization("org-2");
 
     expect(mockClient.update).toHaveBeenCalled();
-
-    mockClient.then = originalThen;
   });
 
   it("throws when not authenticated", async () => {
@@ -501,21 +423,12 @@ describe("setDefaultOrganization", () => {
       data: { user: { id: "user-1" } },
       error: null,
     });
-
-    let callCount = 0;
-    const originalThen = mockClient.then;
-
-    mockClient.then = (resolve: any, reject?: any) => {
-      callCount++;
-      if (callCount === 1) {
-        return Promise.resolve({ data: null, error: null }).then(resolve, reject);
-      }
-      return Promise.resolve({ data: null, error: { message: "Set default error" } }).then(resolve, reject);
-    };
+    mockClient._setResults([
+      { data: null, error: null },
+      { data: null, error: { message: "Set default error" } },
+    ]);
 
     await expect(setDefaultOrganization("org-1")).rejects.toThrow("Set default error");
-
-    mockClient.then = originalThen;
   });
 });
 
@@ -523,7 +436,14 @@ describe("setDefaultOrganization", () => {
 describe("getOrganizationMembers", () => {
   it("returns members list", async () => {
     const members = [
-      { id: "m-1", user_id: "u-1", organization_id: "org-1", role: "owner", is_default: true, created_at: "2024-01-01" },
+      {
+        id: "m-1",
+        user_id: "u-1",
+        organization_id: "org-1",
+        role: "owner",
+        is_default: true,
+        created_at: "2024-01-01",
+      },
     ];
     mockClient._setResult({ data: members, error: null });
 
@@ -582,7 +502,14 @@ describe("removeMember", () => {
 describe("getPendingInvitations", () => {
   it("returns non-expired, non-accepted invitations", async () => {
     const invitations = [
-      { id: "inv-1", email: "a@b.com", role: "member", organization_id: "org-1", accepted_at: null, expires_at: "2099-01-01" },
+      {
+        id: "inv-1",
+        email: "a@b.com",
+        role: "member",
+        organization_id: "org-1",
+        accepted_at: null,
+        expires_at: "2099-01-01",
+      },
     ];
     mockClient._setResult({ data: invitations, error: null });
 
@@ -618,35 +545,45 @@ describe("cancelInvitation", () => {
   });
 });
 
-// ─── getInvitationByToken ────────────────────────────────────────────
+// ─── getInvitationByToken (RPC-based) ────────────────────────────────
 describe("getInvitationByToken", () => {
-  it("returns invitation with org name", async () => {
+  it("returns invitation details when valid", async () => {
     mockClient._setResult({
       data: {
-        id: "inv-1",
+        valid: true,
         email: "a@b.com",
-        token: "tok-1",
+        masked_email: "a***@b.com",
         role: "member",
-        organization_id: "org-1",
-        organization: { name: "My Org" },
-        invited_by: null,
         expires_at: "2099-01-01",
-        accepted_at: null,
-        created_at: "2024-01-01",
+        organization_name: "My Org",
+        organization_logo_url: null,
+        user_exists: false,
       },
       error: null,
     });
 
     const result = await getInvitationByToken("tok-1");
 
+    expect(mockClient.rpc).toHaveBeenCalledWith("get_invitation_details", {
+      p_token: "tok-1",
+    });
     expect(result).not.toBeNull();
     expect(result!.organization_name).toBe("My Org");
+    expect(result!.email).toBe("a@b.com");
   });
 
   it("returns null on error", async () => {
     mockClient._setResult({ data: null, error: { message: "Not found" } });
 
     const result = await getInvitationByToken("bad-token");
+
+    expect(result).toBeNull();
+  });
+
+  it("returns null when data is not valid", async () => {
+    mockClient._setResult({ data: { valid: false }, error: null });
+
+    const result = await getInvitationByToken("expired-token");
 
     expect(result).toBeNull();
   });

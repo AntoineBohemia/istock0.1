@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import * as d3 from "d3-color";
+import { color } from "d3-color";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -36,13 +36,15 @@ export function generateMeta({
 }
 
 export function getHSLValue(hex: string): string {
-  return d3.color(hex)!.formatHsl().slice(4, -1).replaceAll(",", "");
+  return color(hex)!.formatHsl().slice(4, -1).replaceAll(",", "");
 }
 
 // a function to get the first letter of the first and last name of names
 export const getInitials = (fullName: string) => {
-  const nameParts = fullName.split(" ");
+  const nameParts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (nameParts.length === 0) return "";
   const firstNameInitial = nameParts[0].charAt(0).toUpperCase();
-  const lastNameInitial = nameParts[1].charAt(0).toUpperCase();
+  if (nameParts.length === 1) return firstNameInitial;
+  const lastNameInitial = nameParts[nameParts.length - 1].charAt(0).toUpperCase();
   return `${firstNameInitial}${lastNameInitial}`;
 };

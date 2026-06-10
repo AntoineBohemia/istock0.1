@@ -10,8 +10,7 @@ const APP_URL = Deno.env.get("APP_URL") || "https://app.istock.fr";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -54,17 +53,14 @@ Deno.serve(async (req: Request) => {
     const { email, token, organization_name, role, invited_by_name } = payload;
 
     if (!email || !token || !organization_name) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Missing required fields" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const inviteUrl = `${APP_URL}/invite/${token}`;
-    const roleLabel =
-      role === "admin" ? "Administrateur" :
-      role === "guest" ? "Invité" :
-      "Membre";
+    const roleLabel = role === "admin" ? "Administrateur" : role === "guest" ? "Invité" : "Membre";
     const inviterText = invited_by_name
       ? `${invited_by_name} vous invite`
       : "Vous \u00eates invit\u00e9(e)";
@@ -114,15 +110,15 @@ Deno.serve(async (req: Request) => {
 
     console.log("Email sent:", info.messageId);
 
-    return new Response(
-      JSON.stringify({ success: true, messageId: info.messageId }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ success: true, messageId: info.messageId }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error) {
     console.error("Error sending email:", error);
-    return new Response(
-      JSON.stringify({ error: "Failed to send email", details: String(error) }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: "Failed to send email" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

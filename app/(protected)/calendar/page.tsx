@@ -1,8 +1,10 @@
+import dynamic from "next/dynamic";
 import { generateMeta } from "@/lib/utils";
-import CalendarApp from "./components/calendar-app";
 import CalendarSidebar from "./components/calendar-sidebar";
 import EventSheet from "./components/event-sheet";
 import React from "react";
+
+const CalendarApp = dynamic(() => import("./components/calendar-app"));
 
 export async function generateMetadata() {
   return generateMeta({

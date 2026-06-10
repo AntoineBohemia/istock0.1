@@ -69,7 +69,7 @@ export interface CreateProductData {
   track_stock?: boolean;
 }
 
-export interface UpdateProductData extends Partial<CreateProductData> {}
+export type UpdateProductData = Partial<CreateProductData>;
 
 /**
  * Génère un SKU automatique basé sur le nom et un timestamp
@@ -87,9 +87,7 @@ export function generateSKU(name: string): string {
 /**
  * Récupère la liste des produits avec filtres et pagination
  */
-export async function getProducts(
-  filters: ProductFilters = {}
-): Promise<ProductsResult> {
+export async function getProducts(filters: ProductFilters = {}): Promise<ProductsResult> {
   const supabase = createClient();
   const {
     organizationId,
@@ -117,9 +115,7 @@ export async function getProducts(
 
   // Appliquer les filtres
   if (search) {
-    query = query.or(
-      `name.ilike.%${search}%,sku.ilike.%${search}%,description.ilike.%${search}%`
-    );
+    query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%,description.ilike.%${search}%`);
   }
 
   if (categoryId) {
@@ -141,9 +137,7 @@ export async function getProducts(
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  query = query
-    .order("created_at", { ascending: false })
-    .range(from, to);
+  query = query.order("created_at", { ascending: false }).range(from, to);
 
   const { data, error, count } = await query;
 
@@ -240,7 +234,8 @@ export async function createProduct(data: CreateProductData): Promise<Product> {
  */
 export async function updateProduct(
   id: string,
-  data: UpdateProductData
+  data: UpdateProductData,
+  organizationId?: string
 ): Promise<Product> {
   const supabase = createClient();
 
@@ -248,7 +243,6 @@ export async function updateProduct(
     updated_at: new Date().toISOString(),
   };
 
-  // Ajouter uniquement les champs définis
   if (data.name !== undefined) updateData.name = data.name;
   if (data.sku !== undefined) updateData.sku = data.sku;
   if (data.description !== undefined) updateData.description = data.description;
@@ -264,12 +258,13 @@ export async function updateProduct(
   if (data.is_perishable !== undefined) updateData.is_perishable = data.is_perishable;
   if (data.track_stock !== undefined) updateData.track_stock = data.track_stock;
 
-  const { data: product, error } = await supabase
-    .from("products")
-    .update(updateData)
-    .eq("id", id)
-    .select()
-    .single();
+  let query = supabase.from("products").update(updateData).eq("id", id);
+
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { data: product, error } = await query.select().single();
 
   if (error) {
     throw new Error(`Erreur lors de la mise à jour du produit: ${error.message}`);
@@ -281,13 +276,19 @@ export async function updateProduct(
 /**
  * Archive un produit (soft-delete)
  */
-export async function archiveProduct(id: string): Promise<void> {
+export async function archiveProduct(id: string, organizationId?: string): Promise<void> {
   const supabase = createClient();
 
-  const { error } = await supabase
+  let query = supabase
     .from("products")
     .update({ archived_at: new Date().toISOString() })
     .eq("id", id);
+
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { error } = await query;
 
   if (error) {
     throw new Error(`Erreur lors de l'archivage du produit: ${error.message}`);
@@ -317,9 +318,7 @@ export async function uploadProductImage(file: File): Promise<string> {
   }
 
   // Obtenir l'URL publique
-  const { data } = supabase.storage
-    .from("product-images")
-    .getPublicUrl(filePath);
+  const { data } = supabase.storage.from("product-images").getPublicUrl(filePath);
 
   return data.publicUrl;
 }
@@ -337,9 +336,7 @@ export async function deleteProductImage(imageUrl: string): Promise<void> {
 
   const filePath = pathParts[1];
 
-  const { error } = await supabase.storage
-    .from("product-images")
-    .remove([filePath]);
+  const { error } = await supabase.storage.from("product-images").remove([filePath]);
 
   if (error) {
     console.error("Erreur lors de la suppression de l'image:", error);
@@ -378,10 +375,7 @@ export async function getProductsStats(organizationId?: string): Promise<{
     (p) => (p.stock_current ?? 0) <= (p.stock_min ?? 0) && (p.stock_current ?? 0) > 0
   ).length;
   const outOfStock = products.filter((p) => (p.stock_current ?? 0) === 0).length;
-  const totalValue = products.reduce(
-    (sum, p) => sum + (p.price || 0) * (p.stock_current ?? 0),
-    0
-  );
+  const totalValue = products.reduce((sum, p) => sum + (p.price || 0) * (p.stock_current ?? 0), 0);
 
   return { total, lowStock, outOfStock, totalValue };
 }

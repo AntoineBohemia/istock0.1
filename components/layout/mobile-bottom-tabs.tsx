@@ -4,7 +4,6 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Home, ScanLine, Users, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useScanDrawerStore } from "@/lib/stores/scan-drawer-store";
 
 const tabs = [
   { key: "home", label: "Accueil", href: "/global", icon: Home },
@@ -13,9 +12,12 @@ const tabs = [
   { key: "more", label: "Plus", href: "/more", icon: MoreHorizontal },
 ] as const;
 
-export default function MobileBottomTabs() {
+interface MobileBottomTabsProps {
+  onScanPress: () => void;
+}
+
+export default function MobileBottomTabs({ onScanPress }: MobileBottomTabsProps) {
   const pathname = usePathname();
-  const openScanDrawer = useScanDrawerStore((s) => s.setOpen);
 
   const isActive = (href: string | null) => {
     if (!href) return false;
@@ -35,15 +37,13 @@ export default function MobileBottomTabs() {
             return (
               <button
                 key={tab.key}
-                onClick={() => openScanDrawer(true)}
+                onClick={onScanPress}
                 className="flex flex-col items-center justify-center gap-0.5 px-3 py-1.5"
               >
                 <div className="flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md">
                   <Icon className="size-5" />
                 </div>
-                <span className="text-[10px] font-medium text-primary">
-                  {tab.label}
-                </span>
+                <span className="text-[10px] font-medium text-primary">{tab.label}</span>
               </button>
             );
           }
@@ -54,9 +54,7 @@ export default function MobileBottomTabs() {
               href={tab.href!}
               className={cn(
                 "flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 min-w-[56px]",
-                active
-                  ? "text-primary"
-                  : "text-muted-foreground"
+                active ? "text-primary" : "text-muted-foreground"
               )}
             >
               <Icon className="size-5" />

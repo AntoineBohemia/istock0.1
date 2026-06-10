@@ -7,21 +7,18 @@ describe("formatBytes", () => {
   });
 
   it("formats kilobytes", () => {
-    expect(formatBytes(1024)).toBe("1KB");
+    expect(formatBytes(1024)).toBe("1 KB");
   });
 
   it("formats megabytes", () => {
-    expect(formatBytes(1024 * 1024)).toBe("1MB");
+    expect(formatBytes(1024 * 1024)).toBe("1 MB");
   });
 
-  // BUG: Negative bytes produce NaN because Math.log of a negative is NaN
-  // sizes[NaN] is undefined, so NaN + undefined = NaN (number, not string)
-  it("returns NaN for negative bytes (known bug)", () => {
-    const result = formatBytes(-100);
-    expect(Number.isNaN(result as unknown as number)).toBe(true);
+  it("returns '0 Bytes' for negative bytes", () => {
+    expect(formatBytes(-100)).toBe("0 Bytes");
   });
 
   it("respects decimal parameter", () => {
-    expect(formatBytes(1536, 1)).toBe("1.5KB");
+    expect(formatBytes(1536, 1)).toBe("1.5 KB");
   });
 });

@@ -61,7 +61,7 @@ export interface CreateTechnicianData {
   city?: string | null;
 }
 
-export interface UpdateTechnicianData extends Partial<CreateTechnicianData> {}
+export type UpdateTechnicianData = Partial<CreateTechnicianData>;
 
 /**
  * Récupère la liste des techniciens avec leur nombre d'items en inventaire
@@ -103,10 +103,12 @@ export async function getTechnician(id: string): Promise<TechnicianWithInventory
   // Récupérer l'inventaire avec les détails des produits
   const { data: inventory, error: invError } = await supabase
     .from("technician_inventory")
-    .select(`
+    .select(
+      `
       *,
       product:products(id, name, sku, image_url, stock_max)
-    `)
+    `
+    )
     .eq("technician_id", id);
 
   if (invError) {
@@ -166,7 +168,8 @@ export async function createTechnician(data: CreateTechnicianData): Promise<Tech
  */
 export async function updateTechnician(
   id: string,
-  data: UpdateTechnicianData
+  data: UpdateTechnicianData,
+  organizationId?: string
 ): Promise<Technician> {
   const supabase = createClient();
 
@@ -178,12 +181,13 @@ export async function updateTechnician(
   if (data.phone !== undefined) updateData.phone = data.phone;
   if (data.city !== undefined) updateData.city = data.city;
 
-  const { data: technician, error } = await supabase
-    .from("technicians")
-    .update(updateData)
-    .eq("id", id)
-    .select()
-    .single();
+  let query = supabase.from("technicians").update(updateData).eq("id", id);
+
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { data: technician, error } = await query.select().single();
 
   if (error) {
     if (error.code === "23505") {
@@ -198,13 +202,19 @@ export async function updateTechnician(
 /**
  * Archive un technicien (soft-delete)
  */
-export async function archiveTechnician(id: string): Promise<void> {
+export async function archiveTechnician(id: string, organizationId?: string): Promise<void> {
   const supabase = createClient();
 
-  const { error } = await supabase
+  let query = supabase
     .from("technicians")
     .update({ archived_at: new Date().toISOString() })
     .eq("id", id);
+
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { error } = await query;
 
   if (error) {
     throw new Error(`Erreur lors de l'archivage du technicien: ${error.message}`);
@@ -257,7 +267,8 @@ export async function getTechnicianStockMovements(
 
   const { data, error } = await supabase
     .from("stock_movements")
-    .select(`
+    .select(
+      `
       id,
       product_id,
       quantity,
@@ -265,7 +276,8 @@ export async function getTechnicianStockMovements(
       notes,
       created_at,
       product:products(id, name, sku, image_url)
-    `)
+    `
+    )
     .eq("technician_id", technicianId)
     .eq("movement_type", "exit_technician")
     .order("created_at", { ascending: false });
@@ -308,13 +320,15 @@ export async function getTechnicianEvolutionData(
 
   const { data, error } = await supabase
     .from("stock_movements")
-    .select(`
+    .select(
+      `
       id,
       product_id,
       quantity,
       created_at,
       product:products(id, name, sku)
-    `)
+    `
+    )
     .eq("technician_id", technicianId)
     .eq("movement_type", "exit_technician")
     .gte("created_at", sinceDate.toISOString())
@@ -408,9 +422,7 @@ export async function getTechniciansStats(organizationId: string): Promise<Techn
   }
 
   // Compter les techniciens uniques restockés
-  const uniqueRestockedTechnicians = new Set(
-    recentRestocksData?.map((r) => r.technician_id) || []
-  );
+  const uniqueRestockedTechnicians = new Set(recentRestocksData?.map((r) => r.technician_id) || []);
 
   return {
     totalTechnicians,

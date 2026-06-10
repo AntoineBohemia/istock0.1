@@ -16,7 +16,8 @@ describe("cn", () => {
   });
 
   it("handles conditional classes", () => {
-    expect(cn("base", false && "hidden", "visible")).toBe("base visible");
+    const condition = false;
+    expect(cn("base", condition && "hidden", "visible")).toBe("base visible");
   });
 });
 
@@ -53,9 +54,12 @@ describe("getInitials", () => {
     expect(getInitials("jean dupont")).toBe("JD");
   });
 
-  // BUG: getInitials crashes when given a single word because
-  // nameParts[1] is undefined and .charAt(0) throws on undefined.
-  it("crashes on single word input (known bug)", () => {
-    expect(() => getInitials("Jean")).toThrow();
+  it("returns single initial for single word input", () => {
+    expect(getInitials("Jean")).toBe("J");
+  });
+
+  it("returns empty string for empty input", () => {
+    expect(getInitials("")).toBe("");
+    expect(getInitials("   ")).toBe("");
   });
 });

@@ -16,10 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  getInvitationByToken,
-  acceptInvitation,
-} from "@/lib/supabase/queries/organizations";
+import { getInvitationByToken, acceptInvitation } from "@/lib/supabase/queries/organizations";
 import { createClient } from "@/lib/supabase/client";
 
 type InvitationStatus = "loading" | "valid" | "invalid" | "accepted" | "error";
@@ -77,7 +74,7 @@ export default function AcceptInvitationPage() {
           userExists: invitationData.user_exists ?? false,
         });
         setStatus("valid");
-      } catch (error) {
+      } catch {
         setStatus("error");
       }
     }
@@ -87,6 +84,13 @@ export default function AcceptInvitationPage() {
     }
   }, [token]);
 
+  // Redirect after invitation is accepted
+  useEffect(() => {
+    if (status !== "accepted") return;
+    const timeoutId = setTimeout(() => router.push("/global"), 2000);
+    return () => clearTimeout(timeoutId);
+  }, [status, router]);
+
   const handleAccept = async () => {
     if (!token) return;
 
@@ -95,16 +99,9 @@ export default function AcceptInvitationPage() {
       const result = await acceptInvitation(token);
       setStatus("accepted");
       toast.success(`Bienvenue dans ${result.organization.name} !`);
-
-      // Redirect to global page after 2 seconds
-      setTimeout(() => {
-        router.push("/global");
-      }, 2000);
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Erreur lors de l'acceptation de l'invitation"
+        error instanceof Error ? error.message : "Erreur lors de l'acceptation de l'invitation"
       );
       setIsAccepting(false);
     }
@@ -121,9 +118,7 @@ export default function AcceptInvitationPage() {
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Loader2 className="size-8 animate-spin text-muted-foreground" />
-            <p className="mt-4 text-muted-foreground">
-              Vérification de l'invitation...
-            </p>
+            <p className="mt-4 text-muted-foreground">Vérification de l'invitation...</p>
           </CardContent>
         </Card>
       </div>
@@ -139,9 +134,7 @@ export default function AcceptInvitationPage() {
               <XCircle className="size-8 text-destructive" />
             </div>
             <CardTitle>Invitation invalide</CardTitle>
-            <CardDescription>
-              Cette invitation n'existe pas ou a expiré.
-            </CardDescription>
+            <CardDescription>Cette invitation n'existe pas ou a expiré.</CardDescription>
           </CardHeader>
           <CardFooter className="justify-center">
             <Button asChild>
@@ -184,8 +177,7 @@ export default function AcceptInvitationPage() {
             </div>
             <CardTitle>Invitation acceptée !</CardTitle>
             <CardDescription>
-              Vous êtes maintenant membre de {invitation?.organizationName}.
-              Redirection en cours...
+              Vous êtes maintenant membre de {invitation?.organizationName}. Redirection en cours...
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
@@ -205,20 +197,14 @@ export default function AcceptInvitationPage() {
             <Building2 className="size-8 text-primary" />
           </div>
           <CardTitle>Rejoindre l'organisation</CardTitle>
-          <CardDescription>
-            Vous avez été invité à rejoindre une organisation
-          </CardDescription>
+          <CardDescription>Vous avez été invité à rejoindre une organisation</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {invitation && (
             <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">
-                  Organisation
-                </span>
-                <span className="font-medium">
-                  {invitation.organizationName}
-                </span>
+                <span className="text-sm text-muted-foreground">Organisation</span>
+                <span className="font-medium">{invitation.organizationName}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Rôle</span>
@@ -226,23 +212,19 @@ export default function AcceptInvitationPage() {
                   {invitation.role === "admin"
                     ? "Administrateur"
                     : invitation.role === "guest"
-                    ? "Invité"
-                    : "Membre"}
+                      ? "Invité"
+                      : "Membre"}
                 </Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">
-                  Invité pour
-                </span>
+                <span className="text-sm text-muted-foreground">Invité pour</span>
                 <div className="flex items-center gap-1">
                   <Mail className="size-3 text-muted-foreground" />
                   <span className="text-sm">{invitation.email}</span>
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">
-                  Expire le
-                </span>
+                <span className="text-sm text-muted-foreground">Expire le</span>
                 <span className="text-sm">
                   {new Date(invitation.expiresAt).toLocaleDateString("fr-FR")}
                 </span>
@@ -253,10 +235,17 @@ export default function AcceptInvitationPage() {
           {isLoggedIn === false && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-900/20 p-4">
               <p className="text-sm text-amber-800 dark:text-amber-200">
-                {invitation?.userExists
-                  ? <>Vous devez vous connecter avec l'adresse{" "}<strong>{invitation?.email}</strong> pour accepter cette invitation.</>
-                  : <>Vous devez créer un compte avec l'adresse{" "}<strong>{invitation?.email}</strong> pour accepter cette invitation.</>
-                }
+                {invitation?.userExists ? (
+                  <>
+                    Vous devez vous connecter avec l'adresse <strong>{invitation?.email}</strong>{" "}
+                    pour accepter cette invitation.
+                  </>
+                ) : (
+                  <>
+                    Vous devez créer un compte avec l'adresse <strong>{invitation?.email}</strong>{" "}
+                    pour accepter cette invitation.
+                  </>
+                )}
               </p>
             </div>
           )}
@@ -264,8 +253,8 @@ export default function AcceptInvitationPage() {
           {isLoggedIn && userEmail !== invitation?.email && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-900/20 p-4">
               <p className="text-sm text-amber-800 dark:text-amber-200">
-                Vous êtes connecté avec <strong>{userEmail}</strong>, mais cette
-                invitation est destinée à <strong>{invitation?.email}</strong>.
+                Vous êtes connecté avec <strong>{userEmail}</strong>, mais cette invitation est
+                destinée à <strong>{invitation?.email}</strong>.
               </p>
             </div>
           )}
@@ -289,14 +278,10 @@ export default function AcceptInvitationPage() {
             <>
               <Button
                 onClick={handleAccept}
-                disabled={
-                  isAccepting || userEmail !== invitation?.email
-                }
+                disabled={isAccepting || userEmail !== invitation?.email}
                 className="w-full"
               >
-                {isAccepting && (
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                )}
+                {isAccepting && <Loader2 className="mr-2 size-4 animate-spin" />}
                 Accepter l'invitation
               </Button>
               <Button variant="outline" asChild className="w-full">

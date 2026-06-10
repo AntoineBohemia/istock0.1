@@ -16,7 +16,8 @@ export function useCreateProduct() {
   return useMutation({
     mutationFn: (data: CreateProductData) => createProduct(data),
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.products.all });
+      qc.invalidateQueries({ queryKey: queryKeys.products.lists() });
+      qc.invalidateQueries({ queryKey: queryKeys.products.stats() });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
     },
   });
@@ -25,8 +26,7 @@ export function useCreateProduct() {
 export function useUpdateProduct() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateProductData }) =>
-      updateProduct(id, data),
+    mutationFn: ({ id, data }: { id: string; data: UpdateProductData }) => updateProduct(id, data),
     onMutate: async ({ id, data }) => {
       await qc.cancelQueries({ queryKey: queryKeys.products.detail(id) });
       const previous = qc.getQueryData(queryKeys.products.detail(id));
@@ -40,8 +40,10 @@ export function useUpdateProduct() {
         qc.setQueryData(queryKeys.products.detail(id), context.previous);
       }
     },
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.products.all });
+    onSettled: (_data, _err, { id }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.products.detail(id) });
+      qc.invalidateQueries({ queryKey: queryKeys.products.lists() });
+      qc.invalidateQueries({ queryKey: queryKeys.products.stats() });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
     },
   });
@@ -77,7 +79,8 @@ export function useArchiveProduct() {
       });
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.products.all });
+      qc.invalidateQueries({ queryKey: queryKeys.products.lists() });
+      qc.invalidateQueries({ queryKey: queryKeys.products.stats() });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
     },
   });

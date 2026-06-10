@@ -14,6 +14,15 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 const DEFAULT_REDIRECT = "/global";
 
+function isInternalPath(url: string): boolean {
+  try {
+    const parsed = new URL(url, "http://localhost");
+    return parsed.origin === "http://localhost" && url.startsWith("/");
+  } catch {
+    return false;
+  }
+}
+
 function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,11 +34,14 @@ function LoginForm() {
   const supabase = createClient();
 
   // Récupère l'URL de redirection depuis les paramètres ou utilise la valeur par défaut
-  const redirectTo = searchParams.get("redirectTo") || DEFAULT_REDIRECT;
+  const rawRedirect = searchParams.get("redirectTo") || DEFAULT_REDIRECT;
+  const redirectTo = isInternalPath(rawRedirect) ? rawRedirect : DEFAULT_REDIRECT;
 
   // Détecte la session issue d'un magic link (token dans le hash de l'URL)
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN") {
         router.push(redirectTo);
         router.refresh();
@@ -89,9 +101,7 @@ function LoginForm() {
             <div className="grid gap-2">
               <div className="flex items-center">
                 <Label htmlFor="password">Mot de passe</Label>
-                <Link
-                  href="/forgot-password"
-                  className="ml-auto inline-block text-sm underline">
+                <Link href="/forgot-password" className="ml-auto inline-block text-sm underline">
                   Mot de passe oublié ?
                 </Link>
               </div>
@@ -144,14 +154,16 @@ export default function Page() {
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
-      <Suspense fallback={
-        <Card className="mx-auto w-96">
-          <CardHeader>
-            <CardTitle className="text-2xl">Connexion</CardTitle>
-            <CardDescription>Chargement...</CardDescription>
-          </CardHeader>
-        </Card>
-      }>
+      <Suspense
+        fallback={
+          <Card className="mx-auto w-96">
+            <CardHeader>
+              <CardTitle className="text-2xl">Connexion</CardTitle>
+              <CardDescription>Chargement...</CardDescription>
+            </CardHeader>
+          </Card>
+        }
+      >
         <LoginForm />
       </Suspense>
     </div>

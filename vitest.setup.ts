@@ -22,3 +22,37 @@ const localStorageMock = (() => {
 })();
 
 Object.defineProperty(globalThis, "localStorage", { value: localStorageMock });
+
+// Mock ResizeObserver (used by Radix UI)
+globalThis.ResizeObserver = class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+} as unknown as typeof ResizeObserver;
+
+// Mock IntersectionObserver
+globalThis.IntersectionObserver = class IntersectionObserver {
+  readonly root = null;
+  readonly rootMargin = "";
+  readonly thresholds = [];
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords() {
+    return [];
+  }
+} as unknown as typeof IntersectionObserver;
+
+// Mock matchMedia
+Object.defineProperty(globalThis, "matchMedia", {
+  value: (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  }),
+});

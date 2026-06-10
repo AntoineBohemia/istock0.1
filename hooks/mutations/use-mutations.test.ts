@@ -7,7 +7,9 @@ import { queryKeys } from "@/lib/query-keys";
 // ─── Mock mutation functions ────────────────────────────────────────
 const mockCreateEntry = vi.fn().mockResolvedValue({ id: "mv-1" });
 const mockCreateExit = vi.fn().mockResolvedValue({ id: "mv-2" });
-const mockAddToTechnicianInventory = vi.fn().mockResolvedValue({ success: true, items_count: 2, previous_items_count: 1 });
+const mockAddToTechnicianInventory = vi
+  .fn()
+  .mockResolvedValue({ success: true, items_count: 2, previous_items_count: 1 });
 
 vi.mock("@/lib/supabase/queries/stock-movements", () => ({
   createEntry: (...args: unknown[]) => mockCreateEntry(...args),
@@ -125,7 +127,9 @@ describe("useCreateStockEntry", () => {
       });
     });
 
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.products.all });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.products.detail("p1") });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.products.lists() });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.products.stats() });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.movements.all });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.dashboard.all });
   });
@@ -146,7 +150,14 @@ describe("useCreateStockExit", () => {
       });
     });
 
-    expect(mockCreateExit).toHaveBeenCalledWith("org-1", "p1", 3, "exit_anonymous", undefined, undefined);
+    expect(mockCreateExit).toHaveBeenCalledWith(
+      "org-1",
+      "p1",
+      3,
+      "exit_anonymous",
+      undefined,
+      undefined
+    );
   });
 
   it("performs optimistic update: -quantity on product detail", async () => {
@@ -228,7 +239,9 @@ describe("useCreateStockExit", () => {
       });
     });
 
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.products.all });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.products.detail("p1") });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.products.lists() });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.products.stats() });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.movements.all });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.dashboard.all });
   });

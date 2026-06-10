@@ -11,10 +11,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -27,24 +24,18 @@ import {
   getStockBadgeVariant,
   getStockScoreBgColor,
 } from "@/lib/utils/stock";
+import dynamic from "next/dynamic";
 import ArchiveProductButton from "./archive-product-button";
 import RestockButton from "./restock-button";
-import StockEvolutionChart from "./stock-evolution-chart";
-import ProductQRCode from "@/components/product-qr-code";
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+const StockEvolutionChart = dynamic(() => import("./stock-evolution-chart"));
+const ProductQRCode = dynamic(() => import("@/components/product-qr-code"));
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
 
-  const { data: product } = await supabase
-    .from("products")
-    .select("name")
-    .eq("id", id)
-    .single();
+  const { data: product } = await supabase.from("products").select("name").eq("id", id).single();
 
   return generateMeta({
     title: product?.name || "Détail du produit",
@@ -69,11 +60,7 @@ async function getProduct(id: string) {
   return product;
 }
 
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const product = await getProduct(id);
 
@@ -110,9 +97,7 @@ export default async function Page({
           <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-sm pl-12 sm:pl-0">
             {product.supplier?.name && (
               <div>
-                <span className="text-foreground font-semibold">
-                  Fournisseur :
-                </span>{" "}
+                <span className="text-foreground font-semibold">Fournisseur :</span>{" "}
                 {product.supplier.website_url ? (
                   <a
                     href={product.supplier.website_url}
@@ -129,7 +114,7 @@ export default async function Page({
             )}
             <div>
               <span className="text-foreground font-semibold">Créé le :</span>{" "}
-              {new Date(product.created_at ?? Date.now()).toLocaleDateString("fr-FR", {
+              {new Date(product.created_at!).toLocaleDateString("fr-FR", {
                 day: "numeric",
                 month: "short",
                 year: "numeric",
@@ -137,8 +122,7 @@ export default async function Page({
             </div>
             {product.sku && (
               <div>
-                <span className="text-foreground font-semibold">SKU :</span>{" "}
-                {product.sku}
+                <span className="text-foreground font-semibold">SKU :</span> {product.sku}
               </div>
             )}
           </div>
@@ -167,11 +151,7 @@ export default async function Page({
 
           {/* QR Code - Hidden on mobile, shown on lg+ */}
           <div className="hidden lg:block">
-            <ProductQRCode
-              productId={id}
-              productName={product.name}
-              productSku={product.sku}
-            />
+            <ProductQRCode productId={id} productName={product.name} productSku={product.sku} />
           </div>
         </div>
 
@@ -183,9 +163,7 @@ export default async function Page({
               <div className="flex items-start gap-3">
                 <CircleDollarSign className="size-5 sm:size-6 opacity-40 shrink-0 mt-0.5" />
                 <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className="text-muted-foreground text-xs sm:text-sm">
-                    Prix unitaire
-                  </span>
+                  <span className="text-muted-foreground text-xs sm:text-sm">Prix unitaire</span>
                   <span className="text-sm sm:text-lg font-semibold truncate">
                     {product.price
                       ? product.price.toLocaleString("fr-FR", {
@@ -202,12 +180,8 @@ export default async function Page({
               <div className="flex items-start gap-3">
                 <Layers2Icon className="size-5 sm:size-6 opacity-40 shrink-0 mt-0.5" />
                 <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className="text-muted-foreground text-xs sm:text-sm">
-                    Niveau
-                  </span>
-                  <span className="text-sm sm:text-lg font-semibold">
-                    {stockScore}%
-                  </span>
+                  <span className="text-muted-foreground text-xs sm:text-sm">Niveau</span>
+                  <span className="text-sm sm:text-lg font-semibold">{stockScore}%</span>
                 </div>
               </div>
             </div>
@@ -216,9 +190,7 @@ export default async function Page({
               <div className="flex items-start gap-3">
                 <TruckIcon className="size-5 sm:size-6 opacity-40 shrink-0 mt-0.5" />
                 <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className="text-muted-foreground text-xs sm:text-sm">
-                    Stock actuel
-                  </span>
+                  <span className="text-muted-foreground text-xs sm:text-sm">Stock actuel</span>
                   <span className="text-sm sm:text-lg font-semibold">
                     {product.stock_current ?? 0}
                   </span>
@@ -230,9 +202,7 @@ export default async function Page({
               <div className="flex items-start gap-3">
                 <Package className="size-5 sm:size-6 opacity-40 shrink-0 mt-0.5" />
                 <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className="text-muted-foreground text-xs sm:text-sm">
-                    Valeur
-                  </span>
+                  <span className="text-muted-foreground text-xs sm:text-sm">Valeur</span>
                   <span className="text-sm sm:text-lg font-semibold truncate">
                     {totalValue.toLocaleString("fr-FR", {
                       style: "currency",
@@ -264,17 +234,13 @@ export default async function Page({
               {product.description && (
                 <div>
                   <h3 className="mb-2 font-semibold text-sm sm:text-base">Description</h3>
-                  <p className="text-muted-foreground text-sm">
-                    {product.description}
-                  </p>
+                  <p className="text-muted-foreground text-sm">{product.description}</p>
                 </div>
               )}
 
               {/* Stock Progress */}
               <div>
-                <h3 className="mb-3 font-semibold text-sm sm:text-base">
-                  Niveau de stock
-                </h3>
+                <h3 className="mb-3 font-semibold text-sm sm:text-base">Niveau de stock</h3>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span>
@@ -359,11 +325,7 @@ export default async function Page({
 
       {/* QR Code - Mobile only (at bottom) */}
       <div className="lg:hidden">
-        <ProductQRCode
-          productId={id}
-          productName={product.name}
-          productSku={product.sku}
-        />
+        <ProductQRCode productId={id} productName={product.name} productSku={product.sku} />
       </div>
     </div>
   );

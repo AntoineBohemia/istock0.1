@@ -13,11 +13,7 @@
  * @param max - Stock maximum (niveau optimal)
  * @returns Score entre 0 et 100
  */
-export function calculateStockScore(
-  current: number,
-  min: number,
-  max: number
-): number {
+export function calculateStockScore(current: number, min: number, max: number): number {
   // Validation des entrées
   if (max <= 0 || min < 0 || current < 0) {
     return 0;
@@ -87,11 +83,8 @@ export function getStockStatus(score: number): string {
  * @param score - Score de stock (0-100)
  * @returns Variant du badge
  */
-export function getStockBadgeVariant(
-  score: number
-): "destructive" | "warning" | "success" | "secondary" {
+export function getStockBadgeVariant(score: number): "destructive" | "warning" | "success" {
   if (score < 30) return "destructive";
   if (score < 60) return "warning";
-  if (score >= 60) return "success";
-  return "secondary";
+  return "success";
 }

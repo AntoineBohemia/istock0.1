@@ -28,7 +28,9 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 export default function Page() {
   const searchParams = useSearchParams();
   const prefillEmail = searchParams.get("email") || "";
-  const returnUrl = searchParams.get("returnUrl") || "";
+  const rawReturnUrl = searchParams.get("returnUrl") || "";
+  const returnUrl =
+    rawReturnUrl.startsWith("/") && !rawReturnUrl.startsWith("//") ? rawReturnUrl : "";
 
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -84,7 +86,8 @@ export default function Page() {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground text-sm mb-4">
-              Nous vous avons envoyé un email de confirmation. Veuillez vérifier votre boîte de réception et cliquer sur le lien pour activer votre compte.
+              Nous vous avons envoyé un email de confirmation. Veuillez vérifier votre boîte de
+              réception et cliquer sur le lien pour activer votre compte.
             </p>
             <Link href="/login">
               <Button className="w-full">Retour à la connexion</Button>
@@ -138,12 +141,7 @@ export default function Page() {
                     <FormItem>
                       <Label htmlFor="last_name">Nom</Label>
                       <FormControl>
-                        <Input
-                          {...field}
-                          id="last_name"
-                          placeholder="Nom"
-                          disabled={isLoading}
-                        />
+                        <Input {...field} id="last_name" placeholder="Nom" disabled={isLoading} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -189,7 +187,11 @@ export default function Page() {
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                             tabIndex={-1}
                           >
-                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            {showPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
                           </button>
                         </div>
                       </FormControl>

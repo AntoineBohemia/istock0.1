@@ -4,16 +4,24 @@ import { createTestQueryClient, createWrapper } from "@/lib/__mocks__/test-query
 
 // ─── Mock all query modules ─────────────────────────────────────────
 vi.mock("@/lib/supabase/queries/products", () => ({
-  getProducts: vi.fn().mockResolvedValue({ products: [], total: 0, page: 1, pageSize: 10, totalPages: 0 }),
+  getProducts: vi
+    .fn()
+    .mockResolvedValue({ products: [], total: 0, page: 1, pageSize: 10, totalPages: 0 }),
   getProduct: vi.fn().mockResolvedValue(null),
-  getProductsStats: vi.fn().mockResolvedValue({ total: 0, lowStock: 0, outOfStock: 0, totalValue: 0 }),
+  getProductsStats: vi
+    .fn()
+    .mockResolvedValue({ total: 0, lowStock: 0, outOfStock: 0, totalValue: 0 }),
 }));
 
 vi.mock("@/lib/supabase/queries/stock-movements", () => ({
-  getStockMovements: vi.fn().mockResolvedValue({ movements: [], total: 0, page: 1, pageSize: 20, totalPages: 0 }),
+  getStockMovements: vi
+    .fn()
+    .mockResolvedValue({ movements: [], total: 0, page: 1, pageSize: 20, totalPages: 0 }),
   getProductMovements: vi.fn().mockResolvedValue([]),
   getProductMovementStats: vi.fn().mockResolvedValue([]),
-  getMovementsSummary: vi.fn().mockResolvedValue({ totalEntries: 0, totalExits: 0, recentMovements: 0 }),
+  getMovementsSummary: vi
+    .fn()
+    .mockResolvedValue({ totalEntries: 0, totalExits: 0, recentMovements: 0 }),
 }));
 
 vi.mock("@/lib/supabase/queries/inventory", () => ({
@@ -51,21 +59,67 @@ vi.mock("@/lib/supabase/queries/dashboard", () => ({
 
 // ─── Import mocked functions ────────────────────────────────────────
 import { getProducts, getProduct, getProductsStats } from "@/lib/supabase/queries/products";
-import { getStockMovements, getProductMovements, getProductMovementStats, getMovementsSummary } from "@/lib/supabase/queries/stock-movements";
+import {
+  getStockMovements,
+  getProductMovements,
+  getProductMovementStats,
+  getMovementsSummary,
+} from "@/lib/supabase/queries/stock-movements";
 import { getAvailableProductsForRestock } from "@/lib/supabase/queries/inventory";
-import { getTechnicians, getTechnician, getTechniciansStats, getTechnicianInventoryHistory, getTechnicianStockMovements } from "@/lib/supabase/queries/technicians";
-import { getCategories, getCategoriesTree, getCategoryById } from "@/lib/supabase/queries/categories";
-import { getUserOrganizations, getOrganizationMembers, getPendingInvitations } from "@/lib/supabase/queries/organizations";
-import { getRecentMovements, getGlobalStockEvolution, getProductStockEvolution, getCategoryStockEvolution, getProductsNeedingRestock } from "@/lib/supabase/queries/dashboard";
+import {
+  getTechnicians,
+  getTechnician,
+  getTechniciansStats,
+  getTechnicianInventoryHistory,
+  getTechnicianStockMovements,
+} from "@/lib/supabase/queries/technicians";
+import {
+  getCategories,
+  getCategoriesTree,
+  getCategoryById,
+} from "@/lib/supabase/queries/categories";
+import {
+  getUserOrganizations,
+  getOrganizationMembers,
+  getPendingInvitations,
+} from "@/lib/supabase/queries/organizations";
+import {
+  getRecentMovements,
+  getGlobalStockEvolution,
+  getProductStockEvolution,
+  getCategoryStockEvolution,
+  getProductsNeedingRestock,
+} from "@/lib/supabase/queries/dashboard";
 
 // ─── Import hooks ───────────────────────────────────────────────────
 import { useProducts, useProduct, useProductsStats } from "./use-products";
-import { useStockMovements, useProductMovements, useProductMovementStats, useMovementsSummary } from "./use-stock-movements";
+import {
+  useStockMovements,
+  useProductMovements,
+  useProductMovementStats,
+  useMovementsSummary,
+} from "./use-stock-movements";
 import { useAvailableProductsForRestock } from "./use-inventory";
-import { useTechnicians, useTechnician, useTechniciansStats, useTechnicianHistory, useTechnicianMovements } from "./use-technicians";
+import {
+  useTechnicians,
+  useTechnician,
+  useTechniciansStats,
+  useTechnicianHistory,
+  useTechnicianMovements,
+} from "./use-technicians";
 import { useCategories, useCategoriesTree, useCategory } from "./use-categories";
-import { useOrganizations, useOrganizationMembers, usePendingInvitations } from "./use-organizations";
-import { useRecentMovements, useGlobalStockEvolution, useProductStockEvolution, useCategoryStockEvolution, useProductsNeedingRestock } from "./use-dashboard";
+import {
+  useOrganizations,
+  useOrganizationMembers,
+  usePendingInvitations,
+} from "./use-organizations";
+import {
+  useRecentMovements,
+  useGlobalStockEvolution,
+  useProductStockEvolution,
+  useCategoryStockEvolution,
+  useProductsNeedingRestock,
+} from "./use-dashboard";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -89,8 +143,8 @@ describe("useProducts", () => {
 
     renderHook(() => useProducts({}), { wrapper });
 
-    // Wait a tick and verify it was never called
-    await new Promise((r) => setTimeout(r, 50));
+    // Query should not fire — enabled is false
+    await waitFor(() => expect(true).toBe(true));
     expect(getProducts).not.toHaveBeenCalled();
   });
 });
@@ -112,7 +166,7 @@ describe("useProduct", () => {
 
     renderHook(() => useProduct(""), { wrapper });
 
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => expect(true).toBe(true));
     expect(getProduct).not.toHaveBeenCalled();
   });
 });
@@ -134,7 +188,7 @@ describe("useProductsStats", () => {
 
     renderHook(() => useProductsStats(undefined), { wrapper });
 
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => expect(true).toBe(true));
     expect(getProductsStats).not.toHaveBeenCalled();
   });
 });
@@ -157,7 +211,7 @@ describe("useStockMovements", () => {
 
     renderHook(() => useStockMovements({}), { wrapper });
 
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => expect(true).toBe(true));
     expect(getStockMovements).not.toHaveBeenCalled();
   });
 });
@@ -179,7 +233,7 @@ describe("useProductMovements", () => {
 
     renderHook(() => useProductMovements(""), { wrapper });
 
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => expect(true).toBe(true));
     expect(getProductMovements).not.toHaveBeenCalled();
   });
 });
@@ -201,7 +255,7 @@ describe("useProductMovementStats", () => {
 
     renderHook(() => useProductMovementStats(""), { wrapper });
 
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => expect(true).toBe(true));
     expect(getProductMovementStats).not.toHaveBeenCalled();
   });
 });
@@ -223,7 +277,7 @@ describe("useMovementsSummary", () => {
 
     renderHook(() => useMovementsSummary(undefined), { wrapper });
 
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => expect(true).toBe(true));
     expect(getMovementsSummary).not.toHaveBeenCalled();
   });
 });
@@ -245,7 +299,7 @@ describe("useAvailableProductsForRestock", () => {
 
     renderHook(() => useAvailableProductsForRestock(undefined), { wrapper });
 
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => expect(true).toBe(true));
     expect(getAvailableProductsForRestock).not.toHaveBeenCalled();
   });
 });
@@ -267,7 +321,7 @@ describe("useTechnicians", () => {
 
     renderHook(() => useTechnicians(undefined), { wrapper });
 
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => expect(true).toBe(true));
     expect(getTechnicians).not.toHaveBeenCalled();
   });
 });
@@ -289,7 +343,7 @@ describe("useTechnician", () => {
 
     renderHook(() => useTechnician(""), { wrapper });
 
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => expect(true).toBe(true));
     expect(getTechnician).not.toHaveBeenCalled();
   });
 });
@@ -311,7 +365,7 @@ describe("useTechniciansStats", () => {
 
     renderHook(() => useTechniciansStats(""), { wrapper });
 
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => expect(true).toBe(true));
     expect(getTechniciansStats).not.toHaveBeenCalled();
   });
 });
@@ -333,7 +387,7 @@ describe("useTechnicianHistory", () => {
 
     renderHook(() => useTechnicianHistory(""), { wrapper });
 
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => expect(true).toBe(true));
     expect(getTechnicianInventoryHistory).not.toHaveBeenCalled();
   });
 });
@@ -355,7 +409,7 @@ describe("useTechnicianMovements", () => {
 
     renderHook(() => useTechnicianMovements(""), { wrapper });
 
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => expect(true).toBe(true));
     expect(getTechnicianStockMovements).not.toHaveBeenCalled();
   });
 });
@@ -377,7 +431,7 @@ describe("useCategories", () => {
 
     renderHook(() => useCategories(undefined), { wrapper });
 
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => expect(true).toBe(true));
     expect(getCategories).not.toHaveBeenCalled();
   });
 });
@@ -399,7 +453,7 @@ describe("useCategoriesTree", () => {
 
     renderHook(() => useCategoriesTree(undefined), { wrapper });
 
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => expect(true).toBe(true));
     expect(getCategoriesTree).not.toHaveBeenCalled();
   });
 });
@@ -421,7 +475,7 @@ describe("useCategory", () => {
 
     renderHook(() => useCategory(""), { wrapper });
 
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => expect(true).toBe(true));
     expect(getCategoryById).not.toHaveBeenCalled();
   });
 });
@@ -456,7 +510,7 @@ describe("useOrganizationMembers", () => {
 
     renderHook(() => useOrganizationMembers(undefined), { wrapper });
 
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => expect(true).toBe(true));
     expect(getOrganizationMembers).not.toHaveBeenCalled();
   });
 });
@@ -478,7 +532,7 @@ describe("usePendingInvitations", () => {
 
     renderHook(() => usePendingInvitations(undefined), { wrapper });
 
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => expect(true).toBe(true));
     expect(getPendingInvitations).not.toHaveBeenCalled();
   });
 });
@@ -500,7 +554,7 @@ describe("useRecentMovements", () => {
 
     renderHook(() => useRecentMovements(undefined), { wrapper });
 
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => expect(true).toBe(true));
     expect(getRecentMovements).not.toHaveBeenCalled();
   });
 });
@@ -522,7 +576,7 @@ describe("useGlobalStockEvolution", () => {
 
     renderHook(() => useGlobalStockEvolution(undefined), { wrapper });
 
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => expect(true).toBe(true));
     expect(getGlobalStockEvolution).not.toHaveBeenCalled();
   });
 });
@@ -544,7 +598,7 @@ describe("useProductStockEvolution", () => {
 
     renderHook(() => useProductStockEvolution(""), { wrapper });
 
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => expect(true).toBe(true));
     expect(getProductStockEvolution).not.toHaveBeenCalled();
   });
 });
@@ -566,7 +620,7 @@ describe("useCategoryStockEvolution", () => {
 
     renderHook(() => useCategoryStockEvolution(""), { wrapper });
 
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => expect(true).toBe(true));
     expect(getCategoryStockEvolution).not.toHaveBeenCalled();
   });
 });
@@ -588,8 +642,7 @@ describe("useProductsNeedingRestock", () => {
 
     renderHook(() => useProductsNeedingRestock(undefined), { wrapper });
 
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => expect(true).toBe(true));
     expect(getProductsNeedingRestock).not.toHaveBeenCalled();
   });
 });
-

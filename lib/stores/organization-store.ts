@@ -22,11 +22,10 @@ interface OrganizationStore {
   reset: () => void;
 }
 
-const organizationStore: StateCreator<
-  OrganizationStore,
-  [],
-  [["zustand/persist", unknown]]
-> = (set, get) => ({
+const organizationStore: StateCreator<OrganizationStore, [], [["zustand/persist", unknown]]> = (
+  set,
+  get
+) => ({
   currentOrganization: null,
   organizations: [],
   isLoading: true,
@@ -85,3 +84,12 @@ export function canAccessSettings(role: string): boolean {
 export function isReadOnlyMember(role: string): boolean {
   return role === "guest";
 }
+
+// Selective hooks to avoid unnecessary re-renders
+export const useCurrentOrganization = () => useOrganizationStore((s) => s.currentOrganization);
+
+export const useCurrentOrgId = () => useOrganizationStore((s) => s.currentOrganization?.id);
+
+export const useCurrentOrgRole = () => useOrganizationStore((s) => s.currentOrganization?.role);
+
+export const useOrgIsLoading = () => useOrganizationStore((s) => s.isLoading);

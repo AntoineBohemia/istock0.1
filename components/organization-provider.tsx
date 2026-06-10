@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import {
@@ -19,26 +19,17 @@ interface OrganizationProviderProps {
 // Routes qui ne necessitent pas d'organisation
 const ONBOARDING_ROUTES = ["/onboarding-flow", "/invite"];
 
-export default function OrganizationProvider({
-  children,
-}: OrganizationProviderProps) {
-  const router = useRouter();
+export default function OrganizationProvider({ children }: OrganizationProviderProps) {
   const pathname = usePathname();
   const [isChecking, setIsChecking] = useState(true);
-  const [shouldRedirect, setShouldRedirect] = useState(false);
-  const {
-    currentOrganization,
-    setCurrentOrganization,
-    setOrganizations,
-    setIsLoading,
-  } = useOrganizationStore();
+  const { setCurrentOrganization, setOrganizations, setIsLoading } = useOrganizationStore();
 
   // Verifier si on est sur une route d'onboarding
-  const isOnboardingRoute = ONBOARDING_ROUTES.some((route) =>
-    pathname.startsWith(route)
-  );
+  const isOnboardingRoute = ONBOARDING_ROUTES.some((route) => pathname.startsWith(route));
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadOrganizations = async () => {
       setIsChecking(true);
 
@@ -48,6 +39,8 @@ export default function OrganizationProvider({
           data: { user },
         } = await supabase.auth.getUser();
 
+        if (cancelled) return;
+
         if (!user) {
           setIsLoading(false);
           setIsChecking(false);
@@ -56,32 +49,40 @@ export default function OrganizationProvider({
 
         // Charger toutes les organisations
         const orgs = await getUserOrganizations();
+        if (cancelled) return;
+
         setOrganizations(orgs);
 
         // Si pas d'organisation et pas deja sur onboarding, rediriger
         if (orgs.length === 0 && !isOnboardingRoute) {
-          setShouldRedirect(true);
-          // Utiliser window.location pour une redirection fiable
           window.location.href = "/onboarding-flow";
           return;
         }
 
+        // Read current store state inside the effect to avoid stale closure
+        const currentOrg = useOrganizationStore.getState().currentOrganization;
+
         // Si pas d'organisation courante, prendre la par defaut ou la premiere
-        if (!currentOrganization && orgs.length > 0) {
+        if (!currentOrg && orgs.length > 0) {
           const defaultOrg = await getDefaultOrganization();
+          if (cancelled) return;
           setCurrentOrganization(defaultOrg || orgs[0]);
-        } else if (currentOrganization) {
+        } else if (currentOrg) {
           // Verifier que l'organisation courante est toujours valide
-          const stillValid = orgs.find((o) => o.id === currentOrganization.id);
+          const stillValid = orgs.find((o) => o.id === currentOrg.id);
           if (!stillValid && orgs.length > 0) {
             setCurrentOrganization(orgs[0]);
           }
         }
       } catch (error) {
-        console.error("Erreur lors du chargement des organisations:", error);
+        if (!cancelled) {
+          console.error("Erreur lors du chargement des organisations:", error);
+        }
       } finally {
-        setIsLoading(false);
-        setIsChecking(false);
+        if (!cancelled) {
+          setIsLoading(false);
+          setIsChecking(false);
+        }
       }
     };
 
@@ -100,12 +101,13 @@ export default function OrganizationProvider({
     });
 
     return () => {
+      cancelled = true;
       subscription.unsubscribe();
     };
-  }, [pathname, isOnboardingRoute]);
+  }, [pathname, isOnboardingRoute, setCurrentOrganization, setOrganizations, setIsLoading]);
 
   // Afficher un loader pendant la verification (sauf sur les routes d'onboarding)
-  if ((isChecking || shouldRedirect) && !isOnboardingRoute) {
+  if (isChecking && !isOnboardingRoute) {
     return (
       <div className="flex h-screen w-screen items-center justify-center">
         <Loader2 className="size-8 animate-spin text-muted-foreground" />
@@ -131,8 +133,8 @@ export function useSwitchOrganization() {
       } catch (error) {
         console.error("Erreur lors de la persistance de l'organisation:", error);
       }
-      // Clear all cached queries - they'll refetch with the new orgId
-      queryClient.removeQueries();
+      // Invalidate all cached queries — data stays visible during refetch
+      queryClient.invalidateQueries();
     }
   };
 

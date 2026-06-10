@@ -40,11 +40,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -65,6 +61,7 @@ interface QuickStockMovementModalProps {
   open: boolean;
   onClose: () => void;
   productId: string | null;
+  defaultDirection?: "entry" | "exit";
 }
 
 interface Product {
@@ -96,17 +93,20 @@ export default function QuickStockMovementModal({
   open,
   onClose,
   productId,
+  defaultDirection = "entry",
 }: QuickStockMovementModalProps) {
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
   const { data: productsResult, isLoading: isLoadingProducts } = useProducts({
     organizationId: currentOrganization?.id,
     pageSize: 1000,
   });
-  const { data: techniciansData = [], isLoading: isLoadingTechnicians } = useTechnicians(currentOrganization?.id);
+  const { data: techniciansData = [], isLoading: isLoadingTechnicians } = useTechnicians(
+    currentOrganization?.id
+  );
   const createEntryMutation = useCreateStockEntry();
   const createExitMutation = useCreateStockExit();
 
-  const allProducts: Product[] = (productsResult?.products || []).map(p => ({
+  const allProducts: Product[] = (productsResult?.products || []).map((p) => ({
     id: p.id,
     name: p.name,
     sku: p.sku,
@@ -114,7 +114,7 @@ export default function QuickStockMovementModal({
     stock_current: p.stock_current,
     price: p.price,
   }));
-  const technicians: Technician[] = techniciansData.map(t => ({
+  const technicians: Technician[] = techniciansData.map((t) => ({
     id: t.id,
     first_name: t.first_name,
     last_name: t.last_name,
@@ -148,7 +148,7 @@ export default function QuickStockMovementModal({
 
     // If productId is provided, find and set the product from cached data
     if (productId && allProducts.length > 0) {
-      const foundProduct = allProducts.find(p => p.id === productId);
+      const foundProduct = allProducts.find((p) => p.id === productId);
       if (foundProduct) {
         setProduct(foundProduct);
       } else {
@@ -159,13 +159,13 @@ export default function QuickStockMovementModal({
     }
 
     form.reset({
-      direction: "entry",
+      direction: defaultDirection,
       exit_type: "exit_anonymous",
       technician_id: "",
       quantity: 1,
       notes: "",
     });
-  }, [productId, open, allProducts.length]);
+  }, [productId, open, allProducts.length, defaultDirection]);
 
   const selectProduct = (selectedProduct: Product) => {
     setProduct(selectedProduct);
@@ -189,9 +189,7 @@ export default function QuickStockMovementModal({
             onClose();
           },
           onError: (error) => {
-            toast.error(
-              error instanceof Error ? error.message : "Erreur lors de l'enregistrement"
-            );
+            toast.error(error instanceof Error ? error.message : "Erreur lors de l'enregistrement");
           },
         }
       );
@@ -223,9 +221,7 @@ export default function QuickStockMovementModal({
             onClose();
           },
           onError: (error) => {
-            toast.error(
-              error instanceof Error ? error.message : "Erreur lors de l'enregistrement"
-            );
+            toast.error(error instanceof Error ? error.message : "Erreur lors de l'enregistrement");
           },
         }
       );
@@ -246,9 +242,7 @@ export default function QuickStockMovementModal({
             <Package className="size-5" />
             Mouvement de stock
           </DialogTitle>
-          <DialogDescription>
-            Enregistrez une entrée ou sortie rapide
-          </DialogDescription>
+          <DialogDescription>Enregistrez une entrée ou sortie rapide</DialogDescription>
         </DialogHeader>
 
         {isLoading || isOrgLoading ? (
@@ -276,14 +270,10 @@ export default function QuickStockMovementModal({
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">{product.name}</p>
                   {product.sku && (
-                    <p className="text-xs text-muted-foreground font-mono">
-                      {product.sku}
-                    </p>
+                    <p className="text-xs text-muted-foreground font-mono">{product.sku}</p>
                   )}
                   <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="outline">
-                      Stock: {product.stock_current}
-                    </Badge>
+                    <Badge variant="outline">Stock: {product.stock_current}</Badge>
                     {product.price && (
                       <span className="text-xs text-muted-foreground">
                         {product.price.toLocaleString("fr-FR", {
@@ -361,12 +351,8 @@ export default function QuickStockMovementModal({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="exit_technician">
-                            Vers technicien
-                          </SelectItem>
-                          <SelectItem value="exit_anonymous">
-                            Sortie anonyme
-                          </SelectItem>
+                          <SelectItem value="exit_technician">Vers technicien</SelectItem>
+                          <SelectItem value="exit_anonymous">Sortie anonyme</SelectItem>
                           <SelectItem value="exit_loss">Perte / Casse</SelectItem>
                         </SelectContent>
                       </Select>
@@ -415,19 +401,13 @@ export default function QuickStockMovementModal({
                       <Input
                         type="number"
                         min={1}
-                        max={
-                          direction === "exit" ? (product.stock_current ?? 0) : undefined
-                        }
+                        max={direction === "exit" ? (product.stock_current ?? 0) : undefined}
                         {...field}
-                        onChange={(e) =>
-                          field.onChange(parseInt(e.target.value) || 1)
-                        }
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
                       />
                     </FormControl>
                     {direction === "exit" && (
-                      <FormDescription>
-                        Maximum disponible: {product.stock_current}
-                      </FormDescription>
+                      <FormDescription>Maximum disponible: {product.stock_current}</FormDescription>
                     )}
                     <FormMessage />
                   </FormItem>
@@ -442,11 +422,7 @@ export default function QuickStockMovementModal({
                   <FormItem>
                     <FormLabel>Notes</FormLabel>
                     <FormControl>
-                      <Textarea
-                        placeholder="Notes optionnelles..."
-                        rows={2}
-                        {...field}
-                      />
+                      <Textarea placeholder="Notes optionnelles..." rows={2} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -471,9 +447,7 @@ export default function QuickStockMovementModal({
                       : "bg-rose-600 hover:bg-rose-700"
                   }
                 >
-                  {isSubmitting && (
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                  )}
+                  {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
                   {direction === "entry" ? "Ajouter au stock" : "Retirer du stock"}
                 </Button>
               </DialogFooter>
@@ -486,10 +460,7 @@ export default function QuickStockMovementModal({
               <p className="text-sm font-medium mb-2">Sélectionner un produit</p>
               <Popover open={productPopoverOpen} onOpenChange={setProductPopoverOpen}>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start"
-                  >
+                  <Button variant="outline" className="w-full justify-start">
                     <Search className="mr-2 size-4" />
                     Rechercher un produit...
                   </Button>

@@ -1,38 +1,22 @@
 import { generateMeta } from "@/lib/utils";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  Mail,
-  Phone,
-  MapPin,
-  Calendar,
-  Edit3Icon,
-  Package,
-} from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, Edit3Icon, Package } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createClient } from "@/lib/supabase/server";
+import dynamic from "next/dynamic";
 import TechnicianInventory from "./technician-inventory";
-import TechnicianEvolution from "./technician-evolution";
 import TechnicianHistory from "./technician-history";
+
+const TechnicianEvolution = dynamic(() => import("./technician-evolution"));
 import ArchiveTechnicianButton from "./archive-technician-button";
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
 
@@ -42,9 +26,7 @@ export async function generateMetadata({
     .eq("id", id)
     .single();
 
-  const name = technician
-    ? `${technician.first_name} ${technician.last_name}`
-    : "Technicien";
+  const name = technician ? `${technician.first_name} ${technician.last_name}` : "Technicien";
 
   return generateMeta({
     title: name,
@@ -93,15 +75,6 @@ async function getTechnician(id: string) {
 
 function generateInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-}
-
-function formatDate(dateString: string | null): string {
-  if (!dateString) return "-";
-  return new Date(dateString).toLocaleDateString("fr-FR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
 }
 
 export default async function TechnicianDetailPage({
@@ -198,9 +171,7 @@ export default async function TechnicianDetailPage({
               <p className="text-sm text-muted-foreground">Inventaire</p>
               <div className="flex items-center gap-2">
                 <p className="font-medium">{technician.inventory_count} items</p>
-                {technician.inventory_count === 0 && (
-                  <Badge variant="warning">Vide</Badge>
-                )}
+                {technician.inventory_count === 0 && <Badge variant="warning">Vide</Badge>}
               </div>
             </div>
           </CardContent>

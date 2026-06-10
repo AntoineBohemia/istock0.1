@@ -163,13 +163,7 @@ describe("getStockBadgeVariant", () => {
     expect(getStockBadgeVariant(80)).toBe("success");
   });
 
-  // NOTE: Dead code at line 96 — `return "secondary"` is unreachable
-  // because `score >= 60` already covers all remaining cases after < 30 and < 60.
-  it("never returns secondary (dead code)", () => {
-    // Every possible score is covered by one of the 3 branches above.
-    // Testing boundary values to confirm:
-    for (const s of [0, 29, 30, 59, 60, 100]) {
-      expect(getStockBadgeVariant(s)).not.toBe("secondary");
-    }
+  it("returns success for score 100", () => {
+    expect(getStockBadgeVariant(100)).toBe("success");
   });
 });

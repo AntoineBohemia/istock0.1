@@ -15,5 +15,10 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     css: false,
     exclude: ["node_modules", ".next"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json-summary"],
+      exclude: ["node_modules/", ".next/", "components/ui/", "**/*.test.ts", "**/*.test.tsx"],
+    },
   },
 });
