@@ -7,9 +7,11 @@ vi.mock("@/lib/supabase/client", () => ({
 }));
 
 vi.mock("@/lib/utils/stock", () => ({
-  calculateStockScore: vi.fn((current: number, min: number, max: number) => {
-    if (max <= 0) return 0;
-    return Math.round((current / max) * 100);
+  calculateStockScore: vi.fn((current: number | null, min: number | null, max: number | null) => {
+    const c = current ?? 0;
+    const mx = max ?? 100;
+    if (mx <= 0) return 0;
+    return Math.round((c / mx) * 100);
   }),
 }));
 
@@ -89,9 +91,7 @@ describe("getCategoryBreakdown", () => {
 
 // ─── getGlobalBreakdown ─────────────────────────────────────────────
 describe("getGlobalBreakdown", () => {
-  const categoriesTree = [
-    { id: "root", name: "Peintures", parent_id: null },
-  ];
+  const categoriesTree = [{ id: "root", name: "Peintures", parent_id: null }];
 
   const allCategories = [
     { id: "root", name: "Peintures", parent_id: null },
@@ -131,9 +131,7 @@ describe("getGlobalBreakdown", () => {
   });
 
   it("handles products with null stock_current", async () => {
-    const products = [
-      { id: "p1", name: "NullStock", category_id: null, stock_current: 0 },
-    ];
+    const products = [{ id: "p1", name: "NullStock", category_id: null, stock_current: 0 }];
     const result = await getGlobalBreakdown([], [], products);
     expect(result[0].stock).toBe(0);
   });
@@ -195,9 +193,33 @@ describe("getDashboardStats", () => {
 describe("getProductsNeedingRestock", () => {
   it("returns products with score < 30 sorted by score", async () => {
     const products = [
-      { id: "p1", name: "Low", sku: null, image_url: null, stock_current: 5, stock_min: 10, stock_max: 100 },
-      { id: "p2", name: "OK", sku: null, image_url: null, stock_current: 80, stock_min: 10, stock_max: 100 },
-      { id: "p3", name: "Very Low", sku: null, image_url: null, stock_current: 2, stock_min: 10, stock_max: 100 },
+      {
+        id: "p1",
+        name: "Low",
+        sku: null,
+        image_url: null,
+        stock_current: 5,
+        stock_min: 10,
+        stock_max: 100,
+      },
+      {
+        id: "p2",
+        name: "OK",
+        sku: null,
+        image_url: null,
+        stock_current: 80,
+        stock_min: 10,
+        stock_max: 100,
+      },
+      {
+        id: "p3",
+        name: "Very Low",
+        sku: null,
+        image_url: null,
+        stock_current: 2,
+        stock_min: 10,
+        stock_max: 100,
+      },
     ];
     mockClient._setResult({ data: products, error: null });
 
@@ -211,9 +233,33 @@ describe("getProductsNeedingRestock", () => {
 
   it("respects limit parameter", async () => {
     const products = [
-      { id: "p1", name: "Low1", sku: null, image_url: null, stock_current: 1, stock_min: 10, stock_max: 100 },
-      { id: "p2", name: "Low2", sku: null, image_url: null, stock_current: 2, stock_min: 10, stock_max: 100 },
-      { id: "p3", name: "Low3", sku: null, image_url: null, stock_current: 3, stock_min: 10, stock_max: 100 },
+      {
+        id: "p1",
+        name: "Low1",
+        sku: null,
+        image_url: null,
+        stock_current: 1,
+        stock_min: 10,
+        stock_max: 100,
+      },
+      {
+        id: "p2",
+        name: "Low2",
+        sku: null,
+        image_url: null,
+        stock_current: 2,
+        stock_min: 10,
+        stock_max: 100,
+      },
+      {
+        id: "p3",
+        name: "Low3",
+        sku: null,
+        image_url: null,
+        stock_current: 3,
+        stock_min: 10,
+        stock_max: 100,
+      },
     ];
     mockClient._setResult({ data: products, error: null });
 
@@ -241,7 +287,12 @@ describe("getTechniciansNeedingRestock", () => {
         // Technicians query
         return Promise.resolve({
           data: [
-            { id: "tech-1", first_name: "Jean", last_name: "Dupont", technician_inventory: [{ id: "i1" }] },
+            {
+              id: "tech-1",
+              first_name: "Jean",
+              last_name: "Dupont",
+              technician_inventory: [{ id: "i1" }],
+            },
             { id: "tech-2", first_name: "Marie", last_name: "Martin", technician_inventory: [] },
           ],
           error: null,
@@ -272,7 +323,9 @@ describe("getTechniciansNeedingRestock", () => {
       callCount++;
       if (callCount === 1) {
         return Promise.resolve({
-          data: [{ id: "tech-1", first_name: "Jean", last_name: "Dupont", technician_inventory: [] }],
+          data: [
+            { id: "tech-1", first_name: "Jean", last_name: "Dupont", technician_inventory: [] },
+          ],
           error: null,
         }).then(resolve, reject);
       }
@@ -485,15 +538,11 @@ describe("getTechnicianStats", () => {
           data: [
             {
               id: "tech-1",
-              technician_inventory: [
-                { quantity: 80, product: { stock_max: 100 } },
-              ],
+              technician_inventory: [{ quantity: 80, product: { stock_max: 100 } }],
             },
             {
               id: "tech-2",
-              technician_inventory: [
-                { quantity: 10, product: { stock_max: 100 } },
-              ],
+              technician_inventory: [{ quantity: 10, product: { stock_max: 100 } }],
             },
             {
               id: "tech-3",

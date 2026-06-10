@@ -249,11 +249,7 @@ export async function getProductsNeedingRestock(
   const productsWithScore = products
     ?.map((product) => ({
       ...product,
-      score: calculateStockScore(
-        product.stock_current ?? 0,
-        product.stock_min ?? 0,
-        product.stock_max ?? 0
-      ),
+      score: calculateStockScore(product.stock_current, product.stock_min, product.stock_max),
       last_movement_at: lastMovementMap[product.id] || null,
     }))
     .filter((product) => product.score < scoreThreshold)
@@ -275,12 +271,14 @@ export async function getTechniciansNeedingRestock(
   // Récupérer tous les techniciens avec leur inventaire (non archivés)
   let techniciansQuery = supabase
     .from("technicians")
-    .select(`
+    .select(
+      `
       id,
       first_name,
       last_name,
       technician_inventory(id)
-    `)
+    `
+    )
     .is("archived_at", null);
 
   if (organizationId) {
@@ -353,9 +351,7 @@ export async function getTechniciansNeedingRestock(
   });
 
   // Trier par jours depuis le dernier restock (décroissant)
-  return techniciansNeedingRestock.sort(
-    (a, b) => b.days_since_restock - a.days_since_restock
-  );
+  return techniciansNeedingRestock.sort((a, b) => b.days_since_restock - a.days_since_restock);
 }
 
 /**
@@ -369,7 +365,8 @@ export async function getRecentMovements(
 
   let query = supabase
     .from("stock_movements")
-    .select(`
+    .select(
+      `
       id,
       quantity,
       movement_type,
@@ -377,7 +374,8 @@ export async function getRecentMovements(
       notes,
       product:products(id, name, sku, image_url, price),
       technician:technicians(id, first_name, last_name)
-    `)
+    `
+    )
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -420,12 +418,14 @@ export async function getAllTechniciansForDashboard(
   // Fetch all non-archived technicians with their inventory
   const { data: technicians, error: techError } = await supabase
     .from("technicians")
-    .select(`
+    .select(
+      `
       id,
       first_name,
       last_name,
       technician_inventory(id, quantity, product:products(stock_max))
-    `)
+    `
+    )
     .eq("organization_id", organizationId)
     .is("archived_at", null);
 
@@ -453,46 +453,51 @@ export async function getAllTechniciansForDashboard(
 
   const now = new Date();
 
-  return technicians.map((tech) => {
-    const inventory = Array.isArray(tech.technician_inventory) ? tech.technician_inventory : [];
-    const itemCount = inventory.length;
-    const totalQuantity = inventory.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
-
-    // Coverage: average of (quantity / stock_max) across items
-    let coveragePct = 0;
-    if (itemCount > 0) {
-      const totalCoverage = inventory.reduce((sum: number, item: any) => {
-        const max = item.product?.stock_max || 100;
-        return sum + Math.min(100, Math.round((item.quantity / max) * 100));
-      }, 0);
-      coveragePct = Math.round(totalCoverage / itemCount);
-    }
-
-    const lastRestock = lastRestockMap[tech.id] || null;
-    let daysSinceRestock = -1;
-    if (lastRestock) {
-      daysSinceRestock = Math.floor(
-        (now.getTime() - new Date(lastRestock).getTime()) / (1000 * 60 * 60 * 24)
+  return technicians
+    .map((tech) => {
+      const inventory = Array.isArray(tech.technician_inventory) ? tech.technician_inventory : [];
+      const itemCount = inventory.length;
+      const totalQuantity = inventory.reduce(
+        (sum: number, item: any) => sum + (item.quantity || 0),
+        0
       );
-    }
 
-    return {
-      id: tech.id,
-      first_name: tech.first_name,
-      last_name: tech.last_name,
-      inventory_item_count: itemCount,
-      total_inventory_quantity: totalQuantity,
-      last_restock_at: lastRestock,
-      days_since_restock: daysSinceRestock,
-      coverage_pct: coveragePct,
-    };
-  }).sort((a, b) => {
-    // Never restocked first (days = -1), then by most days since restock
-    if (a.days_since_restock === -1 && b.days_since_restock !== -1) return -1;
-    if (b.days_since_restock === -1 && a.days_since_restock !== -1) return 1;
-    if (a.days_since_restock === -1 && b.days_since_restock === -1) return 0;
-    return b.days_since_restock - a.days_since_restock;
-  });
+      // Coverage: average of (quantity / stock_max) across items
+      let coveragePct = 0;
+      if (itemCount > 0) {
+        const totalCoverage = inventory.reduce((sum: number, item: any) => {
+          const max = item.product?.stock_max || 100;
+          return sum + Math.min(100, Math.round((item.quantity / max) * 100));
+        }, 0);
+        coveragePct = Math.round(totalCoverage / itemCount);
+      }
+
+      const lastRestock = lastRestockMap[tech.id] || null;
+      let daysSinceRestock = -1;
+      if (lastRestock) {
+        daysSinceRestock = Math.floor(
+          (now.getTime() - new Date(lastRestock).getTime()) / (1000 * 60 * 60 * 24)
+        );
+      }
+
+      return {
+        id: tech.id,
+        first_name: tech.first_name,
+        last_name: tech.last_name,
+        inventory_item_count: itemCount,
+        total_inventory_quantity: totalQuantity,
+        last_restock_at: lastRestock,
+        days_since_restock: daysSinceRestock,
+        coverage_pct: coveragePct,
+      };
+    })
+    .sort((a, b) => {
+      // Never restocked first (days = -1), then by most days since restock
+      if (a.days_since_restock === -1 && b.days_since_restock !== -1) return -1;
+      if (b.days_since_restock === -1 && a.days_since_restock !== -1) return 1;
+      if (a.days_since_restock === -1 && b.days_since_restock === -1) return 0;
+      return b.days_since_restock - a.days_since_restock;
+    });
 }
 
 /**
@@ -527,10 +532,7 @@ export async function getGlobalStockEvolution(
   }
 
   // Récupérer le stock actuel total (non archivés)
-  let productsQuery = supabase
-    .from("products")
-    .select("stock_current")
-    .is("archived_at", null);
+  let productsQuery = supabase.from("products").select("stock_current").is("archived_at", null);
 
   if (organizationId) {
     productsQuery = productsQuery.eq("organization_id", organizationId);
@@ -538,8 +540,7 @@ export async function getGlobalStockEvolution(
 
   const { data: products } = await productsQuery;
 
-  const currentTotalStock =
-    products?.reduce((sum, p) => sum + (p.stock_current || 0), 0) || 0;
+  const currentTotalStock = products?.reduce((sum, p) => sum + (p.stock_current || 0), 0) || 0;
 
   // Grouper les mouvements par mois
   const monthlyData: Record<string, { entries: number; exits: number }> = {};
@@ -563,7 +564,7 @@ export async function getGlobalStockEvolution(
   // Générer tous les mois de la période
   const result: StockEvolutionData[] = [];
   const currentDate = new Date();
-  let runningStock = currentTotalStock;
+  const runningStock = currentTotalStock;
 
   // Calculer le stock en remontant dans le temps
   const sortedMonths = Object.keys(monthlyData).sort().reverse();
@@ -881,10 +882,7 @@ export async function getCategoryBreakdown(
   }
 
   // Fonction récursive pour construire le breakdown
-  function buildBreakdown(
-    catId: string,
-    depth: number
-  ): BreakdownItem[] {
+  function buildBreakdown(catId: string, depth: number): BreakdownItem[] {
     const items: BreakdownItem[] = [];
 
     // Sous-catégories
@@ -1029,13 +1027,15 @@ export async function getTechnicianStats(
   // Récupérer les techniciens avec leur inventaire (non archivés)
   let query = supabase
     .from("technicians")
-    .select(`
+    .select(
+      `
       id,
       technician_inventory(
         quantity,
         product:products(stock_max)
       )
-    `)
+    `
+    )
     .is("archived_at", null);
 
   if (organizationId) {

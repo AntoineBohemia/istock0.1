@@ -69,9 +69,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   }
 
   const stockScore = calculateStockScore(
-    product.stock_current ?? 0,
-    product.stock_min ?? 0,
-    product.stock_max ?? 0
+    product.stock_current,
+    product.stock_min,
+    product.stock_max
   );
   const stockStatus = getStockStatus(stockScore);
   const stockBadgeVariant = getStockBadgeVariant(stockScore);

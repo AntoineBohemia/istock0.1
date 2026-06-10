@@ -5,10 +5,12 @@ import {
   getStockScoreBgColor,
   getStockStatus,
   getStockBadgeVariant,
+  STOCK_DEFAULTS,
 } from "./stock";
 
 // ─── calculateStockScore ────────────────────────────────────────────
 describe("calculateStockScore", () => {
+  // ── Basic cases ──────────────────────────────────────────────────
   it("returns 0 when stock equals 0", () => {
     expect(calculateStockScore(0, 5, 20)).toBe(0);
   });
@@ -30,7 +32,6 @@ describe("calculateStockScore", () => {
   });
 
   it("returns 50 when stock is at midpoint between min and max", () => {
-    // midpoint of 10-20 is 15 -> (15-10)/(20-10)*100 = 50
     expect(calculateStockScore(15, 10, 20)).toBe(50);
   });
 
@@ -38,13 +39,12 @@ describe("calculateStockScore", () => {
     expect(calculateStockScore(20, 5, 20)).toBe(100);
   });
 
+  // ── Overstock ────────────────────────────────────────────────────
   it("returns decreasing score for moderate overstock (between max and 2*max)", () => {
-    // stock=25, max=20 -> overstock=5, ratio=0.25, score=75
     expect(calculateStockScore(25, 5, 20)).toBe(75);
   });
 
   it("returns 50 when stock is 1.5x max", () => {
-    // stock=30, max=20 -> overstock=10, ratio=0.5, score=50
     expect(calculateStockScore(30, 5, 20)).toBe(50);
   });
 
@@ -56,21 +56,9 @@ describe("calculateStockScore", () => {
     expect(calculateStockScore(50, 5, 20)).toBe(0);
   });
 
+  // ── Edge: max is 0 or negative ──────────────────────────────────
   it("returns 0 when max is 0", () => {
     expect(calculateStockScore(10, 5, 0)).toBe(0);
-  });
-
-  it("returns 100 when min equals max and stock equals max", () => {
-    // current > min is false when min=max=10 and current=10 -> returns 0
-    // current=11 > min=10, current <= max=10 is false, so goes to overstock
-    // Actually: min=max=10, current=10 -> current<=min -> 0
-    expect(calculateStockScore(10, 10, 10)).toBe(0);
-  });
-
-  it("returns 100 when min equals max and stock is just above", () => {
-    // current=11, min=10, max=10 -> current > min, current <= max? No.
-    // current >= max*2? 11 >= 20? No. So overstock = 1, ratio = 0.1, score = 90
-    expect(calculateStockScore(11, 10, 10)).toBe(90);
   });
 
   it("returns 0 for negative current", () => {
@@ -83,6 +71,67 @@ describe("calculateStockScore", () => {
 
   it("returns 0 for negative max", () => {
     expect(calculateStockScore(10, 5, -1)).toBe(0);
+  });
+
+  // ── min === max (fixed target) ──────────────────────────────────
+  it("returns 100 when min equals max and stock equals that target", () => {
+    expect(calculateStockScore(10, 10, 10)).toBe(100);
+  });
+
+  it("returns 0 when min equals max and stock is below target", () => {
+    expect(calculateStockScore(5, 10, 10)).toBe(0);
+  });
+
+  it("returns decreasing score when min equals max and stock is above target", () => {
+    // current=11, min=10, max=10 -> overstock=1, ratio=0.1, score=90
+    expect(calculateStockScore(11, 10, 10)).toBe(90);
+  });
+
+  it("returns 0 when min equals max and stock is 2x target", () => {
+    expect(calculateStockScore(20, 10, 10)).toBe(0);
+  });
+
+  // ── NULL handling (the main bug fix) ────────────────────────────
+  it("uses default MIN when min is null", () => {
+    // null min → STOCK_DEFAULTS.MIN (10), max=100
+    // score = (50-10)/(100-10)*100 = 44
+    expect(calculateStockScore(50, null, 100)).toBe(44);
+  });
+
+  it("uses default MAX when max is null", () => {
+    // min=10, null max → STOCK_DEFAULTS.MAX (100)
+    // score = (50-10)/(100-10)*100 = 44
+    expect(calculateStockScore(50, 10, null)).toBe(44);
+  });
+
+  it("uses both defaults when both are null", () => {
+    // null min → 10, null max → 100
+    // score = (50-10)/(100-10)*100 = 44
+    expect(calculateStockScore(50, null, null)).toBe(44);
+  });
+
+  it("treats null current as 0", () => {
+    expect(calculateStockScore(null, 5, 20)).toBe(0);
+  });
+
+  it("does NOT return 0 when max is null (uses default instead)", () => {
+    // Previously: null max → 0 → score always 0. Now uses default 100.
+    const score = calculateStockScore(50, null, null);
+    expect(score).toBeGreaterThan(0);
+  });
+
+  it("gives sensible score for product with no thresholds configured", () => {
+    // stock=80, min=null(→10), max=null(→100) → (80-10)/(100-10)*100 = 78
+    expect(calculateStockScore(80, null, null)).toBe(78);
+  });
+
+  it("gives 100% when stock equals default max and thresholds are null", () => {
+    expect(calculateStockScore(STOCK_DEFAULTS.MAX, null, null)).toBe(100);
+  });
+
+  it("gives 0% when stock is at or below default min and thresholds are null", () => {
+    expect(calculateStockScore(STOCK_DEFAULTS.MIN, null, null)).toBe(0);
+    expect(calculateStockScore(5, null, null)).toBe(0);
   });
 });
 

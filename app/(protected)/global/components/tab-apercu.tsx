@@ -29,11 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -52,11 +48,7 @@ import {
   type StockEvolutionData,
 } from "@/lib/supabase/queries/dashboard";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
-import {
-  useHealthScore,
-  useHealthScoreHistory,
-  useGlobalStockEvolution,
-} from "@/hooks/queries";
+import { useHealthScore, useHealthScoreHistory, useGlobalStockEvolution } from "@/hooks/queries";
 import { useCategories } from "@/hooks/queries";
 import { useProducts } from "@/hooks/queries";
 import { useQueries } from "@tanstack/react-query";
@@ -170,7 +162,10 @@ export function TabApercu() {
   // Data hooks
   const { data: healthScore, isLoading: isScoreLoading } = useHealthScore(orgId);
   const { data: historyRaw = [], isLoading: isHistoryLoading } = useHealthScoreHistory(orgId, 6);
-  const { data: globalChartData = [], isLoading: isEvolutionLoading } = useGlobalStockEvolution(orgId, 6);
+  const { data: globalChartData = [], isLoading: isEvolutionLoading } = useGlobalStockEvolution(
+    orgId,
+    6
+  );
   const { data: categoriesData = [] } = useCategories(orgId);
   const { data: productsResult } = useProducts({ organizationId: orgId, pageSize: 1000 });
 
@@ -272,8 +267,8 @@ export function TabApercu() {
     selectedProductIds.forEach((productId) => {
       const data = productData[productId] || [];
       const product = products.find((p) => p.id === productId);
-      const stockMin = product?.stock_min ?? 0;
-      const stockMax = product?.stock_max ?? 0;
+      const stockMin = product?.stock_min ?? null;
+      const stockMax = product?.stock_max ?? null;
 
       data.forEach((d) => {
         if (!dateMap.has(d.date)) {
@@ -392,8 +387,7 @@ export function TabApercu() {
                   <CommandGroup>
                     {filteredProducts.map((product) => {
                       const isSelected = selectedProductIds.includes(product.id);
-                      const isDisabled =
-                        !isSelected && selectedProductIds.length >= MAX_PRODUCTS;
+                      const isDisabled = !isSelected && selectedProductIds.length >= MAX_PRODUCTS;
                       return (
                         <CommandItem
                           key={product.id}
@@ -413,9 +407,7 @@ export function TabApercu() {
                           )}
                           <span className="truncate flex-1">{product.name}</span>
                           {product.sku && (
-                            <span className="text-[10px] text-muted-foreground">
-                              {product.sku}
-                            </span>
+                            <span className="text-[10px] text-muted-foreground">{product.sku}</span>
                           )}
                         </CommandItem>
                       );
@@ -479,10 +471,7 @@ export function TabApercu() {
         )}
 
         {scoreChartData.length > 0 ? (
-          <ChartContainer
-            className="h-[200px] lg:h-[250px] w-full"
-            config={scoreChartConfig}
-          >
+          <ChartContainer className="h-[200px] lg:h-[250px] w-full" config={scoreChartConfig}>
             <AreaChart
               accessibilityLayer
               data={scoreChartData}
@@ -513,16 +502,8 @@ export function TabApercu() {
                   ))
                 ) : (
                   <linearGradient id="fillScore" x1="0" y1="0" x2="0" y2="1">
-                    <stop
-                      offset="5%"
-                      stopColor="hsl(var(--chart-1))"
-                      stopOpacity={0.8}
-                    />
-                    <stop
-                      offset="95%"
-                      stopColor="hsl(var(--chart-1))"
-                      stopOpacity={0.1}
-                    />
+                    <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0.1} />
                   </linearGradient>
                 )}
               </defs>
@@ -533,12 +514,7 @@ export function TabApercu() {
               <ReferenceArea y1={0} y2={40} fill={ZONE_RED} fillOpacity={1} />
 
               <CartesianGrid vertical={false} />
-              <XAxis
-                dataKey="monthLabel"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-              />
+              <XAxis dataKey="monthLabel" tickLine={false} axisLine={false} tickMargin={8} />
               <YAxis
                 domain={[0, 100]}
                 tickLine={false}
@@ -585,33 +561,13 @@ export function TabApercu() {
       {!hasProductFilter && flowChartData.length > 0 && (
         <div>
           <p className="text-sm font-medium mb-3">Flux mensuels</p>
-          <ChartContainer
-            className="h-[120px] lg:h-[150px] w-full"
-            config={flowChartConfig}
-          >
-            <BarChart
-              accessibilityLayer
-              data={flowChartData}
-              margin={{ left: 12, right: 12 }}
-            >
+          <ChartContainer className="h-[120px] lg:h-[150px] w-full" config={flowChartConfig}>
+            <BarChart accessibilityLayer data={flowChartData} margin={{ left: 12, right: 12 }}>
               <CartesianGrid vertical={false} />
-              <XAxis
-                dataKey="monthLabel"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-              />
+              <XAxis dataKey="monthLabel" tickLine={false} axisLine={false} tickMargin={8} />
               <ChartTooltip cursor={false} content={<FlowTooltipContent />} />
-              <Bar
-                dataKey="entries"
-                fill="hsl(160 84% 39%)"
-                radius={[4, 4, 0, 0]}
-              />
-              <Bar
-                dataKey="exits"
-                fill="hsl(350 89% 60%)"
-                radius={[4, 4, 0, 0]}
-              />
+              <Bar dataKey="entries" fill="hsl(160 84% 39%)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="exits" fill="hsl(350 89% 60%)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ChartContainer>
         </div>

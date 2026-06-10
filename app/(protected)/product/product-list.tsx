@@ -30,11 +30,7 @@ import {
 import Link from "next/link";
 import { toast } from "sonner";
 
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -124,8 +120,7 @@ export default function ProductList() {
 
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [productToDelete, setProductToDelete] =
-    useState<ProductWithCategory | null>(null);
+  const [productToDelete, setProductToDelete] = useState<ProductWithCategory | null>(null);
   const [stockModalOpen, setStockModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const pageSize = 20;
@@ -163,9 +158,7 @@ export default function ProductList() {
         setProductToDelete(null);
       },
       onError: (error) => {
-        toast.error(
-          error instanceof Error ? error.message : "Erreur lors de l'archivage"
-        );
+        toast.error(error instanceof Error ? error.message : "Erreur lors de l'archivage");
       },
     });
   };
@@ -222,10 +215,7 @@ export default function ProductList() {
       cell: ({ row }) => {
         const product = row.original;
         return (
-          <Link
-            href={`/product/${product.id}`}
-            className="flex items-center gap-4 hover:underline"
-          >
+          <Link href={`/product/${product.id}`} className="flex items-center gap-4 hover:underline">
             <ProductIconDisplay
               iconName={product.icon_name}
               iconColor={product.icon_color}
@@ -234,11 +224,7 @@ export default function ProductList() {
             />
             <div>
               <div className="font-medium">{product.name}</div>
-              {product.sku && (
-                <div className="text-xs text-muted-foreground">
-                  {product.sku}
-                </div>
-              )}
+              {product.sku && <div className="text-xs text-muted-foreground">{product.sku}</div>}
             </div>
           </Link>
         );
@@ -293,9 +279,9 @@ export default function ProductList() {
       cell: ({ row }) => {
         const product = row.original;
         const score = calculateStockScore(
-          product.stock_current ?? 0,
-          product.stock_min ?? 0,
-          product.stock_max ?? 0
+          product.stock_current,
+          product.stock_min,
+          product.stock_max
         );
         const bgColor = getStockScoreBgColor(score);
 
@@ -316,9 +302,9 @@ export default function ProductList() {
       cell: ({ row }) => {
         const product = row.original;
         const score = calculateStockScore(
-          product.stock_current ?? 0,
-          product.stock_min ?? 0,
-          product.stock_max ?? 0
+          product.stock_current,
+          product.stock_min,
+          product.stock_max
         );
         const variant = getStockBadgeVariant(score);
         const status = getStockStatus(score);
@@ -358,9 +344,7 @@ export default function ProductList() {
               <DropdownMenuItem asChild>
                 <Link href={`/product/${product.id}/edit`}>Modifier</Link>
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => navigator.clipboard.writeText(product.id)}
-              >
+              <DropdownMenuItem onClick={() => navigator.clipboard.writeText(product.id)}>
                 Copier l'ID
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -423,10 +407,7 @@ export default function ProductList() {
               />
             </div>
             <div className="flex gap-2">
-              <Select
-                value={selectedCategory}
-                onValueChange={setSelectedCategory}
-              >
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                 <SelectTrigger className="w-48">
                   <SelectValue placeholder="Catégorie" />
                 </SelectTrigger>
@@ -461,9 +442,7 @@ export default function ProductList() {
                         key={column.id}
                         className="capitalize"
                         checked={column.getIsVisible()}
-                        onCheckedChange={(value) =>
-                          column.toggleVisibility(!!value)
-                        }
+                        onCheckedChange={(value) => column.toggleVisibility(!!value)}
                       >
                         {column.id === "name"
                           ? "Produit"
@@ -494,10 +473,7 @@ export default function ProductList() {
                         <TableHead key={header.id}>
                           {header.isPlaceholder
                             ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
+                            : flexRender(header.column.columnDef.header, header.getContext())}
                         </TableHead>
                       ))}
                     </TableRow>
@@ -506,32 +482,20 @@ export default function ProductList() {
                 <TableBody>
                   {table.getRowModel().rows?.length ? (
                     table.getRowModel().rows.map((row) => (
-                      <TableRow
-                        key={row.id}
-                        data-state={row.getIsSelected() && "selected"}
-                      >
+                      <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                         {row.getVisibleCells().map((cell) => (
                           <TableCell key={cell.id}>
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext()
-                            )}
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </TableCell>
                         ))}
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell
-                        colSpan={columns.length}
-                        className="h-24 text-center"
-                      >
+                      <TableCell colSpan={columns.length} className="h-24 text-center">
                         <div className="text-muted-foreground">
                           Aucun produit trouvé.{" "}
-                          <Link
-                            href="/product/create"
-                            className="text-primary hover:underline"
-                          >
+                          <Link href="/product/create" className="text-primary hover:underline">
                             Créer un produit
                           </Link>
                         </div>
@@ -542,9 +506,7 @@ export default function ProductList() {
               </Table>
             </div>
             <div className="flex items-center justify-between">
-              <p className="text-muted-foreground text-sm">
-                {totalCount} produit(s) au total
-              </p>
+              <p className="text-muted-foreground text-sm">{totalCount} produit(s) au total</p>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
@@ -573,8 +535,8 @@ export default function ProductList() {
           <AlertDialogHeader>
             <AlertDialogTitle>Archiver le produit</AlertDialogTitle>
             <AlertDialogDescription>
-              &quot;{productToDelete?.name}&quot; sera archivé et ne sera plus
-              visible dans les listes et statistiques.
+              &quot;{productToDelete?.name}&quot; sera archivé et ne sera plus visible dans les
+              listes et statistiques.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
