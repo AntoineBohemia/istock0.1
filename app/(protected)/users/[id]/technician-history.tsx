@@ -2,9 +2,14 @@
 
 import { useMemo } from "react";
 import Image from "next/image";
-import { Loader2, History, ImageIcon, Package } from "lucide-react";
+import { Loader2, History, ImageIcon, Package, ChevronRight } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@/components/ui/collapsible";
 import { TechnicianStockMovement } from "@/lib/supabase/queries/technicians";
 import { useTechnicianMovements } from "@/hooks/queries";
 
@@ -121,92 +126,89 @@ export default function TechnicianHistory({
         items au total
       </p>
 
-      {/* Timeline */}
-      <div className="space-y-4">
+      {/* Collapsible sessions */}
+      <div className="rounded-xl border bg-card overflow-hidden divide-y">
         {sessions.map((session, sessionIndex) => (
-          <motion.div
-            key={session.id}
-            initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              type: "spring",
-              bounce: 0,
-              duration: 0.35,
-              delay: prefersReducedMotion ? 0 : sessionIndex * 0.05,
-            }}
-            className="rounded-xl border bg-card overflow-hidden"
-          >
-            {/* Session header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b bg-muted/30">
-              <div className="flex items-center gap-3">
-                <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
-                  <Package className="size-4 text-primary" />
-                </div>
-                <div>
-                  <p className="font-semibold text-sm">
+          <Collapsible key={session.id} defaultOpen={sessionIndex === 0}>
+            <motion.div
+              initial={prefersReducedMotion ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{
+                duration: 0.25,
+                delay: prefersReducedMotion ? 0 : sessionIndex * 0.03,
+              }}
+            >
+              <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors cursor-pointer select-none">
+                <div className="flex items-center gap-3">
+                  <ChevronRight className="size-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-90" />
+                  <div className="flex size-7 items-center justify-center rounded-md bg-primary/10 shrink-0">
+                    <Package className="size-3.5 text-primary" />
+                  </div>
+                  <span className="font-medium text-sm">
                     {session.date.toLocaleDateString("fr-FR", {
                       day: "numeric",
-                      month: "long",
+                      month: "short",
                       year: "numeric",
                     })}
-                    {" à "}
+                    {" · "}
                     {session.date.toLocaleTimeString("fr-FR", {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="tabular-nums">
-                  {session.movements.length} produit
-                  {session.movements.length > 1 ? "s" : ""}
-                </span>
-                <span className="font-heading font-bold text-foreground text-sm tabular-nums">
-                  +{session.totalItems}
-                </span>
-              </div>
-            </div>
-
-            {/* Products */}
-            <div className="divide-y">
-              {session.movements.map((movement) => (
-                <div
-                  key={movement.id}
-                  className="flex items-center justify-between px-5 py-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <figure className="flex size-9 items-center justify-center rounded-lg border bg-muted shrink-0 overflow-hidden">
-                      {movement.product?.image_url ? (
-                        <Image
-                          src={movement.product.image_url}
-                          width={36}
-                          height={36}
-                          alt={movement.product.name}
-                          className="size-full object-cover"
-                        />
-                      ) : (
-                        <ImageIcon className="size-4 text-muted-foreground" />
-                      )}
-                    </figure>
-                    <div>
-                      <p className="font-medium text-sm">
-                        {movement.product?.name || "Produit supprimé"}
-                      </p>
-                      {movement.product?.sku && (
-                        <p className="text-xs text-muted-foreground font-mono">
-                          {movement.product.sku}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <span className="font-heading font-bold tabular-nums text-standard">
-                    +{movement.quantity}
                   </span>
                 </div>
-              ))}
-            </div>
-          </motion.div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="tabular-nums">
+                    {session.movements.length} produit
+                    {session.movements.length > 1 ? "s" : ""}
+                  </span>
+                  <span className="font-heading font-bold text-standard text-sm tabular-nums">
+                    +{session.totalItems}
+                  </span>
+                </div>
+              </CollapsibleTrigger>
+
+              <CollapsibleContent>
+                <div className="divide-y border-t">
+                  {session.movements.map((movement) => (
+                    <div
+                      key={movement.id}
+                      className="flex items-center justify-between pl-14 pr-4 py-2.5"
+                    >
+                      <div className="flex items-center gap-3">
+                        <figure className="flex size-8 items-center justify-center rounded-md border bg-muted shrink-0 overflow-hidden">
+                          {movement.product?.image_url ? (
+                            <Image
+                              src={movement.product.image_url}
+                              width={32}
+                              height={32}
+                              alt={movement.product.name}
+                              className="size-full object-cover"
+                            />
+                          ) : (
+                            <ImageIcon className="size-3.5 text-muted-foreground" />
+                          )}
+                        </figure>
+                        <div>
+                          <p className="font-medium text-sm leading-tight">
+                            {movement.product?.name || "Produit supprimé"}
+                          </p>
+                          {movement.product?.sku && (
+                            <p className="text-[11px] text-muted-foreground font-mono">
+                              {movement.product.sku}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <span className="font-heading font-bold tabular-nums text-sm text-standard">
+                        +{movement.quantity}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CollapsibleContent>
+            </motion.div>
+          </Collapsible>
         ))}
       </div>
     </div>
