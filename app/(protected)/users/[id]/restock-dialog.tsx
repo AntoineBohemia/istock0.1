@@ -123,13 +123,13 @@ export default function RestockDialog({
       { technicianId, items },
       {
         onSuccess: () => {
-          toast.success("Restock effectué avec succès");
+          toast.success("Réapprovisionnement effectué avec succès");
           onOpenChange(false);
           onSuccess();
         },
         onError: (error) => {
           toast.error(
-            error instanceof Error ? error.message : "Erreur lors du restock"
+            error instanceof Error ? error.message : "Erreur lors du réapprovisionnement"
           );
         },
       }
@@ -142,7 +142,7 @@ export default function RestockDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Restocker le technicien</DialogTitle>
+          <DialogTitle>Réapprovisionner le technicien</DialogTitle>
           <DialogDescription>
             Sélectionnez les produits et quantités à ajouter à l&apos;inventaire existant.
           </DialogDescription>
@@ -303,7 +303,7 @@ export default function RestockDialog({
             disabled={isSubmitting || selectedProducts.length === 0}
           >
             {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
-            Valider le restock
+            Valider le réapprovisionnement
           </Button>
         </DialogFooter>
       </DialogContent>

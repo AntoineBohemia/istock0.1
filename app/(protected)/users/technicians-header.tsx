@@ -19,7 +19,7 @@ export default function TechniciansHeader() {
           </Link>
         </Button>
         <Button onClick={() => setOpen(true)}>
-          <ScanLine /> Restocker
+          <ScanLine /> Réapprovisionner
         </Button>
       </div>
     </div>

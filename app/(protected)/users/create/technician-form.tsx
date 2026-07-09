@@ -123,7 +123,7 @@ export default function TechnicianForm({
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="outline" size="icon" type="button" asChild>
+            <Button variant="outline-contrast" size="icon" type="button" asChild>
               <Link href={mode === "edit" && initialData?.id ? `/users/${initialData.id}` : "/users"}>
                 <ChevronLeft />
               </Link>

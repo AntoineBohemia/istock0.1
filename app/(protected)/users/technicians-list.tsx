@@ -261,7 +261,7 @@ export default function TechniciansList() {
         return days;
       },
       header: ({ column }) => (
-        <SortHeader label="Restock" column={column} className="justify-end w-full" />
+        <SortHeader label="Réappro" column={column} className="justify-end w-full" />
       ),
       cell: ({ row }) => {
         const days = daysSince(row.original.last_restock_at);
@@ -405,7 +405,7 @@ export default function TechniciansList() {
             </div>
             <h3 className="text-lg font-semibold">Aucun technicien</h3>
             <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-              Ajoutez vos techniciens pour suivre leur inventaire et planifier les restocks.
+              Ajoutez vos techniciens pour suivre leur inventaire et planifier les réapprovisionnements.
             </p>
             <Button asChild className="mt-5">
               <Link href="/users/create">

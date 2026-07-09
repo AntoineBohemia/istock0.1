@@ -150,7 +150,7 @@ export default function MobileTechniciansList() {
                       onClick={() => openForTechnician(tech.id)}
                     >
                       <ScanLine className="mr-1.5 size-3.5" />
-                      Restocker
+                      Réappro
                     </Button>
                   </div>
                 </motion.div>
