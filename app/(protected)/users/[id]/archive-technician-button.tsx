@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Archive, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -54,8 +54,7 @@ export default function ArchiveTechnicianButton({
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant="destructive">
-          <Archive className="size-4" />
+        <Button variant="ghost" className="text-destructive hover:text-destructive">
           Archiver
         </Button>
       </AlertDialogTrigger>
