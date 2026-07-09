@@ -29,13 +29,9 @@ import { StatusPill } from "@/components/ui/status-pill";
 import QuickStockMovementModal from "@/components/quick-stock-movement-modal";
 
 import { ProductWithCategory } from "@/lib/supabase/queries/products";
-import {
-  calculateStockScore,
-  getStockScoreColor,
-  getStockBadgeVariant,
-} from "@/lib/utils/stock";
+import { calculateStockScore, getStockScoreColor, getStockBadgeVariant } from "@/lib/utils/stock";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
-import { useProducts } from "@/hooks/queries";
+import { useProducts, useCategories } from "@/hooks/queries";
 import ProductIconDisplay from "@/components/product-icon-display";
 import { cn } from "@/lib/utils";
 
@@ -65,7 +61,7 @@ function AnimatedRow({
         duration: 0.35,
         delay: reducedMotion ? 0 : index * 0.03,
       }}
-      className="group border-b last:border-b-0 transition-colors hover:bg-muted/40 cursor-pointer"
+      className="group border-b last:border-b-0 transition-colors hover:bg-muted/60 cursor-pointer"
       onClick={onClick}
     >
       {children}
@@ -113,6 +109,7 @@ export default function ProductList() {
   const [filters, setFilters] = useQueryStates({
     search: parseAsString.withDefault(""),
     page: parseAsInteger.withDefault(1),
+    category: parseAsString.withDefault(""),
   });
 
   // Stock movement modal state
@@ -128,7 +125,9 @@ export default function ProductList() {
 
   const searchQuery = filters.search;
   const page = filters.page;
+  const categoryFilter = filters.category;
   const setSearchQuery = (value: string) => setFilters({ search: value, page: 1 });
+  const setCategoryFilter = (value: string) => setFilters({ category: value, page: 1 });
   const setPage = (value: number | ((prev: number) => number)) => {
     const newPage = typeof value === "function" ? value(page) : value;
     setFilters({ page: newPage });
@@ -145,9 +144,12 @@ export default function ProductList() {
     return () => clearTimeout(debounceRef.current);
   }, [searchQuery]);
 
+  const { data: categories = [] } = useCategories(currentOrganization?.id);
+
   const { data: productsResult, isLoading } = useProducts({
     organizationId: currentOrganization?.id,
     search: debouncedSearch || undefined,
+    categoryId: categoryFilter || undefined,
     page,
     pageSize,
   });
@@ -171,13 +173,9 @@ export default function ProductList() {
               size="lg"
             />
             <div className="min-w-0">
-              <div className="font-semibold text-[15px] leading-tight">
-                {product.name}
-              </div>
+              <div className="font-semibold text-[15px] leading-tight">{product.name}</div>
               {product.sku && (
-                <div className="text-xs text-muted-foreground mt-0.5 font-mono">
-                  {product.sku}
-                </div>
+                <div className="text-xs text-muted-foreground mt-0.5 font-mono">{product.sku}</div>
               )}
             </div>
           </div>
@@ -193,9 +191,7 @@ export default function ProductList() {
         const price = row.original.price;
         return (
           <span className="font-heading tabular-nums text-[15px] text-foreground">
-            {price
-              ? price.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })
-              : "—"}
+            {price ? price.toLocaleString("fr-FR", { style: "currency", currency: "EUR" }) : "—"}
           </span>
         );
       },
@@ -215,10 +211,7 @@ export default function ProductList() {
         );
         return (
           <span
-            className={cn(
-              "font-heading font-bold tabular-nums text-xl",
-              getStockScoreColor(score)
-            )}
+            className={cn("font-heading font-bold tabular-nums text-xl", getStockScoreColor(score))}
           >
             {product.stock_current ?? 0}
           </span>
@@ -228,8 +221,7 @@ export default function ProductList() {
     },
     {
       id: "status",
-      accessorFn: (row) =>
-        calculateStockScore(row.stock_current, row.stock_min, row.stock_max),
+      accessorFn: (row) => calculateStockScore(row.stock_current, row.stock_min, row.stock_max),
       header: ({ column }) => (
         <SortHeader label="Statut" column={column} className="justify-end w-full" />
       ),
@@ -304,15 +296,49 @@ export default function ProductList() {
 
   return (
     <div className="space-y-3">
-      {/* Search — standalone, above the table */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Rechercher un produit..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9 bg-white dark:bg-card"
-        />
+      {/* Search + category filter */}
+      <div className="space-y-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher un produit..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 bg-white dark:bg-card"
+          />
+        </div>
+
+        {categories.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => setCategoryFilter("")}
+              className={cn(
+                "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                !categoryFilter
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
+              )}
+            >
+              Tout
+            </button>
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setCategoryFilter(categoryFilter === cat.id ? "" : cat.id)}
+                className={cn(
+                  "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                  categoryFilter === cat.id
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
+                )}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="rounded-xl border bg-card overflow-hidden">

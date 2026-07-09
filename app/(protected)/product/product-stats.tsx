@@ -40,8 +40,7 @@ export default function ProductStats() {
   }));
 
   // Dynamic grid columns based on card count
-  const totalCards =
-    orgEntries.length + (organizations.length > 1 ? 1 : 0) + 1;
+  const totalCards = orgEntries.length + (organizations.length > 1 ? 1 : 0) + 1;
   const gridCols =
     totalCards <= 3
       ? "md:grid-cols-3"
@@ -56,7 +55,7 @@ export default function ProductStats() {
         <Card key={org.id}>
           <CardHeader>
             <CardDescription className="flex items-center gap-1.5">
-              <Building2 className="size-3.5" />
+              <Building2 className="size-3.5 text-primary" />
               Entrées {currentYear} — {org.name}
             </CardDescription>
             <CardTitle className="text-2xl lg:text-3xl">
@@ -71,7 +70,7 @@ export default function ProductStats() {
         <Card>
           <CardHeader>
             <CardDescription className="flex items-center gap-1.5">
-              <Layers className="size-3.5" />
+              <Layers className="size-3.5 text-chart-2" />
               Cumul entrées {currentYear}
             </CardDescription>
             <CardTitle className="text-2xl lg:text-3xl">
@@ -85,7 +84,7 @@ export default function ProductStats() {
       <Card>
         <CardHeader>
           <CardDescription className="flex items-center gap-1.5">
-            <Warehouse className="size-3.5" />
+            <Warehouse className="size-3.5 text-chart-1" />
             Valeur du stock global
           </CardDescription>
           <CardTitle className="text-2xl lg:text-3xl">
