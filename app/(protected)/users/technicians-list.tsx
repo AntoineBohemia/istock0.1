@@ -8,7 +8,6 @@ import {
   SortingState,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
@@ -182,21 +181,30 @@ export default function TechniciansList() {
     return counts;
   }, [technicians]);
 
-  // Filter data by status chip
-  const filteredByStatus = useMemo(() => {
-    if (statusFilter === "all") return technicians;
-    return technicians.filter((tech) => {
-      const days = daysSince(tech.last_restock_at);
-      return restockStatus(days) === statusFilter;
-    });
-  }, [technicians, statusFilter]);
+  // Filter data by status chip + search
+  const filteredData = useMemo(() => {
+    let result = technicians;
+    if (statusFilter !== "all") {
+      result = result.filter((tech) => {
+        const days = daysSince(tech.last_restock_at);
+        return restockStatus(days) === statusFilter;
+      });
+    }
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
+      result = result.filter((tech) => {
+        const name = `${tech.first_name} ${tech.last_name}`.toLowerCase();
+        return name.includes(q);
+      });
+    }
+    return result;
+  }, [technicians, statusFilter, debouncedSearch]);
 
   const columns: ColumnDef<TechnicianWithInventory>[] = [
     {
       accessorKey: "name",
       accessorFn: (row) => `${row.first_name} ${row.last_name}`,
       header: ({ column }) => <SortHeader label="Technicien" column={column} />,
-      filterFn: "includesString",
       cell: ({ row }) => {
         const tech = row.original;
         const days = daysSince(tech.last_restock_at);
@@ -278,16 +286,12 @@ export default function TechniciansList() {
   ];
 
   const table = useReactTable({
-    data: filteredByStatus,
+    data: filteredData,
     columns,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    state: {
-      sorting,
-      columnFilters: debouncedSearch ? [{ id: "name", value: debouncedSearch }] : [],
-    },
+    state: { sorting },
   });
 
   if (isLoading || isOrgLoading) {
@@ -352,7 +356,7 @@ export default function TechniciansList() {
     );
   }
 
-  const filteredCount = table.getFilteredRowModel().rows.length;
+  const filteredCount = filteredData.length;
   const totalCount = technicians.length;
 
   return (
