@@ -54,8 +54,9 @@ export default function ArchiveTechnicianButton({
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant="destructive" size="icon">
+        <Button variant="destructive">
           <Archive className="size-4" />
+          Archiver
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
