@@ -119,7 +119,7 @@ export default function TechnicianHistory({
     <div className="space-y-3">
       {/* Summary */}
       <p className="text-sm text-muted-foreground tabular-nums px-1">
-        {sessions.length} restock{sessions.length > 1 ? "s" : ""} ·{" "}
+        {sessions.length} réapprovisionnement{sessions.length > 1 ? "s" : ""} ·{" "}
         <span className="font-heading font-semibold text-foreground">
           {totalItems}
         </span>{" "}
@@ -162,7 +162,7 @@ export default function TechnicianHistory({
                     {session.movements.length} produit
                     {session.movements.length > 1 ? "s" : ""}
                   </span>
-                  <span className="font-heading font-bold text-standard text-sm tabular-nums">
+                  <span className="font-heading font-bold text-foreground text-sm tabular-nums">
                     +{session.totalItems}
                   </span>
                 </div>
@@ -200,7 +200,7 @@ export default function TechnicianHistory({
                           )}
                         </div>
                       </div>
-                      <span className="font-heading font-bold tabular-nums text-sm text-standard">
+                      <span className="font-heading font-bold tabular-nums text-sm text-foreground">
                         +{movement.quantity}
                       </span>
                     </div>

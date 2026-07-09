@@ -144,7 +144,7 @@ export default async function TechnicianDetailPage({
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button variant="outline" asChild>
+            <Button variant="outline-contrast" asChild>
               <Link href={`/users/${id}/edit`}>
                 <Edit3Icon className="size-4" />
                 Modifier
@@ -174,7 +174,7 @@ export default async function TechnicianDetailPage({
             {technician.total_restocks}
           </span>
           <span className="text-muted-foreground text-lg">
-            réappros au total
+            réapprovisionnements
           </span>
         </div>
       </div>
