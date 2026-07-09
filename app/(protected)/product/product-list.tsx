@@ -12,13 +12,11 @@ import {
 } from "@tanstack/react-table";
 import {
   ArrowUpDown,
-  Loader2,
   Search,
   ChevronLeft,
   ChevronRight,
   ArrowDownToLine,
   ArrowUpFromLine,
-  Plus,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -349,22 +347,14 @@ export default function ProductList() {
     <div className="space-y-3">
       {/* Search + category filter */}
       <div className="space-y-2">
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Rechercher un produit..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-white dark:bg-card"
-            />
-          </div>
-          <Button variant="outline" asChild>
-            <Link href="/product/create">
-              <Plus className="size-4" />
-              Ajouter
-            </Link>
-          </Button>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher un produit..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 bg-white dark:bg-card"
+          />
         </div>
 
         {categories.length > 0 && (

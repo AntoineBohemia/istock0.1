@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Archive, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -40,11 +40,7 @@ export default function ArchiveProductButton({
       router.push("/product");
       router.refresh();
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Erreur lors de l'archivage"
-      );
+      toast.error(error instanceof Error ? error.message : "Erreur lors de l'archivage");
     } finally {
       setIsArchiving(false);
       setOpen(false);
@@ -54,16 +50,16 @@ export default function ArchiveProductButton({
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant="destructive" size="icon">
-          <Archive />
+        <Button variant="ghost" className="text-destructive hover:text-destructive">
+          Archiver
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Archiver le produit ?</AlertDialogTitle>
           <AlertDialogDescription>
-            <strong>{productName}</strong> sera archivé et ne sera plus visible
-            dans les listes et statistiques.
+            <strong>{productName}</strong> sera archivé et ne sera plus visible dans les listes et
+            statistiques.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

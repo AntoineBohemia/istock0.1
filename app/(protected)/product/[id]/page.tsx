@@ -77,7 +77,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button variant="ghost" asChild>
+          <Button variant="outline-contrast" asChild>
             <Link href={`/product/${id}/edit`}>
               <Edit3Icon className="size-4" />
               Modifier
@@ -92,34 +92,26 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         {/* ── Left column ── */}
         <div className="space-y-5">
           {/* Stock hero */}
-          <div className="rounded-xl border bg-card p-6 space-y-5">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground/50">
-              Stock
-            </p>
-
-            <div className="flex items-end justify-between gap-4">
-              <div className="flex items-baseline gap-3">
-                <span
-                  className={cn(
-                    "font-heading text-6xl font-bold tabular-nums leading-none",
-                    stockColor
-                  )}
-                >
-                  {product.stock_current ?? 0}
-                </span>
+          <div className="rounded-xl border bg-card px-6 py-5 flex items-end justify-between gap-4">
+            <div>
+              <span
+                className={cn(
+                  "font-heading text-5xl font-bold tabular-nums leading-none block",
+                  stockColor
+                )}
+              >
+                {product.stock_current ?? 0}
+              </span>
+              <div className="flex items-center gap-2 mt-2">
                 <span className="text-muted-foreground text-sm">
                   min{" "}
                   <span className="font-semibold text-foreground">{product.stock_min ?? 0}</span>
                 </span>
+                <StatusPill status={stockBadgeVariant} />
               </div>
-              <StatusPill status={stockBadgeVariant} className="text-sm px-3 py-1" />
             </div>
-
             <StockActions productId={id} />
           </div>
-
-          {/* Mouvements récents */}
-          <RecentMovements productId={id} />
 
           {/* Détails */}
           <div className="rounded-xl border bg-card overflow-hidden">
@@ -186,6 +178,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               </div>
             </div>
           </div>
+
+          {/* Mouvements récents */}
+          <RecentMovements productId={id} />
         </div>
 
         {/* ── Right column ── */}

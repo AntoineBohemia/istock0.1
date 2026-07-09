@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { Slot } from "@/lib/slot"
-import { cva, type VariantProps } from "class-variance-authority"
+import * as React from "react";
+import { Slot } from "@/lib/slot";
+import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
   [
@@ -29,6 +29,9 @@ const buttonVariants = cva(
         outline:
           "border border-input bg-background text-foreground " +
           "hover:bg-foreground/[0.05] hover:border-foreground/25 active:bg-foreground/[0.09]",
+        "outline-contrast":
+          "border border-input bg-card text-foreground " +
+          "hover:bg-foreground/[0.05] hover:border-foreground/25 active:bg-foreground/[0.09]",
         secondary:
           "bg-foreground/[0.06] text-foreground hover:bg-foreground/[0.10] active:bg-foreground/[0.14]",
         ghost:
@@ -47,7 +50,7 @@ const buttonVariants = cva(
       size: "default",
     },
   }
-)
+);
 
 function Button({
   className,
@@ -57,21 +60,21 @@ function Button({
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
-    asChild?: boolean
+    asChild?: boolean;
   }) {
-  const Comp = asChild ? Slot : "button"
+  const Comp = asChild ? Slot : "button";
 
   return (
     <Comp
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
       onPointerDown={(e: React.PointerEvent) => {
-        if (typeof navigator !== "undefined") navigator.vibrate?.(8)
-        props.onPointerDown?.(e as React.PointerEvent<HTMLButtonElement>)
+        if (typeof navigator !== "undefined") navigator.vibrate?.(8);
+        props.onPointerDown?.(e as React.PointerEvent<HTMLButtonElement>);
       }}
       {...props}
     />
-  )
+  );
 }
 
-export { Button, buttonVariants }
+export { Button, buttonVariants };

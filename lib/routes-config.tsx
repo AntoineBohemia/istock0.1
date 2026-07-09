@@ -25,18 +25,18 @@ export const page_routes: PageRoutesType[] = [
       {
         title: "Vue d'ensemble",
         href: "/global",
-        icon: "ChartPie",
+        icon: "LayoutDashboard",
         allowedRoles: ["owner", "admin", "member"],
       },
       {
         title: "Produits",
         href: "/product",
-        icon: "ShoppingBag",
+        icon: "Package",
       },
       {
         title: "Techniciens",
         href: "/users",
-        icon: "Users",
+        icon: "HardHat",
       },
       {
         title: "Mouvements",
@@ -49,10 +49,7 @@ export const page_routes: PageRoutesType[] = [
 
 export const SETTINGS_ALLOWED_ROLES: Role[] = ["owner", "admin", "member"];
 
-export function isRoleAllowed(
-  role: Role | undefined,
-  allowedRoles: Role[] | undefined
-): boolean {
+export function isRoleAllowed(role: Role | undefined, allowedRoles: Role[] | undefined): boolean {
   if (!allowedRoles) return true;
   if (!role) return false;
   return allowedRoles.includes(role);
@@ -70,9 +67,7 @@ export function filterRoutesByRole(
         .filter((item) => isRoleAllowed(role, item.allowedRoles))
         .map((item) => ({
           ...item,
-          items: item.items?.filter((sub) =>
-            isRoleAllowed(role, sub.allowedRoles)
-          ),
+          items: item.items?.filter((sub) => isRoleAllowed(role, sub.allowedRoles)),
         })),
     }))
     .filter((section) => section.items.length > 0);

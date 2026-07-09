@@ -1,13 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import {
-  ChevronLeft,
-  Download01,
-  Package,
-  Truck01,
-  Image01,
-} from "@untitled-ui/icons-react";
+import { ChevronLeft, Download01, Package, Truck01, Image01 } from "@untitled-ui/icons-react";
 import { generateMeta } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 
@@ -24,11 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   return generateMeta({
     title: "Détail de l'entrée",
@@ -56,18 +46,12 @@ async function getMovement(id: string) {
     return null;
   }
 
-  const product = Array.isArray(movement.product)
-    ? movement.product[0]
-    : movement.product;
+  const product = Array.isArray(movement.product) ? movement.product[0] : movement.product;
 
   return { ...movement, product };
 }
 
-export default async function EntryDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function EntryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const movement = await getMovement(id);
 
@@ -75,7 +59,7 @@ export default async function EntryDetailPage({
     notFound();
   }
 
-  const entryDate = new Date(movement.created_at ?? Date.now());
+  const entryDate = new Date(movement.created_at ?? 0);
   const unitPrice = movement.product?.price || 0;
   const totalValue = unitPrice * movement.quantity;
 
@@ -83,7 +67,7 @@ export default async function EntryDetailPage({
     <div className="mx-auto max-w-screen-lg space-y-4 lg:mt-10">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <Button asChild variant="outline">
+        <Button asChild variant="outline-contrast">
           <Link href="/orders">
             <ChevronLeft />
           </Link>
@@ -96,9 +80,7 @@ export default async function EntryDetailPage({
           <CardHeader>
             <div className="flex items-center gap-2">
               <Download01 className="size-5 text-green-600" />
-              <CardTitle className="font-display text-2xl">
-                Entrée de stock
-              </CardTitle>
+              <CardTitle className="font-display text-2xl">Entrée de stock</CardTitle>
             </div>
             <p className="text-muted-foreground text-sm">
               {entryDate.toLocaleDateString("fr-FR", {
@@ -127,9 +109,7 @@ export default async function EntryDetailPage({
               {movement.notes && (
                 <div className="space-y-2">
                   <h3 className="font-semibold">Notes</h3>
-                  <p className="text-muted-foreground text-sm">
-                    {movement.notes}
-                  </p>
+                  <p className="text-muted-foreground text-sm">{movement.notes}</p>
                 </div>
               )}
             </div>
@@ -205,9 +185,7 @@ export default async function EntryDetailPage({
                       )}
                     </figure>
                     <div>
-                      <p className="font-medium">
-                        {movement.product?.name || "Produit inconnu"}
-                      </p>
+                      <p className="font-medium">{movement.product?.name || "Produit inconnu"}</p>
                       {movement.product?.sku && (
                         <p className="text-xs text-muted-foreground font-mono">
                           {movement.product.sku}
@@ -239,10 +217,8 @@ export default async function EntryDetailPage({
 
       {/* Actions */}
       <div className="flex justify-end">
-        <Button variant="outline" asChild>
-          <Link href={`/product/${movement.product?.id}`}>
-            Voir le produit
-          </Link>
+        <Button variant="outline-contrast" asChild>
+          <Link href={`/product/${movement.product?.id}`}>Voir le produit</Link>
         </Button>
       </div>
     </div>

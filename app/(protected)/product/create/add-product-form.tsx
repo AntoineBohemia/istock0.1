@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -27,14 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  AlertCircleIcon,
-  ArrowLeft,
-  ImageIcon,
-  Loader2,
-  UploadIcon,
-  XIcon,
-} from "lucide-react";
+import { AlertCircleIcon, ArrowLeft, ImageIcon, Loader2, UploadIcon, XIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import IconPicker from "@/components/icon-picker";
 import ProductIconDisplay from "@/components/product-icon-display";
@@ -111,7 +103,15 @@ export default function AddProductForm({ mode = "create", initialData }: AddProd
 
   const [
     { files, isDragging, errors },
-    { handleDragEnter, handleDragLeave, handleDragOver, handleDrop, openFileDialog, clearFiles, getInputProps },
+    {
+      handleDragEnter,
+      handleDragLeave,
+      handleDragOver,
+      handleDrop,
+      openFileDialog,
+      clearFiles,
+      getInputProps,
+    },
   ] = useFileUpload({
     accept: "image/png,image/jpeg,image/jpg",
     maxSize: 5 * 1024 * 1024,
@@ -166,9 +166,7 @@ export default function AddProductForm({ mode = "create", initialData }: AddProd
               router.push(`/product/${initialData.id}`);
             },
             onError: (error) => {
-              toast.error(
-                error instanceof Error ? error.message : "Erreur lors de la mise à jour"
-              );
+              toast.error(error instanceof Error ? error.message : "Erreur lors de la mise à jour");
             },
           }
         );
@@ -207,27 +205,31 @@ export default function AddProductForm({ mode = "create", initialData }: AddProd
           <div className="min-w-0">
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="icon" asChild type="button" className="shrink-0 -ml-2">
-                <Link href={mode === "edit" && initialData?.id ? `/product/${initialData.id}` : "/product"}>
+                <Link
+                  href={
+                    mode === "edit" && initialData?.id ? `/product/${initialData.id}` : "/product"
+                  }
+                >
                   <ArrowLeft className="size-4" />
                 </Link>
               </Button>
               <div className="min-w-0">
-                <h1 className="font-heading text-2xl font-bold tracking-tight truncate">
-                  {title}
-                </h1>
-                {mode === "create" && (
-                  <p className="text-sm text-muted-foreground">Nouveau produit</p>
-                )}
+                <h1 className="font-heading text-2xl font-bold tracking-tight truncate">{title}</h1>
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button type="button" variant="ghost" onClick={handleCancel} disabled={isSubmitting}>
+            <Button
+              type="button"
+              variant="outline-contrast"
+              onClick={handleCancel}
+              disabled={isSubmitting}
+            >
               Annuler
             </Button>
             <Button type="submit" disabled={isSubmitting || isUploadingImage}>
               {(isSubmitting || isUploadingImage) && <Loader2 className="size-4 animate-spin" />}
-              {mode === "edit" ? "Enregistrer" : "Publier"}
+              {mode === "edit" ? "Enregistrer" : "Créer"}
             </Button>
           </div>
         </div>

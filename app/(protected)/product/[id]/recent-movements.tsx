@@ -70,7 +70,13 @@ export default function RecentMovements({ productId }: RecentMovementsProps) {
                   {isEntry ? "+" : "−"}
                   {m.quantity}
                 </span>
-                <span className="text-sm truncate flex-1">{description}</span>
+                <span className="text-sm truncate flex-1">
+                  {techName && <span className="font-medium">{techName}</span>}
+                  {techName && " · "}
+                  <span className="text-muted-foreground">
+                    {techName ? MOVEMENT_TYPE_LABELS[m.movement_type] : description}
+                  </span>
+                </span>
                 <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
                   {m.created_at ? formatRelativeTime(m.created_at) : ""}
                 </span>
