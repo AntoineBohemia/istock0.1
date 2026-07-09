@@ -109,66 +109,74 @@ export default async function TechnicianDetailPage({
 
   return (
     <div className="space-y-6 pb-20">
-      {/* ── Header ── */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild className="shrink-0 -ml-2">
-          <Link href="/users">
-            <ArrowLeft className="size-4" />
-          </Link>
-        </Button>
-        <Avatar className="size-12 shrink-0">
-          <AvatarFallback className="text-base font-bold">
-            {initials}
-          </AvatarFallback>
-        </Avatar>
-        <div className="min-w-0 flex-1">
-          <h1 className="font-heading text-2xl font-bold tracking-tight truncate">
-            {fullName}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {technician.city && (
-              <>
-                Département <span className="font-semibold text-foreground">{technician.city}</span>
-                {" · "}
-              </>
-            )}
-            dernier réappro{" "}
-            <span className="font-semibold text-foreground">
-              {formatDate(technician.last_restock_at)}
-            </span>
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" asChild>
-            <Link href={`/users/${id}/edit`}>
-              <Edit3Icon className="size-4" />
-              Modifier
+      {/* ── Hero zone ── */}
+      <div className="rounded-xl border bg-card p-6 space-y-5">
+        {/* Identity + actions */}
+        <div className="flex items-center gap-5">
+          <Button variant="ghost" size="icon" asChild className="shrink-0 -ml-2">
+            <Link href="/users">
+              <ArrowLeft className="size-4" />
             </Link>
           </Button>
-          <TechnicianRestockButton technicianId={id} />
-          <ArchiveTechnicianButton
-            technicianId={id}
-            technicianName={fullName}
-          />
+          <Avatar className="size-14 shrink-0">
+            <AvatarFallback className="text-lg font-bold">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <h1 className="font-heading text-3xl font-bold tracking-tight truncate">
+              {fullName}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {technician.city && (
+                <>
+                  Département{" "}
+                  <span className="font-semibold text-foreground">
+                    {technician.city}
+                  </span>
+                  {" · "}
+                </>
+              )}
+              dernier réappro{" "}
+              <span className="font-semibold text-foreground">
+                {formatDate(technician.last_restock_at)}
+              </span>
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" asChild>
+              <Link href={`/users/${id}/edit`}>
+                <Edit3Icon className="size-4" />
+                Modifier
+              </Link>
+            </Button>
+            <TechnicianRestockButton technicianId={id} />
+            <ArchiveTechnicianButton
+              technicianId={id}
+              technicianName={fullName}
+            />
+          </div>
         </div>
-      </div>
 
-      {/* ── Stats inline ── */}
-      <div className="flex items-baseline gap-1.5 flex-wrap">
-        <span className="font-heading text-4xl font-bold tabular-nums">
-          {technician.inventory_count}
-        </span>
-        <span className="text-muted-foreground text-lg">items</span>
-        <span className="text-muted-foreground text-lg mx-1">·</span>
-        <span className="font-heading text-lg font-bold tabular-nums">
-          {technician.product_count}
-        </span>
-        <span className="text-muted-foreground text-lg">produits</span>
-        <span className="text-muted-foreground text-lg mx-1">·</span>
-        <span className="font-heading text-lg font-bold tabular-nums">
-          {technician.total_restocks}
-        </span>
-        <span className="text-muted-foreground text-lg">réappros au total</span>
+        {/* Stats inline */}
+        <div className="flex items-baseline gap-1.5 flex-wrap border-t pt-5">
+          <span className="font-heading text-5xl font-bold tabular-nums leading-none">
+            {technician.inventory_count}
+          </span>
+          <span className="text-muted-foreground text-lg">items</span>
+          <span className="text-muted-foreground text-lg mx-1.5">·</span>
+          <span className="font-heading text-xl font-bold tabular-nums">
+            {technician.product_count}
+          </span>
+          <span className="text-muted-foreground text-lg">produits</span>
+          <span className="text-muted-foreground text-lg mx-1.5">·</span>
+          <span className="font-heading text-xl font-bold tabular-nums">
+            {technician.total_restocks}
+          </span>
+          <span className="text-muted-foreground text-lg">
+            réappros au total
+          </span>
+        </div>
       </div>
 
       {/* ── Tabs: Inventaire + Historique ── */}
