@@ -241,17 +241,14 @@ export default function TechniciansList() {
       cell: ({ row }) => {
         const count = row.original.inventory_count;
         return (
-          <div className="flex items-center justify-center gap-1.5">
-            <Package className="size-3.5 text-muted-foreground" />
-            <span
-              className={cn(
-                "font-heading font-bold tabular-nums text-xl",
-                count === 0 ? "text-muted-foreground/40" : "text-foreground"
-              )}
-            >
-              {count}
-            </span>
-          </div>
+          <span
+            className={cn(
+              "font-heading font-bold tabular-nums text-xl",
+              count === 0 ? "text-muted-foreground/40" : "text-foreground"
+            )}
+          >
+            {count}
+          </span>
         );
       },
       meta: { align: "center" },
