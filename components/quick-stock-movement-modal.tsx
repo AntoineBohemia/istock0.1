@@ -13,6 +13,7 @@ import {
   Package,
   Search,
 } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 
 import {
@@ -95,6 +96,7 @@ export default function QuickStockMovementModal({
   productId,
   defaultDirection = "entry",
 }: QuickStockMovementModalProps) {
+  const shouldReduceMotion = useReducedMotion();
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
   const { data: productsResult, isLoading: isLoadingProducts } = useProducts({
     organizationId: currentOrganization?.id,
@@ -307,24 +309,23 @@ export default function QuickStockMovementModal({
                     <FormLabel>Type de mouvement</FormLabel>
                     <FormControl>
                       <ToggleGroup
-                        type="single"
                         variant="outline"
-                        value={field.value}
+                        value={field.value ? [field.value] : []}
                         onValueChange={(value) => {
-                          if (value) field.onChange(value);
+                          if (value[0]) field.onChange(value[0]);
                         }}
                         className="w-full"
                       >
                         <ToggleGroupItem
                           value="entry"
-                          className="flex-1 data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-700 data-[state=on]:border-emerald-300 dark:data-[state=on]:bg-emerald-900 dark:data-[state=on]:text-emerald-100"
+                          className="flex-1 data-pressed:bg-primary data-pressed:text-primary-foreground data-pressed:border-primary"
                         >
                           <ArrowDownToLine className="mr-2 size-4" />
                           Entrée
                         </ToggleGroupItem>
                         <ToggleGroupItem
                           value="exit"
-                          className="flex-1 data-[state=on]:bg-rose-100 data-[state=on]:text-rose-700 data-[state=on]:border-rose-300 dark:data-[state=on]:bg-rose-900 dark:data-[state=on]:text-rose-100"
+                          className="flex-1 data-pressed:bg-muted data-pressed:text-foreground"
                         >
                           <ArrowUpFromLine className="mr-2 size-4" />
                           Sortie
@@ -438,18 +439,20 @@ export default function QuickStockMovementModal({
                 >
                   Annuler
                 </Button>
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className={
-                    direction === "entry"
-                      ? "bg-emerald-600 hover:bg-emerald-700"
-                      : "bg-rose-600 hover:bg-rose-700"
-                  }
+                <motion.div
+                  whileTap={shouldReduceMotion ? undefined : { scale: 0.96 }}
+                  transition={{ type: "spring", bounce: 0.1, duration: 0.2 }}
                 >
-                  {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
-                  {direction === "entry" ? "Ajouter au stock" : "Retirer du stock"}
-                </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    variant={direction === "entry" ? "default" : "outline"}
+                    onClick={() => navigator.vibrate?.(15)}
+                  >
+                    {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
+                    {direction === "entry" ? "Entrée" : "Sortie"}
+                  </Button>
+                </motion.div>
               </DialogFooter>
             </form>
           </Form>

@@ -17,7 +17,6 @@ interface KPICardData {
   label: string;
   value: string;
   trend: TrendResult | null;
-  gradient: string;
   valueColor?: string;
   prefix?: string;
 }
@@ -42,14 +41,14 @@ function TrendBadge({ trend }: { trend: TrendResult }) {
       className={cn(
         "inline-flex items-center px-1.5 py-0.5 ps-2 text-xs font-medium",
         isUp
-          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-          : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+          ? "bg-standard-bg text-standard"
+          : "bg-critique-bg text-critique"
       )}
     >
       {isUp ? (
-        <TrendingUp className="mr-0.5 -ml-1 h-4 w-4 shrink-0 text-green-500" />
+        <TrendingUp className="mr-0.5 -ml-1 h-4 w-4 shrink-0 text-standard" />
       ) : (
-        <TrendingDown className="mr-0.5 -ml-1 h-4 w-4 shrink-0 text-red-500" />
+        <TrendingDown className="mr-0.5 -ml-1 h-4 w-4 shrink-0 text-critique" />
       )}
       {trend.percentage}%
     </Badge>
@@ -72,10 +71,7 @@ export function DashboardKPICards({ kpi, isLoading }: DashboardKPICardsProps) {
     );
   }
 
-  // Compute prev month stock from KPI data:
-  // prev_stock = total_stock + exits_month - entries_month
   const prevMonthStock = kpi.total_stock + kpi.exits_month - kpi.entries_month;
-  // Approximate prev value proportionally
   const prevMonthValue = kpi.total_stock > 0
     ? Math.round((prevMonthStock / kpi.total_stock) * kpi.total_value)
     : 0;
@@ -85,7 +81,6 @@ export function DashboardKPICards({ kpi, isLoading }: DashboardKPICardsProps) {
       label: "Stock actuel",
       value: kpi.total_stock.toLocaleString("fr-FR"),
       trend: computeTrend(kpi.total_stock, prevMonthStock),
-      gradient: "from-background to-muted/30",
     },
     {
       label: "Valeur totale",
@@ -95,23 +90,20 @@ export function DashboardKPICards({ kpi, isLoading }: DashboardKPICardsProps) {
         maximumFractionDigits: 0,
       }),
       trend: computeTrend(kpi.total_value, prevMonthValue),
-      gradient: "from-background to-muted/30",
     },
     {
       label: "Entrees (mois)",
       value: kpi.entries_month.toLocaleString("fr-FR"),
       prefix: "+",
       trend: computeTrend(kpi.entries_month, kpi.entries_prev_month),
-      gradient: "from-background to-emerald-500/10",
-      valueColor: "text-emerald-600 dark:text-emerald-400",
+      valueColor: "text-standard",
     },
     {
       label: "Sorties (mois)",
       value: kpi.exits_month.toLocaleString("fr-FR"),
       prefix: "-",
       trend: computeTrend(kpi.exits_month, kpi.exits_prev_month),
-      gradient: "from-background to-rose-500/10",
-      valueColor: "text-rose-600 dark:text-rose-400",
+      valueColor: "text-critique",
     },
   ];
 
@@ -120,10 +112,7 @@ export function DashboardKPICards({ kpi, isLoading }: DashboardKPICardsProps) {
       {cards.map((card) => (
         <div
           key={card.label}
-          className={cn(
-            "rounded-xl border bg-gradient-to-br p-3 lg:p-4 min-w-0",
-            card.gradient
-          )}
+          className="rounded-xl border p-3 lg:p-4 min-w-0"
         >
           <div className="flex items-center justify-between gap-1">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap truncate">
@@ -133,7 +122,7 @@ export function DashboardKPICards({ kpi, isLoading }: DashboardKPICardsProps) {
           </div>
           <p
             className={cn(
-              "mt-1 text-xl lg:text-2xl font-bold tabular-nums whitespace-nowrap",
+              "mt-1 text-xl lg:text-2xl font-bold font-heading tabular-nums whitespace-nowrap",
               card.valueColor
             )}
           >

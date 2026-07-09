@@ -279,6 +279,63 @@ export async function getProductMovementStats(
 }
 
 /**
+ * Récupère les valeurs totales d'entrée par organisation pour une année donnée
+ * Note : utilise le prix actuel du produit (pas de prix historique stocké dans stock_movements)
+ */
+export async function getYearlyEntryValuesByOrg(
+  year?: number
+): Promise<{
+  byOrg: Record<string, number>;
+  cumul: number;
+  globalStockValue: number;
+}> {
+  const supabase = createClient();
+  const targetYear = year ?? new Date().getFullYear();
+  const startOfYear = new Date(targetYear, 0, 1).toISOString();
+  const endOfYear = new Date(targetYear + 1, 0, 1).toISOString();
+
+  // 1. Entry values by org (join with products for price)
+  const { data: entries, error: entriesError } = await supabase
+    .from("stock_movements")
+    .select("quantity, organization_id, product:products(price)")
+    .eq("movement_type", "entry")
+    .gte("created_at", startOfYear)
+    .lt("created_at", endOfYear);
+
+  if (entriesError) {
+    throw new Error(`Erreur récupération entrées: ${entriesError.message}`);
+  }
+
+  const byOrg: Record<string, number> = {};
+  let cumul = 0;
+
+  entries?.forEach((m) => {
+    const price = (m.product as unknown as { price: number | null })?.price ?? 0;
+    const value = m.quantity * price;
+    const orgId = m.organization_id ?? "unknown";
+    byOrg[orgId] = (byOrg[orgId] ?? 0) + value;
+    cumul += value;
+  });
+
+  // 2. Global stock value (all orgs, current stock × current price)
+  const { data: products, error: productsError } = await supabase
+    .from("products")
+    .select("stock_current, price")
+    .is("archived_at", null);
+
+  if (productsError) {
+    throw new Error(`Erreur récupération stock global: ${productsError.message}`);
+  }
+
+  const globalStockValue = (products ?? []).reduce(
+    (sum, p) => sum + (p.price ?? 0) * (p.stock_current ?? 0),
+    0
+  );
+
+  return { byOrg, cumul, globalStockValue };
+}
+
+/**
  * Récupère un résumé des mouvements récents
  */
 export async function getMovementsSummary(organizationId?: string): Promise<{

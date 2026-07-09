@@ -77,9 +77,9 @@ export function calculateStockScore(
  * @returns Classe CSS de couleur
  */
 export function getStockScoreColor(score: number): string {
-  if (score < 30) return "text-red-500";
-  if (score < 60) return "text-orange-500";
-  return "text-green-500";
+  if (score < 30) return "text-critique";
+  if (score < 60) return "text-attention";
+  return "text-foreground";
 }
 
 /**
@@ -88,9 +88,9 @@ export function getStockScoreColor(score: number): string {
  * @returns Classe CSS de couleur de fond
  */
 export function getStockScoreBgColor(score: number): string {
-  if (score < 30) return "bg-red-500";
-  if (score < 60) return "bg-orange-500";
-  return "bg-green-500";
+  if (score < 30) return "bg-critique";
+  if (score < 60) return "bg-attention";
+  return "bg-standard/70";
 }
 
 /**
@@ -99,20 +99,18 @@ export function getStockScoreBgColor(score: number): string {
  * @returns Statut en français
  */
 export function getStockStatus(score: number): string {
-  if (score === 0) return "Critique";
-  if (score < 30) return "Bas";
+  if (score < 30) return "Critique";
   if (score < 60) return "Attention";
-  if (score < 90) return "Bon";
-  return "Optimal";
+  return "Standard";
 }
 
 /**
- * Retourne le variant de badge selon le score
+ * Retourne le niveau de statut selon le score
  * @param score - Score de stock (0-100)
- * @returns Variant du badge
+ * @returns Niveau de statut design system
  */
-export function getStockBadgeVariant(score: number): "destructive" | "warning" | "success" {
-  if (score < 30) return "destructive";
-  if (score < 60) return "warning";
-  return "success";
+export function getStockBadgeVariant(score: number): "critique" | "attention" | "standard" {
+  if (score < 30) return "critique";
+  if (score < 60) return "attention";
+  return "standard";
 }

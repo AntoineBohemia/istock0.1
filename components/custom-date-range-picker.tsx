@@ -160,17 +160,15 @@ export default function CalendarDateRangePicker({
           <div className="flex flex-col lg:flex-row">
             <div className="me-0 lg:me-4">
               <ToggleGroup
-                type="single"
-                defaultValue="last28Days"
+                defaultValue={["last28Days"]}
                 className="hidden w-28 flex-col lg:block">
                 {dateFilterPresets.map((item, key) => (
                   <ToggleGroupItem
                     key={key}
-                    className="text-muted-foreground w-full"
+                    className="text-muted-foreground w-full justify-start rounded-md"
                     value={item.value}
-                    onClick={() => changeHandle(item.value)}
-                    asChild>
-                    <Button className="justify-start rounded-md">{item.name}</Button>
+                    onClick={() => changeHandle(item.value)}>
+                    {item.name}
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>

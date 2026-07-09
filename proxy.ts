@@ -113,11 +113,36 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // 3. Utilisateur NON connecté sur route protégée → rediriger vers login
+  // 3. Utilisateur NON connecté sur route protégée
   if (!user && isProtectedRoute) {
+    // [DEV ONLY] Auto-login si DEV_USER_EMAIL + DEV_USER_PASSWORD sont définis
+    if (
+      process.env.NODE_ENV === "development" &&
+      process.env.DEV_USER_EMAIL &&
+      process.env.DEV_USER_PASSWORD
+    ) {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: process.env.DEV_USER_EMAIL,
+        password: process.env.DEV_USER_PASSWORD,
+      });
+
+      if (!signInError) {
+        // Session cookies posés sur supabaseResponse — on redirige vers la même URL
+        const url = request.nextUrl.clone();
+        const redirect = NextResponse.redirect(url);
+        // Copier les Set-Cookie de supabaseResponse vers la réponse redirect
+        supabaseResponse.headers.forEach((value, key) => {
+          if (key === "set-cookie") {
+            redirect.headers.append("set-cookie", value);
+          }
+        });
+        return redirect;
+      }
+    }
+
+    // Redirection normale vers login
     const url = request.nextUrl.clone();
     url.pathname = LOGIN_ROUTE;
-    // Optionnel: sauvegarder l'URL de destination pour rediriger après login
     url.searchParams.set("redirectTo", pathname);
     return NextResponse.redirect(url);
   }

@@ -1,18 +1,10 @@
-
 "use client";
 
 import { useMemo } from "react";
 import Image from "next/image";
 import { Loader2, History, ImageIcon, Package } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { TechnicianStockMovement } from "@/lib/supabase/queries/technicians";
 import { useTechnicianMovements } from "@/hooks/queries";
 
@@ -27,17 +19,18 @@ interface RestockSession {
   totalItems: number;
 }
 
-// Group movements that happened within 1 minute of each other as a single restock session
-function groupMovementsIntoSessions(movements: TechnicianStockMovement[]): RestockSession[] {
+function groupMovementsIntoSessions(
+  movements: TechnicianStockMovement[]
+): RestockSession[] {
   if (movements.length === 0) return [];
 
   const sessions: RestockSession[] = [];
   let currentSession: TechnicianStockMovement[] = [];
   let sessionStartTime: Date | null = null;
 
-  // Sort by date descending (most recent first)
   const sortedMovements = [...movements].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
 
   for (const movement of sortedMovements) {
@@ -47,7 +40,9 @@ function groupMovementsIntoSessions(movements: TechnicianStockMovement[]): Resto
       currentSession = [movement];
       sessionStartTime = movementTime;
     } else {
-      const timeDiff = Math.abs(sessionStartTime.getTime() - movementTime.getTime());
+      const timeDiff = Math.abs(
+        sessionStartTime.getTime() - movementTime.getTime()
+      );
       if (timeDiff <= 60000) {
         currentSession.push(movement);
       } else {
@@ -78,113 +73,142 @@ function groupMovementsIntoSessions(movements: TechnicianStockMovement[]): Resto
 export default function TechnicianHistory({
   technicianId,
 }: TechnicianHistoryProps) {
-  const { data: movements = [], isLoading } = useTechnicianMovements(technicianId);
+  const { data: movements = [], isLoading } =
+    useTechnicianMovements(technicianId);
+  const prefersReducedMotion = useReducedMotion();
 
-  const sessions = useMemo(() => groupMovementsIntoSessions(movements), [movements]);
+  const sessions = useMemo(
+    () => groupMovementsIntoSessions(movements),
+    [movements]
+  );
   const totalItems = movements.reduce((sum, m) => sum + m.quantity, 0);
 
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="flex h-64 items-center justify-center">
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="flex h-64 items-center justify-center">
           <Loader2 className="size-8 animate-spin text-muted-foreground" />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (sessions.length === 0) {
+    return (
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+          <div className="flex size-16 items-center justify-center rounded-2xl bg-muted mb-4">
+            <History className="size-7 text-muted-foreground" />
+          </div>
+          <h3 className="text-lg font-semibold">Aucun historique</h3>
+          <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+            Les mouvements apparaîtront ici lorsque des produits seront envoyés
+            à ce technicien.
+          </p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Historique des approvisionnements</CardTitle>
-        <CardDescription>
-          {sessions.length === 0
-            ? "Aucun approvisionnement effectué"
-            : `${sessions.length} restock(s) - ${totalItems} item(s) au total`}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {sessions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <History className="size-12 text-muted-foreground/50" />
-            <p className="mt-4 text-muted-foreground">
-              Aucun historique d&apos;approvisionnement disponible.
-            </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Les mouvements apparaîtront ici lorsque des produits seront
-              envoyés à ce technicien.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {sessions.map((session) => (
-              <div key={session.id}>
-                {/* Session header */}
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="rounded-full bg-primary/10 p-2">
-                    <Package className="size-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium">
-                      {session.date.toLocaleDateString("fr-FR", {
-                        day: "numeric",
-                        month: "long",
-                        year: "numeric",
-                      })}
-                      {" à "}
-                      {session.date.toLocaleTimeString("fr-FR", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {session.movements.length} produit{session.movements.length > 1 ? "s" : ""} • {session.totalItems} item{session.totalItems > 1 ? "s" : ""}
-                    </p>
-                  </div>
-                </div>
+    <div className="space-y-3">
+      {/* Summary */}
+      <p className="text-sm text-muted-foreground tabular-nums px-1">
+        {sessions.length} restock{sessions.length > 1 ? "s" : ""} ·{" "}
+        <span className="font-heading font-semibold text-foreground">
+          {totalItems}
+        </span>{" "}
+        items au total
+      </p>
 
-                {/* Products list */}
-                <div className="ml-10 space-y-2">
-                  {session.movements.map((movement) => (
-                    <div
-                      key={movement.id}
-                      className="flex items-center justify-between rounded-lg border p-3"
-                    >
-                      <div className="flex items-center gap-3">
-                        <figure className="flex size-10 items-center justify-center rounded-lg border bg-muted">
-                          {movement.product?.image_url ? (
-                            <Image
-                              src={movement.product.image_url}
-                              width={40}
-                              height={40}
-                              alt={movement.product.name}
-                              className="size-full rounded-lg object-cover"
-                            />
-                          ) : (
-                            <ImageIcon className="size-5 text-muted-foreground" />
-                          )}
-                        </figure>
-                        <div>
-                          <p className="font-medium">
-                            {movement.product?.name || "Produit supprimé"}
-                          </p>
-                          {movement.product?.sku && (
-                            <p className="text-xs text-muted-foreground font-mono">
-                              {movement.product.sku}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <Badge variant="secondary">+{movement.quantity}</Badge>
-                    </div>
-                  ))}
+      {/* Timeline */}
+      <div className="space-y-4">
+        {sessions.map((session, sessionIndex) => (
+          <motion.div
+            key={session.id}
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              type: "spring",
+              bounce: 0,
+              duration: 0.35,
+              delay: prefersReducedMotion ? 0 : sessionIndex * 0.05,
+            }}
+            className="rounded-xl border bg-card overflow-hidden"
+          >
+            {/* Session header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b bg-muted/30">
+              <div className="flex items-center gap-3">
+                <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
+                  <Package className="size-4 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">
+                    {session.date.toLocaleDateString("fr-FR", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })}
+                    {" à "}
+                    {session.date.toLocaleTimeString("fr-FR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="tabular-nums">
+                  {session.movements.length} produit
+                  {session.movements.length > 1 ? "s" : ""}
+                </span>
+                <span className="font-heading font-bold text-foreground text-sm tabular-nums">
+                  +{session.totalItems}
+                </span>
+              </div>
+            </div>
+
+            {/* Products */}
+            <div className="divide-y">
+              {session.movements.map((movement) => (
+                <div
+                  key={movement.id}
+                  className="flex items-center justify-between px-5 py-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <figure className="flex size-9 items-center justify-center rounded-lg border bg-muted shrink-0 overflow-hidden">
+                      {movement.product?.image_url ? (
+                        <Image
+                          src={movement.product.image_url}
+                          width={36}
+                          height={36}
+                          alt={movement.product.name}
+                          className="size-full object-cover"
+                        />
+                      ) : (
+                        <ImageIcon className="size-4 text-muted-foreground" />
+                      )}
+                    </figure>
+                    <div>
+                      <p className="font-medium text-sm">
+                        {movement.product?.name || "Produit supprimé"}
+                      </p>
+                      {movement.product?.sku && (
+                        <p className="text-xs text-muted-foreground font-mono">
+                          {movement.product.sku}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <span className="font-heading font-bold tabular-nums text-standard">
+                    +{movement.quantity}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </div>
   );
 }
-

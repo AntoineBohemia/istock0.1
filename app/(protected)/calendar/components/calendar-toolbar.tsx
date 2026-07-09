@@ -87,10 +87,9 @@ export default function CalendarToolbar({ calendarRef }: Props) {
   const ToggleButtonGroup = () => {
     return (
       <ToggleGroup
-        defaultValue={viewTypes.find((t) => t.key === currentView)?.key}
-        onValueChange={(value) => changeView(value)}
+        defaultValue={(() => { const k = viewTypes.find((t) => t.key === currentView)?.key; return k ? [k] : []; })()}
+        onValueChange={(value) => changeView(value[0] ?? "")}
         className="gap-0 divide-x overflow-hidden rounded-lg border"
-        type="single"
       >
         {viewTypes.map((view, key) => (
           <ToggleGroupItem key={key} value={view.key} className="rounded-none">

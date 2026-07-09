@@ -19,19 +19,19 @@ import type { HealthScore, HealthScoreKPI } from "@/lib/supabase/queries/dashboa
 // ─── Zone color mapping ─────────────────────────────────────────────
 const SCORE_COLORS: Record<string, { text: string; progress: string; bg: string }> = {
   green: {
-    text: "text-green-600 dark:text-green-400",
-    progress: "bg-green-600 dark:bg-green-500",
-    bg: "bg-green-50 dark:bg-green-950/30",
+    text: "text-standard",
+    progress: "bg-standard",
+    bg: "bg-standard-bg",
   },
   orange: {
-    text: "text-orange-600 dark:text-orange-400",
-    progress: "bg-orange-500 dark:bg-orange-400",
-    bg: "bg-orange-50 dark:bg-orange-950/30",
+    text: "text-attention",
+    progress: "bg-attention",
+    bg: "bg-attention-bg",
   },
   red: {
-    text: "text-red-600 dark:text-red-400",
-    progress: "bg-red-500 dark:bg-red-400",
-    bg: "bg-red-50 dark:bg-red-950/30",
+    text: "text-critique",
+    progress: "bg-critique",
+    bg: "bg-critique-bg",
   },
 };
 
@@ -43,26 +43,22 @@ function ScorePanel({ data }: { data: HealthScore }) {
   const scoreDelta =
     trend.previous_score != null ? score - trend.previous_score : null;
 
-  // Top 2-3 heaviest penalties for compact summary
   const topPenalties = [...penalties]
     .sort((a, b) => b.points - a.points)
     .slice(0, 3);
 
   return (
     <div className="space-y-3">
-      {/* Score + Trend */}
       <div className="flex items-baseline gap-2">
-        <span className={cn("text-4xl font-bold tabular-nums", colors.text)}>
+        <span className={cn("text-4xl font-bold font-heading tabular-nums", colors.text)}>
           {score}
         </span>
         <span className="text-lg text-muted-foreground">/100</span>
         {scoreDelta != null && scoreDelta !== 0 && (
           <span
             className={cn(
-              "ml-2 inline-flex items-center gap-0.5 text-sm font-medium",
-              scoreDelta > 0
-                ? "text-green-600 dark:text-green-400"
-                : "text-red-600 dark:text-red-400"
+              "ml-2 inline-flex items-center gap-0.5 text-sm font-medium font-heading tabular-nums",
+              scoreDelta > 0 ? "text-standard" : "text-critique"
             )}
           >
             {scoreDelta > 0 ? (
@@ -75,17 +71,14 @@ function ScorePanel({ data }: { data: HealthScore }) {
         )}
       </div>
 
-      {/* Progress bar */}
       <Progress
         value={score}
         className="h-2.5"
         indicatorColor={colors.progress}
       />
 
-      {/* Label */}
       <p className="text-sm font-medium">{label}</p>
 
-      {/* Compact penalties summary */}
       {topPenalties.length > 0 && (
         <p className="text-xs text-muted-foreground leading-relaxed">
           {topPenalties.map((p) => p.details).join(" · ")}
@@ -106,17 +99,15 @@ function ScorePanelCompact({ data }: { data: HealthScore }) {
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-baseline gap-2">
-          <span className={cn("text-3xl font-bold tabular-nums", colors.text)}>
+          <span className={cn("text-3xl font-bold font-heading tabular-nums", colors.text)}>
             {score}
           </span>
           <span className="text-sm text-muted-foreground">/100</span>
           {scoreDelta != null && scoreDelta !== 0 && (
             <span
               className={cn(
-                "inline-flex items-center gap-0.5 text-xs font-medium",
-                scoreDelta > 0
-                  ? "text-green-600 dark:text-green-400"
-                  : "text-red-600 dark:text-red-400"
+                "inline-flex items-center gap-0.5 text-xs font-medium font-heading tabular-nums",
+                scoreDelta > 0 ? "text-standard" : "text-critique"
               )}
             >
               {scoreDelta > 0 ? (
@@ -160,14 +151,14 @@ function TrendBadge({ trend }: { trend: TrendResult }) {
       className={cn(
         "inline-flex items-center px-1.5 py-0.5 ps-2 text-xs font-medium",
         isUp
-          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-          : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+          ? "bg-standard-bg text-standard"
+          : "bg-critique-bg text-critique"
       )}
     >
       {isUp ? (
-        <TrendingUp className="mr-0.5 -ml-1 size-3.5 shrink-0 text-green-500" />
+        <TrendingUp className="mr-0.5 -ml-1 size-3.5 shrink-0 text-standard" />
       ) : (
-        <TrendingDown className="mr-0.5 -ml-1 size-3.5 shrink-0 text-red-500" />
+        <TrendingDown className="mr-0.5 -ml-1 size-3.5 shrink-0 text-critique" />
       )}
       {trend.percentage}%
     </Badge>
@@ -210,14 +201,14 @@ function KPICards({ kpi }: { kpi: HealthScoreKPI }) {
       value: kpi.entries_month.toLocaleString("fr-FR"),
       prefix: "+",
       trend: computeTrend(kpi.entries_month, kpi.entries_prev_month),
-      valueColor: "text-emerald-600 dark:text-emerald-400",
+      valueColor: "text-standard",
     },
     {
       label: "Sorties",
       value: kpi.exits_month.toLocaleString("fr-FR"),
       prefix: "-",
       trend: computeTrend(kpi.exits_month, kpi.exits_prev_month),
-      valueColor: "text-rose-600 dark:text-rose-400",
+      valueColor: "text-critique",
     },
   ];
 
@@ -236,7 +227,7 @@ function KPICards({ kpi }: { kpi: HealthScoreKPI }) {
           </div>
           <p
             className={cn(
-              "mt-1 text-lg font-semibold tabular-nums whitespace-nowrap",
+              "mt-1 text-lg font-semibold font-heading tabular-nums whitespace-nowrap",
               card.valueColor
             )}
           >
@@ -254,7 +245,6 @@ function HeaderSkeleton() {
   return (
     <Card className="p-4 lg:p-5">
       <CardContent className="p-0">
-        {/* Desktop skeleton */}
         <div className="hidden lg:flex lg:gap-8">
           <div className="w-64 space-y-3">
             <Skeleton className="h-10 w-24" />
@@ -271,7 +261,6 @@ function HeaderSkeleton() {
             ))}
           </div>
         </div>
-        {/* Mobile skeleton */}
         <div className="lg:hidden space-y-3">
           <div className="flex items-center justify-between">
             <Skeleton className="h-9 w-20" />
@@ -307,7 +296,6 @@ export function HealthScoreHeader({ orgId }: HealthScoreHeaderProps) {
   return (
     <Card className="p-4 lg:p-5">
       <CardContent className="p-0">
-        {/* Desktop: score left + KPIs right */}
         <div className="hidden lg:flex lg:items-start lg:gap-8">
           <div className="w-64 shrink-0">
             <ScorePanel data={data} />
@@ -317,7 +305,6 @@ export function HealthScoreHeader({ orgId }: HealthScoreHeaderProps) {
           </div>
         </div>
 
-        {/* Mobile: score compact + KPIs below */}
         <div className="lg:hidden space-y-3">
           <ScorePanelCompact data={data} />
           <KPICards kpi={data.kpi} />

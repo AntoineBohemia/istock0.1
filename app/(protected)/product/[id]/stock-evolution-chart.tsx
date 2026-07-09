@@ -129,18 +129,18 @@ export default function StockEvolutionChart({
         <div className="mt-4 grid grid-cols-3 gap-4 border-t pt-4">
           <div className="text-center">
             <p className="text-sm text-muted-foreground">Entrées</p>
-            <p className="text-lg font-semibold text-green-600">
+            <p className="text-lg font-semibold font-heading tabular-nums text-standard">
               +{totalEntries}
             </p>
           </div>
           <div className="text-center">
             <p className="text-sm text-muted-foreground">Sorties</p>
-            <p className="text-lg font-semibold text-red-600">-{totalExits}</p>
+            <p className="text-lg font-semibold font-heading tabular-nums text-critique">-{totalExits}</p>
           </div>
           <div className="text-center">
             <p className="text-sm text-muted-foreground">Balance</p>
             <p
-              className={`flex items-center justify-center gap-1 text-lg font-semibold ${netBalance >= 0 ? "text-green-600" : "text-red-600"}`}
+              className={`flex items-center justify-center gap-1 text-lg font-semibold font-heading tabular-nums ${netBalance >= 0 ? "text-standard" : "text-critique"}`}
             >
               {netBalance >= 0 ? (
                 <TrendingUp className="size-4" />

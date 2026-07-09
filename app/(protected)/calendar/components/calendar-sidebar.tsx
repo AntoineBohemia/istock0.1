@@ -3,7 +3,7 @@
 import React from "react";
 
 import { CalendarPlus, Menu } from "lucide-react";
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+
 import { UpcomingEvents } from "./upcoming-events";
 import useCalendarEventStore from "../useCalendarEventStore";
 

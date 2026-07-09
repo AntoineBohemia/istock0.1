@@ -8,6 +8,7 @@ import {
   getProductMovements,
   getProductMovementStats,
   getMovementsSummary,
+  getYearlyEntryValuesByOrg,
   type StockMovementFilters,
 } from "@/lib/supabase/queries/stock-movements";
 
@@ -42,6 +43,15 @@ export function useMovementsSummary(orgId?: string) {
     queryKey: queryKeys.movements.summary(orgId),
     queryFn: () => getMovementsSummary(orgId),
     enabled: !!orgId,
+    staleTime: STALE_TIME.MODERATE,
+  });
+}
+
+export function useYearlyEntryValues(year?: number) {
+  const targetYear = year ?? new Date().getFullYear();
+  return useQuery({
+    queryKey: queryKeys.movements.yearlyEntryValues(targetYear),
+    queryFn: () => getYearlyEntryValuesByOrg(targetYear),
     staleTime: STALE_TIME.MODERATE,
   });
 }

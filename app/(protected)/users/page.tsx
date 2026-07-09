@@ -1,7 +1,6 @@
 import { generateMeta } from "@/lib/utils";
 
 import TechniciansHeader from "./technicians-header";
-import TechnicianStats from "./technicians-stats";
 import TechniciansList from "./technicians-list";
 import MobileTechniciansList from "./mobile-technicians-list";
 
@@ -25,7 +24,6 @@ export default function Page() {
       <div className="hidden md:block">
         <div className="space-y-4">
           <TechniciansHeader />
-          <TechnicianStats />
           <div className="pt-4">
             <TechniciansList />
           </div>

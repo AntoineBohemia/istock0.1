@@ -18,7 +18,6 @@ import {
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProducts, useTechnicians } from "@/hooks/queries";
 
@@ -113,11 +112,11 @@ export default function Search() {
         </Button>
       </div>
       <CommandDialog open={open} onOpenChange={handleOpenChange}>
-        <VisuallyHidden>
+        <span className="sr-only">
           <DialogHeader>
-            <DialogTitle></DialogTitle>
+            <DialogTitle>Recherche</DialogTitle>
           </DialogHeader>
-        </VisuallyHidden>
+        </span>
         <CommandInput
           placeholder="Rechercher un produit, technicien ou page..."
           value={query}

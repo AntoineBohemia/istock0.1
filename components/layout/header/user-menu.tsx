@@ -91,15 +91,17 @@ export default function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Avatar className="cursor-pointer">
-          {user?.avatarUrl && (
-            <AvatarImage src={user.avatarUrl} alt={displayName} />
-          )}
-          <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
-        </Avatar>
+        <button className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Avatar className="cursor-pointer">
+            {user?.avatarUrl && (
+              <AvatarImage src={user.avatarUrl} alt={displayName} />
+            )}
+            <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
+          </Avatar>
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="w-(--radix-dropdown-menu-trigger-width) min-w-60"
+        className="w-(--anchor-width) min-w-60"
         align="end"
       >
         <DropdownMenuLabel className="p-0">

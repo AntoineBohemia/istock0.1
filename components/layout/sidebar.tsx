@@ -1,18 +1,13 @@
 "use client";
 
-import { Fragment, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { page_routes, filterRoutesByRole } from "@/lib/routes-config";
-import { ChevronRight, ChevronsUpDown, Loader2, Check } from "lucide-react";
+import { page_routes, filterRoutesByRole, isRoleAllowed, SETTINGS_ALLOWED_ROLES } from "@/lib/routes-config";
+import { ChevronsUpDown, Loader2, Check, Settings } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useSwitchOrganization } from "@/components/organization-provider";
 
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,45 +15,34 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sidebar as SidebarContainer,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Icon from "../icon";
 import { OrganizationAvatar } from "@/components/ui/organization-avatar";
-import { Button } from "@/components/ui/button";
 import { useIsTablet } from "@/hooks/use-mobile";
-import TechniciansMenu from "@/components/layout/technicians-menu";
+import { createClient } from "@/lib/supabase/client";
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { setOpen, setOpenMobile, isMobile } = useSidebar();
   const isTablet = useIsTablet();
 
-  // Organisation
   const { currentOrganization, organizations, isLoading } = useOrganizationStore();
   const switchOrganization = useSwitchOrganization();
+
+  // User data for footer
+  const [user, setUser] = useState<{ name: string; email: string; avatar: string | null } | null>(null);
 
   useEffect(() => {
     if (isMobile) setOpenMobile(false);
@@ -68,12 +52,35 @@ export default function Sidebar() {
     setOpen(!isTablet);
   }, [isTablet]);
 
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user: authUser } }) => {
+      if (authUser) {
+        setUser({
+          name:
+            authUser.user_metadata?.full_name ||
+            authUser.user_metadata?.name ||
+            authUser.email?.split("@")[0] ||
+            "",
+          email: authUser.email || "",
+          avatar: authUser.user_metadata?.avatar_url || null,
+        });
+      }
+    });
+  }, []);
+
+  const showSettings = isRoleAllowed(currentOrganization?.role, SETTINGS_ALLOWED_ROLES);
+  const initials = user
+    ? (user.name || user.email || "U").slice(0, 2).toUpperCase()
+    : "U";
+
   return (
     <SidebarContainer
       collapsible="icon"
       variant="floating"
       className="bg-background"
     >
+      {/* ── Org switcher ── */}
       <SidebarHeader className="items-center justify-center pt-3 transition-all group-data-[collapsible=icon]:pt-2">
         <SidebarMenu>
           <SidebarMenuItem>
@@ -95,7 +102,7 @@ export default function Sidebar() {
                   <ChevronsUpDown className="ml-auto group-data-[collapsible=icon]:hidden" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-(--radix-popper-anchor-width)">
+              <DropdownMenuContent className="w-(--anchor-width)">
                 <DropdownMenuLabel>Organisations</DropdownMenuLabel>
                 {organizations.map((org) => (
                   <DropdownMenuItem
@@ -128,170 +135,81 @@ export default function Sidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
+
+      {/* ── Navigation principale ── */}
       <SidebarContent className="overflow-hidden">
-        <ScrollArea className="h-full">
-          {filterRoutesByRole(page_routes, currentOrganization?.role).map((route, key) => (
-            <SidebarGroup key={key}>
-              <SidebarGroupLabel className="text-xs tracking-wider uppercase">
+        {filterRoutesByRole(page_routes, currentOrganization?.role).map((route, key) => (
+          <SidebarGroup key={key}>
+            {route.title && (
+              <div className="text-xs tracking-wider uppercase text-muted-foreground px-3 py-1.5">
                 {route.title}
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu className="space-y-1">
-                  {route.items.map((item, key) => (
-                    <SidebarMenuItem key={key}>
-                      {item.isDynamicTechnicians ? (
-                        <TechniciansMenu
-                          title={item.title}
-                          href={item.href}
-                          icon={item.icon}
-                        />
-                      ) : item.items?.length ? (
-                        <Fragment>
-                          <div className="hidden group-data-[collapsible=icon]:block">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <SidebarMenuButton
-                                  className="hover:text-foreground! active:text-foreground! hover:bg-[var(--primary)]/10! active:bg-[var(--primary)]/10!"
-                                  tooltip={item.title}
-                                >
-                                  {item.icon && (
-                                    <Icon
-                                      name={item.icon}
-                                      className="accent-sidebar-foreground size-4"
-                                    />
-                                  )}
-                                  <span>{item.title}</span>
-                                  <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                                </SidebarMenuButton>
-                              </DropdownMenuTrigger>
-                              {item.items?.length ? (
-                                <DropdownMenuContent
-                                  side={isMobile ? "bottom" : "right"}
-                                  align={isMobile ? "end" : "start"}
-                                  className="min-w-48 rounded-lg"
-                                >
-                                  <DropdownMenuLabel>
-                                    {item.title}
-                                  </DropdownMenuLabel>
-                                  {item.items.map((item) => (
-                                    <DropdownMenuItem
-                                      className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10! active:bg-[var(--primary)]/10!"
-                                      asChild
-                                      key={item.title}
-                                    >
-                                      <a href={item.href}>{item.title}</a>
-                                    </DropdownMenuItem>
-                                  ))}
-                                </DropdownMenuContent>
-                              ) : null}
-                            </DropdownMenu>
-                          </div>
-                          <Collapsible className="group/collapsible block group-data-[collapsible=icon]:hidden">
-                            <CollapsibleTrigger asChild>
-                              <SidebarMenuButton
-                                className="hover:text-foreground! active:text-foreground! hover:bg-[var(--primary)]/10! active:bg-[var(--primary)]/10!"
-                                tooltip={item.title}
-                                isActive={pathname === item.href || pathname.startsWith(`${item.href}/`)}
-                              >
-                                {item.icon && (
-                                  <Icon
-                                    name={item.icon}
-                                    className="accent-sidebar-foreground size-4"
-                                  />
-                                )}
-                                <span>{item.title}</span>
-                                <ChevronRight className="ml-auto size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                              </SidebarMenuButton>
-                            </CollapsibleTrigger>
-                            <CollapsibleContent>
-                              <SidebarMenuSub>
-                                {item.items.map((subItem, key) => (
-                                  <SidebarMenuSubItem key={key}>
-                                    <SidebarMenuSubButton
-                                      className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10"
-                                      isActive={pathname === subItem.href}
-                                      asChild
-                                    >
-                                      <Link
-                                        href={subItem.href}
-                                        target={subItem.newTab ? "_blank" : ""}
-                                      >
-                                        {subItem.icon && (
-                                          <Icon
-                                            name={subItem.icon}
-                                            className="accent-sidebar-foreground size-4"
-                                          />
-                                        )}
-                                        <span>{subItem.title}</span>
-                                      </Link>
-                                    </SidebarMenuSubButton>
-                                  </SidebarMenuSubItem>
-                                ))}
-                              </SidebarMenuSub>
-                            </CollapsibleContent>
-                          </Collapsible>
-                        </Fragment>
-                      ) : (
-                        <SidebarMenuButton
-                          className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10"
-                          asChild
-                          tooltip={item.title}
-                          isActive={pathname === item.href}
-                        >
-                          <Link
-                            href={item.href}
-                            target={item.newTab ? "_blank" : ""}
-                          >
-                            {item.icon && (
-                              <Icon
-                                name={item.icon}
-                                className="accent-sidebar-foreground size-4"
-                              />
-                            )}
-                            <span>{item.title}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      )}
-                      {!!item.isComing && (
-                        <SidebarMenuBadge className="peer-hover/menu-button:text-foreground opacity-50">
-                          Coming
-                        </SidebarMenuBadge>
-                      )}
-                      {!!item.isNew && (
-                        <SidebarMenuBadge className="border border-green-400 text-green-600 peer-hover/menu-button:text-green-600">
-                          New
-                        </SidebarMenuBadge>
-                      )}
-                      {!!item.isDataBadge && (
-                        <SidebarMenuBadge className="peer-hover/menu-button:text-foreground">
-                          {item.isDataBadge}
-                        </SidebarMenuBadge>
-                      )}
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          ))}
-        </ScrollArea>
+              </div>
+            )}
+            <SidebarGroupContent>
+              <SidebarMenu className="space-y-1">
+                {route.items.map((item, idx) => (
+                  <SidebarMenuItem key={idx}>
+                    <SidebarMenuButton
+                      className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10"
+                      asChild
+                      tooltip={item.title}
+                      isActive={pathname === item.href || pathname.startsWith(`${item.href}/`)}
+                    >
+                      <Link href={item.href}>
+                        {item.icon && (
+                          <Icon
+                            name={item.icon}
+                            className="accent-sidebar-foreground size-4"
+                          />
+                        )}
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
-      <SidebarFooter>
-        {/* <Card className="bg-muted gap-4 overflow-hidden py-4 group-data-[collapsible=icon]:hidden">
-          <CardHeader className="px-3">
-            <CardTitle>Upgrade to Pro</CardTitle>
-            <CardDescription>
-              Get pro now to own all dashboards, templates and components for
-              life.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-3">
-            <Button className="w-full" asChild>
-              <Link href="https://shadcnuikit.com/pricing" target="_blank">
-                Get Shadcn UI Kit
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>*/}
+
+      {/* ── Footer : Paramètres + Utilisateur ── */}
+      <SidebarFooter className="gap-0">
+        {showSettings && (
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10"
+                asChild
+                tooltip="Paramètres"
+                isActive={pathname === "/settings" || pathname.startsWith("/settings/")}
+              >
+                <Link href="/settings">
+                  <Settings className="size-4" />
+                  <span>Paramètres</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        )}
+        {user && (
+          <div className="border-t pt-2 mt-2">
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton tooltip={user.name || "Utilisateur"} className="cursor-default">
+                  <Avatar className="size-6 shrink-0">
+                    {user.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
+                    <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
+                  </Avatar>
+                  <div className="grid text-left leading-tight group-data-[collapsible=icon]:hidden">
+                    <span className="truncate text-sm font-medium">{user.name}</span>
+                    <span className="truncate text-[11px] text-muted-foreground">{user.email}</span>
+                  </div>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </div>
+        )}
       </SidebarFooter>
     </SidebarContainer>
   );

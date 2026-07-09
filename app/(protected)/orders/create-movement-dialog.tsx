@@ -223,23 +223,22 @@ export default function CreateMovementDialog({
                     <FormLabel>Type de mouvement</FormLabel>
                     <FormControl>
                       <ToggleGroup
-                        type="single"
-                        value={field.value}
+                        value={field.value ? [field.value] : []}
                         onValueChange={(value) => {
-                          if (value) field.onChange(value);
+                          if (value[0]) field.onChange(value[0]);
                         }}
                         className="justify-start"
                       >
                         <ToggleGroupItem
                           value="entry"
-                          className="data-[state=on]:bg-green-100 data-[state=on]:text-green-700"
+                          className="data-pressed:bg-green-100 data-pressed:text-green-700"
                         >
                           <ArrowDownToLine className="mr-2 size-4" />
                           Entrée
                         </ToggleGroupItem>
                         <ToggleGroupItem
                           value="exit"
-                          className="data-[state=on]:bg-red-100 data-[state=on]:text-red-700"
+                          className="data-pressed:bg-red-100 data-pressed:text-red-700"
                         >
                           <ArrowUpFromLine className="mr-2 size-4" />
                           Sortie

@@ -1,14 +1,10 @@
 "use client";
 
-import * as React from "react";
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useQueryStates, parseAsString, parseAsInteger } from "nuqs";
 import {
   ColumnDef,
-  ColumnFiltersState,
   SortingState,
-  VisibilityState,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
@@ -16,117 +12,132 @@ import {
 } from "@tanstack/react-table";
 import {
   ArrowUpDown,
-  ColumnsIcon,
-  Download,
-  FilterIcon,
   Loader2,
-  MoreHorizontal,
-  Package,
-  PlusCircle,
-  RefreshCw,
   Search,
-  Archive,
+  ChevronLeft,
+  ChevronRight,
+  ArrowDownToLine,
+  ArrowUpFromLine,
 } from "lucide-react";
 import Link from "next/link";
-import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { StatusPill } from "@/components/ui/status-pill";
+import QuickStockMovementModal from "@/components/quick-stock-movement-modal";
 
 import { ProductWithCategory } from "@/lib/supabase/queries/products";
-import { Category } from "@/lib/supabase/queries/categories";
 import {
   calculateStockScore,
-  getStockScoreBgColor,
+  getStockScoreColor,
   getStockBadgeVariant,
-  getStockStatus,
 } from "@/lib/utils/stock";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
-import QuickStockMovementModal from "@/components/quick-stock-movement-modal";
-import { exportToCSV } from "@/lib/utils/csv-export";
-import { useProducts, useCategories } from "@/hooks/queries";
-import { useArchiveProduct } from "@/hooks/mutations";
+import { useProducts } from "@/hooks/queries";
 import ProductIconDisplay from "@/components/product-icon-display";
+import { cn } from "@/lib/utils";
 
+// ─── Animated table row ────────────────────────────────────
+const MotionTr = motion.create("tr");
+
+function AnimatedRow({
+  children,
+  index,
+  reducedMotion,
+  onClick,
+}: {
+  children: React.ReactNode;
+  index: number;
+  reducedMotion: boolean | null;
+  onClick?: () => void;
+}) {
+  return (
+    <MotionTr
+      layout={!reducedMotion}
+      initial={reducedMotion ? false : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={reducedMotion ? undefined : { opacity: 0, y: -8 }}
+      transition={{
+        type: "spring",
+        bounce: 0,
+        duration: 0.35,
+        delay: reducedMotion ? 0 : index * 0.03,
+      }}
+      className="group border-b last:border-b-0 transition-colors hover:bg-muted/40 cursor-pointer"
+      onClick={onClick}
+    >
+      {children}
+    </MotionTr>
+  );
+}
+
+// ─── Sort header button ────────────────────────────────────
+function SortHeader({
+  label,
+  column,
+  className,
+}: {
+  label: string;
+  column: { toggleSorting: (asc: boolean) => void; getIsSorted: () => false | "asc" | "desc" };
+  className?: string;
+}) {
+  const sorted = column.getIsSorted();
+  return (
+    <button
+      type="button"
+      onClick={() => column.toggleSorting(sorted === "asc")}
+      className={cn(
+        "inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/50 hover:text-foreground transition-colors select-none",
+        className
+      )}
+    >
+      {label}
+      <ArrowUpDown
+        className={cn(
+          "size-3 transition-colors",
+          sorted ? "text-foreground" : "text-foreground/25"
+        )}
+      />
+    </button>
+  );
+}
+
+// ─── Main component ────────────────────────────────────────
 export default function ProductList() {
   const router = useRouter();
+  const prefersReducedMotion = useReducedMotion();
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [rowSelection, setRowSelection] = useState({});
   const [filters, setFilters] = useQueryStates({
     search: parseAsString.withDefault(""),
-    category: parseAsString.withDefault("all"),
     page: parseAsInteger.withDefault(1),
   });
 
+  // Stock movement modal state
+  const [modalProductId, setModalProductId] = useState<string | null>(null);
+  const [modalDirection, setModalDirection] = useState<"entry" | "exit">("entry");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openMovementModal = (productId: string, direction: "entry" | "exit") => {
+    setModalProductId(productId);
+    setModalDirection(direction);
+    setIsModalOpen(true);
+  };
+
   const searchQuery = filters.search;
-  const selectedCategory = filters.category;
   const page = filters.page;
   const setSearchQuery = (value: string) => setFilters({ search: value, page: 1 });
-  const setSelectedCategory = (value: string) => setFilters({ category: value, page: 1 });
   const setPage = (value: number | ((prev: number) => number)) => {
     const newPage = typeof value === "function" ? value(page) : value;
     setFilters({ page: newPage });
   };
 
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [productToDelete, setProductToDelete] = useState<ProductWithCategory | null>(null);
-  const [stockModalOpen, setStockModalOpen] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const pageSize = 20;
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  // Debounced search
   useEffect(() => {
     debounceRef.current = setTimeout(() => {
       setDebouncedSearch(searchQuery);
@@ -134,147 +145,66 @@ export default function ProductList() {
     return () => clearTimeout(debounceRef.current);
   }, [searchQuery]);
 
-  // React Query hooks
   const { data: productsResult, isLoading } = useProducts({
     organizationId: currentOrganization?.id,
     search: debouncedSearch || undefined,
-    categoryId: selectedCategory !== "all" ? selectedCategory : undefined,
     page,
     pageSize,
   });
-  const { data: categories = [] } = useCategories(currentOrganization?.id);
-  const archiveProductMutation = useArchiveProduct();
 
   const products = productsResult?.products || [];
   const totalCount = productsResult?.total || 0;
-
-  const handleArchive = async () => {
-    if (!productToDelete) return;
-
-    archiveProductMutation.mutate(productToDelete.id, {
-      onSuccess: () => {
-        toast.success("Produit archivé avec succès");
-        setDeleteDialogOpen(false);
-        setProductToDelete(null);
-      },
-      onError: (error) => {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de l'archivage");
-      },
-    });
-  };
-
-  const isArchiving = archiveProductMutation.isPending;
-
-  const handleExportCSV = () => {
-    exportToCSV(products, "produits", [
-      { header: "Nom", accessor: (p) => p.name },
-      { header: "SKU", accessor: (p) => p.sku },
-      { header: "Catégorie", accessor: (p) => p.category?.name },
-      { header: "Prix", accessor: (p) => p.price },
-      { header: "Stock actuel", accessor: (p) => p.stock_current },
-      { header: "Stock min", accessor: (p) => p.stock_min },
-      { header: "Stock max", accessor: (p) => p.stock_max },
-    ]);
-  };
+  const totalPages = Math.ceil(totalCount / pageSize);
 
   const columns: ColumnDef<ProductWithCategory>[] = [
     {
-      id: "select",
-      header: ({ table }) => (
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && "indeterminate")
-          }
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Tout sélectionner"
-        />
-      ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Sélectionner la ligne"
-        />
-      ),
-      enableSorting: false,
-      enableHiding: false,
-    },
-    {
       accessorKey: "name",
-      header: ({ column }) => (
-        <Button
-          className="-ml-3"
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Produit
-          <ArrowUpDown className="size-3" />
-        </Button>
-      ),
+      header: ({ column }) => <SortHeader label="Produit" column={column} />,
       cell: ({ row }) => {
         const product = row.original;
         return (
-          <Link href={`/product/${product.id}`} className="flex items-center gap-4 hover:underline">
+          <div className="flex items-center gap-4">
             <ProductIconDisplay
               iconName={product.icon_name}
               iconColor={product.icon_color}
               imageUrl={product.image_url}
               size="lg"
             />
-            <div>
-              <div className="font-medium">{product.name}</div>
-              {product.sku && <div className="text-xs text-muted-foreground">{product.sku}</div>}
+            <div className="min-w-0">
+              <div className="font-semibold text-[15px] leading-tight">
+                {product.name}
+              </div>
+              {product.sku && (
+                <div className="text-xs text-muted-foreground mt-0.5 font-mono">
+                  {product.sku}
+                </div>
+              )}
             </div>
-          </Link>
+          </div>
         );
       },
     },
     {
       accessorKey: "price",
       header: ({ column }) => (
-        <Button
-          className="-ml-3"
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Prix
-          <ArrowUpDown className="size-3" />
-        </Button>
+        <SortHeader label="Prix HT" column={column} className="justify-end w-full" />
       ),
       cell: ({ row }) => {
         const price = row.original.price;
-        return price
-          ? price.toLocaleString("fr-FR", {
-              style: "currency",
-              currency: "EUR",
-            })
-          : "-";
-      },
-    },
-    {
-      accessorKey: "category",
-      header: "Catégorie",
-      cell: ({ row }) => {
-        const category = row.original.category;
-        return category ? (
-          <Badge variant="outline">{category.name}</Badge>
-        ) : (
-          <span className="text-muted-foreground">-</span>
+        return (
+          <span className="font-heading tabular-nums text-[15px] text-foreground">
+            {price
+              ? price.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })
+              : "—"}
+          </span>
         );
       },
+      meta: { align: "right" },
     },
     {
       accessorKey: "stock_current",
       header: ({ column }) => (
-        <Button
-          className="-ml-3"
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Stock
-          <ArrowUpDown className="size-3" />
-        </Button>
+        <SortHeader label="Stock" column={column} className="justify-center w-full" />
       ),
       cell: ({ row }) => {
         const product = row.original;
@@ -283,22 +213,26 @@ export default function ProductList() {
           product.stock_min,
           product.stock_max
         );
-        const bgColor = getStockScoreBgColor(score);
-
         return (
-          <div className="w-32 space-y-1">
-            <div className="flex items-center justify-between text-sm">
-              <span>{product.stock_current}</span>
-              <span className="text-muted-foreground">{score}%</span>
-            </div>
-            <Progress value={score} className="h-2" indicatorColor={bgColor} />
-          </div>
+          <span
+            className={cn(
+              "font-heading font-bold tabular-nums text-xl",
+              getStockScoreColor(score)
+            )}
+          >
+            {product.stock_current ?? 0}
+          </span>
         );
       },
+      meta: { align: "center" },
     },
     {
-      accessorKey: "status",
-      header: "Statut",
+      id: "status",
+      accessorFn: (row) =>
+        calculateStockScore(row.stock_current, row.stock_min, row.stock_max),
+      header: ({ column }) => (
+        <SortHeader label="Statut" column={column} className="justify-end w-full" />
+      ),
       cell: ({ row }) => {
         const product = row.original;
         const score = calculateStockScore(
@@ -306,62 +240,46 @@ export default function ProductList() {
           product.stock_min,
           product.stock_max
         );
-        const variant = getStockBadgeVariant(score);
-        const status = getStockStatus(score);
-
-        return <Badge variant={variant}>{status}</Badge>;
+        const status = getStockBadgeVariant(score);
+        return <StatusPill status={status} />;
       },
+      sortingFn: "basic",
+      meta: { align: "right" },
     },
     {
       id: "actions",
-      enableHiding: false,
+      header: () => null,
       cell: ({ row }) => {
         const product = row.original;
         return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="size-8 p-0">
-                <span className="sr-only">Menu</span>
-                <MoreHorizontal className="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => {
-                  setSelectedProductId(product.id);
-                  setStockModalOpen(true);
-                }}
-              >
-                <RefreshCw className="mr-2 size-4" />
-                Restocker
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href={`/product/${product.id}`}>Voir détails</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href={`/product/${product.id}/edit`}>Modifier</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigator.clipboard.writeText(product.id)}>
-                Copier l'ID
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={() => {
-                  setProductToDelete(product);
-                  setDeleteDialogOpen(true);
-                }}
-              >
-                <Archive className="mr-2 size-4" />
-                Archiver
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-2.5 text-xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                openMovementModal(product.id, "exit");
+              }}
+            >
+              <ArrowUpFromLine className="size-3.5" />
+              Sortir
+            </Button>
+            <Button
+              size="sm"
+              className="h-7 px-2.5 text-xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                openMovementModal(product.id, "entry");
+              }}
+            >
+              <ArrowDownToLine className="size-3.5" />
+              Entrer
+            </Button>
+          </div>
         );
       },
+      meta: { align: "right" },
     },
   ];
 
@@ -369,198 +287,146 @@ export default function ProductList() {
     data: products,
     columns,
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: setRowSelection,
-    state: {
-      sorting,
-      columnFilters,
-      columnVisibility,
-      rowSelection,
-    },
+    state: { sorting },
   });
 
   if (isLoading || isOrgLoading || !currentOrganization) {
     return (
-      <Card>
-        <CardContent className="flex h-96 items-center justify-center">
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="flex h-96 items-center justify-center">
           <Loader2 className="size-8 animate-spin text-muted-foreground" />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
   return (
-    <>
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Rechercher un produit..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="max-w-sm pl-9"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Catégorie" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Toutes les catégories</SelectItem>
-                  {categories
-                    .filter((c) => !c.parent_id)
-                    .map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-              <Button variant="outline" onClick={handleExportCSV}>
-                <Download className="size-4" />
-                <span className="hidden lg:inline">Exporter CSV</span>
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline">
-                    <span className="hidden lg:inline">Colonnes</span>
-                    <ColumnsIcon />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {table
-                    .getAllColumns()
-                    .filter((column) => column.getCanHide())
-                    .map((column) => (
-                      <DropdownMenuCheckboxItem
-                        key={column.id}
-                        className="capitalize"
-                        checked={column.getIsVisible()}
-                        onCheckedChange={(value) => column.toggleVisibility(!!value)}
-                      >
-                        {column.id === "name"
-                          ? "Produit"
-                          : column.id === "price"
-                            ? "Prix"
-                            : column.id === "category"
-                              ? "Catégorie"
-                              : column.id === "stock_current"
-                                ? "Stock"
-                                : column.id === "status"
-                                  ? "Statut"
-                                  : column.id}
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="w-full space-y-4">
-            <div className="rounded-lg border">
-              <Table>
-                <TableHeader>
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => (
-                        <TableHead key={header.id}>
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(header.column.columnDef.header, header.getContext())}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-                <TableBody>
-                  {table.getRowModel().rows?.length ? (
-                    table.getRowModel().rows.map((row) => (
-                      <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell key={cell.id}>
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={columns.length} className="h-24 text-center">
-                        <div className="text-muted-foreground">
-                          Aucun produit trouvé.{" "}
-                          <Link href="/product/create" className="text-primary hover:underline">
-                            Créer un produit
-                          </Link>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-            <div className="flex items-center justify-between">
-              <p className="text-muted-foreground text-sm">{totalCount} produit(s) au total</p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                >
-                  Précédent
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => p + 1)}
-                  disabled={products.length < pageSize}
-                >
-                  Suivant
-                </Button>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="space-y-3">
+      {/* Search — standalone, above the table */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Rechercher un produit..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9 bg-white dark:bg-card"
+        />
+      </div>
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Archiver le produit</AlertDialogTitle>
-            <AlertDialogDescription>
-              &quot;{productToDelete?.name}&quot; sera archivé et ne sera plus visible dans les
-              listes et statistiques.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isArchiving}>Annuler</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleArchive}
-              disabled={isArchiving}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <table className="w-full">
+          {/* Header */}
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id} className="border-b">
+                {headerGroup.headers.map((header) => {
+                  const align = (header.column.columnDef.meta as { align?: string })?.align;
+                  return (
+                    <th
+                      key={header.id}
+                      className={cn(
+                        "h-11 px-5 font-medium whitespace-nowrap",
+                        align === "right" && "text-right",
+                        align === "center" && "text-center",
+                        !align && "text-left"
+                      )}
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(header.column.columnDef.header, header.getContext())}
+                    </th>
+                  );
+                })}
+              </tr>
+            ))}
+          </thead>
+
+          {/* Body */}
+          <tbody>
+            <AnimatePresence mode="popLayout" initial={false}>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row, index) => (
+                  <AnimatedRow
+                    key={row.original.id}
+                    index={index}
+                    reducedMotion={prefersReducedMotion}
+                    onClick={() => router.push(`/product/${row.original.id}`)}
+                  >
+                    {row.getVisibleCells().map((cell) => {
+                      const align = (cell.column.columnDef.meta as { align?: string })?.align;
+                      return (
+                        <td
+                          key={cell.id}
+                          className={cn(
+                            "px-5 py-4 whitespace-nowrap",
+                            align === "right" && "text-right",
+                            align === "center" && "text-center"
+                          )}
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      );
+                    })}
+                  </AnimatedRow>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={columns.length} className="h-32 text-center">
+                    <div className="text-muted-foreground">
+                      Aucun produit trouvé.{" "}
+                      <Link href="/product/create" className="text-primary hover:underline">
+                        Créer un produit
+                      </Link>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </AnimatePresence>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination — outside the card */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-1">
+          <p className="text-muted-foreground text-sm tabular-nums">
+            {totalCount} produit{totalCount > 1 ? "s" : ""} · page {page}/{totalPages}
+          </p>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              aria-label="Page précédente"
             >
-              {isArchiving && <Loader2 className="mr-2 size-4 animate-spin" />}
-              Archiver
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              <ChevronLeft className="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setPage((p) => p + 1)}
+              disabled={products.length < pageSize}
+              aria-label="Page suivante"
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        </div>
+      )}
 
+      {/* Stock movement modal */}
       <QuickStockMovementModal
-        open={stockModalOpen}
+        open={isModalOpen}
         onClose={() => {
-          setStockModalOpen(false);
-          setSelectedProductId(null);
+          setIsModalOpen(false);
+          setModalProductId(null);
         }}
-        productId={selectedProductId}
+        productId={modalProductId}
+        defaultDirection={modalDirection}
       />
-    </>
+    </div>
   );
 }

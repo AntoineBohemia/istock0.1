@@ -193,8 +193,8 @@ export function TabProduits() {
   if (products.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 gap-3">
-        <div className="rounded-full bg-emerald-100 p-3 dark:bg-emerald-950/40">
-          <CheckCircle className="size-6 text-emerald-500" />
+        <div className="rounded-full bg-standard-bg p-3">
+          <CheckCircle className="size-6 text-standard" />
         </div>
         <div className="text-center">
           <p className="font-medium">Tous les produits sont en bon etat</p>

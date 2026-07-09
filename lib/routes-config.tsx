@@ -14,14 +14,13 @@ export type PageRoutesItemType = {
   isDataBadge?: string;
   isNew?: boolean;
   newTab?: boolean;
-  isDynamicTechnicians?: boolean;
   items?: PageRoutesItemType;
   allowedRoles?: Role[];
 }[];
 
 export const page_routes: PageRoutesType[] = [
   {
-    title: "Stock",
+    title: "",
     items: [
       {
         title: "Vue d'ensemble",
@@ -29,60 +28,26 @@ export const page_routes: PageRoutesType[] = [
         icon: "ChartPie",
         allowedRoles: ["owner", "admin", "member"],
       },
-      /* {
-        title: "Calendrier",
-        href: "/calendar",
-        icon: "Calendar",
-      },*/
       {
-        title: "Stock produits",
+        title: "Produits",
         href: "/product",
         icon: "ShoppingBag",
-        items: [
-          { title: "Produits", href: "/product" },
-          {
-            title: "Catégories",
-            href: "/settings/categories",
-            allowedRoles: ["owner", "admin", "member"],
-          },
-        ],
       },
       {
         title: "Techniciens",
         href: "/users",
         icon: "Users",
-        isDynamicTechnicians: true,
       },
       {
-        title: "Flux de stock",
+        title: "Mouvements",
         href: "/orders",
         icon: "ArrowLeftRight",
       },
     ],
   },
-  {
-    title: "Configuration",
-    allowedRoles: ["owner", "admin", "member"],
-    items: [
-      {
-        title: "Équipe",
-        href: "/settings/members",
-        icon: "Users",
-      },
-      {
-        title: "Organisations",
-        href: "/settings/organizations",
-        icon: "Building2",
-      },
-      {
-        title: "Paramètres",
-        href: "/settings",
-        icon: "Settings",
-        isComing: true,
-      },
-    ],
-  },
 ];
+
+export const SETTINGS_ALLOWED_ROLES: Role[] = ["owner", "admin", "member"];
 
 export function isRoleAllowed(
   role: Role | undefined,

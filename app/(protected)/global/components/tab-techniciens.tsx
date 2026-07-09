@@ -36,9 +36,9 @@ interface TabTechniciensProps {
 }
 
 function getDaysSinceColor(days: number): string {
-  if (days === -1) return "text-red-500";
-  if (days > 21) return "text-red-500";
-  if (days > 14) return "text-orange-500";
+  if (days === -1) return "text-critique";
+  if (days > 21) return "text-critique";
+  if (days > 14) return "text-attention";
   return "text-muted-foreground";
 }
 
@@ -109,7 +109,7 @@ export function TabTechniciens({ onRestockClick }: TabTechniciensProps) {
         cell: ({ row }) => {
           const { last_restock_at, days_since_restock } = row.original;
           if (!last_restock_at) {
-            return <span className="text-xs text-red-500 font-medium">Jamais restocke</span>;
+            return <span className="text-xs text-critique font-medium">Jamais restocke</span>;
           }
           return (
             <span className={cn("text-xs", getDaysSinceColor(days_since_restock))}>
@@ -133,7 +133,7 @@ export function TabTechniciens({ onRestockClick }: TabTechniciensProps) {
           </Button>
         ),
         cell: ({ row }) => (
-          <span className={cn("text-xs tabular-nums font-medium", row.original.coverage_pct < 50 ? "text-orange-500" : "text-muted-foreground")}>
+          <span className={cn("text-xs tabular-nums font-medium", row.original.coverage_pct < 50 ? "text-attention" : "text-muted-foreground")}>
             {row.original.coverage_pct}%
           </span>
         ),

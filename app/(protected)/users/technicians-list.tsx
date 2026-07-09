@@ -1,397 +1,494 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ColumnDef,
-  ColumnFiltersState,
   SortingState,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  ArrowUpDown,
-  Loader2,
-  MoreHorizontal,
-  Package,
-  Eye,
-  Pencil,
-  Archive,
-  RefreshCw,
-  Search,
-} from "lucide-react";
-import { toast } from "sonner";
+import { ArrowUpDown, Loader2, Package, Search, UserPlus } from "lucide-react";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-} from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { StatusPill, StockStatus } from "@/components/ui/status-pill";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { HeroNumber } from "@/components/ui/hero-number";
+import { Button } from "@/components/ui/button";
+
 import { TechnicianWithInventory } from "@/lib/supabase/queries/technicians";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useTechnicians } from "@/hooks/queries";
-import { useArchiveTechnician } from "@/hooks/mutations";
+import { cn } from "@/lib/utils";
 
-function generateInitials(firstName: string, lastName: string): string {
-  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+// ─── Animated table row ────────────────────────────────────
+const MotionTr = motion.create("tr");
+
+function AnimatedRow({
+  children,
+  index,
+  reducedMotion,
+  onClick,
+}: {
+  children: React.ReactNode;
+  index: number;
+  reducedMotion: boolean | null;
+  onClick: () => void;
+}) {
+  return (
+    <MotionTr
+      layout={!reducedMotion}
+      initial={reducedMotion ? false : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={reducedMotion ? undefined : { opacity: 0, y: -8 }}
+      transition={{
+        type: "spring",
+        bounce: 0,
+        duration: 0.35,
+        delay: reducedMotion ? 0 : index * 0.03,
+      }}
+      onClick={onClick}
+      className="group border-b last:border-b-0 cursor-pointer transition-colors hover:bg-muted/50"
+    >
+      {children}
+    </MotionTr>
+  );
 }
 
-function formatDate(dateString: string | null): string {
-  if (!dateString) return "-";
-  return new Date(dateString).toLocaleDateString("fr-FR", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-export default function TechniciansList() {
-  const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
-  const { data: technicians = [], isLoading } = useTechnicians(currentOrganization?.id);
-  const archiveTechnicianMutation = useArchiveTechnician();
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [technicianToDelete, setTechnicianToDelete] =
-    useState<TechnicianWithInventory | null>(null);
-
-  const isArchiving = archiveTechnicianMutation.isPending;
-
-  const handleArchive = async () => {
-    if (!technicianToDelete) return;
-
-    archiveTechnicianMutation.mutate(technicianToDelete.id, {
-      onSuccess: () => {
-        toast.success("Technicien archivé avec succès");
-        setDeleteDialogOpen(false);
-        setTechnicianToDelete(null);
-      },
-      onError: (error) => {
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : "Erreur lors de l'archivage"
-        );
-        setDeleteDialogOpen(false);
-        setTechnicianToDelete(null);
-      },
-    });
+// ─── Sort header button ────────────────────────────────────
+function SortHeader({
+  label,
+  column,
+  className,
+}: {
+  label: string;
+  column: {
+    toggleSorting: (asc: boolean) => void;
+    getIsSorted: () => false | "asc" | "desc";
   };
+  className?: string;
+}) {
+  const sorted = column.getIsSorted();
+  return (
+    <button
+      type="button"
+      onClick={() => column.toggleSorting(sorted === "asc")}
+      className={cn(
+        "inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/50 hover:text-foreground transition-colors select-none",
+        className
+      )}
+    >
+      {label}
+      <ArrowUpDown
+        className={cn(
+          "size-3 transition-colors",
+          sorted ? "text-foreground" : "text-foreground/25"
+        )}
+      />
+    </button>
+  );
+}
+
+// ─── Restock urgency helpers ───────────────────────────────
+function daysSince(dateString: string | null): number | null {
+  if (!dateString) return null;
+  const diff = Date.now() - new Date(dateString).getTime();
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
+}
+
+function restockStatus(days: number | null): StockStatus {
+  if (days === null) return "critique";
+  if (days > 21) return "critique";
+  if (days > 14) return "attention";
+  return "standard";
+}
+
+function restockLabel(days: number | null): string {
+  if (days === null) return "Jamais";
+  if (days === 0) return "Aujourd'hui";
+  if (days === 1) return "Hier";
+  return `il y a ${days}j`;
+}
+
+function avatarRingClass(status: StockStatus): string {
+  switch (status) {
+    case "critique":
+      return "ring-2 ring-critique/40";
+    case "attention":
+      return "ring-2 ring-attention/40";
+    case "standard":
+      return "ring-2 ring-standard/30";
+  }
+}
+
+// ─── Filter chips ──────────────────────────────────────────
+type FilterValue = "all" | StockStatus;
+
+const FILTER_OPTIONS: { value: FilterValue; label: string }[] = [
+  { value: "all", label: "Tous" },
+  { value: "critique", label: "Critique" },
+  { value: "attention", label: "Attention" },
+  { value: "standard", label: "OK" },
+];
+
+function chipClass(filter: FilterValue, active: boolean): string {
+  if (!active) return "bg-muted/50 text-muted-foreground hover:bg-muted";
+  switch (filter) {
+    case "critique":
+      return "bg-critique-bg text-critique ring-1 ring-critique/20";
+    case "attention":
+      return "bg-attention-bg text-attention ring-1 ring-attention/20";
+    case "standard":
+      return "bg-standard-bg text-standard ring-1 ring-standard/20";
+    default:
+      return "bg-primary text-primary-foreground";
+  }
+}
+
+// ─── Main component ────────────────────────────────────────
+export default function TechniciansList() {
+  const router = useRouter();
+  const prefersReducedMotion = useReducedMotion();
+  const { currentOrganization, isLoading: isOrgLoading } =
+    useOrganizationStore();
+  const { data: technicians = [], isLoading } = useTechnicians(
+    currentOrganization?.id
+  );
+
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: "restock", desc: true },
+  ]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<FilterValue>("all");
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(() => {
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [searchQuery]);
+
+  // Count per status for chip badges
+  const statusCounts = useMemo(() => {
+    const counts = { critique: 0, attention: 0, standard: 0 };
+    for (const tech of technicians) {
+      const days = daysSince(tech.last_restock_at);
+      const status = restockStatus(days);
+      counts[status]++;
+    }
+    return counts;
+  }, [technicians]);
+
+  // Filter data by status chip
+  const filteredByStatus = useMemo(() => {
+    if (statusFilter === "all") return technicians;
+    return technicians.filter((tech) => {
+      const days = daysSince(tech.last_restock_at);
+      return restockStatus(days) === statusFilter;
+    });
+  }, [technicians, statusFilter]);
 
   const columns: ColumnDef<TechnicianWithInventory>[] = [
     {
       accessorKey: "name",
-      header: "Nom",
       accessorFn: (row) => `${row.first_name} ${row.last_name}`,
-      cell: ({ row }) => (
-        <Link
-          href={`/users/${row.original.id}`}
-          className="flex items-center gap-4 hover:underline"
-        >
-          <Avatar>
-            <AvatarFallback>
-              {generateInitials(
-                row.original.first_name,
-                row.original.last_name
-              )}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <div className="font-medium">
-              {row.original.first_name} {row.original.last_name}
-            </div>
-            {row.original.email && (
-              <div className="text-sm text-muted-foreground">
-                {row.original.email}
-              </div>
-            )}
+      header: ({ column }) => <SortHeader label="Technicien" column={column} />,
+      filterFn: "includesString",
+      cell: ({ row }) => {
+        const tech = row.original;
+        const days = daysSince(tech.last_restock_at);
+        const status = restockStatus(days);
+        return (
+          <div className="flex items-center gap-4">
+            <Avatar className={cn("size-9", avatarRingClass(status))}>
+              <AvatarFallback className="text-xs font-semibold">
+                {tech.first_name.charAt(0)}
+                {tech.last_name.charAt(0)}
+              </AvatarFallback>
+            </Avatar>
+            <span className="font-semibold text-[15px] leading-tight">
+              {tech.first_name} {tech.last_name}
+            </span>
           </div>
-        </Link>
-      ),
+        );
+      },
     },
     {
       accessorKey: "city",
       header: ({ column }) => (
-        <Button
-          className="-ml-3"
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Ville
-          <ArrowUpDown />
-        </Button>
+        <SortHeader label="Département" column={column} />
       ),
-      cell: ({ row }) => row.original.city || "-",
+      cell: ({ row }) => (
+        <span className="text-[15px]">{row.original.city || "—"}</span>
+      ),
     },
     {
       accessorKey: "phone",
-      header: "Téléphone",
-      cell: ({ row }) => row.original.phone || "-",
+      header: () => (
+        <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
+          Téléphone
+        </span>
+      ),
+      enableSorting: false,
+      cell: ({ row }) => (
+        <span className="text-[15px] tabular-nums">
+          {row.original.phone || "—"}
+        </span>
+      ),
     },
     {
       accessorKey: "inventory_count",
       header: ({ column }) => (
-        <Button
-          className="-ml-3"
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Inventaire
-          <ArrowUpDown />
-        </Button>
+        <SortHeader
+          label="Inventaire"
+          column={column}
+          className="justify-center w-full"
+        />
       ),
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <Package className="size-4 text-muted-foreground" />
-          <Badge variant={row.original.inventory_count > 0 ? "secondary" : "outline"}>
-            {row.original.inventory_count} items
-          </Badge>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "last_restock_at",
-      header: ({ column }) => (
-        <Button
-          className="-ml-3"
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Dernier restock
-          <ArrowUpDown />
-        </Button>
-      ),
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <RefreshCw className="size-4 text-muted-foreground" />
-          <span>{formatDate(row.original.last_restock_at)}</span>
-        </div>
-      ),
-    },
-    {
-      id: "actions",
-      enableHiding: false,
-      cell: ({ row }) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <span className="sr-only">Actions</span>
-              <MoreHorizontal />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <Link href={`/users/${row.original.id}`}>
-                <Eye className="mr-2 size-4" />
-                Voir le profil
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href={`/users/${row.original.id}/edit`}>
-                <Pencil className="mr-2 size-4" />
-                Modifier
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
-              onClick={() => {
-                setTechnicianToDelete(row.original);
-                setDeleteDialogOpen(true);
-              }}
+      cell: ({ row }) => {
+        const count = row.original.inventory_count;
+        return (
+          <div className="flex items-center justify-center gap-1.5">
+            <Package className="size-3.5 text-muted-foreground" />
+            <span
+              className={cn(
+                "font-heading font-bold tabular-nums text-xl",
+                count === 0 ? "text-muted-foreground/40" : "text-foreground"
+              )}
             >
-              <Archive className="mr-2 size-4" />
-              Archiver
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              {count}
+            </span>
+          </div>
+        );
+      },
+      meta: { align: "center" },
+    },
+    {
+      id: "restock",
+      accessorFn: (row) => {
+        const days = daysSince(row.last_restock_at);
+        if (days === null) return 9999;
+        return days;
+      },
+      header: ({ column }) => (
+        <SortHeader
+          label="Restock"
+          column={column}
+          className="justify-end w-full"
+        />
       ),
+      cell: ({ row }) => {
+        const days = daysSince(row.original.last_restock_at);
+        const status = restockStatus(days);
+        const label = restockLabel(days);
+        return <StatusPill status={status} label={label} />;
+      },
+      sortingFn: "basic",
+      meta: { align: "right" },
     },
   ];
 
   const table = useReactTable({
-    data: technicians,
+    data: filteredByStatus,
     columns,
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     state: {
       sorting,
-      columnFilters,
+      columnFilters: debouncedSearch
+        ? [{ id: "name", value: debouncedSearch }]
+        : [],
     },
   });
 
   if (isLoading || isOrgLoading) {
     return (
-      <Card>
-        <CardContent className="flex h-96 items-center justify-center">
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="flex h-96 items-center justify-center">
           <Loader2 className="size-8 animate-spin text-muted-foreground" />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
+  const filteredCount = table.getFilteredRowModel().rows.length;
+  const totalCount = technicians.length;
+
   return (
-    <>
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Rechercher un technicien..."
-                value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-                onChange={(event) =>
-                  table.getColumn("name")?.setFilterValue(event.target.value)
+    <div className="space-y-3">
+      {/* Search + filter chips */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher un technicien..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 bg-white dark:bg-card"
+          />
+        </div>
+
+        {/* Status filter chips */}
+        <div className="flex items-center gap-1.5">
+          {FILTER_OPTIONS.map((opt) => {
+            const isActive = statusFilter === opt.value;
+            const count =
+              opt.value === "all"
+                ? totalCount
+                : statusCounts[opt.value as StockStatus];
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() =>
+                  setStatusFilter(isActive ? "all" : opt.value)
                 }
-                className="max-w-sm pl-9"
-              />
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none",
+                  chipClass(opt.value, isActive)
+                )}
+              >
+                {opt.label}
+                <span
+                  className={cn(
+                    "tabular-nums font-heading",
+                    isActive ? "opacity-80" : "opacity-50"
+                  )}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {totalCount === 0 ? (
+        /* ─── Illustrated empty state ─── */
+        <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+            <div className="flex size-16 items-center justify-center rounded-2xl bg-muted mb-4">
+              <UserPlus className="size-7 text-muted-foreground" />
             </div>
+            <h3 className="text-lg font-semibold">Aucun technicien</h3>
+            <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+              Ajoutez vos techniciens pour suivre leur inventaire et planifier
+              les restocks.
+            </p>
+            <Button asChild className="mt-5">
+              <Link href="/users/create">
+                <UserPlus className="mr-2 size-4" />
+                Ajouter un technicien
+              </Link>
+            </Button>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="w-full space-y-4">
-            <div className="rounded-lg border">
-              <Table>
-                <TableHeader>
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => (
-                        <TableHead key={header.id}>
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-                <TableBody>
-                  {table.getRowModel().rows?.length ? (
-                    table.getRowModel().rows.map((row) => (
-                      <TableRow key={row.id}>
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell key={cell.id}>
+        </div>
+      ) : (
+        <div className="rounded-xl border bg-card overflow-hidden">
+          <table className="w-full">
+            <thead>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id} className="border-b">
+                  {headerGroup.headers.map((header) => {
+                    const align = (
+                      header.column.columnDef.meta as { align?: string }
+                    )?.align;
+                    return (
+                      <th
+                        key={header.id}
+                        className={cn(
+                          "h-11 px-5 font-medium whitespace-nowrap",
+                          align === "right" && "text-right",
+                          align === "center" && "text-center",
+                          !align && "text-left"
+                        )}
+                      >
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                      </th>
+                    );
+                  })}
+                </tr>
+              ))}
+            </thead>
+
+            <tbody>
+              <AnimatePresence mode="popLayout" initial={false}>
+                {table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row, index) => (
+                    <AnimatedRow
+                      key={row.original.id}
+                      index={index}
+                      reducedMotion={prefersReducedMotion}
+                      onClick={() =>
+                        router.push(`/users/${row.original.id}`)
+                      }
+                    >
+                      {row.getVisibleCells().map((cell) => {
+                        const align = (
+                          cell.column.columnDef.meta as { align?: string }
+                        )?.align;
+                        return (
+                          <td
+                            key={cell.id}
+                            className={cn(
+                              "px-5 py-4 whitespace-nowrap",
+                              align === "right" && "text-right",
+                              align === "center" && "text-center"
+                            )}
+                          >
                             {flexRender(
                               cell.column.columnDef.cell,
                               cell.getContext()
                             )}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell
-                        colSpan={columns.length}
-                        className="h-24 text-center"
-                      >
-                        <div className="text-muted-foreground">
-                          Aucun technicien trouvé.{" "}
-                          <Link
-                            href="/users/create"
-                            className="text-primary hover:underline"
-                          >
-                            Ajouter un technicien
-                          </Link>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-            <div className="flex items-center justify-end space-x-2">
-              <div className="text-muted-foreground flex-1 text-sm">
-                {table.getFilteredRowModel().rows.length} technicien(s)
-              </div>
-              <div className="space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => table.previousPage()}
-                  disabled={!table.getCanPreviousPage()}
-                >
-                  Précédent
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => table.nextPage()}
-                  disabled={!table.getCanNextPage()}
-                >
-                  Suivant
-                </Button>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                          </td>
+                        );
+                      })}
+                    </AnimatedRow>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={columns.length}
+                      className="h-32 text-center"
+                    >
+                      <div className="text-muted-foreground">
+                        Aucun technicien ne correspond à cette recherche.
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </AnimatePresence>
+            </tbody>
+          </table>
+        </div>
+      )}
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Archiver le technicien ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              <strong>
-                {technicianToDelete?.first_name} {technicianToDelete?.last_name}
-              </strong>{" "}
-              sera archivé et ne sera plus visible dans les listes et
-              statistiques.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isArchiving}>Annuler</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleArchive}
-              disabled={isArchiving}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isArchiving && <Loader2 className="mr-2 size-4 animate-spin" />}
-              Archiver
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+      {/* Footer — animated count */}
+      {totalCount > 0 && (
+        <div className="px-1">
+          <p className="text-muted-foreground text-sm">
+            <HeroNumber value={filteredCount} className="text-sm" />
+            {filteredCount !== totalCount && (
+              <span className="tabular-nums"> sur {totalCount}</span>
+            )}{" "}
+            technicien{totalCount > 1 ? "s" : ""}
+          </p>
+        </div>
+      )}
+    </div>
   );
 }

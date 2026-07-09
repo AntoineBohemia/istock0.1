@@ -553,8 +553,8 @@ export default function MembersPage() {
               <Label htmlFor="role">Rôle</Label>
               <Select
                 value={inviteRole}
-                onValueChange={(value: "admin" | "member" | "guest") =>
-                  setInviteRole(value)
+                onValueChange={(value) =>
+                  setInviteRole(value as "admin" | "member" | "guest")
                 }
                 disabled={isSubmitting}
               >

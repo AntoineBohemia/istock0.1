@@ -34,17 +34,17 @@ const INITIAL_COUNT = 5;
 // ─── Config par type de tâche ────────────────────────────────────────
 
 const TASK_ICONS: Record<string, { icon: typeof AlertTriangle; className: string; bgClassName: string }> = {
-  product_out_of_stock: { icon: AlertTriangle, className: "text-red-500", bgClassName: "bg-red-100 dark:bg-red-950/40" },
-  product_below_min: { icon: TrendingDown, className: "text-orange-500", bgClassName: "bg-orange-100 dark:bg-orange-950/40" },
-  product_overstocked: { icon: Package, className: "text-orange-500", bgClassName: "bg-orange-100 dark:bg-orange-950/40" },
-  technician_late_restock: { icon: Clock, className: "text-blue-500", bgClassName: "bg-blue-100 dark:bg-blue-950/40" },
-  technician_never_restocked: { icon: UserX, className: "text-red-500", bgClassName: "bg-red-100 dark:bg-red-950/40" },
+  product_out_of_stock: { icon: AlertTriangle, className: "text-critique", bgClassName: "bg-critique-bg" },
+  product_below_min: { icon: TrendingDown, className: "text-attention", bgClassName: "bg-attention-bg" },
+  product_overstocked: { icon: Package, className: "text-attention", bgClassName: "bg-attention-bg" },
+  technician_late_restock: { icon: Clock, className: "text-primary", bgClassName: "bg-primary/10" },
+  technician_never_restocked: { icon: UserX, className: "text-critique", bgClassName: "bg-critique-bg" },
   product_dormant: { icon: Moon, className: "text-muted-foreground", bgClassName: "bg-muted" },
 };
 
 const PRIORITY_BORDER: Record<string, string> = {
-  critical: "border-l-red-500",
-  important: "border-l-orange-400",
+  critical: "border-l-critique",
+  important: "border-l-attention",
   informational: "border-l-muted-foreground/30",
 };
 
@@ -60,8 +60,6 @@ const TASK_GROUPS: TaskGroup[] = [
   { key: "stock_critical", label: "Ruptures de stock", types: ["product_out_of_stock"] },
   { key: "stock_low", label: "Stock faible", types: ["product_below_min"] },
   { key: "stock_over", label: "Surstockage", types: ["product_overstocked"] },
-  // TEMPORAIRE : techniciens à restocker masqués le temps de stabiliser la feature
-  // { key: "tech_restock", label: "Techniciens à restocker", types: ["technician_never_restocked", "technician_late_restock"] },
   { key: "dormant", label: "Produits dormants", types: ["product_dormant"] },
 ];
 
@@ -134,10 +132,10 @@ function TaskGroupSection({
 
 function EmptyState() {
   return (
-    <div className="flex items-center gap-3 rounded-lg border-l-3 border-l-emerald-500 bg-emerald-50 px-4 py-3 dark:bg-emerald-950/20">
-      <CheckCircle className="size-5 shrink-0 text-emerald-500" />
+    <div className="flex items-center gap-3 rounded-lg border-l-3 border-l-standard bg-standard-bg px-4 py-3">
+      <CheckCircle className="size-5 shrink-0 text-standard" />
       <div>
-        <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+        <p className="text-sm font-medium text-standard">
           Tout est en ordre
         </p>
         <p className="text-xs text-muted-foreground">
@@ -156,7 +154,6 @@ export function ActionTaskList({ embedded = false }: { embedded?: boolean }) {
   const [showAll, setShowAll] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
 
-  // Fermer par défaut sur mobile, ouvert par défaut sur desktop
   useEffect(() => {
     setIsExpanded(window.matchMedia("(min-width: 1024px)").matches);
   }, []);
@@ -165,7 +162,6 @@ export function ActionTaskList({ embedded = false }: { embedded?: boolean }) {
     task.entity_ids.forEach((entityId) => dismissTask(task.type, entityId));
   };
 
-  // Grouper les tâches par type, en respectant l'ordre de TASK_GROUPS
   const groupedTasks = useMemo(() => {
     const taskList = showAll ? tasks : tasks.slice(0, INITIAL_COUNT);
     return TASK_GROUPS.map((group) => ({
