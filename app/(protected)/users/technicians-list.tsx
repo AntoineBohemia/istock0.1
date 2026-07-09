@@ -122,7 +122,7 @@ function avatarRingClass(status: StockStatus): string {
     case "attention":
       return "ring-2 ring-attention/40";
     case "standard":
-      return "ring-2 ring-standard/30";
+      return "";
   }
 }
 
