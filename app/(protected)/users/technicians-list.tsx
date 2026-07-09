@@ -267,6 +267,9 @@ export default function TechniciansList() {
         const days = daysSince(row.original.last_restock_at);
         const status = restockStatus(days);
         const label = restockLabel(days);
+        if (status === "standard") {
+          return <span className="text-sm text-muted-foreground">{label}</span>;
+        }
         return <StatusPill status={status} label={label} />;
       },
       sortingFn: "basic",
