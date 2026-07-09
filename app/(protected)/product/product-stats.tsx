@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Layers, Warehouse, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useYearlyEntryValues } from "@/hooks/queries/use-stock-movements";
 import { HeroNumber } from "@/components/ui/hero-number";
@@ -54,8 +54,7 @@ export default function ProductStats() {
       {orgEntries.map((org) => (
         <Card key={org.id}>
           <CardHeader>
-            <CardDescription className="flex items-center gap-1.5">
-              <Building2 className="size-3.5 text-primary" />
+            <CardDescription>
               Entrées {currentYear} — {org.name}
             </CardDescription>
             <CardTitle className="text-2xl lg:text-3xl">
@@ -69,8 +68,7 @@ export default function ProductStats() {
       {organizations.length > 1 && (
         <Card>
           <CardHeader>
-            <CardDescription className="flex items-center gap-1.5">
-              <Layers className="size-3.5 text-chart-2" />
+            <CardDescription>
               Cumul entrées {currentYear}
             </CardDescription>
             <CardTitle className="text-2xl lg:text-3xl">
@@ -83,8 +81,7 @@ export default function ProductStats() {
       {/* Global stock value */}
       <Card>
         <CardHeader>
-          <CardDescription className="flex items-center gap-1.5">
-            <Warehouse className="size-3.5 text-chart-1" />
+          <CardDescription>
             Valeur du stock global
           </CardDescription>
           <CardTitle className="text-2xl lg:text-3xl">

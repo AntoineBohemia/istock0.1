@@ -3,18 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { page_routes, filterRoutesByRole, isRoleAllowed, SETTINGS_ALLOWED_ROLES } from "@/lib/routes-config";
-import { ChevronsUpDown, Loader2, Check, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
-import { useSwitchOrganization } from "@/components/organization-provider";
+import { motion } from "motion/react";
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Sidebar as SidebarContainer,
   SidebarContent,
@@ -29,7 +22,6 @@ import {
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Icon from "../icon";
-import { OrganizationAvatar } from "@/components/ui/organization-avatar";
 import { useIsTablet } from "@/hooks/use-mobile";
 import { createClient } from "@/lib/supabase/client";
 
@@ -38,8 +30,7 @@ export default function Sidebar() {
   const { setOpen, setOpenMobile, isMobile } = useSidebar();
   const isTablet = useIsTablet();
 
-  const { currentOrganization, organizations, isLoading } = useOrganizationStore();
-  const switchOrganization = useSwitchOrganization();
+  const { currentOrganization } = useOrganizationStore();
 
   // User data for footer
   const [user, setUser] = useState<{ name: string; email: string; avatar: string | null } | null>(null);
@@ -74,66 +65,25 @@ export default function Sidebar() {
     ? (user.name || user.email || "U").slice(0, 2).toUpperCase()
     : "U";
 
+  // Resolve active item href for layout animation
+  const allItems = filterRoutesByRole(page_routes, currentOrganization?.role).flatMap((r) => r.items);
+  const activeHref = allItems.find(
+    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
+  )?.href;
+
   return (
     <SidebarContainer
       collapsible="icon"
       variant="floating"
       className="bg-background"
     >
-      {/* ── Org switcher ── */}
-      <SidebarHeader className="items-center justify-center pt-3 transition-all group-data-[collapsible=icon]:pt-2">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <SidebarMenuButton className="hover:text-foreground rounded-none group-data-[collapsible=icon]:px-0! hover:bg-[var(--primary)]/10">
-                  {isLoading ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <OrganizationAvatar
-                      name={currentOrganization?.name || "Organisation"}
-                      logoUrl={currentOrganization?.logo_url}
-                      size="xs"
-                    />
-                  )}
-                  <div className="truncate font-semibold group-data-[collapsible=icon]:hidden">
-                    {isLoading ? "..." : currentOrganization?.name || "Organisation"}
-                  </div>
-                  <ChevronsUpDown className="ml-auto group-data-[collapsible=icon]:hidden" />
-                </SidebarMenuButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-(--anchor-width)">
-                <DropdownMenuLabel>Organisations</DropdownMenuLabel>
-                {organizations.map((org) => (
-                  <DropdownMenuItem
-                    key={org.id}
-                    onClick={() => {
-                      if (org.id !== currentOrganization?.id) {
-                        switchOrganization(org.id);
-                      }
-                    }}
-                    className="flex items-center gap-2"
-                  >
-                    <OrganizationAvatar
-                      name={org.name}
-                      logoUrl={org.logo_url}
-                      size="xs"
-                    />
-                    <span className="flex-1 truncate">{org.name}</span>
-                    {org.id === currentOrganization?.id && (
-                      <Check className="size-4 text-primary shrink-0" />
-                    )}
-                  </DropdownMenuItem>
-                ))}
-                {organizations.length === 0 && !isLoading && (
-                  <DropdownMenuItem disabled>
-                    <span className="text-muted-foreground">Aucune organisation</span>
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </SidebarMenuItem>
-        </SidebarMenu>
+      {/* ── Branding ── */}
+      <SidebarHeader className="pt-3 pb-0 transition-all group-data-[collapsible=icon]:pt-2">
+        <div className="px-2 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+          <span className="text-sm font-bold font-heading tracking-tight text-foreground/70 group-data-[collapsible=icon]:text-xs">
+            iStock
+          </span>
+        </div>
       </SidebarHeader>
 
       {/* ── Navigation principale ── */}
@@ -146,27 +96,38 @@ export default function Sidebar() {
               </div>
             )}
             <SidebarGroupContent>
-              <SidebarMenu className="space-y-1">
-                {route.items.map((item, idx) => (
-                  <SidebarMenuItem key={idx}>
-                    <SidebarMenuButton
-                      className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10"
-                      asChild
-                      tooltip={item.title}
-                      isActive={pathname === item.href || pathname.startsWith(`${item.href}/`)}
-                    >
-                      <Link href={item.href}>
-                        {item.icon && (
-                          <Icon
-                            name={item.icon}
-                            className="accent-sidebar-foreground size-4"
-                          />
-                        )}
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+              <SidebarMenu className="space-y-0.5">
+                {route.items.map((item, idx) => {
+                  const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                  return (
+                    <SidebarMenuItem key={idx} className="relative">
+                      {/* Animated active background */}
+                      {isActive && (
+                        <motion.div
+                          layoutId="sidebar-active"
+                          className="absolute inset-0 rounded-md bg-foreground/[0.06]"
+                          transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
+                        />
+                      )}
+                      <SidebarMenuButton
+                        className={`relative z-[1] hover:text-foreground active:text-foreground ${isActive ? "hover:bg-transparent active:bg-transparent" : ""}`}
+                        asChild
+                        tooltip={item.title}
+                        isActive={isActive}
+                      >
+                        <Link href={item.href}>
+                          {item.icon && (
+                            <Icon
+                              name={item.icon}
+                              className="size-4"
+                            />
+                          )}
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -179,7 +140,7 @@ export default function Sidebar() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
-                className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10"
+                className="hover:text-foreground active:text-foreground"
                 asChild
                 tooltip="Paramètres"
                 isActive={pathname === "/settings" || pathname.startsWith("/settings/")}
@@ -211,6 +172,7 @@ export default function Sidebar() {
           </div>
         )}
       </SidebarFooter>
+
     </SidebarContainer>
   );
 }
