@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -49,11 +50,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import {
   StockMovement,
@@ -114,8 +111,10 @@ export default function MovementsList() {
   const setFilterType = (value: string) => setFilters({ type: value, page: 1 });
   const setFilterProduct = (value: string) => setFilters({ product: value, page: 1 });
   const setFilterTechnician = (value: string) => setFilters({ technician: value, page: 1 });
-  const setFilterStartDate = (value: Date | undefined) => setFilters({ startDate: value ?? null, page: 1 });
-  const setFilterEndDate = (value: Date | undefined) => setFilters({ endDate: value ?? null, page: 1 });
+  const setFilterStartDate = (value: Date | undefined) =>
+    setFilters({ startDate: value ?? null, page: 1 });
+  const setFilterEndDate = (value: Date | undefined) =>
+    setFilters({ endDate: value ?? null, page: 1 });
   const setPage = (value: number | ((prev: number) => number)) => {
     const newPage = typeof value === "function" ? value(page) : value;
     setFilters({ page: newPage });
@@ -141,21 +140,38 @@ export default function MovementsList() {
     endDate: filterEndDate?.toISOString(),
   });
 
-  const { data: productsResult } = useProducts({ organizationId: currentOrganization?.id, pageSize: 1000 });
+  const { data: productsResult } = useProducts({
+    organizationId: currentOrganization?.id,
+    pageSize: 1000,
+  });
   const { data: techniciansData = [] } = useTechnicians(currentOrganization?.id);
 
   const movements = movementsResult?.movements || [];
   const totalCount = movementsResult?.total || 0;
-  const products: Product[] = (productsResult?.products || []).map(p => ({ id: p.id, name: p.name }));
-  const technicians: Technician[] = techniciansData.map(t => ({ id: t.id, first_name: t.first_name, last_name: t.last_name }));
+  const products: Product[] = (productsResult?.products || []).map((p) => ({
+    id: p.id,
+    name: p.name,
+  }));
+  const technicians: Technician[] = techniciansData.map((t) => ({
+    id: t.id,
+    first_name: t.first_name,
+    last_name: t.last_name,
+  }));
 
   const handleExportCSV = () => {
     exportToCSV(movements, "mouvements", [
-      { header: "Date", accessor: (m) => new Date(m.created_at ?? Date.now()).toLocaleDateString("fr-FR") },
+      {
+        header: "Date",
+        accessor: (m) => new Date(m.created_at ?? Date.now()).toLocaleDateString("fr-FR"),
+      },
       { header: "Type", accessor: (m) => MOVEMENT_TYPE_LABELS[m.movement_type] },
       { header: "Produit", accessor: (m) => m.product?.name },
       { header: "Quantité", accessor: (m) => m.quantity },
-      { header: "Technicien", accessor: (m) => m.technician ? `${m.technician.first_name} ${m.technician.last_name}` : "" },
+      {
+        header: "Technicien",
+        accessor: (m) =>
+          m.technician ? `${m.technician.first_name} ${m.technician.last_name}` : "",
+      },
       { header: "Notes", accessor: (m) => m.notes },
     ]);
   };
@@ -178,9 +194,7 @@ export default function MovementsList() {
         return (
           <div className="text-sm">
             <div>{format(date, "dd MMM yyyy", { locale: fr })}</div>
-            <div className="text-muted-foreground">
-              {format(date, "HH:mm", { locale: fr })}
-            </div>
+            <div className="text-muted-foreground">{format(date, "HH:mm", { locale: fr })}</div>
           </div>
         );
       },
@@ -199,9 +213,7 @@ export default function MovementsList() {
             ) : (
               <ArrowUpFromLine className="size-4 text-red-600" />
             )}
-            <Badge variant={MOVEMENT_BADGE_VARIANTS[type]}>
-              {MOVEMENT_TYPE_LABELS[type]}
-            </Badge>
+            <Badge variant={MOVEMENT_BADGE_VARIANTS[type]}>{MOVEMENT_TYPE_LABELS[type]}</Badge>
           </div>
         );
       },
@@ -228,9 +240,7 @@ export default function MovementsList() {
             </figure>
             <div>
               <p className="font-medium">{product?.name || "Produit inconnu"}</p>
-              {product?.sku && (
-                <p className="text-xs text-muted-foreground">{product.sku}</p>
-              )}
+              {product?.sku && <p className="text-xs text-muted-foreground">{product.sku}</p>}
             </div>
           </div>
         );
@@ -242,9 +252,7 @@ export default function MovementsList() {
       cell: ({ row }) => {
         const isEntry = row.original.movement_type === "entry";
         return (
-          <span
-            className={`font-semibold ${isEntry ? "text-green-600" : "text-red-600"}`}
-          >
+          <span className={`font-semibold ${isEntry ? "text-green-600" : "text-red-600"}`}>
             {isEntry ? "+" : "-"}
             {row.original.quantity}
           </span>
@@ -268,9 +276,7 @@ export default function MovementsList() {
       accessorKey: "notes",
       header: "Notes",
       cell: ({ row }) => (
-        <span className="text-muted-foreground text-sm">
-          {row.original.notes || "-"}
-        </span>
+        <span className="text-muted-foreground text-sm">{row.original.notes || "-"}</span>
       ),
     },
   ];
@@ -310,8 +316,82 @@ export default function MovementsList() {
   if ((isLoading || isOrgLoading) && movements.length === 0) {
     return (
       <Card>
-        <CardContent className="flex h-64 items-center justify-center">
-          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        <CardContent className="space-y-4 pt-6">
+          {/* Filters skeleton */}
+          <div className="flex flex-wrap items-center gap-3">
+            <Skeleton className="h-9 w-64 rounded-md" />
+            <Skeleton className="h-9 w-40 rounded-md" />
+            <Skeleton className="h-9 w-48 rounded-md" />
+            <Skeleton className="h-9 w-48 rounded-md" />
+            <Skeleton className="size-9 rounded-[9px]" />
+            <div className="ml-auto flex gap-3">
+              <Skeleton className="h-9 w-28 rounded-[9px]" />
+              <Skeleton className="h-9 w-40 rounded-[9px]" />
+            </div>
+          </div>
+          {/* Table skeleton */}
+          <div className="rounded-md border">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="h-10 px-4 text-left">
+                    <Skeleton className="h-3 w-10" />
+                  </th>
+                  <th className="h-10 px-4 text-left">
+                    <Skeleton className="h-3 w-10" />
+                  </th>
+                  <th className="h-10 px-4 text-left">
+                    <Skeleton className="h-3 w-14" />
+                  </th>
+                  <th className="h-10 px-4 text-left">
+                    <Skeleton className="h-3 w-14" />
+                  </th>
+                  <th className="h-10 px-4 text-left">
+                    <Skeleton className="h-3 w-18" />
+                  </th>
+                  <th className="h-10 px-4 text-left">
+                    <Skeleton className="h-3 w-10" />
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...Array(8)].map((_, i) => (
+                  <tr key={i} className="border-b last:border-b-0">
+                    <td className="px-4 py-3">
+                      <div className="space-y-1">
+                        <Skeleton className="h-4 w-20" />
+                        <Skeleton className="h-3 w-10" />
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="size-4 rounded" />
+                        <Skeleton className="h-5 w-16 rounded-full" />
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="size-10 rounded-lg" />
+                        <div className="space-y-1">
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-3 w-16" />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Skeleton className="h-4 w-10" />
+                    </td>
+                    <td className="px-4 py-3">
+                      <Skeleton className="h-4 w-24" />
+                    </td>
+                    <td className="px-4 py-3">
+                      <Skeleton className="h-4 w-16" />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
     );
@@ -326,9 +406,7 @@ export default function MovementsList() {
             <Input
               placeholder="Rechercher..."
               className="max-w-xs"
-              onChange={(e) =>
-                table.getColumn("product")?.setFilterValue(e.target.value)
-              }
+              onChange={(e) => table.getColumn("product")?.setFilterValue(e.target.value)}
             />
 
             <Select value={filterType} onValueChange={setFilterType}>
@@ -400,11 +478,7 @@ export default function MovementsList() {
               </Button>
             )}
 
-            <Button
-              variant="outline"
-              className="ml-auto"
-              onClick={handleExportCSV}
-            >
+            <Button variant="outline" className="ml-auto" onClick={handleExportCSV}>
               <Download className="size-4" />
               Exporter CSV
             </Button>
@@ -424,10 +498,7 @@ export default function MovementsList() {
                       <TableHead key={header.id}>
                         {header.isPlaceholder
                           ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
+                          : flexRender(header.column.columnDef.header, header.getContext())}
                       </TableHead>
                     ))}
                   </TableRow>
@@ -443,20 +514,14 @@ export default function MovementsList() {
                     >
                       {row.getVisibleCells().map((cell) => (
                         <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </TableCell>
                       ))}
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center"
-                    >
+                    <TableCell colSpan={columns.length} className="h-24 text-center">
                       Aucun mouvement trouvé.
                     </TableCell>
                   </TableRow>
@@ -467,9 +532,7 @@ export default function MovementsList() {
 
           {/* Pagination */}
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              {totalCount} mouvement(s) au total
-            </p>
+            <p className="text-sm text-muted-foreground">{totalCount} mouvement(s) au total</p>
             <div className="flex gap-2">
               <Button
                 variant="outline"

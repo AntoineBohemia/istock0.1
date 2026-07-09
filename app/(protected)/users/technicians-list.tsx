@@ -16,6 +16,7 @@ import { ArrowUpDown, Loader2, Package, Search, UserPlus } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill, StockStatus } from "@/components/ui/status-pill";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { HeroNumber } from "@/components/ui/hero-number";
@@ -154,15 +155,10 @@ function chipClass(filter: FilterValue, active: boolean): string {
 export default function TechniciansList() {
   const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
-  const { currentOrganization, isLoading: isOrgLoading } =
-    useOrganizationStore();
-  const { data: technicians = [], isLoading } = useTechnicians(
-    currentOrganization?.id
-  );
+  const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
+  const { data: technicians = [], isLoading } = useTechnicians(currentOrganization?.id);
 
-  const [sorting, setSorting] = useState<SortingState>([
-    { id: "restock", desc: true },
-  ]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: "restock", desc: true }]);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<FilterValue>("all");
@@ -222,12 +218,8 @@ export default function TechniciansList() {
     },
     {
       accessorKey: "city",
-      header: ({ column }) => (
-        <SortHeader label="Département" column={column} />
-      ),
-      cell: ({ row }) => (
-        <span className="text-[15px]">{row.original.city || "—"}</span>
-      ),
+      header: ({ column }) => <SortHeader label="Département" column={column} />,
+      cell: ({ row }) => <span className="text-[15px]">{row.original.city || "—"}</span>,
     },
     {
       accessorKey: "phone",
@@ -238,19 +230,13 @@ export default function TechniciansList() {
       ),
       enableSorting: false,
       cell: ({ row }) => (
-        <span className="text-[15px] tabular-nums">
-          {row.original.phone || "—"}
-        </span>
+        <span className="text-[15px] tabular-nums">{row.original.phone || "—"}</span>
       ),
     },
     {
       accessorKey: "inventory_count",
       header: ({ column }) => (
-        <SortHeader
-          label="Inventaire"
-          column={column}
-          className="justify-center w-full"
-        />
+        <SortHeader label="Inventaire" column={column} className="justify-center w-full" />
       ),
       cell: ({ row }) => {
         const count = row.original.inventory_count;
@@ -278,11 +264,7 @@ export default function TechniciansList() {
         return days;
       },
       header: ({ column }) => (
-        <SortHeader
-          label="Restock"
-          column={column}
-          className="justify-end w-full"
-        />
+        <SortHeader label="Restock" column={column} className="justify-end w-full" />
       ),
       cell: ({ row }) => {
         const days = daysSince(row.original.last_restock_at);
@@ -304,17 +286,67 @@ export default function TechniciansList() {
     getFilteredRowModel: getFilteredRowModel(),
     state: {
       sorting,
-      columnFilters: debouncedSearch
-        ? [{ id: "name", value: debouncedSearch }]
-        : [],
+      columnFilters: debouncedSearch ? [{ id: "name", value: debouncedSearch }] : [],
     },
   });
 
   if (isLoading || isOrgLoading) {
     return (
-      <div className="rounded-xl border bg-card overflow-hidden">
-        <div className="flex h-96 items-center justify-center">
-          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      <div className="space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Skeleton className="h-9 flex-1 rounded-md" />
+          <div className="flex gap-1.5">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-7 w-20 rounded-full" />
+            ))}
+          </div>
+        </div>
+        <div className="rounded-xl border bg-card overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b">
+                <th className="h-11 px-5 text-left">
+                  <Skeleton className="h-3 w-20" />
+                </th>
+                <th className="h-11 px-5 text-left">
+                  <Skeleton className="h-3 w-20" />
+                </th>
+                <th className="h-11 px-5 text-left">
+                  <Skeleton className="h-3 w-16" />
+                </th>
+                <th className="h-11 px-5 text-center">
+                  <Skeleton className="h-3 w-16 mx-auto" />
+                </th>
+                <th className="h-11 px-5 text-right">
+                  <Skeleton className="h-3 w-14 ml-auto" />
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...Array(6)].map((_, i) => (
+                <tr key={i} className="border-b last:border-b-0">
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-4">
+                      <Skeleton className="size-9 rounded-full" />
+                      <Skeleton className="h-4 w-28" />
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    <Skeleton className="h-4 w-20" />
+                  </td>
+                  <td className="px-5 py-4">
+                    <Skeleton className="h-4 w-24" />
+                  </td>
+                  <td className="px-5 py-4 text-center">
+                    <Skeleton className="h-5 w-8 mx-auto" />
+                  </td>
+                  <td className="px-5 py-4 text-right">
+                    <Skeleton className="h-6 w-16 rounded-full ml-auto" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     );
@@ -341,17 +373,12 @@ export default function TechniciansList() {
         <div className="flex items-center gap-1.5">
           {FILTER_OPTIONS.map((opt) => {
             const isActive = statusFilter === opt.value;
-            const count =
-              opt.value === "all"
-                ? totalCount
-                : statusCounts[opt.value as StockStatus];
+            const count = opt.value === "all" ? totalCount : statusCounts[opt.value as StockStatus];
             return (
               <button
                 key={opt.value}
                 type="button"
-                onClick={() =>
-                  setStatusFilter(isActive ? "all" : opt.value)
-                }
+                onClick={() => setStatusFilter(isActive ? "all" : opt.value)}
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none",
                   chipClass(opt.value, isActive)
@@ -381,8 +408,7 @@ export default function TechniciansList() {
             </div>
             <h3 className="text-lg font-semibold">Aucun technicien</h3>
             <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-              Ajoutez vos techniciens pour suivre leur inventaire et planifier
-              les restocks.
+              Ajoutez vos techniciens pour suivre leur inventaire et planifier les restocks.
             </p>
             <Button asChild className="mt-5">
               <Link href="/users/create">
@@ -399,9 +425,7 @@ export default function TechniciansList() {
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id} className="border-b">
                   {headerGroup.headers.map((header) => {
-                    const align = (
-                      header.column.columnDef.meta as { align?: string }
-                    )?.align;
+                    const align = (header.column.columnDef.meta as { align?: string })?.align;
                     return (
                       <th
                         key={header.id}
@@ -414,10 +438,7 @@ export default function TechniciansList() {
                       >
                         {header.isPlaceholder
                           ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
+                          : flexRender(header.column.columnDef.header, header.getContext())}
                       </th>
                     );
                   })}
@@ -433,14 +454,10 @@ export default function TechniciansList() {
                       key={row.original.id}
                       index={index}
                       reducedMotion={prefersReducedMotion}
-                      onClick={() =>
-                        router.push(`/users/${row.original.id}`)
-                      }
+                      onClick={() => router.push(`/users/${row.original.id}`)}
                     >
                       {row.getVisibleCells().map((cell) => {
-                        const align = (
-                          cell.column.columnDef.meta as { align?: string }
-                        )?.align;
+                        const align = (cell.column.columnDef.meta as { align?: string })?.align;
                         return (
                           <td
                             key={cell.id}
@@ -450,10 +467,7 @@ export default function TechniciansList() {
                               align === "center" && "text-center"
                             )}
                           >
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext()
-                            )}
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </td>
                         );
                       })}
@@ -461,10 +475,7 @@ export default function TechniciansList() {
                   ))
                 ) : (
                   <tr>
-                    <td
-                      colSpan={columns.length}
-                      className="h-32 text-center"
-                    >
+                    <td colSpan={columns.length} className="h-32 text-center">
                       <div className="text-muted-foreground">
                         Aucun technicien ne correspond à cette recherche.
                       </div>

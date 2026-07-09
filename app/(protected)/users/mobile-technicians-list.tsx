@@ -6,6 +6,7 @@ import { Loader2, Package, Search, ScanLine } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StatusPill, StockStatus } from "@/components/ui/status-pill";
@@ -51,8 +52,25 @@ export default function MobileTechniciansList() {
 
   if (isLoading || isOrgLoading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      <div className="space-y-3">
+        <Skeleton className="h-9 w-full rounded-md" />
+        <div className="space-y-2">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="rounded-xl border bg-card p-3">
+              <div className="flex items-center gap-3">
+                <Skeleton className="size-9 rounded-full shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-4 w-28" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-3 w-10" />
+                    <Skeleton className="h-5 w-14 rounded-full" />
+                  </div>
+                </div>
+                <Skeleton className="h-8 w-24 rounded-[7px]" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -74,9 +92,7 @@ export default function MobileTechniciansList() {
 
       {/* List */}
       {filtered.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          Aucun technicien trouvé
-        </p>
+        <p className="py-8 text-center text-sm text-muted-foreground">Aucun technicien trouvé</p>
       ) : (
         <div className="space-y-2">
           <AnimatePresence mode="popLayout" initial={false}>
@@ -89,9 +105,7 @@ export default function MobileTechniciansList() {
                   layout={!prefersReducedMotion}
                   initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={
-                    prefersReducedMotion ? undefined : { opacity: 0, y: -8 }
-                  }
+                  exit={prefersReducedMotion ? undefined : { opacity: 0, y: -8 }}
                   transition={{
                     type: "spring",
                     bounce: 0,

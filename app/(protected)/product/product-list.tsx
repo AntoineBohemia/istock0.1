@@ -18,6 +18,7 @@ import {
   ChevronRight,
   ArrowDownToLine,
   ArrowUpFromLine,
+  Plus,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -25,6 +26,7 @@ import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import QuickStockMovementModal from "@/components/quick-stock-movement-modal";
 
@@ -244,7 +246,7 @@ export default function ProductList() {
       cell: ({ row }) => {
         const product = row.original;
         return (
-          <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center justify-end gap-1.5">
             <Button
               variant="outline"
               size="sm"
@@ -286,9 +288,58 @@ export default function ProductList() {
 
   if (isLoading || isOrgLoading || !currentOrganization) {
     return (
-      <div className="rounded-xl border bg-card overflow-hidden">
-        <div className="flex h-96 items-center justify-center">
-          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      <div className="space-y-3">
+        <Skeleton className="h-9 w-full rounded-md" />
+        <div className="flex gap-1.5">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-7 w-20 rounded-full" />
+          ))}
+        </div>
+        <div className="rounded-xl border bg-card overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b">
+                <th className="h-11 px-5 text-left">
+                  <Skeleton className="h-3 w-16" />
+                </th>
+                <th className="h-11 px-5 text-right">
+                  <Skeleton className="h-3 w-12 ml-auto" />
+                </th>
+                <th className="h-11 px-5 text-center">
+                  <Skeleton className="h-3 w-10 mx-auto" />
+                </th>
+                <th className="h-11 px-5 text-right">
+                  <Skeleton className="h-3 w-12 ml-auto" />
+                </th>
+                <th className="h-11 px-5" />
+              </tr>
+            </thead>
+            <tbody>
+              {[...Array(8)].map((_, i) => (
+                <tr key={i} className="border-b last:border-b-0">
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-4">
+                      <Skeleton className="size-10 rounded-lg" />
+                      <div className="space-y-1.5">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-3 w-20" />
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4 text-right">
+                    <Skeleton className="h-4 w-16 ml-auto" />
+                  </td>
+                  <td className="px-5 py-4 text-center">
+                    <Skeleton className="h-5 w-8 mx-auto" />
+                  </td>
+                  <td className="px-5 py-4 text-right">
+                    <Skeleton className="h-6 w-16 rounded-full ml-auto" />
+                  </td>
+                  <td className="px-5 py-4" />
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     );
@@ -298,14 +349,22 @@ export default function ProductList() {
     <div className="space-y-3">
       {/* Search + category filter */}
       <div className="space-y-2">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher un produit..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 bg-white dark:bg-card"
-          />
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Rechercher un produit..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-white dark:bg-card"
+            />
+          </div>
+          <Button variant="outline" asChild>
+            <Link href="/product/create">
+              <Plus className="size-4" />
+              Ajouter
+            </Link>
+          </Button>
         </div>
 
         {categories.length > 0 && (

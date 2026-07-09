@@ -5,7 +5,6 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
 import MobileTopBar from "@/components/layout/mobile-top-bar";
-import MobileBottomBar from "@/components/layout/mobile-bottom-bar";
 import OrganizationProvider from "@/components/organization-provider";
 import { GuestRouteGuard } from "@/components/guest-route-guard";
 import QueryProvider from "@/components/query-provider";
@@ -24,20 +23,18 @@ export default async function AuthLayout({
     <QueryProvider>
       <OrganizationProvider>
         <GuestRouteGuard>
-        <SidebarProvider defaultOpen={defaultOpen}>
-          <Sidebar />
-          <SidebarInset>
-            {/* Desktop header — hidden on mobile */}
-            <Header />
-            {/* Mobile top bar — hidden on desktop */}
-            <MobileTopBar />
-            <div className="@container/main p-4 pb-20 md:pb-4 xl:group-data-[theme-content-layout=centered]/layout:container xl:group-data-[theme-content-layout=centered]/layout:mx-auto xl:group-data-[theme-content-layout=centered]/layout:mt-8">
-              {children}
-            </div>
-          </SidebarInset>
-          {/* Mobile bottom tabs — hidden on desktop */}
-          <MobileBottomBar />
-        </SidebarProvider>
+          <SidebarProvider defaultOpen={defaultOpen}>
+            <Sidebar />
+            <SidebarInset>
+              {/* Desktop header — hidden on mobile */}
+              <Header />
+              {/* Mobile top bar — hidden on desktop */}
+              <MobileTopBar />
+              <div className="@container/main p-4 xl:group-data-[theme-content-layout=centered]/layout:container xl:group-data-[theme-content-layout=centered]/layout:mx-auto xl:group-data-[theme-content-layout=centered]/layout:mt-8">
+                {children}
+              </div>
+            </SidebarInset>
+          </SidebarProvider>
         </GuestRouteGuard>
       </OrganizationProvider>
     </QueryProvider>
