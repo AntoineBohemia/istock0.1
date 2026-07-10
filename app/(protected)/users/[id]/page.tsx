@@ -11,12 +11,9 @@ import TechnicianInventory from "./technician-inventory";
 import TechnicianHistory from "./technician-history";
 import ArchiveTechnicianButton from "./archive-technician-button";
 import TechnicianRestockButton from "./restock-button";
+import YearSelector from "./year-selector";
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
 
@@ -26,9 +23,7 @@ export async function generateMetadata({
     .eq("id", id)
     .single();
 
-  const name = technician
-    ? `${technician.first_name} ${technician.last_name}`
-    : "Technicien";
+  const name = technician ? `${technician.first_name} ${technician.last_name}` : "Technicien";
 
   return generateMeta({
     title: name,
@@ -37,7 +32,7 @@ export async function generateMetadata({
   });
 }
 
-async function getTechnician(id: string) {
+async function getTechnician(id: string, year: number) {
   const supabase = await createClient();
 
   const { data: technician, error } = await supabase
@@ -50,15 +45,15 @@ async function getTechnician(id: string) {
     return null;
   }
 
+  // Inventaire actuel
   const { data: inventory } = await supabase
     .from("technician_inventory")
     .select("quantity")
     .eq("technician_id", id);
 
-  const inventoryCount =
-    inventory?.reduce((sum, item) => sum + item.quantity, 0) || 0;
-  const productCount = inventory?.length || 0;
+  const inventoryCount = inventory?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
+  // Dernier réappro
   const { data: lastMovement } = await supabase
     .from("stock_movements")
     .select("created_at")
@@ -68,18 +63,39 @@ async function getTechnician(id: string) {
     .limit(1)
     .single();
 
+  // Bornes de l'année sélectionnée
+  const yearStart = new Date(year, 0, 1).toISOString();
+  const yearEnd = new Date(year + 1, 0, 1).toISOString();
+
+  // Nombre de réappros (sessions distinctes dans l'historique)
   const { count: totalRestocks } = await supabase
-    .from("stock_movements")
+    .from("technician_inventory_history")
     .select("id", { count: "exact", head: true })
     .eq("technician_id", id)
-    .eq("movement_type", "exit_technician");
+    .gte("created_at", yearStart)
+    .lt("created_at", yearEnd);
+
+  // Unités sorties sur l'année
+  const { data: yearMovements } = await supabase
+    .from("stock_movements")
+    .select("quantity")
+    .eq("technician_id", id)
+    .eq("movement_type", "exit_technician")
+    .gte("created_at", yearStart)
+    .lt("created_at", yearEnd);
+
+  const yearUnitsTotal = yearMovements?.reduce((sum, m) => sum + m.quantity, 0) || 0;
+
+  // Année de création du technicien (pour limiter le sélecteur)
+  const createdYear = new Date(technician.created_at!).getFullYear();
 
   return {
     ...technician,
     inventory_count: inventoryCount,
-    product_count: productCount,
+    year_units_total: yearUnitsTotal,
     last_restock_at: lastMovement?.created_at || null,
     total_restocks: totalRestocks || 0,
+    created_year: createdYear,
   };
 }
 
@@ -94,18 +110,26 @@ function formatDate(dateString: string | null): string {
 
 export default async function TechnicianDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ year?: string }>;
 }) {
   const { id } = await params;
-  const technician = await getTechnician(id);
+  const { year: yearParam } = await searchParams;
+  const currentYear = new Date().getFullYear();
+  const selectedYear = yearParam ? parseInt(yearParam, 10) : currentYear;
+  const year = Number.isNaN(selectedYear) ? currentYear : selectedYear;
+
+  const technician = await getTechnician(id, year);
 
   if (!technician) {
     notFound();
   }
 
   const fullName = `${technician.first_name} ${technician.last_name}`;
-  const initials = `${technician.first_name.charAt(0)}${technician.last_name.charAt(0)}`.toUpperCase();
+  const initials =
+    `${technician.first_name.charAt(0)}${technician.last_name.charAt(0)}`.toUpperCase();
 
   return (
     <div className="space-y-6 pb-20">
@@ -119,21 +143,15 @@ export default async function TechnicianDetailPage({
             </Link>
           </Button>
           <Avatar className="size-14 shrink-0">
-            <AvatarFallback className="text-lg font-bold">
-              {initials}
-            </AvatarFallback>
+            <AvatarFallback className="text-lg font-bold">{initials}</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
-            <h1 className="font-heading text-3xl font-bold tracking-tight truncate">
-              {fullName}
-            </h1>
+            <h1 className="font-heading text-3xl font-bold tracking-tight truncate">{fullName}</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               {technician.city && (
                 <>
                   Département{" "}
-                  <span className="font-semibold text-foreground">
-                    {technician.city}
-                  </span>
+                  <span className="font-semibold text-foreground">{technician.city}</span>
                   {" · "}
                 </>
               )}
@@ -151,30 +169,33 @@ export default async function TechnicianDetailPage({
               </Link>
             </Button>
             <TechnicianRestockButton technicianId={id} />
-            <ArchiveTechnicianButton
-              technicianId={id}
-              technicianName={fullName}
-            />
+            <ArchiveTechnicianButton technicianId={id} technicianName={fullName} />
           </div>
         </div>
 
         {/* Stats inline */}
         <div className="flex items-baseline gap-1.5 flex-wrap border-t pt-5">
           <span className="font-heading text-5xl font-bold tabular-nums leading-none">
-            {technician.inventory_count}
+            {technician.year_units_total}
           </span>
-          <span className="text-muted-foreground text-lg">items</span>
+          <span className="text-muted-foreground text-lg">unités en</span>
+          <YearSelector
+            currentYear={currentYear}
+            selectedYear={year}
+            minYear={technician.created_year}
+            technicianId={id}
+          />
           <span className="text-muted-foreground text-lg mx-1.5">·</span>
           <span className="font-heading text-xl font-bold tabular-nums">
-            {technician.product_count}
+            {technician.inventory_count}
           </span>
-          <span className="text-muted-foreground text-lg">produits</span>
+          <span className="text-muted-foreground text-lg">en stock</span>
           <span className="text-muted-foreground text-lg mx-1.5">·</span>
           <span className="font-heading text-xl font-bold tabular-nums">
             {technician.total_restocks}
           </span>
           <span className="text-muted-foreground text-lg">
-            réapprovisionnements
+            réappro{year !== currentYear ? ` en ${year}` : ""}
           </span>
         </div>
       </div>
