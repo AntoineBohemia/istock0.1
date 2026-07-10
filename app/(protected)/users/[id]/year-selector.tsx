@@ -24,8 +24,9 @@ export default function YearSelector({
 }: YearSelectorProps) {
   const router = useRouter();
 
+  const effectiveMin = Math.min(minYear, currentYear - 2);
   const years: number[] = [];
-  for (let y = currentYear; y >= minYear; y--) {
+  for (let y = currentYear; y >= effectiveMin; y--) {
     years.push(y);
   }
 
