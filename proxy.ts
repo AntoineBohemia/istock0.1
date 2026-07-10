@@ -3,20 +3,21 @@ import { NextResponse, type NextRequest } from "next/server";
 
 // Routes protégées (nécessitent une connexion)
 const PROTECTED_ROUTES = [
+  "/achats",
   "/calendar",
-  "/global",
+  "/actions",
   "/onboarding-flow",
-  "/orders",
-  "/product",
-  "/users",
-  "/settings",
+  "/mouvements",
+  "/produits",
+  "/techniciens",
+  "/parametres",
 ];
 
 // Routes d'authentification (accessibles uniquement si NON connecté)
 const AUTH_ROUTES = ["/login", "/register", "/forgot-password"];
 
 // Page par défaut après connexion
-const DEFAULT_AUTHENTICATED_ROUTE = "/global";
+const DEFAULT_AUTHENTICATED_ROUTE = "/actions";
 
 // Page de connexion
 const LOGIN_ROUTE = "/login";

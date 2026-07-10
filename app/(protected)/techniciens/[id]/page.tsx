@@ -1,0 +1,262 @@
+import { generateMeta } from "@/lib/utils";
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, Edit3Icon, CalendarClock, Package } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { createClient } from "@/lib/supabase/server";
+import TechnicianInventory from "./technician-inventory";
+import TechnicianHistory from "./technician-history";
+import ArchiveTechnicianButton from "./archive-technician-button";
+import TechnicianRestockButton from "./restock-button";
+import YearSelector from "./year-selector";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const supabase = await createClient();
+
+  const { data: technician } = await supabase
+    .from("technicians")
+    .select("first_name, last_name")
+    .eq("id", id)
+    .single();
+
+  const name = technician ? `${technician.first_name} ${technician.last_name}` : "Technicien";
+
+  return generateMeta({
+    title: name,
+    description: `Profil et inventaire du technicien ${name}`,
+    canonical: `/techniciens/${id}`,
+  });
+}
+
+async function getTechnician(id: string, year: number) {
+  const supabase = await createClient();
+
+  const { data: technician, error } = await supabase
+    .from("technicians")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error || !technician) {
+    return null;
+  }
+
+  const yearStart = new Date(year, 0, 1).toISOString();
+  const yearEnd = new Date(year + 1, 0, 1).toISOString();
+
+  // Toutes les queries sont indépendantes → paralléliser
+  const [inventoryResult, lastMovementResult, restocksResult, yearMovementsResult] =
+    await Promise.all([
+      supabase.from("technician_inventory").select("quantity").eq("technician_id", id),
+      supabase
+        .from("stock_movements")
+        .select("created_at")
+        .eq("technician_id", id)
+        .eq("movement_type", "exit_technician")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single(),
+      supabase
+        .from("technician_inventory_history")
+        .select("id", { count: "exact", head: true })
+        .eq("technician_id", id)
+        .gte("created_at", yearStart)
+        .lt("created_at", yearEnd),
+      supabase
+        .from("stock_movements")
+        .select("id, product_id, quantity, created_at, product:products(id, name, sku, image_url)")
+        .eq("technician_id", id)
+        .eq("movement_type", "exit_technician")
+        .gte("created_at", yearStart)
+        .lt("created_at", yearEnd)
+        .order("created_at", { ascending: false }),
+    ]);
+
+  const inventoryCount = inventoryResult.data?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+
+  // Agréger les sorties par produit côté serveur
+  const productMap = new Map<
+    string,
+    {
+      product_id: string;
+      product_name: string;
+      product_sku: string | null;
+      product_image_url: string | null;
+      total_quantity: number;
+    }
+  >();
+  for (const item of yearMovementsResult.data || []) {
+    const product = Array.isArray(item.product) ? item.product[0] : item.product;
+    const pid = item.product_id;
+    const existing = productMap.get(pid);
+    if (existing) {
+      existing.total_quantity += item.quantity;
+    } else {
+      productMap.set(pid, {
+        product_id: pid,
+        product_name: product?.name || "Produit supprimé",
+        product_sku: product?.sku || null,
+        product_image_url: product?.image_url || null,
+        total_quantity: item.quantity,
+      });
+    }
+  }
+  const yearlyProductTotals = Array.from(productMap.values()).sort(
+    (a, b) => b.total_quantity - a.total_quantity
+  );
+  const yearUnitsTotal = yearlyProductTotals.reduce((sum, p) => sum + p.total_quantity, 0);
+
+  // Mouvements de l'année pour l'historique (déjà fetchés, on normalise)
+  const yearMovements = (yearMovementsResult.data || []).map((item) => ({
+    id: item.id,
+    product_id: item.product_id,
+    quantity: item.quantity,
+    created_at: item.created_at,
+    product: Array.isArray(item.product) ? item.product[0] : item.product,
+  }));
+
+  return {
+    ...technician,
+    inventory_count: inventoryCount,
+    year_units_total: yearUnitsTotal,
+    yearly_product_totals: yearlyProductTotals,
+    year_movements: yearMovements,
+    last_restock_at: lastMovementResult.data?.created_at || null,
+    total_restocks: restocksResult.count || 0,
+    created_year: new Date(technician.created_at!).getFullYear(),
+  };
+}
+
+function formatDate(dateString: string | null): string {
+  if (!dateString) return "jamais";
+  return new Date(dateString).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+export default async function TechnicianDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ year?: string }>;
+}) {
+  const { id } = await params;
+  const { year: yearParam } = await searchParams;
+  const currentYear = new Date().getFullYear();
+  const selectedYear = yearParam ? parseInt(yearParam, 10) : currentYear;
+  const year = Number.isNaN(selectedYear) ? currentYear : selectedYear;
+
+  const technician = await getTechnician(id, year);
+
+  if (!technician) {
+    notFound();
+  }
+
+  const fullName = `${technician.first_name} ${technician.last_name}`;
+  const initials =
+    `${technician.first_name.charAt(0)}${technician.last_name.charAt(0)}`.toUpperCase();
+
+  return (
+    <div className="space-y-6 pb-20">
+      {/* ── Hero zone ── */}
+      <div className="rounded-xl border bg-card p-6 space-y-5">
+        {/* Identity + actions */}
+        <div className="flex items-center gap-5">
+          <Button variant="ghost" size="icon" asChild className="shrink-0 -ml-2">
+            <Link href="/techniciens">
+              <ArrowLeft className="size-4" />
+            </Link>
+          </Button>
+          <Avatar className="size-14 shrink-0">
+            <AvatarFallback className="text-lg font-bold">{initials}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <h1 className="font-heading text-3xl font-bold tracking-tight truncate">{fullName}</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {technician.city && (
+                <>
+                  Département{" "}
+                  <span className="font-semibold text-foreground">{technician.city}</span>
+                  {" · "}
+                </>
+              )}
+              dernier réappro{" "}
+              <span className="font-semibold text-foreground">
+                {formatDate(technician.last_restock_at)}
+              </span>
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline-contrast" asChild>
+              <Link href={`/techniciens/${id}/modifier`}>
+                <Edit3Icon className="size-4" />
+                Modifier
+              </Link>
+            </Button>
+            <TechnicianRestockButton technicianId={id} />
+            <ArchiveTechnicianButton technicianId={id} technicianName={fullName} />
+          </div>
+        </div>
+
+        {/* Stats inline */}
+        <div className="flex items-baseline gap-1.5 flex-wrap border-t pt-5">
+          <span className="font-heading text-5xl font-bold tabular-nums leading-none">
+            {technician.year_units_total}
+          </span>
+          <span className="text-muted-foreground text-lg">unités en {year}</span>
+          <span className="text-muted-foreground text-lg mx-1.5">·</span>
+          <span className="font-heading text-xl font-bold tabular-nums">
+            {technician.inventory_count}
+          </span>
+          <span className="text-muted-foreground text-lg">en stock</span>
+          <span className="text-muted-foreground text-lg mx-1.5">·</span>
+          <span className="font-heading text-xl font-bold tabular-nums">
+            {technician.total_restocks}
+          </span>
+          <span className="text-muted-foreground text-lg">
+            réappro{year !== currentYear ? ` en ${year}` : ""}
+          </span>
+        </div>
+      </div>
+
+      {/* ── Year selector + Tabs ── */}
+      <div className="flex items-center justify-between">
+        <Tabs defaultValue="inventory" className="flex-1">
+          <div className="flex items-center justify-between">
+            <TabsList>
+              <TabsTrigger value="inventory">
+                <Package className="size-4 mr-1.5" />
+                Total annuel
+              </TabsTrigger>
+              <TabsTrigger value="history">
+                <CalendarClock className="size-4 mr-1.5" />
+                Historique
+              </TabsTrigger>
+            </TabsList>
+            <YearSelector
+              currentYear={currentYear}
+              selectedYear={year}
+              minYear={technician.created_year}
+              technicianId={id}
+            />
+          </div>
+          <div className="mt-4">
+            <TabsContent value="inventory">
+              <TechnicianInventory totals={technician.yearly_product_totals} year={year} />
+            </TabsContent>
+            <TabsContent value="history">
+              <TechnicianHistory movements={technician.year_movements} year={year} />
+            </TabsContent>
+          </div>
+        </Tabs>
+      </div>
+    </div>
+  );
+}

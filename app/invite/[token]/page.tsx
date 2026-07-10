@@ -87,7 +87,7 @@ export default function AcceptInvitationPage() {
   // Redirect after invitation is accepted
   useEffect(() => {
     if (status !== "accepted") return;
-    const timeoutId = setTimeout(() => router.push("/global"), 2000);
+    const timeoutId = setTimeout(() => router.push("/actions"), 2000);
     return () => clearTimeout(timeoutId);
   }, [status, router]);
 
@@ -285,7 +285,7 @@ export default function AcceptInvitationPage() {
                 Accepter l'invitation
               </Button>
               <Button variant="outline" asChild className="w-full">
-                <Link href="/global">Annuler</Link>
+                <Link href="/actions">Annuler</Link>
               </Button>
             </>
           )}

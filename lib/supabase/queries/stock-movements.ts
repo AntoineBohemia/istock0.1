@@ -12,6 +12,7 @@ export interface StockMovement {
   supplier_id: string | null;
   notes: string | null;
   organization_id: string | null;
+  unit_price: number | null;
   created_at: string | null;
   product?: {
     id: string;
@@ -52,8 +53,8 @@ export interface StockMovementsResult {
 export const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
   entry: "Entrée",
   exit_technician: "Sortie technicien",
-  exit_anonymous: "Sortie autre",
-  exit_loss: "Sortie autre",
+  exit_anonymous: "Erreur stock",
+  exit_loss: "Erreur stock",
 };
 
 export const MOVEMENT_TYPE_COLORS: Record<MovementType, string> = {
@@ -79,8 +80,7 @@ export async function getStockMovements(
       technician:technicians(id, first_name, last_name),
       supplier:suppliers(id, name),
       organization:organizations(id, name)
-    `,
-    { count: "exact" }
+    `
   );
 
   // Filtrer par organisation
@@ -139,7 +139,9 @@ export async function getProductMovements(
     .select(
       `
       *,
-      technician:technicians(id, first_name, last_name)
+      technician:technicians(id, first_name, last_name),
+      organization:organizations(id, name),
+      supplier:suppliers(id, name)
     `
     )
     .eq("product_id", productId)
@@ -162,7 +164,8 @@ export async function createEntry(
   productId: string,
   quantity: number,
   notes?: string,
-  supplierId?: string
+  supplierId?: string,
+  unitPrice?: number
 ): Promise<StockMovement> {
   const supabase = createClient();
 
@@ -172,6 +175,7 @@ export async function createEntry(
     p_quantity: quantity,
     p_notes: notes || undefined,
     p_supplier_id: supplierId || undefined,
+    p_unit_price: unitPrice || undefined,
   });
 
   if (error) {
@@ -369,4 +373,88 @@ export async function getMovementsSummary(organizationId?: string): Promise<{
     totalExits,
     recentMovements: data?.length || 0,
   };
+}
+
+/** Entry detail per org, optionally broken down by unit_price */
+export interface OrgEntryDetail {
+  qty: number;
+  byPrice: { unitPrice: number; qty: number }[];
+}
+
+/**
+ * Agrège les quantités d'entrées par produit et par organisation pour une année civile.
+ * Inclut le détail par prix unitaire pour chaque org.
+ */
+export async function getYearlyEntryQtyByProduct(year?: number): Promise<
+  Record<string, Record<string, OrgEntryDetail>>
+> {
+  const supabase = createClient();
+  const targetYear = year ?? new Date().getFullYear();
+  const startOfYear = new Date(targetYear, 0, 1).toISOString();
+  const endOfYear = new Date(targetYear + 1, 0, 1).toISOString();
+
+  const { data, error } = await supabase
+    .from("stock_movements")
+    .select("product_id, organization_id, quantity, unit_price")
+    .eq("movement_type", "entry")
+    .gte("created_at", startOfYear)
+    .lt("created_at", endOfYear);
+
+  if (error) {
+    throw new Error(`Erreur récupération entrées par produit: ${error.message}`);
+  }
+
+  const result: Record<string, Record<string, OrgEntryDetail>> = {};
+
+  data?.forEach((m) => {
+    const pid = m.product_id;
+    const oid = m.organization_id ?? "unknown";
+    const price = m.unit_price ?? 0;
+
+    if (!result[pid]) result[pid] = {};
+    if (!result[pid][oid]) result[pid][oid] = { qty: 0, byPrice: [] };
+
+    result[pid][oid].qty += m.quantity;
+
+    const existing = result[pid][oid].byPrice.find((bp) => bp.unitPrice === price);
+    if (existing) {
+      existing.qty += m.quantity;
+    } else {
+      result[pid][oid].byPrice.push({ unitPrice: price, qty: m.quantity });
+    }
+  });
+
+  // Sort byPrice descending by unitPrice
+  Object.values(result).forEach((orgs) =>
+    Object.values(orgs).forEach((detail) =>
+      detail.byPrice.sort((a, b) => b.unitPrice - a.unitPrice)
+    )
+  );
+
+  return result;
+}
+
+/**
+ * Récupère l'historique des prix d'un produit
+ */
+export interface PriceHistoryEntry {
+  id: string;
+  price: number;
+  effective_from: string;
+}
+
+export async function getProductPriceHistory(productId: string): Promise<PriceHistoryEntry[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("product_price_history")
+    .select("id, price, effective_from")
+    .eq("product_id", productId)
+    .order("effective_from", { ascending: false });
+
+  if (error) {
+    throw new Error(`Erreur récupération historique prix: ${error.message}`);
+  }
+
+  return data ?? [];
 }

@@ -89,11 +89,11 @@ describe("proxy middleware", () => {
   });
 
   it("includes ?next param in callback redirect when present", async () => {
-    const req = createMockRequest("/", { code: "abc123", next: "/settings" });
+    const req = createMockRequest("/", { code: "abc123", next: "/parametres" });
     await proxy(req);
 
     const redirectUrl = mockRedirect.mock.calls[0][0] as URL;
-    expect(redirectUrl.searchParams.get("next")).toBe("/settings");
+    expect(redirectUrl.searchParams.get("next")).toBe("/parametres");
   });
 
   // ─── Auth routes ────────────────────────────────────────────────
@@ -108,7 +108,7 @@ describe("proxy middleware", () => {
 
     expect(mockRedirect).toHaveBeenCalled();
     const redirectUrl = mockRedirect.mock.calls[0][0] as URL;
-    expect(redirectUrl.pathname).toBe("/global");
+    expect(redirectUrl.pathname).toBe("/actions");
   });
 
   it("redirects authenticated user on / to /global", async () => {
@@ -130,13 +130,13 @@ describe("proxy middleware", () => {
       error: null,
     });
 
-    const req = createMockRequest("/global");
+    const req = createMockRequest("/actions");
     await proxy(req);
 
     expect(mockRedirect).toHaveBeenCalled();
     const redirectUrl = mockRedirect.mock.calls[0][0] as URL;
     expect(redirectUrl.pathname).toBe("/login");
-    expect(redirectUrl.searchParams.get("redirectTo")).toBe("/global");
+    expect(redirectUrl.searchParams.get("redirectTo")).toBe("/actions");
   });
 
   it("redirects unauthenticated user on /settings/profile to /login", async () => {
@@ -145,7 +145,7 @@ describe("proxy middleware", () => {
       error: null,
     });
 
-    const req = createMockRequest("/settings/profile");
+    const req = createMockRequest("/parametres/profile");
     await proxy(req);
 
     expect(mockRedirect).toHaveBeenCalled();
@@ -160,7 +160,7 @@ describe("proxy middleware", () => {
       error: { code: "refresh_token_not_found" },
     });
 
-    const req = createMockRequest("/global");
+    const req = createMockRequest("/actions");
     const result = await proxy(req);
 
     expect(mockRedirect).toHaveBeenCalled();
@@ -188,7 +188,7 @@ describe("proxy middleware", () => {
       error: null,
     });
 
-    const req = createMockRequest("/global");
+    const req = createMockRequest("/actions");
     const result = await proxy(req);
 
     // No redirect, user is allowed

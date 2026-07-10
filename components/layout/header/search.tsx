@@ -133,7 +133,7 @@ export default function Search() {
                     value={`${product.name} ${product.sku ?? ""}`}
                     onSelect={() => {
                       handleOpenChange(false);
-                      router.push(`/product/${product.id}`);
+                      router.push(`/produits/${product.id}`);
                     }}
                   >
                     <Package className="me-2 h-4 w-4 shrink-0" />

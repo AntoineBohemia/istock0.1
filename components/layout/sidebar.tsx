@@ -145,9 +145,9 @@ export default function Sidebar() {
                 className="hover:text-foreground active:text-foreground"
                 asChild
                 tooltip="Paramètres"
-                isActive={pathname === "/settings" || pathname.startsWith("/settings/")}
+                isActive={pathname === "/parametres" || pathname.startsWith("/parametres/")}
               >
-                <Link href="/settings">
+                <Link href="/parametres">
                   <Settings className="size-4" />
                   <span>Paramètres</span>
                 </Link>

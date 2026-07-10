@@ -3,9 +3,9 @@ import { isInternalPath } from "./url";
 
 describe("isInternalPath", () => {
   it("returns true for simple internal paths", () => {
-    expect(isInternalPath("/global")).toBe(true);
-    expect(isInternalPath("/product/123")).toBe(true);
-    expect(isInternalPath("/users/abc/edit")).toBe(true);
+    expect(isInternalPath("/actions")).toBe(true);
+    expect(isInternalPath("/produits/123")).toBe(true);
+    expect(isInternalPath("/techniciens/abc/edit")).toBe(true);
     expect(isInternalPath("/")).toBe(true);
   });
 

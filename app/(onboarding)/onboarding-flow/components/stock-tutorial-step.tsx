@@ -29,8 +29,8 @@ const stockMovements = [
   {
     id: "exit_anonymous",
     icon: Package,
-    title: "Sortie autre",
-    description: "Sortie sans attribution a un technicien",
+    title: "Erreur stock",
+    description: "Correction d'une erreur de stock",
     color: "text-orange-600",
     bgColor: "bg-orange-100 dark:bg-orange-900/30",
     borderColor: "border-orange-200 dark:border-orange-800",

@@ -21,7 +21,7 @@ export function StatusPill({ status, label, className }: StatusPillProps) {
       )}
     >
       {label ??
-        (status === "critique" ? "Critique" : status === "attention" ? "Attention" : "Standard")}
+        (status === "critique" ? "Critique" : status === "attention" ? "Attention" : "Bon")}
     </span>
   );
 }

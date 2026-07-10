@@ -82,7 +82,7 @@ export default function StockPage() {
               mouvement.
             </p>
             <Button variant="outline" className="w-full" asChild>
-              <Link href="/product">
+              <Link href="/produits">
                 Voir les produits
                 <ArrowRight className="size-4" />
               </Link>

@@ -5,12 +5,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 const TITLES: Record<string, string> = {
-  "/global": "Tableau de bord",
-  "/users": "Techniciens",
+  "/actions": "Actions rapides",
+  "/techniciens": "Techniciens",
   "/more": "Plus",
-  "/product": "Produits",
-  "/orders": "Flux de stock",
-  "/settings": "Paramètres",
+  "/produits": "Produits",
+  "/mouvements": "Flux de stock",
+  "/parametres": "Paramètres",
 };
 
 function getTitle(pathname: string): string {

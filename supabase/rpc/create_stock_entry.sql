@@ -3,7 +3,8 @@ CREATE OR REPLACE FUNCTION create_stock_entry(
   p_product_id UUID,
   p_quantity INT,
   p_notes TEXT DEFAULT NULL,
-  p_supplier_id UUID DEFAULT NULL
+  p_supplier_id UUID DEFAULT NULL,
+  p_unit_price NUMERIC DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -12,13 +13,14 @@ AS $$
 DECLARE
   v_product RECORD;
   v_movement RECORD;
+  v_price NUMERIC;
 BEGIN
   IF p_quantity <= 0 THEN
     RAISE EXCEPTION 'La quantité doit être positive';
   END IF;
 
   -- Lock the product row to prevent race conditions
-  SELECT id, name, stock_current
+  SELECT id, name, stock_current, price
   INTO v_product
   FROM products
   WHERE id = p_product_id
@@ -28,10 +30,13 @@ BEGIN
     RAISE EXCEPTION 'Produit non trouvé: %', p_product_id;
   END IF;
 
-  -- Create the movement with optional supplier
-  INSERT INTO stock_movements (organization_id, product_id, quantity, movement_type, notes, supplier_id)
-  VALUES (p_organization_id, p_product_id, p_quantity, 'entry', p_notes, p_supplier_id)
-  RETURNING id, product_id, quantity, movement_type, technician_id, notes, organization_id, created_at, supplier_id
+  -- Use provided price or fallback to current product price
+  v_price := COALESCE(p_unit_price, v_product.price);
+
+  -- Create the movement with unit_price
+  INSERT INTO stock_movements (organization_id, product_id, quantity, movement_type, notes, supplier_id, unit_price)
+  VALUES (p_organization_id, p_product_id, p_quantity, 'entry', p_notes, p_supplier_id, v_price)
+  RETURNING id, product_id, quantity, movement_type, technician_id, notes, organization_id, created_at, supplier_id, unit_price
   INTO v_movement;
 
   -- Increment stock
@@ -49,7 +54,8 @@ BEGIN
     'notes', v_movement.notes,
     'organization_id', v_movement.organization_id,
     'created_at', v_movement.created_at,
-    'supplier_id', v_movement.supplier_id
+    'supplier_id', v_movement.supplier_id,
+    'unit_price', v_movement.unit_price
   );
 END;
 $$;

@@ -23,7 +23,7 @@ describe("MOVEMENT_TYPE_LABELS", () => {
   it("returns correct French labels", () => {
     expect(MOVEMENT_TYPE_LABELS.entry).toBe("Entrée");
     expect(MOVEMENT_TYPE_LABELS.exit_technician).toBe("Sortie technicien");
-    expect(MOVEMENT_TYPE_LABELS.exit_anonymous).toBe("Sortie anonyme");
+    expect(MOVEMENT_TYPE_LABELS.exit_anonymous).toBe("Erreur stock");
     expect(MOVEMENT_TYPE_LABELS.exit_loss).toBe("Perte/Casse");
   });
 });

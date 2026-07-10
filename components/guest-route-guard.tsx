@@ -4,8 +4,8 @@ import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 
-export const GUEST_BLOCKED_PREFIXES = ["/global", "/settings"] as const;
-export const GUEST_REDIRECT_TO = "/users";
+export const GUEST_BLOCKED_PREFIXES = ["/actions", "/parametres"] as const;
+export const GUEST_REDIRECT_TO = "/techniciens";
 
 export function shouldBlockGuestRoute(
   role: string | undefined,

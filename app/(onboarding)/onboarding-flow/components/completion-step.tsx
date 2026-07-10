@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useOnboardingStore } from "../store";
 import {
@@ -19,7 +19,6 @@ import { cn } from "@/lib/utils";
 export function CompletionStep() {
   const router = useRouter();
   const { data, completedSteps, reset } = useOnboardingStore();
-  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     // Confetti animation
@@ -57,45 +56,42 @@ export function CompletionStep() {
     };
 
     loadConfetti();
-    saveProgress();
-  }, []);
 
-  const saveProgress = async () => {
-    setIsSaving(true);
-    try {
-      const supabase = createClient();
-      const { data: userData } = await supabase.auth.getUser();
+    const doSaveProgress = async () => {
+      try {
+        const supabase = createClient();
+        const { data: userData } = await supabase.auth.getUser();
 
-      if (userData.user) {
-        await supabase.from("onboarding_progress").upsert({
-          user_id: userData.user.id,
-          organization_id: data.createdOrganizationId || null,
-          current_step: "completed",
-          completed_steps: completedSteps,
-          onboarding_data: data as unknown as import("@/lib/supabase/database.types").Json,
-          completed_at: new Date().toISOString(),
-        });
+        if (userData.user) {
+          await supabase.from("onboarding_progress").upsert({
+            user_id: userData.user.id,
+            organization_id: data.createdOrganizationId || null,
+            current_step: "completed",
+            completed_steps: completedSteps,
+            onboarding_data: data as unknown as import("@/lib/supabase/database.types").Json,
+            completed_at: new Date().toISOString(),
+          });
+        }
+      } catch {
+        // Silent fail — onboarding progress is non-critical
       }
-    } catch (error) {
-      console.error("Error saving onboarding progress:", error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+    };
+    doSaveProgress();
+  }, []);
 
   const handleGoToDashboard = () => {
     reset();
-    router.push("/global");
+    router.push("/actions");
   };
 
   const handleGoToProducts = () => {
     reset();
-    router.push("/product");
+    router.push("/produits");
   };
 
   const handleGoToTechnicians = () => {
     reset();
-    router.push("/users");
+    router.push("/techniciens");
   };
 
   const categoriesCount = data.createdCategoryIds.length;

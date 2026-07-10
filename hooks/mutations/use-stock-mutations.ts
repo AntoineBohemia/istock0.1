@@ -10,6 +10,7 @@ interface CreateEntryParams {
   quantity: number;
   notes?: string;
   supplierId?: string;
+  unitPrice?: number;
 }
 
 interface CreateExitParams {
@@ -30,7 +31,8 @@ export function useCreateStockEntry() {
         params.productId,
         params.quantity,
         params.notes,
-        params.supplierId
+        params.supplierId,
+        params.unitPrice
       ),
     onMutate: async (params) => {
       // Optimistic update on product detail

@@ -387,7 +387,7 @@ export default function QuickStockMovementModal({
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="exit_technician">Sortie technicien</SelectItem>
-                          <SelectItem value="exit_anonymous">Sortie autre</SelectItem>
+                          <SelectItem value="exit_anonymous">Erreur stock</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

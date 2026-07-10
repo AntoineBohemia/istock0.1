@@ -23,24 +23,29 @@ export const page_routes: PageRoutesType[] = [
     title: "",
     items: [
       {
-        title: "Vue d'ensemble",
-        href: "/global",
+        title: "Actions rapides",
+        href: "/actions",
         icon: "LayoutDashboard",
         allowedRoles: ["owner", "admin", "member"],
       },
       {
         title: "Produits",
-        href: "/product",
+        href: "/produits",
         icon: "Package",
       },
       {
+        title: "Achats",
+        href: "/achats",
+        icon: "ShoppingCart",
+      },
+      {
         title: "Techniciens",
-        href: "/users",
+        href: "/techniciens",
         icon: "HardHat",
       },
       {
         title: "Mouvements",
-        href: "/orders",
+        href: "/mouvements",
         icon: "ArrowLeftRight",
       },
     ],

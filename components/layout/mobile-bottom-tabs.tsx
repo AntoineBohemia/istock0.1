@@ -6,9 +6,9 @@ import { Home, ScanLine, Users, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
-  { key: "home", label: "Accueil", href: "/global", icon: Home },
+  { key: "home", label: "Accueil", href: "/actions", icon: Home },
   { key: "scan", label: "Scan", href: null, icon: ScanLine },
-  { key: "techs", label: "Techs", href: "/users", icon: Users },
+  { key: "techs", label: "Techs", href: "/techniciens", icon: Users },
   { key: "more", label: "Plus", href: "/more", icon: MoreHorizontal },
 ] as const;
 
@@ -21,7 +21,7 @@ export default function MobileBottomTabs({ onScanPress }: MobileBottomTabsProps)
 
   const isActive = (href: string | null) => {
     if (!href) return false;
-    if (href === "/global") return pathname === "/global" || pathname === "/";
+    if (href === "/actions") return pathname === "/actions" || pathname === "/";
     return pathname.startsWith(href);
   };
 

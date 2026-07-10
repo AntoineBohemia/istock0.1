@@ -5,8 +5,8 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const rawNext = searchParams.get("next") ?? "/global";
-  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/global";
+  const rawNext = searchParams.get("next") ?? "/actions";
+  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/actions";
 
   if (code) {
     const cookieStore = await cookies();

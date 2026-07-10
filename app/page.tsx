@@ -39,10 +39,10 @@ const publicRoutes = [
 
 const protectedRoutes = [
   {
-    title: "Tableau de bord",
-    href: "/global",
+    title: "Actions rapides",
+    href: "/actions",
     icon: LayoutDashboard,
-    description: "Vue d'ensemble et statistiques globales",
+    description: "Mouvements de stock rapides",
   },
   /*{
     title: "Calendrier",
@@ -52,38 +52,38 @@ const protectedRoutes = [
   },*/
   {
     title: "Produits",
-    href: "/product",
+    href: "/produits",
     icon: Package,
     description: "Liste des produits",
     children: [
-      { title: "Créer un produit", href: "/product/create" },
-      { title: "Détail produit", href: "/product/1" },
+      { title: "Créer un produit", href: "/produits/nouveau" },
+      { title: "Détail produit", href: "/produits/1" },
     ],
   },
   {
     title: "Commandes",
-    href: "/orders",
+    href: "/mouvements",
     icon: ShoppingCart,
     description: "Gestion des commandes",
     children: [
-      { title: "Détail commande", href: "/orders/1" },
-      { title: "Entrée stock", href: "/orders/income/1" },
-      { title: "Sortie stock", href: "/orders/outcome/1" },
+      { title: "Détail commande", href: "/mouvements/1" },
+      { title: "Entrée stock", href: "/mouvements/entree/1" },
+      { title: "Sortie stock", href: "/mouvements/sortie/1" },
     ],
   },
   {
     title: "Utilisateurs",
-    href: "/users",
+    href: "/techniciens",
     icon: Users,
     description: "Gestion des utilisateurs",
-    children: [{ title: "Inventaire", href: "/users/inventory" }],
+    children: [{ title: "Inventaire", href: "/techniciens/inventaire" }],
   },
   {
     title: "Paramètres",
-    href: "/settings/categories",
+    href: "/parametres/categories",
     icon: Settings,
     description: "Configuration de l'application",
-    children: [{ title: "Catégories", href: "/settings/categories" }],
+    children: [{ title: "Catégories", href: "/parametres/categories" }],
   },
 ];
 
@@ -104,7 +104,7 @@ const errorRoutes = [
 
 export default function DevPage() {
   if (process.env.NODE_ENV !== "development") {
-    redirect("/global");
+    redirect("/actions");
   }
 
   return (
