@@ -396,12 +396,12 @@ export default function MovementsList() {
     return counts;
   }, [allMovements]);
 
-  // Unique suppliers from movements (for filter)
-  const availableSuppliers = useMemo(() => {
+  // Unique organizations from movements (for filter)
+  const availableOrgs = useMemo(() => {
     const map = new Map<string, string>();
     for (const m of allMovements) {
-      if (m.supplier?.id && m.supplier.name) {
-        map.set(m.supplier.id, m.supplier.name);
+      if (m.organization_id && m.organization?.name) {
+        map.set(m.organization_id, m.organization.name);
       }
     }
     return Array.from(map, ([id, name]) => ({ id, name })).sort((a, b) =>
@@ -426,7 +426,7 @@ export default function MovementsList() {
       });
     }
     if (filterSupplier) {
-      result = result.filter((m) => m.supplier?.id === filterSupplier);
+      result = result.filter((m) => m.organization_id === filterSupplier);
     }
     if (dateRange?.from) {
       const from = startOfDay(dateRange.from);
@@ -702,7 +702,7 @@ export default function MovementsList() {
 
         <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
 
-        {availableSuppliers.length > 0 && (
+        {availableOrgs.length > 0 && (
           <Popover>
             <PopoverTrigger
               className={cn(
@@ -714,7 +714,7 @@ export default function MovementsList() {
             >
               <Building2 className="size-3" />
               {filterSupplier
-                ? (availableSuppliers.find((s) => s.id === filterSupplier)?.name ?? "Entreprise")
+                ? (availableOrgs.find((s) => s.id === filterSupplier)?.name ?? "Entreprise")
                 : "Entreprise"}
               {filterSupplier && (
                 <span
@@ -734,7 +734,7 @@ export default function MovementsList() {
               className="w-auto min-w-[180px] p-1 rounded-xl overflow-hidden"
             >
               <div className="flex flex-col gap-0.5 max-h-[280px] overflow-y-auto">
-                {availableSuppliers.map((sup) => (
+                {availableOrgs.map((sup) => (
                   <button
                     key={sup.id}
                     type="button"

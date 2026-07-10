@@ -29,6 +29,10 @@ export interface StockMovement {
     id: string;
     name: string;
   } | null;
+  organization?: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 export interface StockMovementFilters {
@@ -73,7 +77,8 @@ export async function getStockMovements(
       *,
       product:products(id, name, sku, image_url, supplier_id),
       technician:technicians(id, first_name, last_name),
-      supplier:suppliers(id, name)
+      supplier:suppliers(id, name),
+      organization:organizations(id, name)
     `,
     { count: "exact" }
   );
