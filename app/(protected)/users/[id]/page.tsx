@@ -217,7 +217,7 @@ export default async function TechnicianDetailPage({
           </div>
           <div className="mt-4">
             <TabsContent value="inventory">
-              <TechnicianInventory technicianId={id} />
+              <TechnicianInventory technicianId={id} year={year} />
             </TabsContent>
             <TabsContent value="history">
               <TechnicianHistory technicianId={id} />

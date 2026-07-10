@@ -304,6 +304,66 @@ export async function getTechnicianStockMovements(
   })) as TechnicianStockMovement[];
 }
 
+export interface TechnicianYearlyProductTotal {
+  product_id: string;
+  product_name: string;
+  product_sku: string | null;
+  product_image_url: string | null;
+  total_quantity: number;
+}
+
+/**
+ * Récupère le cumul annuel des sorties par produit pour un technicien
+ */
+export async function getTechnicianYearlyTotals(
+  technicianId: string,
+  year: number
+): Promise<TechnicianYearlyProductTotal[]> {
+  const supabase = createClient();
+
+  const yearStart = new Date(year, 0, 1).toISOString();
+  const yearEnd = new Date(year + 1, 0, 1).toISOString();
+
+  const { data, error } = await supabase
+    .from("stock_movements")
+    .select(
+      `
+      product_id,
+      quantity,
+      product:products(id, name, sku, image_url)
+    `
+    )
+    .eq("technician_id", technicianId)
+    .eq("movement_type", "exit_technician")
+    .gte("created_at", yearStart)
+    .lt("created_at", yearEnd);
+
+  if (error) {
+    throw new Error(`Erreur lors de la récupération des totaux annuels: ${error.message}`);
+  }
+
+  // Aggregate by product
+  const map = new Map<string, TechnicianYearlyProductTotal>();
+  for (const item of data || []) {
+    const product = Array.isArray(item.product) ? item.product[0] : item.product;
+    const pid = item.product_id;
+    const existing = map.get(pid);
+    if (existing) {
+      existing.total_quantity += item.quantity;
+    } else {
+      map.set(pid, {
+        product_id: pid,
+        product_name: product?.name || "Produit supprimé",
+        product_sku: product?.sku || null,
+        product_image_url: product?.image_url || null,
+        total_quantity: item.quantity,
+      });
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) => b.total_quantity - a.total_quantity);
+}
+
 export interface TechnicianEvolutionMovement {
   id: string;
   product_id: string;
