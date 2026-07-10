@@ -115,6 +115,230 @@ function SortHeader({
   );
 }
 
+// ─── Date range presets ─────────────────────────────────────
+const DATE_PRESETS = [
+  { label: "Aujourd'hui", range: () => ({ from: new Date(), to: new Date() }) },
+  { label: "Hier", range: () => ({ from: subDays(new Date(), 1), to: subDays(new Date(), 1) }) },
+  { separator: true },
+  {
+    label: "Cette semaine",
+    range: () => ({
+      from: startOfWeek(new Date(), { weekStartsOn: 1 }),
+      to: endOfWeek(new Date(), { weekStartsOn: 1 }),
+    }),
+  },
+  {
+    label: "Semaine dernière",
+    range: () => ({
+      from: startOfWeek(subDays(new Date(), 7), { weekStartsOn: 1 }),
+      to: endOfWeek(subDays(new Date(), 7), { weekStartsOn: 1 }),
+    }),
+  },
+  { separator: true },
+  { label: "Ce mois", range: () => ({ from: startOfMonth(new Date()), to: new Date() }) },
+  {
+    label: "Mois dernier",
+    range: () => ({
+      from: startOfMonth(subMonths(new Date(), 1)),
+      to: endOfMonth(subMonths(new Date(), 1)),
+    }),
+  },
+  { separator: true },
+  { label: "Cette année", range: () => ({ from: startOfYear(new Date()), to: new Date() }) },
+  {
+    label: "Année dernière",
+    range: () => ({
+      from: startOfYear(subYears(new Date(), 1)),
+      to: new Date(new Date().getFullYear() - 1, 11, 31),
+    }),
+  },
+  { separator: true },
+  { label: "Tout", range: () => null },
+] as Array<{ label?: string; range?: () => DateRange | null; separator?: boolean }>;
+
+function rangesEqual(a?: DateRange, b?: DateRange): boolean {
+  if (!a?.from && !b?.from) return true;
+  if (!a?.from || !b?.from) return false;
+  const fromEq = format(a.from, "yyyy-MM-dd") === format(b.from, "yyyy-MM-dd");
+  const aTo = a.to ?? a.from;
+  const bTo = b.to ?? b.from;
+  const toEq = format(aTo, "yyyy-MM-dd") === format(bTo, "yyyy-MM-dd");
+  return fromEq && toEq;
+}
+
+// ─── Date range picker ──────────────────────────────────────
+function DateRangePicker({
+  dateRange,
+  onDateRangeChange,
+}: {
+  dateRange: DateRange | undefined;
+  onDateRangeChange: (range: DateRange | undefined) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<DateRange | undefined>(undefined);
+
+  const presets = useMemo(
+    () =>
+      DATE_PRESETS.map((p) => ({
+        ...p,
+        computed: p.range ? p.range() : undefined,
+      })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [open]
+  );
+
+  const hasChanges = !rangesEqual(draft, dateRange);
+  const hasDraft = !!draft?.from;
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (o) setDraft(dateRange);
+      }}
+    >
+      <PopoverTrigger
+        className={cn(
+          "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none cursor-pointer",
+          dateRange?.from
+            ? "bg-primary text-primary-foreground"
+            : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
+        )}
+      >
+        <CalendarDays className="size-3" />
+        {dateRange?.from ? (
+          <>
+            {dateRange.to &&
+            format(dateRange.from, "yyyy-MM-dd") !== format(dateRange.to, "yyyy-MM-dd")
+              ? `${format(dateRange.from, "dd MMM", { locale: fr })} – ${format(dateRange.to, "dd MMM", { locale: fr })}`
+              : format(dateRange.from, "dd MMM yyyy", { locale: fr })}
+            <span
+              role="button"
+              className="ml-0.5 rounded-full hover:bg-white/20 p-0.5 -mr-1"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDateRangeChange(undefined);
+                setDraft(undefined);
+              }}
+            >
+              <X className="size-3" />
+            </span>
+          </>
+        ) : (
+          "Période"
+        )}
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-auto p-0 rounded-xl overflow-hidden">
+        <div className="flex">
+          {/* Sidebar presets */}
+          <div className="border-r py-2 px-2 flex flex-col gap-0.5 min-w-[150px]">
+            {presets.map((preset, i) => {
+              if ("separator" in preset && preset.separator) {
+                return <div key={`sep-${i}`} className="h-px bg-border my-1 mx-2" />;
+              }
+              const presetRange = preset.computed;
+              const isActive =
+                presetRange === null
+                  ? !draft?.from
+                  : presetRange
+                    ? rangesEqual(draft, presetRange)
+                    : false;
+              return (
+                <button
+                  key={preset.label}
+                  type="button"
+                  className={cn(
+                    "text-left text-[13px] px-3 py-1.5 rounded-lg transition-colors",
+                    isActive
+                      ? "bg-primary text-primary-foreground font-medium"
+                      : "text-foreground/70 hover:bg-muted hover:text-foreground"
+                  )}
+                  onClick={() => {
+                    if (presetRange === null) {
+                      setDraft(undefined);
+                      onDateRangeChange(undefined);
+                      setOpen(false);
+                    } else if (presetRange) {
+                      setDraft(presetRange);
+                      onDateRangeChange(presetRange);
+                      setOpen(false);
+                    }
+                  }}
+                >
+                  {preset.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Calendars + footer */}
+          <div className="p-3">
+            <Calendar
+              mode="range"
+              selected={draft}
+              onSelect={setDraft}
+              numberOfMonths={2}
+              locale={fr}
+              fixedWeeks
+              showYearSwitcher={false}
+            />
+
+            {/* Footer */}
+            <div className="border-t mt-2 pt-3 flex items-center justify-between gap-4">
+              <div className="font-heading tabular-nums text-[13px]">
+                {draft?.from ? (
+                  <>
+                    <span className="text-foreground font-semibold">
+                      {format(draft.from, "dd/MM/yyyy")}
+                    </span>
+                    <span className="mx-2 text-foreground/25">–</span>
+                    <span
+                      className={
+                        draft.to ? "text-foreground font-semibold" : "text-muted-foreground"
+                      }
+                    >
+                      {draft.to ? format(draft.to, "dd/MM/yyyy") : "jj/mm/aaaa"}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-muted-foreground font-normal text-[13px]">
+                    Sélectionnez une période
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => {
+                    setDraft(dateRange);
+                    setOpen(false);
+                  }}
+                >
+                  Annuler
+                </Button>
+                <Button
+                  size="sm"
+                  className="text-xs"
+                  disabled={!hasDraft || !hasChanges}
+                  onClick={() => {
+                    onDateRangeChange(draft);
+                    setOpen(false);
+                  }}
+                >
+                  Appliquer
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 // ─── Type filter chips ──────────────────────────────────────
 const TYPE_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: "all", label: "Tous" },
@@ -130,8 +354,6 @@ export default function MovementsList() {
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [draftRange, setDraftRange] = useState<DateRange | undefined>(undefined);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const [filters, setFilters] = useQueryStates({
     type: parseAsString.withDefault("all"),
@@ -458,172 +680,7 @@ export default function MovementsList() {
           />
         </div>
 
-        <Popover
-          open={datePickerOpen}
-          onOpenChange={(open) => {
-            setDatePickerOpen(open);
-            if (open) setDraftRange(dateRange);
-          }}
-        >
-          <PopoverTrigger
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none cursor-pointer",
-              dateRange?.from
-                ? "bg-primary text-primary-foreground"
-                : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
-            )}
-          >
-            <CalendarDays className="size-3" />
-            {dateRange?.from ? (
-              <>
-                {dateRange.to
-                  ? `${format(dateRange.from, "dd MMM", { locale: fr })} – ${format(dateRange.to, "dd MMM", { locale: fr })}`
-                  : format(dateRange.from, "dd MMM yyyy", { locale: fr })}
-                <span
-                  role="button"
-                  className="ml-0.5 rounded-full hover:bg-white/20 p-0.5 -mr-1"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDateRange(undefined);
-                    setDraftRange(undefined);
-                  }}
-                >
-                  <X className="size-3" />
-                </span>
-              </>
-            ) : (
-              "Période"
-            )}
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-auto p-0 rounded-xl overflow-hidden">
-            <div className="flex">
-              {/* Sidebar presets */}
-              <div className="border-r py-2 px-2 flex flex-col gap-0.5 min-w-[150px]">
-                {[
-                  { label: "Aujourd'hui", from: new Date(), to: new Date() },
-                  { label: "Hier", from: subDays(new Date(), 1), to: subDays(new Date(), 1) },
-                  {
-                    label: "Cette semaine",
-                    from: startOfWeek(new Date(), { weekStartsOn: 1 }),
-                    to: endOfWeek(new Date(), { weekStartsOn: 1 }),
-                  },
-                  {
-                    label: "Semaine dernière",
-                    from: startOfWeek(subDays(new Date(), 7), { weekStartsOn: 1 }),
-                    to: endOfWeek(subDays(new Date(), 7), { weekStartsOn: 1 }),
-                  },
-                  { label: "Ce mois", from: startOfMonth(new Date()), to: new Date() },
-                  {
-                    label: "Mois dernier",
-                    from: startOfMonth(subMonths(new Date(), 1)),
-                    to: endOfMonth(subMonths(new Date(), 1)),
-                  },
-                  { label: "Cette année", from: startOfYear(new Date()), to: new Date() },
-                  {
-                    label: "Année dernière",
-                    from: startOfYear(subYears(new Date(), 1)),
-                    to: new Date(new Date().getFullYear() - 1, 11, 31),
-                  },
-                  { label: "Tout", from: undefined, to: undefined },
-                ].map((preset) => {
-                  const isActive = !preset.from
-                    ? !draftRange?.from
-                    : draftRange?.from &&
-                      draftRange?.to &&
-                      format(preset.from, "yyyy-MM-dd") === format(draftRange.from, "yyyy-MM-dd") &&
-                      preset.to &&
-                      format(preset.to, "yyyy-MM-dd") === format(draftRange.to, "yyyy-MM-dd");
-                  return (
-                    <button
-                      key={preset.label}
-                      type="button"
-                      className={cn(
-                        "text-left text-[13px] px-3 py-1.5 rounded-lg transition-colors",
-                        isActive
-                          ? "bg-primary text-primary-foreground font-semibold"
-                          : "text-foreground/70 hover:bg-muted hover:text-foreground"
-                      )}
-                      onClick={() => {
-                        if (!preset.from) {
-                          setDraftRange(undefined);
-                          setDateRange(undefined);
-                          setDatePickerOpen(false);
-                        } else {
-                          const range = { from: preset.from, to: preset.to };
-                          setDraftRange(range);
-                          setDateRange(range);
-                          setDatePickerOpen(false);
-                        }
-                      }}
-                    >
-                      {preset.label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Calendars */}
-              <div className="p-3">
-                <Calendar
-                  mode="range"
-                  selected={draftRange}
-                  onSelect={setDraftRange}
-                  numberOfMonths={2}
-                  locale={fr}
-                  fixedWeeks
-                  showYearSwitcher={false}
-                />
-
-                {/* Footer */}
-                <div className="border-t mt-2 pt-3 flex items-center justify-between gap-4">
-                  <div className="text-muted-foreground text-[13px]">
-                    {draftRange?.from ? (
-                      <span className="font-heading tabular-nums">
-                        <span className="text-foreground font-semibold">
-                          {format(draftRange.from, "dd/MM/yyyy")}
-                        </span>
-                        {draftRange.to && (
-                          <>
-                            <span className="mx-2 text-foreground/30">–</span>
-                            <span className="text-foreground font-semibold">
-                              {format(draftRange.to, "dd/MM/yyyy")}
-                            </span>
-                          </>
-                        )}
-                      </span>
-                    ) : (
-                      "Sélectionnez une période"
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-xs"
-                      onClick={() => {
-                        setDraftRange(dateRange);
-                        setDatePickerOpen(false);
-                      }}
-                    >
-                      Annuler
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="text-xs"
-                      disabled={!draftRange?.from}
-                      onClick={() => {
-                        setDateRange(draftRange);
-                        setDatePickerOpen(false);
-                      }}
-                    >
-                      Appliquer
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
+        <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
 
         <div className="flex items-center gap-1.5">
           {TYPE_FILTER_OPTIONS.map((opt) => {
