@@ -465,38 +465,35 @@ export default function MovementsList() {
             if (open) setDraftRange(dateRange);
           }}
         >
-          <PopoverTrigger>
-            <button
-              type="button"
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none",
-                dateRange?.from
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
-              )}
-            >
-              <CalendarDays className="size-3" />
-              {dateRange?.from ? (
-                <>
-                  {dateRange.to
-                    ? `${format(dateRange.from, "dd MMM", { locale: fr })} – ${format(dateRange.to, "dd MMM", { locale: fr })}`
-                    : format(dateRange.from, "dd MMM yyyy", { locale: fr })}
-                  <span
-                    role="button"
-                    className="ml-0.5 rounded-full hover:bg-white/20 p-0.5 -mr-1"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDateRange(undefined);
-                      setDraftRange(undefined);
-                    }}
-                  >
-                    <X className="size-3" />
-                  </span>
-                </>
-              ) : (
-                "Période"
-              )}
-            </button>
+          <PopoverTrigger
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none cursor-pointer",
+              dateRange?.from
+                ? "bg-primary text-primary-foreground"
+                : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
+            )}
+          >
+            <CalendarDays className="size-3" />
+            {dateRange?.from ? (
+              <>
+                {dateRange.to
+                  ? `${format(dateRange.from, "dd MMM", { locale: fr })} – ${format(dateRange.to, "dd MMM", { locale: fr })}`
+                  : format(dateRange.from, "dd MMM yyyy", { locale: fr })}
+                <span
+                  role="button"
+                  className="ml-0.5 rounded-full hover:bg-white/20 p-0.5 -mr-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDateRange(undefined);
+                    setDraftRange(undefined);
+                  }}
+                >
+                  <X className="size-3" />
+                </span>
+              </>
+            ) : (
+              "Période"
+            )}
           </PopoverTrigger>
           <PopoverContent align="end" className="w-auto p-0 rounded-xl overflow-hidden">
             <div className="flex">
