@@ -4,8 +4,11 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Package, ImageIcon, Search, ArrowUpDown } from "lucide-react";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+
+const MotionTr = motion.create("tr");
 
 interface ProductTotal {
   product_id: string;
@@ -27,6 +30,7 @@ export default function TechnicianInventory({ totals, year }: TechnicianInventor
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("quantity");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const prefersReducedMotion = useReducedMotion();
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -132,56 +136,68 @@ export default function TechnicianInventory({ totals, year }: TechnicianInventor
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
-              <tr>
-                <td colSpan={2} className="h-32 text-center text-muted-foreground">
-                  Aucun produit trouvé.
-                </td>
-              </tr>
-            ) : (
-              filtered.map((item) => (
-                <tr
-                  key={item.product_id}
-                  className="border-b last:border-b-0 transition-colors hover:bg-muted/40"
-                >
-                  <td className="px-5 py-4">
-                    <Link
-                      href={`/product/${item.product_id}`}
-                      className="flex items-center gap-3 group/link"
-                    >
-                      <figure className="flex size-10 items-center justify-center rounded-lg border bg-muted shrink-0 overflow-hidden">
-                        {item.product_image_url ? (
-                          <Image
-                            src={item.product_image_url}
-                            width={40}
-                            height={40}
-                            alt={item.product_name}
-                            className="size-full object-cover"
-                          />
-                        ) : (
-                          <ImageIcon className="size-5 text-muted-foreground" />
-                        )}
-                      </figure>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-[15px] group-hover/link:underline decoration-muted-foreground/40 underline-offset-2">
-                          {item.product_name}
-                        </p>
-                        {item.product_sku && (
-                          <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                            {item.product_sku}
-                          </p>
-                        )}
-                      </div>
-                    </Link>
-                  </td>
-                  <td className="px-5 py-4 text-center">
-                    <span className="font-heading font-bold tabular-nums text-xl">
-                      {item.total_quantity}
-                    </span>
+            <AnimatePresence mode="popLayout" initial={false}>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={2} className="h-32 text-center text-muted-foreground">
+                    Aucun produit trouvé.
                   </td>
                 </tr>
-              ))
-            )}
+              ) : (
+                filtered.map((item, index) => (
+                  <MotionTr
+                    key={item.product_id}
+                    layout={!prefersReducedMotion}
+                    initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={prefersReducedMotion ? undefined : { opacity: 0, y: -8 }}
+                    transition={{
+                      type: "spring",
+                      bounce: 0,
+                      duration: 0.35,
+                      delay: prefersReducedMotion ? 0 : index * 0.03,
+                    }}
+                    className="border-b last:border-b-0 transition-colors hover:bg-muted/40"
+                  >
+                    <td className="px-5 py-4">
+                      <Link
+                        href={`/product/${item.product_id}`}
+                        className="flex items-center gap-3 group/link"
+                      >
+                        <figure className="flex size-10 items-center justify-center rounded-lg border bg-muted shrink-0 overflow-hidden">
+                          {item.product_image_url ? (
+                            <Image
+                              src={item.product_image_url}
+                              width={40}
+                              height={40}
+                              alt={item.product_name}
+                              className="size-full object-cover"
+                            />
+                          ) : (
+                            <ImageIcon className="size-5 text-muted-foreground" />
+                          )}
+                        </figure>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-[15px] group-hover/link:underline decoration-muted-foreground/40 underline-offset-2">
+                            {item.product_name}
+                          </p>
+                          {item.product_sku && (
+                            <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                              {item.product_sku}
+                            </p>
+                          )}
+                        </div>
+                      </Link>
+                    </td>
+                    <td className="px-5 py-4 text-center">
+                      <span className="font-heading font-bold tabular-nums text-xl">
+                        {item.total_quantity}
+                      </span>
+                    </td>
+                  </MotionTr>
+                ))
+              )}
+            </AnimatePresence>
           </tbody>
         </table>
       </div>

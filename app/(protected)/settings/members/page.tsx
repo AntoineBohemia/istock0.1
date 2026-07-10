@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ArrowRightLeft,
   Copy,
@@ -8,12 +8,12 @@ import {
   Loader2,
   Mail,
   MoreHorizontal,
-  Plus,
   Shield,
-  Trash2,
+  Search,
   User,
   UserMinus,
   UserPlus,
+  Users,
   Clock,
   X,
   Eye,
@@ -21,13 +21,7 @@ import {
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -74,13 +68,16 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 import { useOrganizationStore } from "@/lib/stores/organization-store";
-import {
-  OrganizationMember,
-  OrganizationInvitation,
-} from "@/lib/supabase/queries/organizations";
+import { OrganizationMember } from "@/lib/supabase/queries/organizations";
 import { createClient } from "@/lib/supabase/client";
 import { useOrganizationMembers, usePendingInvitations } from "@/hooks/queries";
-import { useUpdateMemberRole, useRemoveMember, useInviteUser, useCancelInvitation, useTransferOwnership } from "@/hooks/mutations";
+import {
+  useUpdateMemberRole,
+  useRemoveMember,
+  useInviteUser,
+  useCancelInvitation,
+  useTransferOwnership,
+} from "@/hooks/mutations";
 
 type MemberWithEmail = OrganizationMember;
 
@@ -93,11 +90,12 @@ const roleLabels: Record<string, { label: string; icon: React.ElementType }> = {
 
 export default function MembersPage() {
   const { currentOrganization } = useOrganizationStore();
-  const { data: members = [], isLoading: isLoadingMembers } = useOrganizationMembers(currentOrganization?.id);
+  const { data: members = [], isLoading: isLoadingMembers } = useOrganizationMembers(
+    currentOrganization?.id
+  );
 
   const canManageMembers =
-    currentOrganization?.role === "owner" ||
-    currentOrganization?.role === "admin";
+    currentOrganization?.role === "owner" || currentOrganization?.role === "admin";
 
   const { data: invitations = [], isLoading: isLoadingInvitations } = usePendingInvitations(
     canManageMembers ? currentOrganization?.id : undefined
@@ -120,6 +118,18 @@ export default function MembersPage() {
   const [memberToRemove, setMemberToRemove] = useState<MemberWithEmail | null>(null);
   const [memberToTransfer, setMemberToTransfer] = useState<MemberWithEmail | null>(null);
   const [transferConfirmName, setTransferConfirmName] = useState("");
+
+  const [memberSearch, setMemberSearch] = useState("");
+
+  const filteredMembers = useMemo(() => {
+    if (!memberSearch) return members;
+    const q = memberSearch.toLowerCase();
+    return members.filter(
+      (m) =>
+        (m.display_name || "").toLowerCase().includes(q) ||
+        (m.email || "").toLowerCase().includes(q)
+    );
+  }, [members, memberSearch]);
 
   const isLoading = isLoadingMembers || isLoadingInvitations;
   const isSubmitting = removeMemberMutation.isPending || inviteUserMutation.isPending;
@@ -159,9 +169,7 @@ export default function MembersPage() {
           setInviteRole("member");
         },
         onError: (error) => {
-          toast.error(
-            error instanceof Error ? error.message : "Erreur lors de l'invitation"
-          );
+          toast.error(error instanceof Error ? error.message : "Erreur lors de l'invitation");
         },
       }
     );
@@ -175,9 +183,7 @@ export default function MembersPage() {
       {
         onSuccess: () => toast.success("Rôle mis à jour"),
         onError: (error) => {
-          toast.error(
-            error instanceof Error ? error.message : "Erreur lors de la mise à jour"
-          );
+          toast.error(error instanceof Error ? error.message : "Erreur lors de la mise à jour");
         },
       }
     );
@@ -195,9 +201,7 @@ export default function MembersPage() {
           setMemberToRemove(null);
         },
         onError: (error) => {
-          toast.error(
-            error instanceof Error ? error.message : "Erreur lors du retrait"
-          );
+          toast.error(error instanceof Error ? error.message : "Erreur lors du retrait");
         },
       }
     );
@@ -211,9 +215,7 @@ export default function MembersPage() {
       {
         onSuccess: () => toast.success("Invitation annulée"),
         onError: (error) => {
-          toast.error(
-            error instanceof Error ? error.message : "Erreur lors de l'annulation"
-          );
+          toast.error(error instanceof Error ? error.message : "Erreur lors de l'annulation");
         },
       }
     );
@@ -237,9 +239,7 @@ export default function MembersPage() {
           setTransferConfirmName("");
         },
         onError: (error) => {
-          toast.error(
-            error instanceof Error ? error.message : "Erreur lors du transfert"
-          );
+          toast.error(error instanceof Error ? error.message : "Erreur lors du transfert");
         },
       }
     );
@@ -271,9 +271,7 @@ export default function MembersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Membres</h1>
-          <p className="text-muted-foreground">
-            Gérez les membres de {currentOrganization.name}
-          </p>
+          <p className="text-muted-foreground">Gérez les membres de {currentOrganization.name}</p>
         </div>
         {canManageMembers && (
           <Button onClick={() => setIsInviteDialogOpen(true)}>
@@ -286,10 +284,25 @@ export default function MembersPage() {
       {/* Members List */}
       <Card>
         <CardHeader>
-          <CardTitle>Membres de l'équipe</CardTitle>
-          <CardDescription>
-            {members.length} membre(s) dans cette organisation
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Membres de l'équipe</CardTitle>
+              <CardDescription>
+                {members.length} membre{members.length > 1 ? "s" : ""} dans cette organisation
+              </CardDescription>
+            </div>
+            {members.length > 3 && (
+              <div className="relative w-64">
+                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher..."
+                  value={memberSearch}
+                  onChange={(e) => setMemberSearch(e.target.value)}
+                  className="pl-9 h-9"
+                />
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -302,19 +315,23 @@ export default function MembersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {members.length === 0 ? (
+              {filteredMembers.length === 0 ? (
                 <TableRow>
-                  <TableCell
-                    colSpan={canManageMembers ? 4 : 3}
-                    className="h-24 text-center"
-                  >
-                    <div className="text-muted-foreground">
-                      Aucun membre trouvé
+                  <TableCell colSpan={canManageMembers ? 4 : 3}>
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <div className="flex size-12 items-center justify-center rounded-2xl bg-muted mb-3">
+                        <Users className="size-5 text-muted-foreground" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {memberSearch
+                          ? "Aucun membre ne correspond à cette recherche."
+                          : "Aucun membre dans cette organisation."}
+                      </p>
                     </div>
                   </TableCell>
                 </TableRow>
               ) : (
-                members.map((member) => {
+                filteredMembers.map((member) => {
                   const RoleIcon = roleLabels[member.role ?? ""]?.icon || User;
                   const isCurrentUser = member.user_id === currentUserId;
                   const isOwner = member.role === "owner";
@@ -337,31 +354,22 @@ export default function MembersPage() {
                             <p className="font-medium">
                               {member.display_name || member.email}
                               {isCurrentUser && (
-                                <span className="ml-2 text-xs text-muted-foreground">
-                                  (vous)
-                                </span>
+                                <span className="ml-2 text-xs text-muted-foreground">(vous)</span>
                               )}
                             </p>
-                            <p className="text-xs text-muted-foreground">
-                              {member.email}
-                            </p>
+                            <p className="text-xs text-muted-foreground">{member.email}</p>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant={isOwner ? "default" : "secondary"}
-                          className="gap-1"
-                        >
+                        <Badge variant={isOwner ? "default" : "secondary"} className="gap-1">
                           <RoleIcon className="size-3" />
                           {roleLabels[member.role ?? ""]?.label || member.role}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground">
-                          {new Date(member.joined_at ?? Date.now()).toLocaleDateString(
-                            "fr-FR"
-                          )}
+                          {new Date(member.joined_at ?? 0).toLocaleDateString("fr-FR")}
                         </span>
                       </TableCell>
                       {canManageMembers && (
@@ -369,20 +377,14 @@ export default function MembersPage() {
                           {!isOwner && !isCurrentUser && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="size-8"
-                                >
+                                <Button variant="ghost" size="icon" className="size-8">
                                   <MoreHorizontal className="size-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 {member.role === "guest" && (
                                   <DropdownMenuItem
-                                    onClick={() =>
-                                      handleUpdateRole(member.user_id, "member")
-                                    }
+                                    onClick={() => handleUpdateRole(member.user_id, "member")}
                                   >
                                     <User className="mr-2 size-4" />
                                     Promouvoir membre
@@ -391,17 +393,13 @@ export default function MembersPage() {
                                 {member.role === "member" && (
                                   <>
                                     <DropdownMenuItem
-                                      onClick={() =>
-                                        handleUpdateRole(member.user_id, "admin")
-                                      }
+                                      onClick={() => handleUpdateRole(member.user_id, "admin")}
                                     >
                                       <Shield className="mr-2 size-4" />
                                       Promouvoir admin
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
-                                      onClick={() =>
-                                        handleUpdateRole(member.user_id, "guest")
-                                      }
+                                      onClick={() => handleUpdateRole(member.user_id, "guest")}
                                     >
                                       <Eye className="mr-2 size-4" />
                                       Rétrograder invité
@@ -410,9 +408,7 @@ export default function MembersPage() {
                                 )}
                                 {member.role === "admin" && (
                                   <DropdownMenuItem
-                                    onClick={() =>
-                                      handleUpdateRole(member.user_id, "member")
-                                    }
+                                    onClick={() => handleUpdateRole(member.user_id, "member")}
                                   >
                                     <User className="mr-2 size-4" />
                                     Rétrograder membre
@@ -493,9 +489,7 @@ export default function MembersPage() {
                     </TableCell>
                     <TableCell>
                       <span className="text-sm text-muted-foreground">
-                        {new Date(invitation.expires_at ?? Date.now()).toLocaleDateString(
-                          "fr-FR"
-                        )}
+                        {new Date(invitation.expires_at ?? 0).toLocaleDateString("fr-FR")}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -533,8 +527,7 @@ export default function MembersPage() {
           <DialogHeader>
             <DialogTitle>Inviter un membre</DialogTitle>
             <DialogDescription>
-              Envoyez une invitation par email pour rejoindre{" "}
-              {currentOrganization.name}
+              Envoyez une invitation par email pour rejoindre {currentOrganization.name}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -553,9 +546,7 @@ export default function MembersPage() {
               <Label htmlFor="role">Rôle</Label>
               <Select
                 value={inviteRole}
-                onValueChange={(value) =>
-                  setInviteRole(value as "admin" | "member" | "guest")
-                }
+                onValueChange={(value) => setInviteRole(value as "admin" | "member" | "guest")}
                 disabled={isSubmitting}
               >
                 <SelectTrigger>
@@ -586,8 +577,8 @@ export default function MembersPage() {
                 {inviteRole === "guest"
                   ? "Accès restreint : peut voir Techniciens, Stock, Flux de stock et faire des restocks/sorties. Pas d'accès au Dashboard ni aux paramètres."
                   : inviteRole === "admin"
-                  ? "Les administrateurs peuvent inviter et gérer les membres."
-                  : "Accès standard : peut voir et gérer le stock, les produits, les techniciens."}
+                    ? "Les administrateurs peuvent inviter et gérer les membres."
+                    : "Accès standard : peut voir et gérer le stock, les produits, les techniciens."}
               </p>
             </div>
           </div>
@@ -599,10 +590,7 @@ export default function MembersPage() {
             >
               Annuler
             </Button>
-            <Button
-              onClick={handleInvite}
-              disabled={isSubmitting || !inviteEmail.trim()}
-            >
+            <Button onClick={handleInvite} disabled={isSubmitting || !inviteEmail.trim()}>
               {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
               Envoyer l'invitation
             </Button>
@@ -618,15 +606,12 @@ export default function MembersPage() {
             <DialogDescription>
               Vous êtes sur le point de transférer la propriété de{" "}
               <strong>{currentOrganization?.name}</strong> à{" "}
-              <strong>
-                {memberToTransfer?.display_name || memberToTransfer?.email}
-              </strong>
+              <strong>{memberToTransfer?.display_name || memberToTransfer?.email}</strong>
               .
               <br />
               <br />
-              Vous deviendrez administrateur. Cette action est difficilement
-              réversible — seul le nouveau propriétaire pourra vous redonner ce
-              rôle.
+              Vous deviendrez administrateur. Cette action est difficilement réversible — seul le
+              nouveau propriétaire pourra vous redonner ce rôle.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-2 py-4">
@@ -641,10 +626,7 @@ export default function MembersPage() {
             />
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsTransferDialogOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setIsTransferDialogOpen(false)}>
               Annuler
             </Button>
             <Button
@@ -665,22 +647,17 @@ export default function MembersPage() {
       </Dialog>
 
       {/* Remove Member Dialog */}
-      <AlertDialog
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-      >
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Retirer ce membre</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir retirer ce membre de l'organisation ? Il
-              perdra l'accès à toutes les données de {currentOrganization.name}.
+              Êtes-vous sûr de vouloir retirer ce membre de l'organisation ? Il perdra l'accès à
+              toutes les données de {currentOrganization.name}.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSubmitting}>
-              Annuler
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={isSubmitting}>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleRemoveMember}
               disabled={isSubmitting}
