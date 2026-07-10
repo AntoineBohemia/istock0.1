@@ -14,7 +14,7 @@
 -- }
 --
 -- Penalty rules (budget = 100):
---   1. product_out_of_stock   : stock=0, track_stock, non-archived        → -15/product, cap 60
+--   1. product_out_of_stock   : stock=0, non-archived                     → -15/product, cap 60
 --   2. product_below_min      : 0 < stock ≤ stock_min                     → -4/product,  cap 20
 --   3. tech_never_restocked   : TEMPORAIREMENT DÉSACTIVÉ                  → -8/tech,     cap 40
 --   4. tech_late_restock      : TEMPORAIREMENT DÉSACTIVÉ                  → -5/tech,     cap 20
@@ -109,7 +109,6 @@ BEGIN
   FROM products
   WHERE organization_id = p_organization_id
     AND archived_at IS NULL
-    AND track_stock = TRUE
     AND COALESCE(stock_current, 0) = 0;
 
   IF v_count > 0 THEN
@@ -130,7 +129,6 @@ BEGIN
   FROM products
   WHERE organization_id = p_organization_id
     AND archived_at IS NULL
-    AND track_stock = TRUE
     AND stock_current > 0
     AND stock_min > 0
     AND stock_current <= stock_min;
@@ -269,8 +267,7 @@ BEGIN
       COALESCE(p.stock_current, 0)
         + COALESCE(sm_exits.qty, 0)
         - COALESCE(sm_entries.qty, 0) AS prev_stock,
-      p.stock_min,
-      p.track_stock
+      p.stock_min
     FROM products p
     LEFT JOIN LATERAL (
       SELECT COALESCE(SUM(quantity), 0) AS qty
@@ -288,7 +285,6 @@ BEGIN
     ) sm_exits ON TRUE
     WHERE p.organization_id = p_organization_id
       AND p.archived_at IS NULL
-      AND p.track_stock = TRUE
   )
   SELECT
     COUNT(*) FILTER (WHERE prev_stock <= 0),

@@ -53,9 +53,7 @@ const columns: ColumnDef<ProductNeedingRestock>[] = [
         </div>
         <div className="min-w-0">
           <p className="text-sm font-medium truncate">{row.original.name}</p>
-          {row.original.sku && (
-            <p className="text-xs text-muted-foreground">{row.original.sku}</p>
-          )}
+          {row.original.sku && <p className="text-xs text-muted-foreground">{row.original.sku}</p>}
         </div>
       </div>
     ),
@@ -74,17 +72,15 @@ const columns: ColumnDef<ProductNeedingRestock>[] = [
       </Button>
     ),
     cell: ({ row }) => (
-      <span className="tabular-nums font-medium">
-        {row.original.stock_current ?? 0}
-      </span>
+      <span className="tabular-nums font-medium">{row.original.stock_current ?? 0}</span>
     ),
   },
   {
-    id: "min_max",
-    header: "Min / Max",
+    id: "seuil",
+    header: "Seuil critique",
     cell: ({ row }) => (
       <span className="text-xs text-muted-foreground tabular-nums">
-        {row.original.stock_min ?? 0} / {row.original.stock_max ?? 0}
+        {row.original.stock_min ?? 0}
       </span>
     ),
   },
@@ -137,9 +133,7 @@ export function TabProduits() {
   const orgId = currentOrganization?.id;
 
   const { data: products = [], isLoading } = useProductsNeedingRestock(orgId, 20, 60);
-  const [sorting, setSorting] = React.useState<SortingState>([
-    { id: "score", desc: false },
-  ]);
+  const [sorting, setSorting] = React.useState<SortingState>([{ id: "score", desc: false }]);
 
   const table = useReactTable({
     data: products,
@@ -158,11 +152,21 @@ export function TabProduits() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead><Skeleton className="h-4 w-16" /></TableHead>
-                <TableHead><Skeleton className="h-4 w-10" /></TableHead>
-                <TableHead><Skeleton className="h-4 w-16" /></TableHead>
-                <TableHead><Skeleton className="h-4 w-12" /></TableHead>
-                <TableHead><Skeleton className="h-4 w-20" /></TableHead>
+                <TableHead>
+                  <Skeleton className="h-4 w-16" />
+                </TableHead>
+                <TableHead>
+                  <Skeleton className="h-4 w-10" />
+                </TableHead>
+                <TableHead>
+                  <Skeleton className="h-4 w-16" />
+                </TableHead>
+                <TableHead>
+                  <Skeleton className="h-4 w-12" />
+                </TableHead>
+                <TableHead>
+                  <Skeleton className="h-4 w-20" />
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -177,10 +181,18 @@ export function TabProduits() {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell><Skeleton className="h-4 w-8" /></TableCell>
-                  <TableCell><Skeleton className="h-3 w-14" /></TableCell>
-                  <TableCell><Skeleton className="h-2 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-3 w-16" /></TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-8" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-3 w-14" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-2 w-24" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-3 w-16" />
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

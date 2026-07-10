@@ -13,11 +13,8 @@ export interface Product {
   price: number | null;
   stock_current: number | null;
   stock_min: number | null;
-  stock_max: number | null;
   category_id: string | null;
   supplier_id: string | null;
-  is_perishable: boolean | null;
-  track_stock: boolean | null;
   organization_id: string | null;
   created_at: string | null;
   updated_at: string | null;
@@ -62,11 +59,8 @@ export interface CreateProductData {
   price?: number | null;
   stock_current?: number;
   stock_min?: number;
-  stock_max?: number;
   category_id?: string | null;
   supplier_id?: string | null;
-  is_perishable?: boolean;
-  track_stock?: boolean;
 }
 
 export type UpdateProductData = Partial<CreateProductData>;
@@ -152,8 +146,6 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
   if (stockStatus && stockStatus !== "all") {
     if (stockStatus === "low") {
       products = products.filter((p) => (p.stock_current ?? 0) <= (p.stock_min ?? 0));
-    } else if (stockStatus === "high") {
-      products = products.filter((p) => (p.stock_current ?? 0) >= (p.stock_max ?? 0));
     }
     total = products.length;
   }
@@ -209,11 +201,8 @@ export async function createProduct(data: CreateProductData): Promise<Product> {
     price: data.price ?? null,
     stock_current: data.stock_current ?? 0,
     stock_min: data.stock_min ?? 10,
-    stock_max: data.stock_max ?? 100,
     category_id: data.category_id || null,
     supplier_id: data.supplier_id || null,
-    is_perishable: data.is_perishable ?? false,
-    track_stock: data.track_stock ?? true,
   };
 
   const { data: product, error } = await supabase
@@ -252,12 +241,8 @@ export async function updateProduct(
   if (data.price !== undefined) updateData.price = data.price;
   if (data.stock_current !== undefined) updateData.stock_current = data.stock_current;
   if (data.stock_min !== undefined) updateData.stock_min = data.stock_min;
-  if (data.stock_max !== undefined) updateData.stock_max = data.stock_max;
   if (data.category_id !== undefined) updateData.category_id = data.category_id;
   if (data.supplier_id !== undefined) updateData.supplier_id = data.supplier_id;
-  if (data.is_perishable !== undefined) updateData.is_perishable = data.is_perishable;
-  if (data.track_stock !== undefined) updateData.track_stock = data.track_stock;
-
   let query = supabase.from("products").update(updateData).eq("id", id);
 
   if (organizationId) {

@@ -36,7 +36,6 @@ export interface ProductData {
   sku: string;
   categoryId: string;
   stockMin: number;
-  stockMax: number;
   stockInitial: number;
   price: number;
 }
@@ -111,175 +110,173 @@ const STORAGE_KEY = "istock-onboarding";
 export const useOnboardingStore = create<OnboardingStore>()(
   persist(
     (set, get) => ({
-  currentStep: 0,
-  data: initialData,
-  completedSteps: [],
-  isLoading: false,
-  error: null,
+      currentStep: 0,
+      data: initialData,
+      completedSteps: [],
+      isLoading: false,
+      error: null,
 
-  setCurrentStep: (step) => set({ currentStep: step }),
+      setCurrentStep: (step) => set({ currentStep: step }),
 
-  updateOrganization: (org) =>
-    set((state) => ({
-      data: {
-        ...state.data,
-        organization: { ...state.data.organization, ...org },
+      updateOrganization: (org) =>
+        set((state) => ({
+          data: {
+            ...state.data,
+            organization: { ...state.data.organization, ...org },
+          },
+        })),
+
+      addCategory: (category) =>
+        set((state) => ({
+          data: {
+            ...state.data,
+            categories: [...state.data.categories, category],
+          },
+        })),
+
+      removeCategory: (index) =>
+        set((state) => ({
+          data: {
+            ...state.data,
+            categories: state.data.categories.filter((_, i) => i !== index),
+            createdCategoryIds: state.data.createdCategoryIds.filter((_, i) => i !== index),
+          },
+        })),
+
+      updateCategory: (index, category) =>
+        set((state) => ({
+          data: {
+            ...state.data,
+            categories: state.data.categories.map((c, i) =>
+              i === index ? { ...c, ...category } : c
+            ),
+          },
+        })),
+
+      setCategoryId: (index, id) =>
+        set((state) => {
+          const newIds = [...state.data.createdCategoryIds];
+          newIds[index] = id;
+          const newCategories = [...state.data.categories];
+          if (newCategories[index]) {
+            newCategories[index] = { ...newCategories[index], id };
+          }
+          return {
+            data: {
+              ...state.data,
+              categories: newCategories,
+              createdCategoryIds: newIds,
+            },
+          };
+        }),
+
+      addProduct: (product) =>
+        set((state) => ({
+          data: {
+            ...state.data,
+            products: [...state.data.products, product],
+          },
+        })),
+
+      removeProduct: (index) =>
+        set((state) => ({
+          data: {
+            ...state.data,
+            products: state.data.products.filter((_, i) => i !== index),
+            createdProductIds: state.data.createdProductIds.filter((_, i) => i !== index),
+          },
+        })),
+
+      updateProduct: (index, product) =>
+        set((state) => ({
+          data: {
+            ...state.data,
+            products: state.data.products.map((p, i) => (i === index ? { ...p, ...product } : p)),
+          },
+        })),
+
+      setProductId: (index, id) =>
+        set((state) => {
+          const newIds = [...state.data.createdProductIds];
+          newIds[index] = id;
+          const newProducts = [...state.data.products];
+          if (newProducts[index]) {
+            newProducts[index] = { ...newProducts[index], id };
+          }
+          return {
+            data: {
+              ...state.data,
+              products: newProducts,
+              createdProductIds: newIds,
+            },
+          };
+        }),
+
+      updateTechnician: (technician) =>
+        set((state) => ({
+          data: {
+            ...state.data,
+            technician: { ...state.data.technician, ...technician },
+          },
+        })),
+
+      setCreatedOrganizationId: (id) =>
+        set((state) => ({
+          data: { ...state.data, createdOrganizationId: id },
+        })),
+
+      setCreatedTechnicianId: (id) =>
+        set((state) => ({
+          data: { ...state.data, createdTechnicianId: id },
+        })),
+
+      markStepCompleted: (step) =>
+        set((state) => ({
+          completedSteps: state.completedSteps.includes(step)
+            ? state.completedSteps
+            : [...state.completedSteps, step],
+        })),
+
+      nextStep: () =>
+        set((state) => ({
+          currentStep: Math.min(state.currentStep + 1, ONBOARDING_STEPS.length - 1),
+        })),
+
+      prevStep: () =>
+        set((state) => ({
+          currentStep: Math.max(0, state.currentStep - 1),
+        })),
+
+      skipStep: () => {
+        const state = get();
+        const currentStepKey = ONBOARDING_STEPS[state.currentStep];
+        set({
+          currentStep: Math.min(state.currentStep + 1, ONBOARDING_STEPS.length - 1),
+          completedSteps: state.completedSteps.includes(currentStepKey)
+            ? state.completedSteps
+            : [...state.completedSteps, currentStepKey],
+        });
       },
-    })),
 
-  addCategory: (category) =>
-    set((state) => ({
-      data: {
-        ...state.data,
-        categories: [...state.data.categories, category],
+      reset: () => {
+        set({ currentStep: 0, data: initialData, completedSteps: [], error: null });
+        localStorage.removeItem(STORAGE_KEY);
       },
-    })),
 
-  removeCategory: (index) =>
-    set((state) => ({
-      data: {
-        ...state.data,
-        categories: state.data.categories.filter((_, i) => i !== index),
-        createdCategoryIds: state.data.createdCategoryIds.filter((_, i) => i !== index),
+      setLoading: (loading) => set({ isLoading: loading }),
+
+      setError: (error) => set({ error }),
+
+      getCurrentStepKey: () => {
+        const state = get();
+        return ONBOARDING_STEPS[state.currentStep];
       },
-    })),
 
-  updateCategory: (index, category) =>
-    set((state) => ({
-      data: {
-        ...state.data,
-        categories: state.data.categories.map((c, i) =>
-          i === index ? { ...c, ...category } : c
-        ),
+      getProgress: () => {
+        const state = get();
+        return Math.round((state.currentStep / (ONBOARDING_STEPS.length - 1)) * 100);
       },
-    })),
-
-  setCategoryId: (index, id) =>
-    set((state) => {
-      const newIds = [...state.data.createdCategoryIds];
-      newIds[index] = id;
-      const newCategories = [...state.data.categories];
-      if (newCategories[index]) {
-        newCategories[index] = { ...newCategories[index], id };
-      }
-      return {
-        data: {
-          ...state.data,
-          categories: newCategories,
-          createdCategoryIds: newIds,
-        },
-      };
     }),
-
-  addProduct: (product) =>
-    set((state) => ({
-      data: {
-        ...state.data,
-        products: [...state.data.products, product],
-      },
-    })),
-
-  removeProduct: (index) =>
-    set((state) => ({
-      data: {
-        ...state.data,
-        products: state.data.products.filter((_, i) => i !== index),
-        createdProductIds: state.data.createdProductIds.filter((_, i) => i !== index),
-      },
-    })),
-
-  updateProduct: (index, product) =>
-    set((state) => ({
-      data: {
-        ...state.data,
-        products: state.data.products.map((p, i) =>
-          i === index ? { ...p, ...product } : p
-        ),
-      },
-    })),
-
-  setProductId: (index, id) =>
-    set((state) => {
-      const newIds = [...state.data.createdProductIds];
-      newIds[index] = id;
-      const newProducts = [...state.data.products];
-      if (newProducts[index]) {
-        newProducts[index] = { ...newProducts[index], id };
-      }
-      return {
-        data: {
-          ...state.data,
-          products: newProducts,
-          createdProductIds: newIds,
-        },
-      };
-    }),
-
-  updateTechnician: (technician) =>
-    set((state) => ({
-      data: {
-        ...state.data,
-        technician: { ...state.data.technician, ...technician },
-      },
-    })),
-
-  setCreatedOrganizationId: (id) =>
-    set((state) => ({
-      data: { ...state.data, createdOrganizationId: id },
-    })),
-
-  setCreatedTechnicianId: (id) =>
-    set((state) => ({
-      data: { ...state.data, createdTechnicianId: id },
-    })),
-
-  markStepCompleted: (step) =>
-    set((state) => ({
-      completedSteps: state.completedSteps.includes(step)
-        ? state.completedSteps
-        : [...state.completedSteps, step],
-    })),
-
-  nextStep: () =>
-    set((state) => ({
-      currentStep: Math.min(state.currentStep + 1, ONBOARDING_STEPS.length - 1),
-    })),
-
-  prevStep: () =>
-    set((state) => ({
-      currentStep: Math.max(0, state.currentStep - 1),
-    })),
-
-  skipStep: () => {
-    const state = get();
-    const currentStepKey = ONBOARDING_STEPS[state.currentStep];
-    set({
-      currentStep: Math.min(state.currentStep + 1, ONBOARDING_STEPS.length - 1),
-      completedSteps: state.completedSteps.includes(currentStepKey)
-        ? state.completedSteps
-        : [...state.completedSteps, currentStepKey],
-    });
-  },
-
-  reset: () => {
-    set({ currentStep: 0, data: initialData, completedSteps: [], error: null });
-    localStorage.removeItem(STORAGE_KEY);
-  },
-
-  setLoading: (loading) => set({ isLoading: loading }),
-
-  setError: (error) => set({ error }),
-
-  getCurrentStepKey: () => {
-    const state = get();
-    return ONBOARDING_STEPS[state.currentStep];
-  },
-
-  getProgress: () => {
-    const state = get();
-    return Math.round((state.currentStep / (ONBOARDING_STEPS.length - 1)) * 100);
-  },
-}),
     {
       name: STORAGE_KEY,
       partialize: (state) => ({
@@ -287,6 +284,6 @@ export const useOnboardingStore = create<OnboardingStore>()(
         data: state.data,
         completedSteps: state.completedSteps,
       }),
-    },
-  ),
+    }
+  )
 );

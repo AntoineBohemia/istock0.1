@@ -204,11 +204,7 @@ export default function ProductList() {
       ),
       cell: ({ row }) => {
         const product = row.original;
-        const score = calculateStockScore(
-          product.stock_current,
-          product.stock_min,
-          product.stock_max
-        );
+        const score = calculateStockScore(product.stock_current, product.stock_min);
         return (
           <span
             className={cn("font-heading font-bold tabular-nums text-xl", getStockScoreColor(score))}
@@ -221,17 +217,13 @@ export default function ProductList() {
     },
     {
       id: "status",
-      accessorFn: (row) => calculateStockScore(row.stock_current, row.stock_min, row.stock_max),
+      accessorFn: (row) => calculateStockScore(row.stock_current, row.stock_min),
       header: ({ column }) => (
         <SortHeader label="Statut" column={column} className="justify-end w-full" />
       ),
       cell: ({ row }) => {
         const product = row.original;
-        const score = calculateStockScore(
-          product.stock_current,
-          product.stock_min,
-          product.stock_max
-        );
+        const score = calculateStockScore(product.stock_current, product.stock_min);
         const status = getStockBadgeVariant(score);
         return <StatusPill status={status} />;
       },

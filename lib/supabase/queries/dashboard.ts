@@ -76,7 +76,6 @@ export interface ProductNeedingRestock {
   image_url: string | null;
   stock_current: number | null;
   stock_min: number | null;
-  stock_max: number | null;
   score: number;
   last_movement_at: string | null;
 }
@@ -213,7 +212,7 @@ export async function getProductsNeedingRestock(
 
   let query = supabase
     .from("products")
-    .select("id, name, sku, image_url, stock_current, stock_min, stock_max")
+    .select("id, name, sku, image_url, stock_current, stock_min")
     .is("archived_at", null)
     .order("stock_current", { ascending: true });
 
@@ -249,7 +248,7 @@ export async function getProductsNeedingRestock(
   const productsWithScore = products
     ?.map((product) => ({
       ...product,
-      score: calculateStockScore(product.stock_current, product.stock_min, product.stock_max),
+      score: calculateStockScore(product.stock_current, product.stock_min),
       last_movement_at: lastMovementMap[product.id] || null,
     }))
     .filter((product) => product.score < scoreThreshold)
@@ -423,7 +422,7 @@ export async function getAllTechniciansForDashboard(
       id,
       first_name,
       last_name,
-      technician_inventory(id, quantity, product:products(stock_max))
+      technician_inventory(id, quantity)
     `
     )
     .eq("organization_id", organizationId)
@@ -462,14 +461,11 @@ export async function getAllTechniciansForDashboard(
         0
       );
 
-      // Coverage: average of (quantity / stock_max) across items
+      // Coverage: percentage of items with quantity > 0
       let coveragePct = 0;
       if (itemCount > 0) {
-        const totalCoverage = inventory.reduce((sum: number, item: any) => {
-          const max = item.product?.stock_max || 100;
-          return sum + Math.min(100, Math.round((item.quantity / max) * 100));
-        }, 0);
-        coveragePct = Math.round(totalCoverage / itemCount);
+        const itemsWithStock = inventory.filter((item: any) => (item.quantity || 0) > 0).length;
+        coveragePct = Math.round((itemsWithStock / itemCount) * 100);
       }
 
       const lastRestock = lastRestockMap[tech.id] || null;
@@ -1031,8 +1027,7 @@ export async function getTechnicianStats(
       `
       id,
       technician_inventory(
-        quantity,
-        product:products(stock_max)
+        quantity
       )
     `
     )
@@ -1057,20 +1052,13 @@ export async function getTechnicianStats(
       return;
     }
 
-    // Calculer le score moyen de l'inventaire du technicien
-    let totalScore = 0;
-    let itemCount = 0;
+    // Check if technician has items with stock
+    const itemsWithStock = tech.technician_inventory.filter(
+      (item: any) => (item.quantity || 0) > 0
+    ).length;
+    const coveragePct = Math.round((itemsWithStock / tech.technician_inventory.length) * 100);
 
-    tech.technician_inventory.forEach((item: any) => {
-      const stockMax = item.product?.stock_max || 100;
-      const score = Math.round((item.quantity / stockMax) * 100);
-      totalScore += score;
-      itemCount++;
-    });
-
-    const avgScore = itemCount > 0 ? totalScore / itemCount : 0;
-
-    if (avgScore >= 50) {
+    if (coveragePct >= 50) {
       withGoodStock++;
     } else {
       withLowStock++;

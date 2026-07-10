@@ -15,9 +15,7 @@ beforeEach(() => {
 // ─── getAvailableProductsForRestock ──────────────────────────────────
 describe("getAvailableProductsForRestock", () => {
   it("returns products with stock > 0", async () => {
-    const products = [
-      { id: "p1", name: "Widget", sku: "W-1", image_url: null, stock_current: 10, stock_max: 100 },
-    ];
+    const products = [{ id: "p1", name: "Widget", sku: "W-1", image_url: null, stock_current: 10 }];
     mockClient._setResult({ data: products, error: null });
 
     const result = await getAvailableProductsForRestock("org-1");

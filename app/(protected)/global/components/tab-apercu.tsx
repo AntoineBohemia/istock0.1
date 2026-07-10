@@ -62,7 +62,6 @@ interface Product {
   sku: string | null;
   category_id: string | null;
   stock_min: number | null;
-  stock_max: number | null;
 }
 
 interface ScoreChartPoint {
@@ -171,7 +170,7 @@ export function TabApercu() {
 
   const isLoading = isScoreLoading || isHistoryLoading || isEvolutionLoading;
 
-  // Products with stock_min/stock_max for score calculation
+  // Products with stock_min for score calculation
   const products: Product[] = useMemo(
     () =>
       (productsResult?.products || []).map((p) => ({
@@ -180,7 +179,6 @@ export function TabApercu() {
         sku: p.sku,
         category_id: p.category_id,
         stock_min: p.stock_min,
-        stock_max: p.stock_max,
       })),
     [productsResult]
   );
@@ -268,7 +266,6 @@ export function TabApercu() {
       const data = productData[productId] || [];
       const product = products.find((p) => p.id === productId);
       const stockMin = product?.stock_min ?? null;
-      const stockMax = product?.stock_max ?? null;
 
       data.forEach((d) => {
         if (!dateMap.has(d.date)) {
@@ -280,7 +277,7 @@ export function TabApercu() {
           });
         }
         const entry = dateMap.get(d.date)!;
-        entry[productId] = calculateStockScore(d.totalStock, stockMin, stockMax);
+        entry[productId] = calculateStockScore(d.totalStock, stockMin);
       });
     });
 

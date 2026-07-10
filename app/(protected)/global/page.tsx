@@ -27,7 +27,6 @@ import { useCreateStockEntry, useCreateStockExit } from "@/hooks/mutations";
 import { calculateStockScore, getStockBadgeVariant } from "@/lib/utils/stock";
 import { cn } from "@/lib/utils";
 
-
 const MOVEMENT_LABELS: Record<string, string> = {
   entry: "Entrée",
   exit_technician: "Sortie technicien",
@@ -43,7 +42,6 @@ interface ConsoleProduct {
   sku: string | null;
   stock_current: number;
   stock_min: number | null;
-  stock_max: number | null;
 }
 
 interface CartItem {
@@ -130,28 +128,10 @@ export default function GlobalPage() {
     () => techniciansData.find((t) => t.id === technicianId),
     [techniciansData, technicianId]
   );
-  const techFullName = selectedTech
-    ? `${selectedTech.first_name} ${selectedTech.last_name}`
-    : "";
+  const techFullName = selectedTech ? `${selectedTech.first_name} ${selectedTech.last_name}` : "";
 
   // Cart totals
   const cartTotalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-
-  // ─── Raccourcis clavier ────────────────────────────────
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "z" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
-        e.preventDefault();
-        setSession((prev) => {
-          const last = prev[0];
-          if (last && !revertingIds.has(last.localId)) handleRevert(last);
-          return prev;
-        });
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [revertingIds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!searchOpen) return;
@@ -165,33 +145,36 @@ export default function GlobalPage() {
   }, [searchOpen]);
 
   // ─── Sélection produit ────────────────────────────────
-  const selectProduct = useCallback((p: ConsoleProduct) => {
-    if (technicianId) {
-      // Mode tech : ajouter au panier
-      setCart((prev) => {
-        const existing = prev.find((item) => item.product.id === p.id);
-        if (existing) {
-          return prev.map((item) =>
-            item.product.id === p.id
-              ? { ...item, quantity: Math.min(item.quantity + 1, item.product.stock_current) }
-              : item
-          );
-        }
-        return [...prev, { product: { ...p }, quantity: 1 }];
-      });
-      setSearchQuery("");
-      // Garder la recherche focusée pour ajouter d'autres produits
-      setTimeout(() => searchInputRef.current?.focus(), 60);
-    } else {
-      // Mode single : sélectionner le produit
-      setProduct(p);
-      setSearchQuery("");
-      setSearchOpen(false);
-      setQuantity(1);
-      if (!technicianId) setActionMode("entry");
-      setTimeout(() => quantityInputRef.current?.focus(), 60);
-    }
-  }, [technicianId]);
+  const selectProduct = useCallback(
+    (p: ConsoleProduct) => {
+      if (technicianId) {
+        // Mode tech : ajouter au panier
+        setCart((prev) => {
+          const existing = prev.find((item) => item.product.id === p.id);
+          if (existing) {
+            return prev.map((item) =>
+              item.product.id === p.id
+                ? { ...item, quantity: Math.min(item.quantity + 1, item.product.stock_current) }
+                : item
+            );
+          }
+          return [...prev, { product: { ...p }, quantity: 1 }];
+        });
+        setSearchQuery("");
+        // Garder la recherche focusée pour ajouter d'autres produits
+        setTimeout(() => searchInputRef.current?.focus(), 60);
+      } else {
+        // Mode single : sélectionner le produit
+        setProduct(p);
+        setSearchQuery("");
+        setSearchOpen(false);
+        setQuantity(1);
+        if (!technicianId) setActionMode("entry");
+        setTimeout(() => quantityInputRef.current?.focus(), 60);
+      }
+    },
+    [technicianId]
+  );
 
   // ─── Sélection technicien ─────────────────────────────
   const selectTechnician = useCallback((techId: string) => {
@@ -232,8 +215,7 @@ export default function GlobalPage() {
 
   // ─── Placeholder contextuel ───────────────────────────
   const searchPlaceholder = useMemo(() => {
-    if (technicianId && techFullName)
-      return `Ajouter un produit pour ${techFullName}…`;
+    if (technicianId && techFullName) return `Ajouter un produit pour ${techFullName}…`;
     return "Rechercher un produit ou un technicien…";
   }, [technicianId, techFullName]);
 
@@ -264,14 +246,17 @@ export default function GlobalPage() {
 
     const onSuccess = () => {
       setProduct((prev) => (prev ? { ...prev, stock_current: stockAfter } : prev));
-      setSession((prev) => [{
-        localId,
-        movementType: actionMode,
-        productId: product.id,
-        productName: product.name,
-        quantity,
-        stockAfter,
-      }, ...prev]);
+      setSession((prev) => [
+        {
+          localId,
+          movementType: actionMode,
+          productId: product.id,
+          productName: product.name,
+          quantity,
+          stockAfter,
+        },
+        ...prev,
+      ]);
       const sign = isEntry ? "+" : "−";
       toast.success(`${sign}${quantity} ${product.name} · ${stockAfter} en stock`);
       setQuantity(1);
@@ -289,7 +274,10 @@ export default function GlobalPage() {
     };
 
     if (isEntry) {
-      createEntry.mutate({ organizationId: orgId, productId: product.id, quantity }, { onSuccess, onError });
+      createEntry.mutate(
+        { organizationId: orgId, productId: product.id, quantity },
+        { onSuccess, onError }
+      );
     } else {
       createExit.mutate(
         { organizationId: orgId, productId: product.id, quantity, type: actionMode },
@@ -323,15 +311,18 @@ export default function GlobalPage() {
           technicianId,
         });
         const stockAfter = item.product.stock_current - item.quantity;
-        setSession((prev) => [{
-          localId: crypto.randomUUID(),
-          movementType: "exit_technician",
-          productId: item.product.id,
-          productName: item.product.name,
-          quantity: item.quantity,
-          stockAfter,
-          technicianName: techFullName,
-        }, ...prev]);
+        setSession((prev) => [
+          {
+            localId: crypto.randomUUID(),
+            movementType: "exit_technician",
+            productId: item.product.id,
+            productName: item.product.name,
+            quantity: item.quantity,
+            stockAfter,
+            technicianName: techFullName,
+          },
+          ...prev,
+        ]);
         successCount++;
       } catch {
         toast.error(`Erreur pour ${item.product.name}`);
@@ -341,7 +332,9 @@ export default function GlobalPage() {
     setIsBatchSubmitting(false);
 
     if (successCount > 0) {
-      toast.success(`${successCount} produit${successCount > 1 ? "s" : ""} sorti${successCount > 1 ? "s" : ""} vers ${techFullName}`);
+      toast.success(
+        `${successCount} produit${successCount > 1 ? "s" : ""} sorti${successCount > 1 ? "s" : ""} vers ${techFullName}`
+      );
       setCart([]);
       setTimeout(() => searchInputRef.current?.focus(), 60);
     }
@@ -360,25 +353,46 @@ export default function GlobalPage() {
 
       const onSuccess = () => {
         setSession((prev) => prev.filter((e) => e.localId !== entry.localId));
-        setRevertingIds((prev) => { const n = new Set(prev); n.delete(entry.localId); return n; });
+        setRevertingIds((prev) => {
+          const n = new Set(prev);
+          n.delete(entry.localId);
+          return n;
+        });
         setProduct((prev) =>
           prev?.id === entry.productId ? { ...prev, stock_current: revertedStock } : prev
         );
-        toast.success(`Annulé · ${isEntryRevert ? "−" : "+"}${entry.quantity} ${entry.productName}`);
+        toast.success(
+          `Annulé · ${isEntryRevert ? "−" : "+"}${entry.quantity} ${entry.productName}`
+        );
       };
       const onError = () => {
-        setRevertingIds((prev) => { const n = new Set(prev); n.delete(entry.localId); return n; });
+        setRevertingIds((prev) => {
+          const n = new Set(prev);
+          n.delete(entry.localId);
+          return n;
+        });
         toast.error("Impossible d'annuler");
       };
 
       if (isEntryRevert) {
         createExit.mutate(
-          { organizationId: orgId, productId: entry.productId, quantity: entry.quantity, type: "exit_anonymous", notes: "Annulation" },
+          {
+            organizationId: orgId,
+            productId: entry.productId,
+            quantity: entry.quantity,
+            type: "exit_anonymous",
+            notes: "Annulation",
+          },
           { onSuccess, onError }
         );
       } else {
         createEntry.mutate(
-          { organizationId: orgId, productId: entry.productId, quantity: entry.quantity, notes: "Annulation" },
+          {
+            organizationId: orgId,
+            productId: entry.productId,
+            quantity: entry.quantity,
+            notes: "Annulation",
+          },
           { onSuccess, onError }
         );
       }
@@ -386,10 +400,24 @@ export default function GlobalPage() {
     [orgId, revertingIds, createEntry, createExit]
   );
 
+  // ─── Raccourcis clavier ────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "z" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+        e.preventDefault();
+        setSession((prev) => {
+          const last = prev[0];
+          if (last && !revertingIds.has(last.localId)) handleRevert(last);
+          return prev;
+        });
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [revertingIds, handleRevert]);
+
   // Statut produit actif
-  const stockScore = product
-    ? calculateStockScore(product.stock_current, product.stock_min, product.stock_max)
-    : 0;
+  const stockScore = product ? calculateStockScore(product.stock_current, product.stock_min) : 0;
   const stockStatus = product ? getStockBadgeVariant(stockScore) : "standard";
 
   const showTechsInSearch = !technicianId;
@@ -399,13 +427,14 @@ export default function GlobalPage() {
     <>
       {/* ═══════ MOBILE CONSOLE ═══════ */}
       <div className="md:hidden flex flex-col gap-3 pb-6">
-
         {/* Search bar mobile */}
         <div className="relative" data-search-container>
           {technicianId && techFullName && (
             <div className="absolute left-3 top-1/2 -translate-y-1/2 z-10 flex items-center gap-1 rounded-md bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium">
               <span className="max-w-[8rem] truncate">{techFullName}</span>
-              <button onClick={clearTechnician}><X className="size-3" /></button>
+              <button onClick={clearTechnician}>
+                <X className="size-3" />
+              </button>
             </div>
           )}
           {!technicianId && (
@@ -415,11 +444,24 @@ export default function GlobalPage() {
             ref={searchInputRef}
             placeholder={searchPlaceholder}
             value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); if (!searchOpen) setSearchOpen(true); }}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              if (!searchOpen) setSearchOpen(true);
+            }}
             onFocus={() => setSearchOpen(true)}
-            onKeyDown={(e) => { if (e.key === "Escape") { setSearchOpen(false); searchInputRef.current?.blur(); } }}
-            className={cn("h-12 text-base bg-white dark:bg-card rounded-xl", technicianId ? "" : "pl-10")}
-            style={technicianId ? { paddingLeft: `${(techFullName.length * 0.55 + 3.5)}rem` } : undefined}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setSearchOpen(false);
+                searchInputRef.current?.blur();
+              }
+            }}
+            className={cn(
+              "h-12 text-base bg-white dark:bg-card rounded-xl",
+              technicianId ? "" : "pl-10"
+            )}
+            style={
+              technicianId ? { paddingLeft: `${techFullName.length * 0.55 + 3.5}rem` } : undefined
+            }
           />
           {searchOpen && (
             <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-xl border bg-popover text-popover-foreground shadow-lg overflow-hidden max-h-[60vh] overflow-y-auto">
@@ -429,14 +471,23 @@ export default function GlobalPage() {
                 <>
                   {showTechsInSearch && filteredTechnicians.length > 0 && (
                     <div>
-                      <div className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Techniciens</div>
+                      <div className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Techniciens
+                      </div>
                       {filteredTechnicians.map((t) => (
-                        <button key={t.id} type="button" onClick={() => selectTechnician(t.id)}
-                          className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-accent transition-colors active:bg-accent">
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => selectTechnician(t.id)}
+                          className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-accent transition-colors active:bg-accent"
+                        >
                           <div className="flex items-center justify-center size-8 rounded-full bg-muted text-xs font-semibold shrink-0">
-                            {t.first_name[0]}{t.last_name[0]}
+                            {t.first_name[0]}
+                            {t.last_name[0]}
                           </div>
-                          <span className="text-sm font-medium">{t.first_name} {t.last_name}</span>
+                          <span className="text-sm font-medium">
+                            {t.first_name} {t.last_name}
+                          </span>
                           <ArrowUpFromLine className="ml-auto size-4 text-muted-foreground" />
                         </button>
                       ))}
@@ -448,20 +499,41 @@ export default function GlobalPage() {
                         {technicianId ? "Ajouter au panier" : "Produits"}
                       </div>
                       {searchResults.map((p) => {
-                        const score = calculateStockScore(p.stock_current, p.stock_min, p.stock_max);
+                        const score = calculateStockScore(p.stock_current, p.stock_min);
                         const status = getStockBadgeVariant(score);
                         const inCart = cart.some((item) => item.product.id === p.id);
                         return (
-                          <button key={p.id} type="button"
-                            onClick={() => selectProduct({ id: p.id, name: p.name, sku: p.sku, stock_current: p.stock_current ?? 0, stock_min: p.stock_min, stock_max: p.stock_max })}
-                            className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-accent transition-colors active:bg-accent">
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() =>
+                              selectProduct({
+                                id: p.id,
+                                name: p.name,
+                                sku: p.sku,
+                                stock_current: p.stock_current ?? 0,
+                                stock_min: p.stock_min,
+                              })
+                            }
+                            className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-accent transition-colors active:bg-accent"
+                          >
                             <div className="flex-1 min-w-0">
                               <span className="text-sm font-medium">{p.name}</span>
-                              {p.sku && <span className="ml-2 text-xs text-muted-foreground font-mono">{p.sku}</span>}
+                              {p.sku && (
+                                <span className="ml-2 text-xs text-muted-foreground font-mono">
+                                  {p.sku}
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              {inCart && <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">ajouté</span>}
-                              <span className="tabular-nums text-sm text-muted-foreground">{p.stock_current ?? 0}</span>
+                              {inCart && (
+                                <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                                  ajouté
+                                </span>
+                              )}
+                              <span className="tabular-nums text-sm text-muted-foreground">
+                                {p.stock_current ?? 0}
+                              </span>
                               <StatusPill status={status} />
                             </div>
                           </button>
@@ -469,9 +541,13 @@ export default function GlobalPage() {
                       })}
                     </div>
                   )}
-                  {searchResults.length === 0 && filteredTechnicians.length === 0 && searchQuery && (
-                    <div className="py-8 text-center text-sm text-muted-foreground">Aucun résultat.</div>
-                  )}
+                  {searchResults.length === 0 &&
+                    filteredTechnicians.length === 0 &&
+                    searchQuery && (
+                      <div className="py-8 text-center text-sm text-muted-foreground">
+                        Aucun résultat.
+                      </div>
+                    )}
                 </>
               )}
             </div>
@@ -494,27 +570,53 @@ export default function GlobalPage() {
                 <li key={item.product.id} className="flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{item.product.name}</p>
-                    <p className="text-xs text-muted-foreground">dispo {item.product.stock_current}</p>
+                    <p className="text-xs text-muted-foreground">
+                      dispo {item.product.stock_current}
+                    </p>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => updateCartQty(item.product.id, -1)} disabled={item.quantity <= 1}
-                      className="size-8 rounded-lg border flex items-center justify-center active:bg-muted disabled:opacity-30">
+                    <button
+                      onClick={() => updateCartQty(item.product.id, -1)}
+                      disabled={item.quantity <= 1}
+                      className="size-8 rounded-lg border flex items-center justify-center active:bg-muted disabled:opacity-30"
+                    >
                       <Minus className="size-3.5" />
                     </button>
-                    <span className="w-8 text-center font-heading font-bold tabular-nums">{item.quantity}</span>
-                    <button onClick={() => updateCartQty(item.product.id, 1)} disabled={item.quantity >= item.product.stock_current}
-                      className="size-8 rounded-lg border flex items-center justify-center active:bg-muted disabled:opacity-30">
+                    <span className="w-8 text-center font-heading font-bold tabular-nums">
+                      {item.quantity}
+                    </span>
+                    <button
+                      onClick={() => updateCartQty(item.product.id, 1)}
+                      disabled={item.quantity >= item.product.stock_current}
+                      className="size-8 rounded-lg border flex items-center justify-center active:bg-muted disabled:opacity-30"
+                    >
                       <Plus className="size-3.5" />
                     </button>
                   </div>
-                  <button onClick={() => removeFromCart(item.product.id)} className="text-muted-foreground active:text-destructive">
+                  <button
+                    onClick={() => removeFromCart(item.product.id)}
+                    className="text-muted-foreground active:text-destructive"
+                  >
                     <Trash2 className="size-4" />
                   </button>
                 </li>
               ))}
             </ul>
-            <Button onClick={handleBatchSubmit} disabled={isSubmitting} variant="outline" className="w-full h-12 text-base">
-              {isBatchSubmitting ? <><Loader2 className="size-4 animate-spin" /> En cours…</> : <><ArrowUpFromLine className="size-4" /> Valider la sortie</>}
+            <Button
+              onClick={handleBatchSubmit}
+              disabled={isSubmitting}
+              variant="outline"
+              className="w-full h-12 text-base"
+            >
+              {isBatchSubmitting ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" /> En cours…
+                </>
+              ) : (
+                <>
+                  <ArrowUpFromLine className="size-4" /> Valider la sortie
+                </>
+              )}
             </Button>
           </div>
         )}
@@ -525,11 +627,20 @@ export default function GlobalPage() {
             {/* Produit info */}
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h2 className="font-heading text-lg font-semibold leading-tight truncate">{product.name}</h2>
-                {product.sku && <p className="text-xs text-muted-foreground font-mono mt-0.5">{product.sku}</p>}
+                <h2 className="font-heading text-lg font-semibold leading-tight truncate">
+                  {product.name}
+                </h2>
+                {product.sku && (
+                  <p className="text-xs text-muted-foreground font-mono mt-0.5">{product.sku}</p>
+                )}
               </div>
-              <button onClick={() => { setProduct(null); setActionMode("entry"); }}
-                className="text-muted-foreground active:text-foreground shrink-0 mt-0.5">
+              <button
+                onClick={() => {
+                  setProduct(null);
+                  setActionMode("entry");
+                }}
+                className="text-muted-foreground active:text-foreground shrink-0 mt-0.5"
+              >
                 <X className="size-5" />
               </button>
             </div>
@@ -544,18 +655,23 @@ export default function GlobalPage() {
 
             {/* Mode pills */}
             <div className="flex gap-1.5">
-              {([
+              {[
                 { mode: "entry" as const, label: "Entrée", icon: ArrowDownToLine },
                 { mode: "exit_anonymous" as const, label: "Sortie", icon: ArrowUpFromLine },
                 { mode: "exit_loss" as const, label: "Perte", icon: X },
-              ]).map(({ mode, label, icon: ModeIcon }) => (
-                <button key={mode} onClick={() => setActionMode(mode)}
+              ].map(({ mode, label, icon: ModeIcon }) => (
+                <button
+                  key={mode}
+                  onClick={() => setActionMode(mode)}
                   className={cn(
                     "flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-colors",
                     actionMode === mode
-                      ? mode === "entry" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+                      ? mode === "entry"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-foreground"
                       : "bg-muted/40 text-muted-foreground active:bg-muted"
-                  )}>
+                  )}
+                >
                   <ModeIcon className="size-3.5" />
                   {label}
                 </button>
@@ -564,28 +680,42 @@ export default function GlobalPage() {
 
             {/* Quantity + submit */}
             <div className="flex items-center gap-3">
-              <button onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                className="size-12 rounded-xl border flex items-center justify-center active:bg-muted shrink-0">
+              <button
+                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                className="size-12 rounded-xl border flex items-center justify-center active:bg-muted shrink-0"
+              >
                 <Minus className="size-5" />
               </button>
               <Input
                 ref={quantityInputRef}
-                type="number" min={1}
+                type="number"
+                min={1}
                 max={actionMode !== "entry" ? product.stock_current : undefined}
                 value={quantity}
                 onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); navigator.vibrate?.(15); handleSubmit(); } }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    navigator.vibrate?.(15);
+                    handleSubmit();
+                  }
+                }}
                 className="flex-1 h-12 text-xl font-heading font-bold tabular-nums text-center bg-white dark:bg-card rounded-xl"
               />
-              <button onClick={() => setQuantity((q) => q + 1)}
-                className="size-12 rounded-xl border flex items-center justify-center active:bg-muted shrink-0">
+              <button
+                onClick={() => setQuantity((q) => q + 1)}
+                className="size-12 rounded-xl border flex items-center justify-center active:bg-muted shrink-0"
+              >
                 <Plus className="size-5" />
               </button>
             </div>
 
             <Button
               className="w-full h-12 text-base"
-              onClick={() => { navigator.vibrate?.(15); handleSubmit(); }}
+              onClick={() => {
+                navigator.vibrate?.(15);
+                handleSubmit();
+              }}
               disabled={isSubmitting}
               variant={actionMode === "entry" ? "default" : "outline"}
             >
@@ -599,7 +729,9 @@ export default function GlobalPage() {
           <div className="rounded-xl border bg-card p-8 flex flex-col items-center justify-center gap-3 text-center">
             <Package className="size-12 text-muted-foreground opacity-20" />
             <p className="font-heading font-semibold">Recherchez un produit</p>
-            <p className="text-sm text-muted-foreground">ou sélectionnez un technicien pour une sortie</p>
+            <p className="text-sm text-muted-foreground">
+              ou sélectionnez un technicien pour une sortie
+            </p>
           </div>
         )}
 
@@ -610,7 +742,11 @@ export default function GlobalPage() {
           </h3>
           {session.length === 0 && olderMovements.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
-              {isLoadingToday ? <Loader2 className="size-4 animate-spin inline" /> : "Aucun mouvement aujourd'hui."}
+              {isLoadingToday ? (
+                <Loader2 className="size-4 animate-spin inline" />
+              ) : (
+                "Aucun mouvement aujourd'hui."
+              )}
             </p>
           ) : (
             <ul className="space-y-1.5">
@@ -619,27 +755,41 @@ export default function GlobalPage() {
                   const isEntry = entry.movementType === "entry";
                   const reverting = revertingIds.has(entry.localId);
                   return (
-                    <motion.li key={entry.localId}
+                    <motion.li
+                      key={entry.localId}
                       initial={prefersReducedMotion ? false : { opacity: 0, y: -8 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={prefersReducedMotion ? undefined : { opacity: 0, height: 0 }}
                       transition={{ type: "spring", bounce: 0.05, duration: 0.25 }}
                       className={cn(
                         "rounded-xl border-l-2 px-3 py-2.5",
-                        isEntry ? "border-l-standard bg-standard-bg/30" : "border-l-critique bg-critique-bg/30"
-                      )}>
+                        isEntry
+                          ? "border-l-standard bg-standard-bg/30"
+                          : "border-l-critique bg-critique-bg/30"
+                      )}
+                    >
                       <div className="flex items-center gap-2.5">
-                        <span className={cn("font-heading font-bold tabular-nums text-sm shrink-0", isEntry ? "text-standard" : "text-critique")}>
-                          {isEntry ? "+" : "−"}{entry.quantity}
+                        <span
+                          className={cn(
+                            "font-heading font-bold tabular-nums text-sm shrink-0",
+                            isEntry ? "text-standard" : "text-critique"
+                          )}
+                        >
+                          {isEntry ? "+" : "−"}
+                          {entry.quantity}
                         </span>
                         <div className="flex-1 min-w-0">
                           <p className="text-[13px] font-medium truncate">{entry.productName}</p>
                           <p className="text-[11px] text-muted-foreground truncate">
-                            {MOVEMENT_LABELS[entry.movementType]}{entry.technicianName && ` → ${entry.technicianName}`}
+                            {MOVEMENT_LABELS[entry.movementType]}
+                            {entry.technicianName && ` → ${entry.technicianName}`}
                           </p>
                         </div>
-                        <button onClick={() => handleRevert(entry)} disabled={reverting}
-                          className="text-[11px] text-muted-foreground active:text-foreground shrink-0 disabled:opacity-30">
+                        <button
+                          onClick={() => handleRevert(entry)}
+                          disabled={reverting}
+                          className="text-[11px] text-muted-foreground active:text-foreground shrink-0 disabled:opacity-30"
+                        >
                           {reverting ? "…" : "annuler"}
                         </button>
                       </div>
@@ -649,24 +799,47 @@ export default function GlobalPage() {
               </AnimatePresence>
               {olderMovements.map((m) => {
                 const isEntry = m.movement_type === "entry";
-                const time = m.created_at ? new Date(m.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "";
-                const techName = m.technician ? `${m.technician.first_name} ${m.technician.last_name}` : undefined;
+                const time = m.created_at
+                  ? new Date(m.created_at).toLocaleTimeString("fr-FR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "";
+                const techName = m.technician
+                  ? `${m.technician.first_name} ${m.technician.last_name}`
+                  : undefined;
                 return (
-                  <li key={m.id} className={cn(
-                    "rounded-xl border-l-2 px-3 py-2.5",
-                    isEntry ? "border-l-standard/50 bg-standard-bg/20" : "border-l-critique/50 bg-critique-bg/20"
-                  )}>
+                  <li
+                    key={m.id}
+                    className={cn(
+                      "rounded-xl border-l-2 px-3 py-2.5",
+                      isEntry
+                        ? "border-l-standard/50 bg-standard-bg/20"
+                        : "border-l-critique/50 bg-critique-bg/20"
+                    )}
+                  >
                     <div className="flex items-center gap-2.5">
-                      <span className={cn("font-heading font-bold tabular-nums text-sm shrink-0", isEntry ? "text-standard" : "text-critique")}>
-                        {isEntry ? "+" : "−"}{m.quantity}
+                      <span
+                        className={cn(
+                          "font-heading font-bold tabular-nums text-sm shrink-0",
+                          isEntry ? "text-standard" : "text-critique"
+                        )}
+                      >
+                        {isEntry ? "+" : "−"}
+                        {m.quantity}
                       </span>
                       <div className="flex-1 min-w-0">
                         <p className="text-[13px] font-medium truncate">{m.product?.name ?? "—"}</p>
                         <p className="text-[11px] text-muted-foreground truncate">
-                          {MOVEMENT_LABELS[m.movement_type] ?? m.movement_type}{techName && ` → ${techName}`}
+                          {MOVEMENT_LABELS[m.movement_type] ?? m.movement_type}
+                          {techName && ` → ${techName}`}
                         </p>
                       </div>
-                      {time && <span className="text-[10px] font-heading tabular-nums text-muted-foreground shrink-0">{time}</span>}
+                      {time && (
+                        <span className="text-[10px] font-heading tabular-nums text-muted-foreground shrink-0">
+                          {time}
+                        </span>
+                      )}
                     </div>
                   </li>
                 );
@@ -677,13 +850,16 @@ export default function GlobalPage() {
       </div>
 
       <div className="hidden md:flex flex-col gap-4" style={{ height: "calc(100vh - 6rem)" }}>
-
         {/* ── Search bar ── */}
         <div className="relative" data-search-container>
           {technicianId && techFullName && (
             <div className="absolute left-3 top-1/2 -translate-y-1/2 z-10 flex items-center gap-1 rounded-md bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium">
               <span>{techFullName}</span>
-              <button onClick={clearTechnician} className="hover:text-primary/70 transition-colors" aria-label="Retirer le technicien">
+              <button
+                onClick={clearTechnician}
+                className="hover:text-primary/70 transition-colors"
+                aria-label="Retirer le technicien"
+              >
                 <X className="size-3" />
               </button>
             </div>
@@ -695,11 +871,21 @@ export default function GlobalPage() {
             ref={searchInputRef}
             placeholder={searchPlaceholder}
             value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); if (!searchOpen) setSearchOpen(true); }}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              if (!searchOpen) setSearchOpen(true);
+            }}
             onFocus={() => setSearchOpen(true)}
-            onKeyDown={(e) => { if (e.key === "Escape") { setSearchOpen(false); searchInputRef.current?.blur(); } }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setSearchOpen(false);
+                searchInputRef.current?.blur();
+              }
+            }}
             className={cn("h-11 text-base bg-white dark:bg-card", technicianId ? "" : "pl-9")}
-            style={technicianId ? { paddingLeft: `${(techFullName.length * 0.55 + 3.5)}rem` } : undefined}
+            style={
+              technicianId ? { paddingLeft: `${techFullName.length * 0.55 + 3.5}rem` } : undefined
+            }
             autoFocus
           />
 
@@ -711,14 +897,23 @@ export default function GlobalPage() {
                 <div className="max-h-96 overflow-y-auto">
                   {showTechsInSearch && filteredTechnicians.length > 0 && (
                     <div>
-                      <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Sortie vers technicien</div>
+                      <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Sortie vers technicien
+                      </div>
                       {filteredTechnicians.map((t) => (
-                        <button key={t.id} type="button" onClick={() => selectTechnician(t.id)}
-                          className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-accent transition-colors">
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => selectTechnician(t.id)}
+                          className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-accent transition-colors"
+                        >
                           <div className="flex items-center justify-center size-7 rounded-full bg-muted text-[11px] font-medium shrink-0">
-                            {t.first_name[0]}{t.last_name[0]}
+                            {t.first_name[0]}
+                            {t.last_name[0]}
                           </div>
-                          <span>{t.first_name} {t.last_name}</span>
+                          <span>
+                            {t.first_name} {t.last_name}
+                          </span>
                           <ArrowUpFromLine className="ml-auto size-3.5 text-muted-foreground" />
                         </button>
                       ))}
@@ -731,24 +926,41 @@ export default function GlobalPage() {
                         {technicianId ? "Ajouter au panier" : "Produits"}
                       </div>
                       {searchResults.map((p) => {
-                        const score = calculateStockScore(p.stock_current, p.stock_min, p.stock_max);
+                        const score = calculateStockScore(p.stock_current, p.stock_min);
                         const status = getStockBadgeVariant(score);
                         const inCart = cart.some((item) => item.product.id === p.id);
                         return (
-                          <button key={p.id} type="button"
-                            onClick={() => selectProduct({
-                              id: p.id, name: p.name, sku: p.sku,
-                              stock_current: p.stock_current ?? 0,
-                              stock_min: p.stock_min, stock_max: p.stock_max,
-                            })}
-                            className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-accent transition-colors">
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() =>
+                              selectProduct({
+                                id: p.id,
+                                name: p.name,
+                                sku: p.sku,
+                                stock_current: p.stock_current ?? 0,
+                                stock_min: p.stock_min,
+                              })
+                            }
+                            className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-accent transition-colors"
+                          >
                             <div className="flex-1 min-w-0">
                               <span className="font-medium">{p.name}</span>
-                              {p.sku && <span className="ml-2 text-xs text-muted-foreground font-mono">{p.sku}</span>}
+                              {p.sku && (
+                                <span className="ml-2 text-xs text-muted-foreground font-mono">
+                                  {p.sku}
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              {inCart && <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">dans le panier</span>}
-                              <span className="tabular-nums text-sm text-muted-foreground">{p.stock_current ?? 0}</span>
+                              {inCart && (
+                                <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                                  dans le panier
+                                </span>
+                              )}
+                              <span className="tabular-nums text-sm text-muted-foreground">
+                                {p.stock_current ?? 0}
+                              </span>
                               <StatusPill status={status} />
                             </div>
                           </button>
@@ -757,13 +969,20 @@ export default function GlobalPage() {
                     </div>
                   )}
 
-
-                  {searchResults.length === 0 && filteredTechnicians.length === 0 && searchQuery && (
-                    <div className="py-6 text-center text-sm text-muted-foreground">Aucun résultat.</div>
-                  )}
-                  {!searchQuery && searchResults.length === 0 && filteredTechnicians.length === 0 && (
-                    <div className="py-6 text-center text-sm text-muted-foreground">Commencez à taper pour rechercher.</div>
-                  )}
+                  {searchResults.length === 0 &&
+                    filteredTechnicians.length === 0 &&
+                    searchQuery && (
+                      <div className="py-6 text-center text-sm text-muted-foreground">
+                        Aucun résultat.
+                      </div>
+                    )}
+                  {!searchQuery &&
+                    searchResults.length === 0 &&
+                    filteredTechnicians.length === 0 && (
+                      <div className="py-6 text-center text-sm text-muted-foreground">
+                        Commencez à taper pour rechercher.
+                      </div>
+                    )}
                 </div>
               )}
             </div>
@@ -772,10 +991,8 @@ export default function GlobalPage() {
 
         {/* ── Layout deux colonnes ── */}
         <div className="grid grid-cols-[1fr_300px] gap-4 flex-1 min-h-0">
-
           {/* ── Panneau principal ── */}
           <div className="rounded-lg border bg-card p-6 flex flex-col gap-5 overflow-y-auto">
-
             {/* ═══ MODE TECHNICIEN : panier multi-produits ═══ */}
             {technicianId ? (
               <>
@@ -786,7 +1003,12 @@ export default function GlobalPage() {
                     </p>
                     <h2 className="font-heading text-xl font-semibold">{techFullName}</h2>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={clearTechnician} className="text-muted-foreground">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearTechnician}
+                    className="text-muted-foreground"
+                  >
                     <X className="size-4" />
                     Annuler
                   </Button>
@@ -804,11 +1026,16 @@ export default function GlobalPage() {
                     <div className="h-px bg-border" />
                     <ul className="space-y-2">
                       {cart.map((item) => (
-                        <li key={item.product.id} className="flex items-center gap-3 rounded-lg border p-3">
+                        <li
+                          key={item.product.id}
+                          className="flex items-center gap-3 rounded-lg border p-3"
+                        >
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm truncate">{item.product.name}</p>
                             {item.product.sku && (
-                              <p className="text-xs text-muted-foreground font-mono">{item.product.sku}</p>
+                              <p className="text-xs text-muted-foreground font-mono">
+                                {item.product.sku}
+                              </p>
                             )}
                             <p className="text-xs text-muted-foreground mt-0.5">
                               Dispo : {item.product.stock_current}
@@ -816,7 +1043,9 @@ export default function GlobalPage() {
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             <Button
-                              variant="outline" size="icon" className="size-7"
+                              variant="outline"
+                              size="icon"
+                              className="size-7"
                               onClick={() => updateCartQty(item.product.id, -1)}
                               disabled={item.quantity <= 1}
                             >
@@ -826,7 +1055,9 @@ export default function GlobalPage() {
                               {item.quantity}
                             </span>
                             <Button
-                              variant="outline" size="icon" className="size-7"
+                              variant="outline"
+                              size="icon"
+                              className="size-7"
                               onClick={() => updateCartQty(item.product.id, 1)}
                               disabled={item.quantity >= item.product.stock_current}
                             >
@@ -847,7 +1078,14 @@ export default function GlobalPage() {
 
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-muted-foreground">
-                        <span className="font-heading tabular-nums font-medium text-foreground">{cart.length}</span> produit{cart.length > 1 ? "s" : ""} · <span className="font-heading tabular-nums font-medium text-foreground">{cartTotalItems}</span> item{cartTotalItems > 1 ? "s" : ""}
+                        <span className="font-heading tabular-nums font-medium text-foreground">
+                          {cart.length}
+                        </span>{" "}
+                        produit{cart.length > 1 ? "s" : ""} ·{" "}
+                        <span className="font-heading tabular-nums font-medium text-foreground">
+                          {cartTotalItems}
+                        </span>{" "}
+                        item{cartTotalItems > 1 ? "s" : ""}
                       </p>
                       <Button
                         onClick={handleBatchSubmit}
@@ -856,9 +1094,13 @@ export default function GlobalPage() {
                         className="h-10"
                       >
                         {isBatchSubmitting ? (
-                          <><Loader2 className="size-4 animate-spin" /> En cours…</>
+                          <>
+                            <Loader2 className="size-4 animate-spin" /> En cours…
+                          </>
                         ) : (
-                          <><ArrowUpFromLine className="size-4" /> Valider la sortie</>
+                          <>
+                            <ArrowUpFromLine className="size-4" /> Valider la sortie
+                          </>
                         )}
                       </Button>
                     </div>
@@ -871,13 +1113,27 @@ export default function GlobalPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                      {actionMode === "entry" ? "Entrée de stock" : actionMode === "exit_loss" ? "Perte / Casse" : "Sortie anonyme"}
+                      {actionMode === "entry"
+                        ? "Entrée de stock"
+                        : actionMode === "exit_loss"
+                          ? "Perte / Casse"
+                          : "Sortie anonyme"}
                     </p>
-                    <h2 className="font-heading text-xl font-semibold leading-tight">{product.name}</h2>
-                    {product.sku && <p className="text-sm text-muted-foreground font-mono mt-0.5">{product.sku}</p>}
+                    <h2 className="font-heading text-xl font-semibold leading-tight">
+                      {product.name}
+                    </h2>
+                    {product.sku && (
+                      <p className="text-sm text-muted-foreground font-mono mt-0.5">
+                        {product.sku}
+                      </p>
+                    )}
                   </div>
                   <button
-                    onClick={() => { setProduct(null); setActionMode("entry"); setTimeout(() => searchInputRef.current?.focus(), 60); }}
+                    onClick={() => {
+                      setProduct(null);
+                      setActionMode("entry");
+                      setTimeout(() => searchInputRef.current?.focus(), 60);
+                    }}
                     className="text-muted-foreground hover:text-foreground transition-colors mt-1 shrink-0"
                   >
                     <X className="size-4" />
@@ -890,11 +1146,11 @@ export default function GlobalPage() {
                   </span>
                   <div className="mb-1 space-y-1">
                     <StatusPill status={stockStatus} />
-                    <p className="text-xs text-muted-foreground">
-                      {product.stock_min != null && `min ${product.stock_min}`}
-                      {product.stock_min != null && product.stock_max != null && " · "}
-                      {product.stock_max != null && `max ${product.stock_max}`}
-                    </p>
+                    {product.stock_min != null && (
+                      <p className="text-xs text-muted-foreground">
+                        seuil critique : {product.stock_min}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -903,15 +1159,26 @@ export default function GlobalPage() {
                 <div className="flex gap-2 items-center">
                   <Input
                     ref={quantityInputRef}
-                    type="number" min={1}
+                    type="number"
+                    min={1}
                     max={actionMode !== "entry" ? product.stock_current : undefined}
                     value={quantity}
                     onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); navigator.vibrate?.(15); handleSubmit(); } }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        navigator.vibrate?.(15);
+                        handleSubmit();
+                      }
+                    }}
                     className="w-24 tabular-nums text-lg font-heading text-center bg-white dark:bg-card"
                   />
-                  <Button className={cn("h-10", actionMode === "entry" ? "flex-1" : "")}
-                    onClick={() => { navigator.vibrate?.(15); handleSubmit(); }}
+                  <Button
+                    className={cn("h-10", actionMode === "entry" ? "flex-1" : "")}
+                    onClick={() => {
+                      navigator.vibrate?.(15);
+                      handleSubmit();
+                    }}
                     disabled={isSubmitting}
                     variant={actionMode === "entry" ? "default" : "outline"}
                   >
@@ -919,21 +1186,33 @@ export default function GlobalPage() {
                   </Button>
                   {actionMode === "entry" && (
                     <>
-                      <Button variant="secondary" size="sm" className="h-10 text-xs"
-                        onClick={() => setActionMode("exit_anonymous")}>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="h-10 text-xs"
+                        onClick={() => setActionMode("exit_anonymous")}
+                      >
                         <ArrowUpFromLine className="size-3.5" />
                         Sortie anonyme
                       </Button>
-                      <Button variant="secondary" size="sm" className="h-10 text-xs"
-                        onClick={() => setActionMode("exit_loss")}>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="h-10 text-xs"
+                        onClick={() => setActionMode("exit_loss")}
+                      >
                         <X className="size-3.5" />
                         Perte / Casse
                       </Button>
                     </>
                   )}
                   {(actionMode === "exit_anonymous" || actionMode === "exit_loss") && (
-                    <Button variant="default" size="sm" className="h-10 text-xs"
-                      onClick={() => setActionMode("entry")}>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="h-10 text-xs"
+                      onClick={() => setActionMode("entry")}
+                    >
                       <ArrowDownToLine className="size-3.5" />
                       Entrer
                     </Button>
@@ -945,8 +1224,12 @@ export default function GlobalPage() {
               /* ═══ ÉTAT VIDE ═══ */
               <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center py-12">
                 <Package className="size-14 text-muted-foreground opacity-20" />
-                <p className="font-heading font-semibold text-foreground">Aucun produit sélectionné</p>
-                <p className="text-sm text-muted-foreground">Recherchez un produit ou un technicien ci-dessus</p>
+                <p className="font-heading font-semibold text-foreground">
+                  Aucun produit sélectionné
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Recherchez un produit ou un technicien ci-dessus
+                </p>
               </div>
             )}
           </div>
@@ -954,9 +1237,13 @@ export default function GlobalPage() {
           {/* ── Historique du jour ── */}
           <div className="rounded-lg border bg-card p-4 flex flex-col gap-3 min-h-0">
             <div className="flex items-center justify-between shrink-0">
-              <h3 className="font-heading text-xs font-semibold text-muted-foreground uppercase tracking-widest">Historique du jour</h3>
+              <h3 className="font-heading text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                Historique du jour
+              </h3>
               {(session.length > 0 || olderMovements.length > 0) && (
-                <span className="text-xs text-muted-foreground tabular-nums">{session.length + olderMovements.length} mouv.</span>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {session.length + olderMovements.length} mouv.
+                </span>
               )}
             </div>
 
@@ -965,7 +1252,11 @@ export default function GlobalPage() {
                 {isLoadingToday ? (
                   <Loader2 className="size-5 animate-spin text-muted-foreground" />
                 ) : (
-                  <p className="text-sm text-muted-foreground text-center">Aucun mouvement<br />aujourd&apos;hui.</p>
+                  <p className="text-sm text-muted-foreground text-center">
+                    Aucun mouvement
+                    <br />
+                    aujourd&apos;hui.
+                  </p>
                 )}
               </div>
             ) : (
@@ -975,30 +1266,47 @@ export default function GlobalPage() {
                     const isEntry = entry.movementType === "entry";
                     const reverting = revertingIds.has(entry.localId);
                     return (
-                      <motion.li key={entry.localId}
+                      <motion.li
+                        key={entry.localId}
                         initial={prefersReducedMotion ? false : { opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={prefersReducedMotion ? undefined : { opacity: 0, height: 0, marginBottom: 0, overflow: "hidden" }}
+                        exit={
+                          prefersReducedMotion
+                            ? undefined
+                            : { opacity: 0, height: 0, marginBottom: 0, overflow: "hidden" }
+                        }
                         transition={{ type: "spring", bounce: 0.05, duration: 0.25 }}
                         className={cn(
                           "group rounded-lg border-l-2 px-3 py-2.5 transition-colors hover:bg-muted/30",
-                          isEntry ? "border-l-standard bg-standard-bg/30" : "border-l-critique bg-critique-bg/30"
-                        )}>
+                          isEntry
+                            ? "border-l-standard bg-standard-bg/30"
+                            : "border-l-critique bg-critique-bg/30"
+                        )}
+                      >
                         <div className="flex items-start gap-2.5">
-                          <span className={cn(
-                            "font-heading font-bold tabular-nums text-sm mt-0.5 shrink-0",
-                            isEntry ? "text-standard" : "text-critique"
-                          )}>
-                            {isEntry ? "+" : "−"}{entry.quantity}
+                          <span
+                            className={cn(
+                              "font-heading font-bold tabular-nums text-sm mt-0.5 shrink-0",
+                              isEntry ? "text-standard" : "text-critique"
+                            )}
+                          >
+                            {isEntry ? "+" : "−"}
+                            {entry.quantity}
                           </span>
                           <div className="flex-1 min-w-0">
-                            <p className="text-[13px] font-medium truncate leading-tight">{entry.productName}</p>
+                            <p className="text-[13px] font-medium truncate leading-tight">
+                              {entry.productName}
+                            </p>
                             <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-                              {MOVEMENT_LABELS[entry.movementType]}{entry.technicianName && ` → ${entry.technicianName}`}
+                              {MOVEMENT_LABELS[entry.movementType]}
+                              {entry.technicianName && ` → ${entry.technicianName}`}
                             </p>
                           </div>
-                          <button onClick={() => handleRevert(entry)} disabled={reverting}
-                            className="text-[11px] text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5 disabled:opacity-30">
+                          <button
+                            onClick={() => handleRevert(entry)}
+                            disabled={reverting}
+                            className="text-[11px] text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5 disabled:opacity-30"
+                          >
                             {reverting ? "…" : "annuler"}
                           </button>
                         </div>
@@ -1008,28 +1316,50 @@ export default function GlobalPage() {
                 </AnimatePresence>
 
                 {olderMovements.length > 0 && session.length > 0 && (
-                  <li className="pt-2 pb-1"><span className="text-[10px] uppercase tracking-wider text-muted-foreground">Plus tôt</span></li>
+                  <li className="pt-2 pb-1">
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Plus tôt
+                    </span>
+                  </li>
                 )}
                 {olderMovements.map((m) => {
                   const isEntry = m.movement_type === "entry";
-                  const time = m.created_at ? new Date(m.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "";
-                  const techName = m.technician ? `${m.technician.first_name} ${m.technician.last_name}` : undefined;
+                  const time = m.created_at
+                    ? new Date(m.created_at).toLocaleTimeString("fr-FR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "";
+                  const techName = m.technician
+                    ? `${m.technician.first_name} ${m.technician.last_name}`
+                    : undefined;
                   return (
-                    <li key={m.id} className={cn(
-                      "rounded-lg border-l-2 px-3 py-2.5",
-                      isEntry ? "border-l-standard/50 bg-standard-bg/20" : "border-l-critique/50 bg-critique-bg/20"
-                    )}>
+                    <li
+                      key={m.id}
+                      className={cn(
+                        "rounded-lg border-l-2 px-3 py-2.5",
+                        isEntry
+                          ? "border-l-standard/50 bg-standard-bg/20"
+                          : "border-l-critique/50 bg-critique-bg/20"
+                      )}
+                    >
                       <div className="flex items-start gap-2.5">
-                        <span className={cn(
-                          "font-heading font-bold tabular-nums text-sm mt-0.5 shrink-0",
-                          isEntry ? "text-standard" : "text-critique"
-                        )}>
-                          {isEntry ? "+" : "−"}{m.quantity}
+                        <span
+                          className={cn(
+                            "font-heading font-bold tabular-nums text-sm mt-0.5 shrink-0",
+                            isEntry ? "text-standard" : "text-critique"
+                          )}
+                        >
+                          {isEntry ? "+" : "−"}
+                          {m.quantity}
                         </span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-medium truncate leading-tight">{m.product?.name ?? "—"}</p>
+                          <p className="text-[13px] font-medium truncate leading-tight">
+                            {m.product?.name ?? "—"}
+                          </p>
                           <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-                            {MOVEMENT_LABELS[m.movement_type] ?? m.movement_type}{techName && ` → ${techName}`}
+                            {MOVEMENT_LABELS[m.movement_type] ?? m.movement_type}
+                            {techName && ` → ${techName}`}
                           </p>
                         </div>
                         {time && (
@@ -1046,9 +1376,15 @@ export default function GlobalPage() {
 
             {session.length > 0 && (
               <div className="pt-2 border-t shrink-0">
-                <button onClick={() => { const last = session[0]; if (last && !revertingIds.has(last.localId)) handleRevert(last); }}
-                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors">
-                  <kbd className="bg-muted px-1 py-0.5 rounded font-mono">⌘Z</kbd> Annuler le dernier
+                <button
+                  onClick={() => {
+                    const last = session[0];
+                    if (last && !revertingIds.has(last.localId)) handleRevert(last);
+                  }}
+                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors"
+                >
+                  <kbd className="bg-muted px-1 py-0.5 rounded font-mono">⌘Z</kbd> Annuler le
+                  dernier
                 </button>
               </div>
             )}

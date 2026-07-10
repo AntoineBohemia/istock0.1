@@ -3,19 +3,11 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AddProductForm from "../../create/add-product-form";
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
 
-  const { data: product } = await supabase
-    .from("products")
-    .select("name")
-    .eq("id", id)
-    .single();
+  const { data: product } = await supabase.from("products").select("name").eq("id", id).single();
 
   return generateMeta({
     title: product?.name ? `Modifier - ${product.name}` : "Modifier le produit",
@@ -58,11 +50,7 @@ async function getParentCategoryId(categoryId: string | null) {
   return category.parent_id || category.id;
 }
 
-export default async function EditProductPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const product = await getProduct(id);
 
@@ -82,12 +70,9 @@ export default async function EditProductPage({
     price: product.price?.toString() || "",
     stock_current: product.stock_current?.toString() || "0",
     stock_min: product.stock_min?.toString() || "10",
-    stock_max: product.stock_max?.toString() || "100",
-    category_id: isSubCategory ? parentCategoryId : (product.category_id || ""),
+    category_id: isSubCategory ? parentCategoryId : product.category_id || "",
     sub_category_id: isSubCategory ? product.category_id || "" : "",
     supplier_id: product.supplier_id || "",
-    is_perishable: product.is_perishable || false,
-    track_stock: product.track_stock ?? true,
     image_url: product.image_url || undefined,
     icon_name: product.icon_name || null,
     icon_color: product.icon_color || null,

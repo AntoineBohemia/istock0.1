@@ -101,8 +101,7 @@ BEGIN
         COALESCE(p.stock_current, 0)
           - COALESCE(future_entries.qty, 0)
           + COALESCE(future_exits.qty, 0) AS stock_at_month_end,
-        p.stock_min,
-        p.track_stock
+        p.stock_min
       FROM products p
       -- Sum of all entries AFTER month M (to undo)
       LEFT JOIN LATERAL (
@@ -122,7 +121,6 @@ BEGIN
       ) future_exits ON TRUE
       WHERE p.organization_id = p_organization_id
         AND p.archived_at IS NULL
-        AND p.track_stock = TRUE
     )
     SELECT
       COUNT(*) FILTER (WHERE stock_at_month_end <= 0),

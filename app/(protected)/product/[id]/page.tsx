@@ -46,11 +46,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
   if (!product) notFound();
 
-  const stockScore = calculateStockScore(
-    product.stock_current,
-    product.stock_min,
-    product.stock_max
-  );
+  const stockScore = calculateStockScore(product.stock_current, product.stock_min);
   const stockBadgeVariant = getStockBadgeVariant(stockScore);
   const stockColor = getStockScoreColor(stockScore);
   const totalValue = (product.price || 0) * (product.stock_current ?? 0);
@@ -102,11 +98,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               >
                 {product.stock_current ?? 0}
               </span>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-muted-foreground text-sm">
-                  min{" "}
-                  <span className="font-semibold text-foreground">{product.stock_min ?? 0}</span>
-                </span>
+              <div className="mt-2">
                 <StatusPill status={stockBadgeVariant} />
               </div>
             </div>
@@ -121,6 +113,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               </p>
             </div>
             <div className="divide-y text-sm">
+              <div className="flex justify-between px-5 py-2.5">
+                <span className="text-muted-foreground">Seuil critique</span>
+                <span className="font-semibold tabular-nums">{product.stock_min ?? 0}</span>
+              </div>
               <div className="flex justify-between px-5 py-2.5">
                 <span className="text-muted-foreground">Prix HT</span>
                 <span className="font-semibold tabular-nums">

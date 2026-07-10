@@ -200,7 +200,6 @@ describe("getProductsNeedingRestock", () => {
         image_url: null,
         stock_current: 5,
         stock_min: 10,
-        stock_max: 100,
       },
       {
         id: "p2",
@@ -209,7 +208,6 @@ describe("getProductsNeedingRestock", () => {
         image_url: null,
         stock_current: 80,
         stock_min: 10,
-        stock_max: 100,
       },
       {
         id: "p3",
@@ -218,7 +216,6 @@ describe("getProductsNeedingRestock", () => {
         image_url: null,
         stock_current: 2,
         stock_min: 10,
-        stock_max: 100,
       },
     ];
     mockClient._setResult({ data: products, error: null });
@@ -240,7 +237,6 @@ describe("getProductsNeedingRestock", () => {
         image_url: null,
         stock_current: 1,
         stock_min: 10,
-        stock_max: 100,
       },
       {
         id: "p2",
@@ -249,7 +245,6 @@ describe("getProductsNeedingRestock", () => {
         image_url: null,
         stock_current: 2,
         stock_min: 10,
-        stock_max: 100,
       },
       {
         id: "p3",
@@ -258,7 +253,6 @@ describe("getProductsNeedingRestock", () => {
         image_url: null,
         stock_current: 3,
         stock_min: 10,
-        stock_max: 100,
       },
     ];
     mockClient._setResult({ data: products, error: null });
@@ -538,11 +532,11 @@ describe("getTechnicianStats", () => {
           data: [
             {
               id: "tech-1",
-              technician_inventory: [{ quantity: 80, product: { stock_max: 100 } }],
+              technician_inventory: [{ quantity: 80 }],
             },
             {
               id: "tech-2",
-              technician_inventory: [{ quantity: 10, product: { stock_max: 100 } }],
+              technician_inventory: [{ quantity: 10 }],
             },
             {
               id: "tech-3",
@@ -574,9 +568,9 @@ describe("getTechnicianStats", () => {
       const result = await getTechnicianStats();
 
       expect(result.total).toBe(3);
-      // tech-1: score=80 (>=50 -> good), tech-2: score=10 (<50 -> low), tech-3: empty (low)
-      expect(result.withGoodStock).toBe(1);
-      expect(result.withLowStock).toBe(2);
+      // tech-1: has items with stock (100% coverage -> good), tech-2: has items with stock (100% -> good), tech-3: empty (low)
+      expect(result.withGoodStock).toBe(2);
+      expect(result.withLowStock).toBe(1);
       expect(result.needingRestock).toBe(3);
     } finally {
       mockClient.then = originalThen;

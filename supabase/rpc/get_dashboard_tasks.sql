@@ -7,7 +7,7 @@
 -- PLAN DE LA REQUÊTE
 -- ──────────────────
 --
--- CTE 1 — out_of_stock : produits avec stock_current = 0 (track_stock = true)
+-- CTE 1 — out_of_stock : produits avec stock_current = 0
 --   → priority = critical, score = 1000
 --   → Agrégés si count > 3, sinon une tâche par produit
 --
@@ -15,11 +15,7 @@
 --   → priority = important, score = 500 + (stock_min - stock_current), plafonné à 999
 --   → Agrégés si count > 3, sinon une tâche par produit
 --
--- CTE 3 — overstocked : produits stock_current >= 2 * stock_max
---   → priority = important, score = 300
---   → Toujours agrégés
---
--- CTE 4 — never_restocked : TEMPORAIREMENT DÉSACTIVÉ
+-- CTE 3 — never_restocked : TEMPORAIREMENT DÉSACTIVÉ
 --   → priority = critical, score = 900
 --   → Une tâche par technicien
 --
@@ -70,7 +66,6 @@ BEGIN
       COALESCE(stock_current, 0) AS stock_current
     FROM products
     WHERE organization_id = p_organization_id
-      AND COALESCE(track_stock, true) = true
       AND archived_at IS NULL
       AND COALESCE(stock_current, 0) = 0
   ),
@@ -127,7 +122,6 @@ BEGIN
       COALESCE(stock_min, 0) AS stock_min
     FROM products
     WHERE organization_id = p_organization_id
-      AND COALESCE(track_stock, true) = true
       AND archived_at IS NULL
       AND COALESCE(stock_current, 0) > 0
       AND COALESCE(stock_min, 0) > 0
@@ -165,39 +159,6 @@ BEGIN
       '{}'::JSONB AS metadata
     FROM below_min
     WHERE (SELECT COUNT(*) FROM below_min) <= 3
-  ),
-
-  -- =========================================================================
-  -- CTE 3 — Produits en surstockage (stock >= 2 * stock_max)
-  -- =========================================================================
-  overstocked AS (
-    SELECT
-      id,
-      name,
-      COALESCE(stock_current, 0) AS stock_current,
-      COALESCE(stock_max, 0) AS stock_max
-    FROM products
-    WHERE organization_id = p_organization_id
-      AND COALESCE(track_stock, true) = true
-      AND archived_at IS NULL
-      AND COALESCE(stock_max, 0) > 0
-      AND COALESCE(stock_current, 0) >= 2 * COALESCE(stock_max, 0)
-  ),
-  overstocked_tasks AS (
-    SELECT
-      'product_overstocked'::TEXT AS type,
-      'important'::TEXT AS priority,
-      300 AS score,
-      'overstocked'::TEXT AS group_key,
-      'product'::TEXT AS entity_type,
-      ARRAY_AGG(id) AS entity_ids,
-      ARRAY_AGG(name) AS entity_names,
-      COUNT(*)::INTEGER AS count,
-      COUNT(*) || ' produits en surstockage critique' AS summary,
-      '/product?status=alert' AS action_url,
-      '{}'::JSONB AS metadata
-    FROM overstocked
-    HAVING COUNT(*) > 0
   ),
 
   -- =========================================================================
@@ -280,7 +241,6 @@ BEGIN
       AND sm.organization_id = p_organization_id
       AND sm.created_at > NOW() - INTERVAL '60 days'
     WHERE p.organization_id = p_organization_id
-      AND COALESCE(p.track_stock, true) = true
       AND p.archived_at IS NULL
       AND sm.id IS NULL
   ),
@@ -308,8 +268,6 @@ BEGIN
     SELECT * FROM out_of_stock_tasks
     UNION ALL
     SELECT * FROM below_min_tasks
-    UNION ALL
-    SELECT * FROM overstocked_tasks
     -- TEMPORAIREMENT DÉSACTIVÉ :
     -- UNION ALL
     -- SELECT * FROM never_restocked_tasks

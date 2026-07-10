@@ -4,8 +4,6 @@ import { ProductFormSchema } from "./product-schema";
 describe("ProductFormSchema", () => {
   const validProduct = {
     name: "Produit test",
-    is_perishable: false,
-    track_stock: true,
   };
 
   // ─── name ──────────────────────────────────────────────────────────
@@ -71,29 +69,6 @@ describe("ProductFormSchema", () => {
 
   it("rejects non-numeric stock_min", () => {
     const result = ProductFormSchema.safeParse({ ...validProduct, stock_min: "xyz" });
-    expect(result.success).toBe(false);
-  });
-
-  it("accepts valid stock_max string", () => {
-    const result = ProductFormSchema.safeParse({ ...validProduct, stock_max: "100" });
-    expect(result.success).toBe(true);
-  });
-
-  it("rejects non-numeric stock_max", () => {
-    const result = ProductFormSchema.safeParse({ ...validProduct, stock_max: "---" });
-    expect(result.success).toBe(false);
-  });
-
-  // ─── booleans ──────────────────────────────────────────────────────
-  it("requires is_perishable boolean", () => {
-    const { is_perishable: _, ...without } = validProduct;
-    const result = ProductFormSchema.safeParse(without);
-    expect(result.success).toBe(false);
-  });
-
-  it("requires track_stock boolean", () => {
-    const { track_stock: _, ...without } = validProduct;
-    const result = ProductFormSchema.safeParse(without);
     expect(result.success).toBe(false);
   });
 

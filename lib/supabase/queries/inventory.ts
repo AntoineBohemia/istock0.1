@@ -23,14 +23,13 @@ export async function getAvailableProductsForRestock(organizationId: string): Pr
     icon_color: string | null;
     image_url: string | null;
     stock_current: number | null;
-    stock_max: number | null;
   }>
 > {
   const supabase = createClient();
 
   const { data, error } = await supabase
     .from("products")
-    .select("id, name, sku, icon_name, icon_color, image_url, stock_current, stock_max")
+    .select("id, name, sku, icon_name, icon_color, image_url, stock_current")
     .eq("organization_id", organizationId)
     .is("archived_at", null)
     .gt("stock_current", 0)
@@ -72,15 +71,4 @@ export async function addToTechnicianInventory(
   }
 
   return data as unknown as RestockResult;
-}
-
-/**
- * Calcule le pourcentage d'inventaire d'un technicien par rapport au stock max
- */
-export function calculateInventoryPercentage(
-  quantity: number,
-  stockMax: number
-): number {
-  if (stockMax <= 0) return 0;
-  return Math.min(100, Math.round((quantity / stockMax) * 100));
 }

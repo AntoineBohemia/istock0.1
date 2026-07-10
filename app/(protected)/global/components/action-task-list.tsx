@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
   TrendingDown,
-  Package,
   Clock,
   UserX,
   Moon,
@@ -18,11 +17,7 @@ import {
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
 import { useDashboardTasks } from "@/hooks/queries";
@@ -33,12 +28,26 @@ const INITIAL_COUNT = 5;
 
 // ─── Config par type de tâche ────────────────────────────────────────
 
-const TASK_ICONS: Record<string, { icon: typeof AlertTriangle; className: string; bgClassName: string }> = {
-  product_out_of_stock: { icon: AlertTriangle, className: "text-critique", bgClassName: "bg-critique-bg" },
-  product_below_min: { icon: TrendingDown, className: "text-attention", bgClassName: "bg-attention-bg" },
-  product_overstocked: { icon: Package, className: "text-attention", bgClassName: "bg-attention-bg" },
+const TASK_ICONS: Record<
+  string,
+  { icon: typeof AlertTriangle; className: string; bgClassName: string }
+> = {
+  product_out_of_stock: {
+    icon: AlertTriangle,
+    className: "text-critique",
+    bgClassName: "bg-critique-bg",
+  },
+  product_below_min: {
+    icon: TrendingDown,
+    className: "text-attention",
+    bgClassName: "bg-attention-bg",
+  },
   technician_late_restock: { icon: Clock, className: "text-primary", bgClassName: "bg-primary/10" },
-  technician_never_restocked: { icon: UserX, className: "text-critique", bgClassName: "bg-critique-bg" },
+  technician_never_restocked: {
+    icon: UserX,
+    className: "text-critique",
+    bgClassName: "bg-critique-bg",
+  },
   product_dormant: { icon: Moon, className: "text-muted-foreground", bgClassName: "bg-muted" },
 };
 
@@ -59,7 +68,6 @@ interface TaskGroup {
 const TASK_GROUPS: TaskGroup[] = [
   { key: "stock_critical", label: "Ruptures de stock", types: ["product_out_of_stock"] },
   { key: "stock_low", label: "Stock faible", types: ["product_below_min"] },
-  { key: "stock_over", label: "Surstockage", types: ["product_overstocked"] },
   { key: "dormant", label: "Produits dormants", types: ["product_dormant"] },
 ];
 
@@ -78,7 +86,12 @@ function TaskItem({ task, onDismiss }: { task: DashboardTask; onDismiss: () => v
         borderClass
       )}
     >
-      <div className={cn("shrink-0 flex items-center justify-center rounded-full size-8", iconConfig.bgClassName)}>
+      <div
+        className={cn(
+          "shrink-0 flex items-center justify-center rounded-full size-8",
+          iconConfig.bgClassName
+        )}
+      >
         <Icon className={cn("size-4", iconConfig.className)} />
       </div>
       <p className="flex-1 min-w-0 text-sm truncate">{task.summary}</p>
@@ -135,12 +148,8 @@ function EmptyState() {
     <div className="flex items-center gap-3 rounded-lg border-l-3 border-l-standard bg-standard-bg px-4 py-3">
       <CheckCircle className="size-5 shrink-0 text-standard" />
       <div>
-        <p className="text-sm font-medium text-standard">
-          Tout est en ordre
-        </p>
-        <p className="text-xs text-muted-foreground">
-          Aucune action requise pour le moment
-        </p>
+        <p className="text-sm font-medium text-standard">Tout est en ordre</p>
+        <p className="text-xs text-muted-foreground">Aucune action requise pour le moment</p>
       </div>
     </div>
   );
@@ -152,11 +161,9 @@ export function ActionTaskList({ embedded = false }: { embedded?: boolean }) {
   const { data: tasks = [], isLoading } = useDashboardTasks();
   const { dismissTask } = useTaskDismissStore();
   const [showAll, setShowAll] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(true);
-
-  useEffect(() => {
-    setIsExpanded(window.matchMedia("(min-width: 1024px)").matches);
-  }, []);
+  const [isExpanded, setIsExpanded] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(min-width: 1024px)").matches : true
+  );
 
   const handleDismiss = (task: DashboardTask) => {
     task.entity_ids.forEach((entityId) => dismissTask(task.type, entityId));
@@ -246,9 +253,7 @@ export function ActionTaskList({ embedded = false }: { embedded?: boolean }) {
           </CardHeader>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <CardContent className="pt-0">
-            {taskContent}
-          </CardContent>
+          <CardContent className="pt-0">{taskContent}</CardContent>
         </CollapsibleContent>
       </Collapsible>
     </Card>

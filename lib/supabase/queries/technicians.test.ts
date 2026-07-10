@@ -251,7 +251,12 @@ describe("createTechnician", () => {
 // ─── updateTechnician ────────────────────────────────────────────────
 describe("updateTechnician", () => {
   it("updates only provided fields", async () => {
-    const updated = { id: "tech-1", first_name: "Pierre", last_name: "Dupont", email: "jean@test.com" };
+    const updated = {
+      id: "tech-1",
+      first_name: "Pierre",
+      last_name: "Dupont",
+      email: "jean@test.com",
+    };
     mockClient._setResult({ data: updated, error: null });
 
     await updateTechnician("tech-1", { first_name: "Pierre" });
@@ -262,9 +267,9 @@ describe("updateTechnician", () => {
   it("throws specific error for duplicate email (23505)", async () => {
     mockClient._setResult({ data: null, error: { code: "23505", message: "duplicate" } });
 
-    await expect(
-      updateTechnician("tech-1", { email: "existing@test.com" })
-    ).rejects.toThrow("Un technicien avec cet email existe déjà");
+    await expect(updateTechnician("tech-1", { email: "existing@test.com" })).rejects.toThrow(
+      "Un technicien avec cet email existe déjà"
+    );
   });
 
   it("throws generic error", async () => {
@@ -305,7 +310,16 @@ describe("getTechnician", () => {
       if (callCount === 1) {
         // Technician query
         return Promise.resolve({
-          data: { id: "tech-1", first_name: "Jean", last_name: "Dupont", email: "j@d.com", phone: null, city: null, organization_id: "org-1", created_at: "2024-01-01" },
+          data: {
+            id: "tech-1",
+            first_name: "Jean",
+            last_name: "Dupont",
+            email: "j@d.com",
+            phone: null,
+            city: null,
+            organization_id: "org-1",
+            created_at: "2024-01-01",
+          },
           error: null,
         }).then(resolve, reject);
       }
@@ -313,7 +327,14 @@ describe("getTechnician", () => {
         // Inventory query
         return Promise.resolve({
           data: [
-            { id: "inv-1", technician_id: "tech-1", product_id: "p1", quantity: 10, assigned_at: "2024-01-01", product: { id: "p1", name: "Widget", sku: null, image_url: null, stock_max: 100 } },
+            {
+              id: "inv-1",
+              technician_id: "tech-1",
+              product_id: "p1",
+              quantity: 10,
+              assigned_at: "2024-01-01",
+              product: { id: "p1", name: "Widget", sku: null, image_url: null },
+            },
           ],
           error: null,
         }).then(resolve, reject);
@@ -360,8 +381,18 @@ describe("getTechnician", () => {
 describe("getTechnicianInventoryHistory", () => {
   it("returns history entries sorted by date", async () => {
     const history = [
-      { id: "h-1", technician_id: "tech-1", snapshot: { items: [], total_items: 5 }, created_at: "2024-06-15" },
-      { id: "h-2", technician_id: "tech-1", snapshot: { items: [], total_items: 3 }, created_at: "2024-06-10" },
+      {
+        id: "h-1",
+        technician_id: "tech-1",
+        snapshot: { items: [], total_items: 5 },
+        created_at: "2024-06-15",
+      },
+      {
+        id: "h-2",
+        technician_id: "tech-1",
+        snapshot: { items: [], total_items: 3 },
+        created_at: "2024-06-10",
+      },
     ];
     mockClient._setResult({ data: history, error: null });
 

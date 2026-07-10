@@ -16,8 +16,6 @@ import { Input } from "@/components/ui/input";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -90,11 +88,8 @@ export default function AddProductForm({ mode = "create", initialData }: AddProd
       price: initialData?.price || "",
       stock_current: initialData?.stock_current || "0",
       stock_min: initialData?.stock_min || "10",
-      stock_max: initialData?.stock_max || "100",
       category_id: initialData?.category_id || "",
       supplier_id: initialData?.supplier_id || "",
-      is_perishable: initialData?.is_perishable || false,
-      track_stock: initialData?.track_stock ?? true,
     },
   });
 
@@ -150,11 +145,8 @@ export default function AddProductForm({ mode = "create", initialData }: AddProd
         price: data.price ? parseFloat(data.price) : undefined,
         stock_current: data.stock_current ? parseInt(data.stock_current) : 0,
         stock_min: data.stock_min ? parseInt(data.stock_min) : 10,
-        stock_max: data.stock_max ? parseInt(data.stock_max) : 100,
         category_id: finalCategoryId,
         supplier_id: data.supplier_id || null,
-        is_perishable: data.is_perishable,
-        track_stock: data.track_stock,
       };
 
       if (mode === "edit" && initialData?.id) {
@@ -259,34 +251,19 @@ export default function AddProductForm({ mode = "create", initialData }: AddProd
                     </FormItem>
                   )}
                 />
-                <div className="grid grid-cols-2 gap-3">
-                  <FormField
-                    name="stock_max"
-                    control={form.control}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Optimum</FormLabel>
-                        <FormControl>
-                          <Input type="number" min="0" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    name="stock_min"
-                    control={form.control}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Seuil critique</FormLabel>
-                        <FormControl>
-                          <Input type="number" min="0" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                <FormField
+                  name="stock_min"
+                  control={form.control}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Seuil critique</FormLabel>
+                      <FormControl>
+                        <Input type="number" min="0" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
             </div>
 
@@ -551,41 +528,6 @@ export default function AddProductForm({ mode = "create", initialData }: AddProd
                     </div>
                   </TabsContent>
                 </Tabs>
-              </div>
-            </div>
-
-            {/* OPTIONS — same position as QR code on detail page */}
-            <div className="rounded-xl border bg-card overflow-hidden">
-              <div className="px-5 pt-4 pb-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground/50">
-                  Options
-                </p>
-              </div>
-              <div className="p-5 pt-2 space-y-4">
-                <FormField
-                  control={form.control}
-                  name="is_perishable"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                      <FormControl>
-                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
-                      <FormLabel className="font-normal">Produit périssable</FormLabel>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="track_stock"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between">
-                      <FormLabel className="font-normal">Suivi du stock</FormLabel>
-                      <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
               </div>
             </div>
           </div>

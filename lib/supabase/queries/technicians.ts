@@ -24,13 +24,13 @@ export interface TechnicianInventoryItem {
     name: string;
     sku: string;
     image_url: string | null;
-    stock_max: number | null;
   };
 }
 
 export interface TechnicianWithInventory extends Technician {
   inventory: TechnicianInventoryItem[];
   inventory_count: number;
+  year_units_total: number;
   last_restock_at: string | null;
 }
 
@@ -106,7 +106,7 @@ export async function getTechnician(id: string): Promise<TechnicianWithInventory
     .select(
       `
       *,
-      product:products(id, name, sku, image_url, stock_max)
+      product:products(id, name, sku, image_url)
     `
     )
     .eq("technician_id", id);
@@ -124,12 +124,23 @@ export async function getTechnician(id: string): Promise<TechnicianWithInventory
     .limit(1)
     .single();
 
+  // Total unités sorties cette année civile
+  const yearStart = new Date(new Date().getFullYear(), 0, 1).toISOString();
+  const { data: yearMovements } = await supabase
+    .from("stock_movements")
+    .select("quantity")
+    .eq("technician_id", id)
+    .eq("movement_type", "exit_technician")
+    .gte("created_at", yearStart);
+
+  const yearUnitsTotal = yearMovements?.reduce((sum, m) => sum + m.quantity, 0) || 0;
   const inventoryCount = inventory?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
   return {
     ...technician,
     inventory: inventory || [],
     inventory_count: inventoryCount,
+    year_units_total: yearUnitsTotal,
     last_restock_at: lastHistory?.created_at || null,
   };
 }

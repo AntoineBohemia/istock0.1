@@ -1,10 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import {
-  useOnboardingStore,
-  ONBOARDING_STEPS,
-  type CategoryData,
-  type ProductData,
-} from "./store";
+import { useOnboardingStore, ONBOARDING_STEPS, type CategoryData, type ProductData } from "./store";
 
 const mockCategory: CategoryData = { name: "Peintures" };
 const mockProduct: ProductData = {
@@ -12,7 +7,6 @@ const mockProduct: ProductData = {
   sku: "PB-001",
   categoryId: "cat-1",
   stockMin: 5,
-  stockMax: 50,
   stockInitial: 20,
   price: 15.99,
 };

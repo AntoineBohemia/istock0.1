@@ -1,74 +1,29 @@
 /**
- * Default stock thresholds used when values are not configured (null).
+ * Default stock threshold used when value is not configured (null).
  */
 export const STOCK_DEFAULTS = {
   MIN: 10,
-  MAX: 100,
 } as const;
 
 /**
- * Calcule le score de stock d'un produit (0-100%)
+ * Calcule le score de stock d'un produit (0, 25, 75)
  *
- * Logique :
- * - stock_min ou stock_max null → utilise les defaults (10 / 100)
- * - min = max et stock = min → 100% (cible atteinte)
- * - stock ≤ stock_min → 0% (critique bas)
- * - stock entre min et max → ((stock - min) / (max - min)) * 100
- * - stock = max → 100% (optimal)
- * - stock > max → le % redescend : 100 - (((stock - max) / max) * 100)
- * - stock ≥ 2× max → 0% (surstockage critique)
+ * Logique simplifiée à 3 niveaux :
+ * - stock = 0         → 0  (critique)
+ * - stock <= min      → 25 (attention)
+ * - stock > min       → 75 (standard)
  *
  * @param current - Stock actuel (null treated as 0)
  * @param min - Stock minimum / seuil d'alerte (null → STOCK_DEFAULTS.MIN)
- * @param max - Stock maximum / niveau optimal (null → STOCK_DEFAULTS.MAX)
- * @returns Score entre 0 et 100
+ * @returns Score : 0, 25 ou 75
  */
-export function calculateStockScore(
-  current: number | null,
-  min: number | null,
-  max: number | null
-): number {
+export function calculateStockScore(current: number | null, min: number | null): number {
   const c = current ?? 0;
   const mn = min ?? STOCK_DEFAULTS.MIN;
-  const mx = max ?? STOCK_DEFAULTS.MAX;
 
-  // Validation des entrées
-  if (mx <= 0 || mn < 0 || c < 0) {
-    return 0;
-  }
-
-  // Cas spécial: min = max (cible fixe)
-  if (mn === mx) {
-    if (c === mn) return 100;
-    if (c < mn) return 0;
-    // Surstockage au-dessus de la cible fixe
-    if (c >= mx * 2) return 0;
-    const overstock = c - mx;
-    const overstockRatio = overstock / mx;
-    return Math.round(Math.max(0, 100 - overstockRatio * 100));
-  }
-
-  // Cas 1: Stock critique bas (≤ min)
-  if (c <= mn) {
-    return 0;
-  }
-
-  // Cas 2: Stock entre min et max (zone normale)
-  if (c <= mx) {
-    const range = mx - mn;
-    return Math.round(((c - mn) / range) * 100);
-  }
-
-  // Cas 3: Surstockage critique (≥ 2× max)
-  if (c >= mx * 2) {
-    return 0;
-  }
-
-  // Cas 4: Surstockage modéré (entre max et 2× max)
-  // Le score redescend de 100% à 0%
-  const overstock = c - mx;
-  const overstockRatio = overstock / mx;
-  return Math.round(Math.max(0, 100 - overstockRatio * 100));
+  if (c <= 0) return 0;
+  if (c <= mn) return 25;
+  return 75;
 }
 
 /**

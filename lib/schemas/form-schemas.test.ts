@@ -58,8 +58,6 @@ describe("ProductFormSchema", () => {
   it("accepts valid product data", () => {
     const result = ProductFormSchema.safeParse({
       name: "Peinture Blanche",
-      is_perishable: false,
-      track_stock: true,
     });
     expect(result.success).toBe(true);
   });
@@ -72,11 +70,8 @@ describe("ProductFormSchema", () => {
       price: "25.99",
       stock_current: "10",
       stock_min: "5",
-      stock_max: "100",
       category_id: "cat-1",
       supplier_id: "sup-1",
-      is_perishable: false,
-      track_stock: true,
     });
     expect(result.success).toBe(true);
   });
@@ -84,8 +79,6 @@ describe("ProductFormSchema", () => {
   it("rejects name shorter than 2 characters", () => {
     const result = ProductFormSchema.safeParse({
       name: "A",
-      is_perishable: false,
-      track_stock: true,
     });
     expect(result.success).toBe(false);
   });
@@ -93,24 +86,6 @@ describe("ProductFormSchema", () => {
   it("rejects empty name", () => {
     const result = ProductFormSchema.safeParse({
       name: "",
-      is_perishable: false,
-      track_stock: true,
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it("requires is_perishable boolean", () => {
-    const result = ProductFormSchema.safeParse({
-      name: "Valid",
-      track_stock: true,
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it("requires track_stock boolean", () => {
-    const result = ProductFormSchema.safeParse({
-      name: "Valid",
-      is_perishable: false,
     });
     expect(result.success).toBe(false);
   });
@@ -119,8 +94,6 @@ describe("ProductFormSchema", () => {
     const result = ProductFormSchema.safeParse({
       name: "Widget",
       price: "abc",
-      is_perishable: false,
-      track_stock: true,
     });
     expect(result.success).toBe(false);
   });
@@ -129,8 +102,6 @@ describe("ProductFormSchema", () => {
     const result = ProductFormSchema.safeParse({
       name: "Widget",
       price: "29.99",
-      is_perishable: false,
-      track_stock: true,
     });
     expect(result.success).toBe(true);
   });
@@ -139,8 +110,6 @@ describe("ProductFormSchema", () => {
     const result = ProductFormSchema.safeParse({
       name: "Free Item",
       price: "0",
-      is_perishable: false,
-      track_stock: true,
     });
     expect(result.success).toBe(true);
   });
@@ -148,8 +117,6 @@ describe("ProductFormSchema", () => {
   it("accepts empty/undefined price", () => {
     const result = ProductFormSchema.safeParse({
       name: "No Price",
-      is_perishable: false,
-      track_stock: true,
     });
     expect(result.success).toBe(true);
   });
@@ -158,8 +125,6 @@ describe("ProductFormSchema", () => {
     const result = ProductFormSchema.safeParse({
       name: "Widget",
       stock_current: "abc",
-      is_perishable: false,
-      track_stock: true,
     });
     expect(result.success).toBe(false);
   });
@@ -168,18 +133,6 @@ describe("ProductFormSchema", () => {
     const result = ProductFormSchema.safeParse({
       name: "Widget",
       stock_min: "xyz",
-      is_perishable: false,
-      track_stock: true,
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects non-numeric stock_max", () => {
-    const result = ProductFormSchema.safeParse({
-      name: "Widget",
-      stock_max: "not-a-number",
-      is_perishable: false,
-      track_stock: true,
     });
     expect(result.success).toBe(false);
   });
@@ -189,9 +142,6 @@ describe("ProductFormSchema", () => {
       name: "Widget",
       stock_current: "10",
       stock_min: "5",
-      stock_max: "100",
-      is_perishable: false,
-      track_stock: true,
     });
     expect(result.success).toBe(true);
   });

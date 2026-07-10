@@ -17,19 +17,13 @@ import { createClient } from "@/lib/supabase/client";
 import { createProduct } from "@/lib/supabase/queries/products";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const emptyProduct: Omit<ProductData, "id"> = {
   name: "",
   sku: "",
   categoryId: "",
   stockMin: 5,
-  stockMax: 100,
   stockInitial: 0,
   price: 0,
 };
@@ -84,7 +78,6 @@ export function ProductsStep() {
       sku: product.sku,
       categoryId: product.categoryId,
       stockMin: product.stockMin,
-      stockMax: product.stockMax,
       stockInitial: product.stockInitial,
       price: product.price,
     });
@@ -120,15 +113,14 @@ export function ProductsStep() {
           setSavingIndex(i);
 
           const created = await createProduct({
-              organization_id: data.createdOrganizationId!,
-              name: product.name.trim(),
-              sku: product.sku?.trim() || undefined,
-              category_id: product.categoryId || null,
-              stock_min: product.stockMin,
-              stock_max: product.stockMax,
-              stock_current: product.stockInitial,
-              price: product.price ?? null,
-            });
+            organization_id: data.createdOrganizationId!,
+            name: product.name.trim(),
+            sku: product.sku?.trim() || undefined,
+            category_id: product.categoryId || null,
+            stock_min: product.stockMin,
+            stock_current: product.stockInitial,
+            price: product.price ?? null,
+          });
 
           // Create initial stock movement if needed
           if (product.stockInitial > 0) {
@@ -188,7 +180,8 @@ export function ProductsStep() {
         <div className="text-sm">
           <p className="font-medium">Conseil</p>
           <p className="text-muted-foreground">
-            Commencez par vos produits les plus utilises. Vous pourrez en ajouter d'autres plus tard.
+            Commencez par vos produits les plus utilises. Vous pourrez en ajouter d'autres plus
+            tard.
           </p>
         </div>
       </div>
@@ -205,7 +198,8 @@ export function ProductsStep() {
                 key={index}
                 className={cn(
                   "flex items-center justify-between p-3 rounded-lg border bg-background",
-                  product.id && "border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20"
+                  product.id &&
+                    "border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20"
                 )}
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -220,7 +214,8 @@ export function ProductsStep() {
                     <p className="font-medium truncate">{product.name}</p>
                     <p className="text-xs text-muted-foreground truncate">
                       {product.categoryId ? getCategoryName(product.categoryId) : "Sans categorie"}
-                      {" - Stock: "}{product.stockInitial}
+                      {" - Stock: "}
+                      {product.stockInitial}
                     </p>
                   </div>
                 </div>
@@ -251,11 +246,7 @@ export function ProductsStep() {
       )}
 
       {/* Add product button */}
-      <Button
-        variant="outline"
-        onClick={handleOpenDialog}
-        className="w-full border-dashed"
-      >
+      <Button variant="outline" onClick={handleOpenDialog} className="w-full border-dashed">
         <Plus className="size-4 mr-2" />
         Ajouter un produit
       </Button>
@@ -327,17 +318,6 @@ export function ProductsStep() {
                   min={0}
                   value={currentProduct.stockMin}
                   onChange={(e) => handleChange("stockMin", parseInt(e.target.value) || 0)}
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="stock-max">Stock max</Label>
-                <Input
-                  id="stock-max"
-                  type="number"
-                  min={1}
-                  value={currentProduct.stockMax}
-                  onChange={(e) => handleChange("stockMax", parseInt(e.target.value) || 100)}
                 />
               </div>
             </div>

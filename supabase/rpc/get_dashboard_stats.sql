@@ -14,18 +14,7 @@ BEGIN
       COALESCE(SUM(stock_current * COALESCE(price, 0)), 0) AS total_value,
       COUNT(*) AS total_products,
       COUNT(*) FILTER (
-        WHERE stock_max > 0 AND stock_min >= 0 AND stock_current >= 0
-          AND (
-            -- score < 30: stock <= min OR (overstock >= 2*max) OR
-            -- (stock between min and max with low ratio) OR (overstock moderate with low score)
-            stock_current <= stock_min
-            OR stock_current >= stock_max * 2
-            OR (stock_current > stock_min AND stock_current <= stock_max
-                AND (stock_max - stock_min) > 0
-                AND ROUND(((stock_current - stock_min)::NUMERIC / (stock_max - stock_min)) * 100) < 30)
-            OR (stock_current > stock_max AND stock_current < stock_max * 2
-                AND ROUND(GREATEST(0, 100 - ((stock_current - stock_max)::NUMERIC / stock_max) * 100)) < 30)
-          )
+        WHERE COALESCE(stock_current, 0) <= COALESCE(stock_min, 0)
       ) AS low_stock_count
     FROM products
     WHERE (p_organization_id IS NULL OR organization_id = p_organization_id)
