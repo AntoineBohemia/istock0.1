@@ -5,12 +5,7 @@ import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Loader2,
-  ImageIcon,
-  ArrowDownToLine,
-  ArrowUpFromLine,
-} from "lucide-react";
+import { Loader2, ImageIcon, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -85,20 +80,21 @@ export default function CreateMovementDialog({
   const { currentOrganization } = useOrganizationStore();
   const { data: productsResult, isLoading: isLoadingProducts } = useProducts({
     organizationId: currentOrganization?.id,
-    pageSize: 1000,
   });
-  const { data: techniciansData = [], isLoading: isLoadingTechnicians } = useTechnicians(currentOrganization?.id);
+  const { data: techniciansData = [], isLoading: isLoadingTechnicians } = useTechnicians(
+    currentOrganization?.id
+  );
   const createEntryMutation = useCreateStockEntry();
   const createExitMutation = useCreateStockExit();
 
-  const products: Product[] = (productsResult?.products || []).map(p => ({
+  const products: Product[] = (productsResult?.products || []).map((p) => ({
     id: p.id,
     name: p.name,
     sku: p.sku,
     image_url: p.image_url,
     stock_current: p.stock_current,
   }));
-  const technicians: Technician[] = techniciansData.map(t => ({
+  const technicians: Technician[] = techniciansData.map((t) => ({
     id: t.id,
     first_name: t.first_name,
     last_name: t.last_name,
@@ -158,9 +154,7 @@ export default function CreateMovementDialog({
             onSuccess();
           },
           onError: (error) => {
-            toast.error(
-              error instanceof Error ? error.message : "Erreur lors de l'enregistrement"
-            );
+            toast.error(error instanceof Error ? error.message : "Erreur lors de l'enregistrement");
           },
         }
       );
@@ -188,9 +182,7 @@ export default function CreateMovementDialog({
             onSuccess();
           },
           onError: (error) => {
-            toast.error(
-              error instanceof Error ? error.message : "Erreur lors de l'enregistrement"
-            );
+            toast.error(error instanceof Error ? error.message : "Erreur lors de l'enregistrement");
           },
         }
       );
@@ -202,9 +194,7 @@ export default function CreateMovementDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Nouveau mouvement de stock</DialogTitle>
-          <DialogDescription>
-            Enregistrez une entrée ou une sortie de stock
-          </DialogDescription>
+          <DialogDescription>Enregistrez une entrée ou une sortie de stock</DialogDescription>
         </DialogHeader>
 
         {isLoading ? (
@@ -258,25 +248,16 @@ export default function CreateMovementDialog({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Type de sortie</FormLabel>
-                      <Select
-                        value={field.value}
-                        onValueChange={field.onChange}
-                      >
+                      <Select value={field.value} onValueChange={field.onChange}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Sélectionner le type" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="exit_technician">
-                            Vers technicien
-                          </SelectItem>
-                          <SelectItem value="exit_anonymous">
-                            Sortie anonyme
-                          </SelectItem>
-                          <SelectItem value="exit_loss">
-                            Perte / Casse
-                          </SelectItem>
+                          <SelectItem value="exit_technician">Vers technicien</SelectItem>
+                          <SelectItem value="exit_anonymous">Sortie anonyme</SelectItem>
+                          <SelectItem value="exit_loss">Perte / Casse</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -293,10 +274,7 @@ export default function CreateMovementDialog({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Technicien *</FormLabel>
-                      <Select
-                        value={field.value}
-                        onValueChange={field.onChange}
-                      >
+                      <Select value={field.value} onValueChange={field.onChange}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Sélectionner un technicien" />
@@ -389,9 +367,7 @@ export default function CreateMovementDialog({
                             : undefined
                         }
                         {...field}
-                        onChange={(e) =>
-                          field.onChange(parseInt(e.target.value) || 1)
-                        }
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
                       />
                     </FormControl>
                     {direction === "exit" && selectedProduct && (
@@ -412,10 +388,7 @@ export default function CreateMovementDialog({
                   <FormItem>
                     <FormLabel>Notes</FormLabel>
                     <FormControl>
-                      <Textarea
-                        placeholder="Notes optionnelles..."
-                        {...field}
-                      />
+                      <Textarea placeholder="Notes optionnelles..." {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -432,9 +405,7 @@ export default function CreateMovementDialog({
                   Annuler
                 </Button>
                 <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting && (
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                  )}
+                  {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
                   Enregistrer
                 </Button>
               </DialogFooter>

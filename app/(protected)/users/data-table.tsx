@@ -9,17 +9,12 @@ import {
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 import { ArrowUpDown, Columns, MoreHorizontal, PlusCircle } from "lucide-react";
 
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -88,9 +83,7 @@ export const columns: ColumnDef<User>[] = [
       <div className="flex items-center gap-4">
         <Avatar>
           <AvatarImage src={row.original.image} alt="shadcn ui kit" />
-          <AvatarFallback>
-            {generateAvatarFallback(row.getValue("name"))}
-          </AvatarFallback>
+          <AvatarFallback>{generateAvatarFallback(row.getValue("name"))}</AvatarFallback>
         </Avatar>
         <div className="capitalize">{row.getValue("name")}</div>
       </div>
@@ -147,12 +140,13 @@ export const columns: ColumnDef<User>[] = [
     cell: ({ row }) => {
       const status = row.original.status;
 
-      const statusMap: Record<string, "success" | "destructive" | "warning" | "info" | "outline"> = {
-        active: "success",
-        inactive: "destructive",
-        pending: "warning",
-        congés: "info",
-      };
+      const statusMap: Record<string, "success" | "destructive" | "warning" | "info" | "outline"> =
+        {
+          active: "success",
+          inactive: "destructive",
+          pending: "warning",
+          congés: "info",
+        };
 
       const statusClass = statusMap[status] ?? "outline";
 
@@ -187,11 +181,8 @@ export const columns: ColumnDef<User>[] = [
 
 export default function UsersDataTable({ data }: { data: User[] }) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  );
-  const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>({});
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
 
   const table = useReactTable({
@@ -200,7 +191,6 @@ export default function UsersDataTable({ data }: { data: User[] }) {
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
@@ -277,9 +267,7 @@ export default function UsersDataTable({ data }: { data: User[] }) {
           <Input
             placeholder="Rechercher des utilisateurs..."
             value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-            onChange={(event) =>
-              table.getColumn("name")?.setFilterValue(event.target.value)
-            }
+            onChange={(event) => table.getColumn("name")?.setFilterValue(event.target.value)}
             className="max-w-sm"
           />
           <Popover>
@@ -369,9 +357,7 @@ export default function UsersDataTable({ data }: { data: User[] }) {
                     key={column.id}
                     className="capitalize"
                     checked={column.getIsVisible()}
-                    onCheckedChange={(value) =>
-                      column.toggleVisibility(!!value)
-                    }
+                    onCheckedChange={(value) => column.toggleVisibility(!!value)}
                   >
                     {column.id}
                   </DropdownMenuCheckboxItem>
@@ -390,10 +376,7 @@ export default function UsersDataTable({ data }: { data: User[] }) {
                     <TableHead key={header.id}>
                       {header.isPlaceholder
                         ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                        : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
                   );
                 })}
@@ -403,56 +386,23 @@ export default function UsersDataTable({ data }: { data: User[] }) {
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
+                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
+                <TableCell colSpan={columns.length} className="h-24 text-center">
                   Aucun résultat.
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
-      </div>
-      <div className="flex items-center justify-end space-x-2 pt-4">
-        <div className="text-muted-foreground flex-1 text-sm">
-          {table.getFilteredSelectedRowModel().rows.length} sur{" "}
-          {table.getFilteredRowModel().rows.length} ligne(s) sélectionnée(s).
-        </div>
-        <div className="space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Précédent
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Suivant
-          </Button>
-        </div>
       </div>
     </div>
   );

@@ -92,8 +92,6 @@ export default function GlobalPage() {
   const { data: productsResult, isLoading: isSearching } = useProducts({
     organizationId: orgId,
     search: searchQuery || undefined,
-    pageSize: 8,
-    page: 1,
   });
   const { data: techniciansData = [] } = useTechnicians(orgId);
   const searchResults = productsResult?.products ?? [];
@@ -112,7 +110,6 @@ export default function GlobalPage() {
   const { data: todayResult, isLoading: isLoadingToday } = useStockMovements({
     organizationId: orgId,
     startDate: today,
-    pageSize: 50,
   });
   const olderMovements = (todayResult?.movements ?? []).filter(
     (m) => m.created_at && m.created_at < pageLoadTime

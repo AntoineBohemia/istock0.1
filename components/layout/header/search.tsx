@@ -66,8 +66,6 @@ export default function Search() {
   const { data: productsResult, isLoading: productsLoading } = useProducts({
     organizationId: orgId,
     search: debouncedQuery || undefined,
-    page: 1,
-    pageSize: 5,
   });
 
   const { data: technicians } = useTechnicians(open ? orgId : undefined);
@@ -75,7 +73,7 @@ export default function Search() {
   const showProducts = debouncedQuery.length >= 2;
 
   const CommandItemComponent: React.FC<CommandItemProps> = ({ item }) => {
-    // @ts-expect-error
+    // @ts-expect-error - dynamic icon lookup from lucide-react icons object
     const LucideIcon = icons[item.icon];
 
     return (
@@ -145,9 +143,7 @@ export default function Search() {
                     <Package className="me-2 h-4 w-4 shrink-0" />
                     <span>{product.name}</span>
                     {product.sku && (
-                      <span className="text-muted-foreground ml-auto text-xs">
-                        {product.sku}
-                      </span>
+                      <span className="text-muted-foreground ml-auto text-xs">{product.sku}</span>
                     )}
                   </CommandItem>
                 ))
@@ -175,9 +171,7 @@ export default function Search() {
                     {tech.first_name} {tech.last_name}
                   </span>
                   {tech.city && (
-                    <span className="text-muted-foreground ml-auto text-xs">
-                      {tech.city}
-                    </span>
+                    <span className="text-muted-foreground ml-auto text-xs">{tech.city}</span>
                   )}
                 </CommandItem>
               ))}

@@ -31,7 +31,6 @@ export default function MobileBottomBar() {
   // Fetch products for action sheet display
   const { data: productsResult } = useProducts({
     organizationId: currentOrganization?.id,
-    pageSize: 1000,
   });
 
   const scannedProduct = scannedProductId

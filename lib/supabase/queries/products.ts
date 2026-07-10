@@ -36,16 +36,11 @@ export interface ProductFilters {
   minPrice?: number;
   maxPrice?: number;
   stockStatus?: "low" | "normal" | "high" | "all";
-  page?: number;
-  pageSize?: number;
 }
 
 export interface ProductsResult {
   products: ProductWithCategory[];
   total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
 }
 
 export interface CreateProductData {
@@ -83,21 +78,10 @@ export function generateSKU(name: string): string {
  */
 export async function getProducts(filters: ProductFilters = {}): Promise<ProductsResult> {
   const supabase = createClient();
-  const {
-    organizationId,
-    search,
-    categoryId,
-    minPrice,
-    maxPrice,
-    stockStatus,
-    page = 1,
-    pageSize = 10,
-  } = filters;
+  const { organizationId, search, categoryId, minPrice, maxPrice, stockStatus } = filters;
 
   // Construire la requête de base
-  let query = supabase
-    .from("products")
-    .select("*, category:categories(*), supplier:suppliers(*)", { count: "exact" });
+  let query = supabase.from("products").select("*, category:categories(*), supplier:suppliers(*)");
 
   // Exclure les produits archivés
   query = query.is("archived_at", null);
@@ -127,35 +111,26 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
   // Note: stockStatus "low"/"high" filters are applied client-side after fetch
   // because PostgREST doesn't support column-to-column comparison directly
 
-  // Pagination
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
+  query = query.order("created_at", { ascending: false });
 
-  query = query.order("created_at", { ascending: false }).range(from, to);
-
-  const { data, error, count } = await query;
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(`Erreur lors de la récupération des produits: ${error.message}`);
   }
 
   let products = (data as ProductWithCategory[]) || [];
-  let total = count || 0;
 
   // Apply stock status filter client-side (column-to-column comparison)
   if (stockStatus && stockStatus !== "all") {
     if (stockStatus === "low") {
       products = products.filter((p) => (p.stock_current ?? 0) <= (p.stock_min ?? 0));
     }
-    total = products.length;
   }
 
   return {
     products,
-    total,
-    page,
-    pageSize,
-    totalPages: Math.ceil(total / pageSize),
+    total: products.length,
   };
 }
 

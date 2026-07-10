@@ -31,16 +31,11 @@ export interface StockMovementFilters {
   movementType?: MovementType;
   startDate?: string;
   endDate?: string;
-  page?: number;
-  pageSize?: number;
 }
 
 export interface StockMovementsResult {
   movements: StockMovement[];
   total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
 }
 
 export const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
@@ -64,27 +59,16 @@ export async function getStockMovements(
   filters: StockMovementFilters = {}
 ): Promise<StockMovementsResult> {
   const supabase = createClient();
-  const {
-    organizationId,
-    productId,
-    technicianId,
-    movementType,
-    startDate,
-    endDate,
-    page = 1,
-    pageSize = 20,
-  } = filters;
+  const { organizationId, productId, technicianId, movementType, startDate, endDate } = filters;
 
-  let query = supabase
-    .from("stock_movements")
-    .select(
-      `
+  let query = supabase.from("stock_movements").select(
+    `
       *,
       product:products(id, name, sku, image_url),
       technician:technicians(id, first_name, last_name)
     `,
-      { count: "exact" }
-    );
+    { count: "exact" }
+  );
 
   // Filtrer par organisation
   if (organizationId) {
@@ -112,26 +96,19 @@ export async function getStockMovements(
     query = query.lte("created_at", endDate);
   }
 
-  // Pagination
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
+  query = query.order("created_at", { ascending: false });
 
-  query = query.order("created_at", { ascending: false }).range(from, to);
-
-  const { data, error, count } = await query;
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(`Erreur lors de la récupération des mouvements: ${error.message}`);
   }
 
-  const total = count || 0;
+  const movements = (data as StockMovement[]) || [];
 
   return {
-    movements: (data as StockMovement[]) || [],
-    total,
-    page,
-    pageSize,
-    totalPages: Math.ceil(total / pageSize),
+    movements,
+    total: movements.length,
   };
 }
 
@@ -282,9 +259,7 @@ export async function getProductMovementStats(
  * Récupère les valeurs totales d'entrée par organisation pour une année donnée
  * Note : utilise le prix actuel du produit (pas de prix historique stocké dans stock_movements)
  */
-export async function getYearlyEntryValuesByOrg(
-  year?: number
-): Promise<{
+export async function getYearlyEntryValuesByOrg(year?: number): Promise<{
   byOrg: Record<string, number>;
   cumul: number;
   globalStockValue: number;

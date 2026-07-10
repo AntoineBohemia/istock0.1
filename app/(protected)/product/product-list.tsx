@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useQueryStates, parseAsString, parseAsInteger } from "nuqs";
+import { useQueryStates, parseAsString } from "nuqs";
 import {
   ColumnDef,
   SortingState,
@@ -10,14 +10,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  ArrowUpDown,
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  ArrowDownToLine,
-  ArrowUpFromLine,
-} from "lucide-react";
+import { ArrowUpDown, Search, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
@@ -108,7 +101,6 @@ export default function ProductList() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filters, setFilters] = useQueryStates({
     search: parseAsString.withDefault(""),
-    page: parseAsInteger.withDefault(1),
     category: parseAsString.withDefault(""),
   });
 
@@ -124,17 +116,11 @@ export default function ProductList() {
   };
 
   const searchQuery = filters.search;
-  const page = filters.page;
   const categoryFilter = filters.category;
-  const setSearchQuery = (value: string) => setFilters({ search: value, page: 1 });
-  const setCategoryFilter = (value: string) => setFilters({ category: value, page: 1 });
-  const setPage = (value: number | ((prev: number) => number)) => {
-    const newPage = typeof value === "function" ? value(page) : value;
-    setFilters({ page: newPage });
-  };
+  const setSearchQuery = (value: string) => setFilters({ search: value });
+  const setCategoryFilter = (value: string) => setFilters({ category: value });
 
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
-  const pageSize = 20;
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
@@ -150,13 +136,9 @@ export default function ProductList() {
     organizationId: currentOrganization?.id,
     search: debouncedSearch || undefined,
     categoryId: categoryFilter || undefined,
-    page,
-    pageSize,
   });
 
   const products = productsResult?.products || [];
-  const totalCount = productsResult?.total || 0;
-  const totalPages = Math.ceil(totalCount / pageSize);
 
   const columns: ColumnDef<ProductWithCategory>[] = [
     {
@@ -454,35 +436,6 @@ export default function ProductList() {
           </tbody>
         </table>
       </div>
-
-      {/* Pagination — outside the card */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between px-1">
-          <p className="text-muted-foreground text-sm tabular-nums">
-            {totalCount} produit{totalCount > 1 ? "s" : ""} · page {page}/{totalPages}
-          </p>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              aria-label="Page précédente"
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setPage((p) => p + 1)}
-              disabled={products.length < pageSize}
-              aria-label="Page suivante"
-            >
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* Stock movement modal */}
       <QuickStockMovementModal

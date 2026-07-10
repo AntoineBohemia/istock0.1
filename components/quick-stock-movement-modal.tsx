@@ -100,7 +100,6 @@ export default function QuickStockMovementModal({
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
   const { data: productsResult, isLoading: isLoadingProducts } = useProducts({
     organizationId: currentOrganization?.id,
-    pageSize: 1000,
   });
   const { data: techniciansData = [], isLoading: isLoadingTechnicians } = useTechnicians(
     currentOrganization?.id

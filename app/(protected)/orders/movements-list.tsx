@@ -1,124 +1,153 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQueryStates, parseAsString, parseAsInteger, parseAsIsoDate } from "nuqs";
+import { useQueryStates, parseAsString } from "nuqs";
 import {
   ColumnDef,
-  ColumnFiltersState,
   SortingState,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  ArrowUpDown,
-  Download,
-  Loader2,
-  ImageIcon,
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  PlusCircle,
-  FilterIcon,
-  Calendar,
-} from "lucide-react";
-import { toast } from "sonner";
+import { ArrowUpDown, ArrowDownToLine, ArrowUpFromLine, Search } from "lucide-react";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import {
   StockMovement,
   MovementType,
   MOVEMENT_TYPE_LABELS,
 } from "@/lib/supabase/queries/stock-movements";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
-import CreateMovementDialog from "./create-movement-dialog";
-import { exportToCSV } from "@/lib/utils/csv-export";
-import { useStockMovements, useTechnicians } from "@/hooks/queries";
-import { useProducts } from "@/hooks/queries";
+import { useStockMovements } from "@/hooks/queries";
+import ProductIconDisplay from "@/components/product-icon-display";
+import { cn } from "@/lib/utils";
 
-const MOVEMENT_BADGE_VARIANTS: Record<
-  MovementType,
-  "success" | "info" | "secondary" | "destructive"
-> = {
-  entry: "success",
-  exit_technician: "info",
-  exit_anonymous: "secondary",
-  exit_loss: "destructive",
-};
+// ─── Animated table row ────────────────────────────────────
+const MotionTr = motion.create("tr");
 
-interface Product {
-  id: string;
-  name: string;
+function AnimatedRow({
+  children,
+  index,
+  reducedMotion,
+  onClick,
+}: {
+  children: React.ReactNode;
+  index: number;
+  reducedMotion: boolean | null;
+  onClick?: () => void;
+}) {
+  return (
+    <MotionTr
+      layout={!reducedMotion}
+      initial={reducedMotion ? false : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={reducedMotion ? undefined : { opacity: 0, y: -8 }}
+      transition={{
+        type: "spring",
+        bounce: 0,
+        duration: 0.35,
+        delay: reducedMotion ? 0 : index * 0.03,
+      }}
+      className="group border-b last:border-b-0 transition-colors hover:bg-muted/60 cursor-pointer"
+      onClick={onClick}
+    >
+      {children}
+    </MotionTr>
+  );
 }
 
-interface Technician {
-  id: string;
-  first_name: string;
-  last_name: string;
+// ─── Sort header button ────────────────────────────────────
+function SortHeader({
+  label,
+  column,
+  className,
+}: {
+  label: string;
+  column: { toggleSorting: (asc: boolean) => void; getIsSorted: () => false | "asc" | "desc" };
+  className?: string;
+}) {
+  const sorted = column.getIsSorted();
+  return (
+    <button
+      type="button"
+      onClick={() => column.toggleSorting(sorted === "asc")}
+      className={cn(
+        "inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/50 hover:text-foreground transition-colors select-none",
+        className
+      )}
+    >
+      {label}
+      <ArrowUpDown
+        className={cn(
+          "size-3 transition-colors",
+          sorted ? "text-foreground" : "text-foreground/25"
+        )}
+      />
+    </button>
+  );
 }
 
+// ─── Type filter chips ──────────────────────────────────────
+const TYPE_FILTER_OPTIONS = [
+  { value: "all", label: "Tous" },
+  { value: "entry", label: "Entrées" },
+  { value: "exit_technician", label: "Technicien" },
+  { value: "exit_anonymous", label: "Anonyme" },
+  { value: "exit_loss", label: "Perte" },
+];
+
+// ─── Main component ────────────────────────────────────────
 export default function MovementsList() {
   const router = useRouter();
+  const prefersReducedMotion = useReducedMotion();
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
-  // URL-synced filters via nuqs
   const [filters, setFilters] = useQueryStates({
     type: parseAsString.withDefault("all"),
-    product: parseAsString.withDefault("all"),
-    technician: parseAsString.withDefault("all"),
-    startDate: parseAsIsoDate,
-    endDate: parseAsIsoDate,
-    page: parseAsInteger.withDefault(1),
+    search: parseAsString.withDefault(""),
   });
 
   const filterType = filters.type;
-  const filterProduct = filters.product;
-  const filterTechnician = filters.technician;
-  const filterStartDate = filters.startDate ?? undefined;
-  const filterEndDate = filters.endDate ?? undefined;
-  const page = filters.page;
+  const searchQuery = filters.search;
 
-  const setFilterType = (value: string) => setFilters({ type: value, page: 1 });
-  const setFilterProduct = (value: string) => setFilters({ product: value, page: 1 });
-  const setFilterTechnician = (value: string) => setFilters({ technician: value, page: 1 });
-  const setFilterStartDate = (value: Date | undefined) =>
-    setFilters({ startDate: value ?? null, page: 1 });
-  const setFilterEndDate = (value: Date | undefined) =>
-    setFilters({ endDate: value ?? null, page: 1 });
-  const setPage = (value: number | ((prev: number) => number)) => {
-    const newPage = typeof value === "function" ? value(page) : value;
-    setFilters({ page: newPage });
-  };
+  const setFilterType = (value: string) => setFilters({ type: value });
+  const setSearchQuery = (value: string) => setFilters({ search: value });
+
+  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(() => {
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [searchQuery]);
+
+  const { data: movementsResult, isLoading } = useStockMovements({
+    organizationId: currentOrganization?.id,
+    movementType: filterType !== "all" ? (filterType as MovementType) : undefined,
+  });
+
+  const movements = movementsResult?.movements || [];
+
+  // Client-side search within current page
+  const filteredMovements = debouncedSearch
+    ? movements.filter((m) => {
+        const q = debouncedSearch.toLowerCase();
+        const productName = m.product?.name?.toLowerCase() || "";
+        const techName = m.technician
+          ? `${m.technician.first_name} ${m.technician.last_name}`.toLowerCase()
+          : "";
+        return productName.includes(q) || techName.includes(q);
+      })
+    : movements;
 
   const handleRowClick = (movement: StockMovement) => {
     if (movement.movement_type === "entry") {
@@ -128,119 +157,75 @@ export default function MovementsList() {
     }
   };
 
-  // React Query hooks
-  const { data: movementsResult, isLoading } = useStockMovements({
-    organizationId: currentOrganization?.id,
-    page,
-    pageSize: 20,
-    movementType: filterType !== "all" ? (filterType as MovementType) : undefined,
-    productId: filterProduct !== "all" ? filterProduct : undefined,
-    technicianId: filterTechnician !== "all" ? filterTechnician : undefined,
-    startDate: filterStartDate?.toISOString(),
-    endDate: filterEndDate?.toISOString(),
-  });
-
-  const { data: productsResult } = useProducts({
-    organizationId: currentOrganization?.id,
-    pageSize: 1000,
-  });
-  const { data: techniciansData = [] } = useTechnicians(currentOrganization?.id);
-
-  const movements = movementsResult?.movements || [];
-  const totalCount = movementsResult?.total || 0;
-  const products: Product[] = (productsResult?.products || []).map((p) => ({
-    id: p.id,
-    name: p.name,
-  }));
-  const technicians: Technician[] = techniciansData.map((t) => ({
-    id: t.id,
-    first_name: t.first_name,
-    last_name: t.last_name,
-  }));
-
-  const handleExportCSV = () => {
-    exportToCSV(movements, "mouvements", [
-      {
-        header: "Date",
-        accessor: (m) => new Date(m.created_at ?? Date.now()).toLocaleDateString("fr-FR"),
-      },
-      { header: "Type", accessor: (m) => MOVEMENT_TYPE_LABELS[m.movement_type] },
-      { header: "Produit", accessor: (m) => m.product?.name },
-      { header: "Quantité", accessor: (m) => m.quantity },
-      {
-        header: "Technicien",
-        accessor: (m) =>
-          m.technician ? `${m.technician.first_name} ${m.technician.last_name}` : "",
-      },
-      { header: "Notes", accessor: (m) => m.notes },
-    ]);
-  };
-
   const columns: ColumnDef<StockMovement>[] = [
     {
       accessorKey: "created_at",
-      header: ({ column }) => (
-        <Button
-          className="-ml-3"
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Date
-          <ArrowUpDown className="ml-2 size-4" />
-        </Button>
-      ),
+      header: ({ column }) => <SortHeader label="Date" column={column} />,
       cell: ({ row }) => {
         const date = new Date(row.original.created_at ?? Date.now());
         return (
-          <div className="text-sm">
-            <div>{format(date, "dd MMM yyyy", { locale: fr })}</div>
-            <div className="text-muted-foreground">{format(date, "HH:mm", { locale: fr })}</div>
+          <div>
+            <div className="text-[15px]">{format(date, "dd MMM yyyy", { locale: fr })}</div>
+            <div className="text-xs text-muted-foreground">
+              {format(date, "HH:mm", { locale: fr })}
+            </div>
           </div>
         );
       },
     },
     {
       accessorKey: "movement_type",
-      header: "Type",
+      header: () => (
+        <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
+          Type
+        </span>
+      ),
+      enableSorting: false,
       cell: ({ row }) => {
         const type = row.original.movement_type;
         const isEntry = type === "entry";
-
         return (
           <div className="flex items-center gap-2">
             {isEntry ? (
-              <ArrowDownToLine className="size-4 text-green-600" />
+              <ArrowDownToLine className="size-3.5 text-standard" />
             ) : (
-              <ArrowUpFromLine className="size-4 text-red-600" />
+              <ArrowUpFromLine className="size-3.5 text-critique" />
             )}
-            <Badge variant={MOVEMENT_BADGE_VARIANTS[type]}>{MOVEMENT_TYPE_LABELS[type]}</Badge>
+            <span
+              className={cn(
+                "inline-flex items-center rounded-full px-2 py-0.5 text-[13px] font-medium",
+                type === "entry" && "text-standard bg-standard-bg",
+                type === "exit_technician" && "text-foreground/80 bg-muted",
+                type === "exit_anonymous" && "text-attention bg-attention-bg",
+                type === "exit_loss" && "text-critique bg-critique-bg"
+              )}
+            >
+              {MOVEMENT_TYPE_LABELS[type]}
+            </span>
           </div>
         );
       },
     },
     {
       accessorKey: "product",
-      header: "Produit",
+      header: () => (
+        <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
+          Produit
+        </span>
+      ),
+      enableSorting: false,
       cell: ({ row }) => {
         const product = row.original.product;
         return (
-          <div className="flex items-center gap-3">
-            <figure className="flex size-10 items-center justify-center rounded-lg border bg-muted">
-              {product?.image_url ? (
-                <Image
-                  src={product.image_url}
-                  width={40}
-                  height={40}
-                  alt={product.name}
-                  className="size-full rounded-lg object-cover"
-                />
-              ) : (
-                <ImageIcon className="size-5 text-muted-foreground" />
+          <div className="flex items-center gap-4">
+            <ProductIconDisplay imageUrl={product?.image_url} size="md" />
+            <div className="min-w-0">
+              <div className="font-semibold text-[15px] leading-tight">
+                {product?.name || "Produit inconnu"}
+              </div>
+              {product?.sku && (
+                <div className="text-xs text-muted-foreground mt-0.5 font-mono">{product.sku}</div>
               )}
-            </figure>
-            <div>
-              <p className="font-medium">{product?.name || "Produit inconnu"}</p>
-              {product?.sku && <p className="text-xs text-muted-foreground">{product.sku}</p>}
             </div>
           </div>
         );
@@ -248,25 +233,38 @@ export default function MovementsList() {
     },
     {
       accessorKey: "quantity",
-      header: "Quantité",
+      header: ({ column }) => (
+        <SortHeader label="Qté" column={column} className="justify-center w-full" />
+      ),
       cell: ({ row }) => {
         const isEntry = row.original.movement_type === "entry";
         return (
-          <span className={`font-semibold ${isEntry ? "text-green-600" : "text-red-600"}`}>
-            {isEntry ? "+" : "-"}
+          <span
+            className={cn(
+              "font-heading font-bold tabular-nums text-xl",
+              isEntry ? "text-standard" : "text-critique"
+            )}
+          >
+            {isEntry ? "+" : "−"}
             {row.original.quantity}
           </span>
         );
       },
+      meta: { align: "center" },
     },
     {
       accessorKey: "technician",
-      header: "Technicien",
+      header: () => (
+        <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
+          Technicien
+        </span>
+      ),
+      enableSorting: false,
       cell: ({ row }) => {
         const technician = row.original.technician;
-        if (!technician) return <span className="text-muted-foreground">-</span>;
+        if (!technician) return <span className="text-muted-foreground">—</span>;
         return (
-          <span>
+          <span className="text-[15px]">
             {technician.first_name} {technician.last_name}
           </span>
         );
@@ -274,292 +272,205 @@ export default function MovementsList() {
     },
     {
       accessorKey: "notes",
-      header: "Notes",
+      header: () => (
+        <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
+          Notes
+        </span>
+      ),
+      enableSorting: false,
       cell: ({ row }) => (
-        <span className="text-muted-foreground text-sm">{row.original.notes || "-"}</span>
+        <span className="text-sm text-muted-foreground truncate max-w-[200px] block">
+          {row.original.notes || "—"}
+        </span>
       ),
     },
   ];
 
   const table = useReactTable({
-    data: movements,
+    data: filteredMovements,
     columns,
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    state: {
-      sorting,
-      columnFilters,
-    },
+    state: { sorting },
   });
-
-  const clearFilters = () => {
-    setFilters({
-      type: "all",
-      product: "all",
-      technician: "all",
-      startDate: null,
-      endDate: null,
-      page: 1,
-    });
-  };
-
-  const hasActiveFilters =
-    filterType !== "all" ||
-    filterProduct !== "all" ||
-    filterTechnician !== "all" ||
-    filterStartDate ||
-    filterEndDate;
 
   if ((isLoading || isOrgLoading) && movements.length === 0) {
     return (
-      <Card>
-        <CardContent className="space-y-4 pt-6">
-          {/* Filters skeleton */}
-          <div className="flex flex-wrap items-center gap-3">
-            <Skeleton className="h-9 w-64 rounded-md" />
-            <Skeleton className="h-9 w-40 rounded-md" />
-            <Skeleton className="h-9 w-48 rounded-md" />
-            <Skeleton className="h-9 w-48 rounded-md" />
-            <Skeleton className="size-9 rounded-[9px]" />
-            <div className="ml-auto flex gap-3">
-              <Skeleton className="h-9 w-28 rounded-[9px]" />
-              <Skeleton className="h-9 w-40 rounded-[9px]" />
-            </div>
-          </div>
-          {/* Table skeleton */}
-          <div className="rounded-md border">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="h-10 px-4 text-left">
-                    <Skeleton className="h-3 w-10" />
-                  </th>
-                  <th className="h-10 px-4 text-left">
-                    <Skeleton className="h-3 w-10" />
-                  </th>
-                  <th className="h-10 px-4 text-left">
-                    <Skeleton className="h-3 w-14" />
-                  </th>
-                  <th className="h-10 px-4 text-left">
-                    <Skeleton className="h-3 w-14" />
-                  </th>
-                  <th className="h-10 px-4 text-left">
-                    <Skeleton className="h-3 w-18" />
-                  </th>
-                  <th className="h-10 px-4 text-left">
-                    <Skeleton className="h-3 w-10" />
-                  </th>
+      <div className="space-y-3">
+        <Skeleton className="h-9 w-full rounded-md" />
+        <div className="flex gap-1.5">
+          {[...Array(5)].map((_, i) => (
+            <Skeleton key={i} className="h-7 w-20 rounded-full" />
+          ))}
+        </div>
+        <div className="rounded-xl border bg-card overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b">
+                <th className="h-11 px-5 text-left">
+                  <Skeleton className="h-3 w-10" />
+                </th>
+                <th className="h-11 px-5 text-left">
+                  <Skeleton className="h-3 w-12" />
+                </th>
+                <th className="h-11 px-5 text-left">
+                  <Skeleton className="h-3 w-14" />
+                </th>
+                <th className="h-11 px-5 text-center">
+                  <Skeleton className="h-3 w-8 mx-auto" />
+                </th>
+                <th className="h-11 px-5 text-left">
+                  <Skeleton className="h-3 w-18" />
+                </th>
+                <th className="h-11 px-5 text-left">
+                  <Skeleton className="h-3 w-10" />
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...Array(8)].map((_, i) => (
+                <tr key={i} className="border-b last:border-b-0">
+                  <td className="px-5 py-4">
+                    <div className="space-y-1">
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-3 w-10" />
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="size-3.5 rounded" />
+                      <Skeleton className="h-5 w-24 rounded-full" />
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-4">
+                      <Skeleton className="size-10 rounded-lg" />
+                      <div className="space-y-1.5">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-3 w-20" />
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4 text-center">
+                    <Skeleton className="h-5 w-8 mx-auto" />
+                  </td>
+                  <td className="px-5 py-4">
+                    <Skeleton className="h-4 w-24" />
+                  </td>
+                  <td className="px-5 py-4">
+                    <Skeleton className="h-4 w-16" />
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {[...Array(8)].map((_, i) => (
-                  <tr key={i} className="border-b last:border-b-0">
-                    <td className="px-4 py-3">
-                      <div className="space-y-1">
-                        <Skeleton className="h-4 w-20" />
-                        <Skeleton className="h-3 w-10" />
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <Skeleton className="size-4 rounded" />
-                        <Skeleton className="h-5 w-16 rounded-full" />
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <Skeleton className="size-10 rounded-lg" />
-                        <div className="space-y-1">
-                          <Skeleton className="h-4 w-24" />
-                          <Skeleton className="h-3 w-16" />
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Skeleton className="h-4 w-10" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <Skeleton className="h-4 w-24" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <Skeleton className="h-4 w-16" />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     );
   }
 
   return (
-    <>
-      <Card>
-        <CardContent className="space-y-4 pt-6">
-          {/* Filters */}
-          <div className="flex flex-wrap items-center gap-3">
-            <Input
-              placeholder="Rechercher..."
-              className="max-w-xs"
-              onChange={(e) => table.getColumn("product")?.setFilterValue(e.target.value)}
-            />
+    <div className="space-y-3">
+      {/* Search + type chips */}
+      <div className="space-y-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher un mouvement..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 bg-white dark:bg-card"
+          />
+        </div>
 
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les types</SelectItem>
-                <SelectItem value="entry">Entrées</SelectItem>
-                <SelectItem value="exit_technician">Technicien</SelectItem>
-                <SelectItem value="exit_anonymous">Anonyme</SelectItem>
-                <SelectItem value="exit_loss">Perte</SelectItem>
-              </SelectContent>
-            </Select>
+        <div className="flex flex-wrap gap-1.5">
+          {TYPE_FILTER_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() =>
+                setFilterType(filterType === opt.value && opt.value !== "all" ? "all" : opt.value)
+              }
+              className={cn(
+                "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                filterType === opt.value
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-            <Select value={filterProduct} onValueChange={setFilterProduct}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Produit" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les produits</SelectItem>
-                {products.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={filterTechnician} onValueChange={setFilterTechnician}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Technicien" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les techniciens</SelectItem>
-                {technicians.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.first_name} {t.last_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <Calendar className="size-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <CalendarComponent
-                  mode="range"
-                  selected={{
-                    from: filterStartDate,
-                    to: filterEndDate,
-                  }}
-                  onSelect={(range) => {
-                    setFilterStartDate(range?.from);
-                    setFilterEndDate(range?.to);
-                  }}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-
-            {hasActiveFilters && (
-              <Button variant="ghost" onClick={clearFilters}>
-                Effacer les filtres
-              </Button>
-            )}
-
-            <Button variant="outline" className="ml-auto" onClick={handleExportCSV}>
-              <Download className="size-4" />
-              Exporter CSV
-            </Button>
-            <Button onClick={() => setCreateDialogOpen(true)}>
-              <PlusCircle className="size-4" />
-              Nouveau mouvement
-            </Button>
-          </div>
-
-          {/* Table */}
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(header.column.columnDef.header, header.getContext())}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      onClick={() => handleRowClick(row.original)}
-                      className="cursor-pointer hover:bg-muted/50"
+      {/* Table */}
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <table className="w-full">
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id} className="border-b">
+                {headerGroup.headers.map((header) => {
+                  const align = (header.column.columnDef.meta as { align?: string })?.align;
+                  return (
+                    <th
+                      key={header.id}
+                      className={cn(
+                        "h-11 px-5 font-medium whitespace-nowrap",
+                        align === "right" && "text-right",
+                        align === "center" && "text-center",
+                        !align && "text-left"
+                      )}
                     >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(header.column.columnDef.header, header.getContext())}
+                    </th>
+                  );
+                })}
+              </tr>
+            ))}
+          </thead>
+
+          <tbody>
+            <AnimatePresence mode="popLayout" initial={false}>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row, index) => (
+                  <AnimatedRow
+                    key={row.original.id}
+                    index={index}
+                    reducedMotion={prefersReducedMotion}
+                    onClick={() => handleRowClick(row.original)}
+                  >
+                    {row.getVisibleCells().map((cell) => {
+                      const align = (cell.column.columnDef.meta as { align?: string })?.align;
+                      return (
+                        <td
+                          key={cell.id}
+                          className={cn(
+                            "px-5 py-4 whitespace-nowrap",
+                            align === "right" && "text-right",
+                            align === "center" && "text-center"
+                          )}
+                        >
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={columns.length} className="h-24 text-center">
-                      Aucun mouvement trouvé.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Pagination */}
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">{totalCount} mouvement(s) au total</p>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-              >
-                Précédent
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => p + 1)}
-                disabled={movements.length < 20}
-              >
-                Suivant
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <CreateMovementDialog
-        open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
-        onSuccess={() => {}}
-      />
-    </>
+                        </td>
+                      );
+                    })}
+                  </AnimatedRow>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={columns.length} className="h-32 text-center">
+                    <div className="text-muted-foreground">Aucun mouvement trouvé.</div>
+                  </td>
+                </tr>
+              )}
+            </AnimatePresence>
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

@@ -166,7 +166,7 @@ export function TabApercu() {
     6
   );
   const { data: categoriesData = [] } = useCategories(orgId);
-  const { data: productsResult } = useProducts({ organizationId: orgId, pageSize: 1000 });
+  const { data: productsResult } = useProducts({ organizationId: orgId });
 
   const isLoading = isScoreLoading || isHistoryLoading || isEvolutionLoading;
 

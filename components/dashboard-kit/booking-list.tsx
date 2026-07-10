@@ -10,7 +10,7 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  useReactTable
+  useReactTable,
 } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -29,7 +29,7 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
 } from "@/components/ui/table";
 import {
   Search,
@@ -37,7 +37,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
@@ -64,7 +64,7 @@ const bookings: Booking[] = [
     duration: "3 nights",
     checkIn: "June 19, 2028",
     checkOut: "June 22, 2028",
-    status: "Checked-In"
+    status: "Checked-In",
   },
   {
     bookingId: "LG-B00109",
@@ -74,7 +74,7 @@ const bookings: Booking[] = [
     duration: "2 nights",
     checkIn: "June 19, 2028",
     checkOut: "June 21, 2028",
-    status: "Checked-In"
+    status: "Checked-In",
   },
   {
     bookingId: "LG-B00110",
@@ -84,7 +84,7 @@ const bookings: Booking[] = [
     duration: "5 nights",
     checkIn: "June 19, 2028",
     checkOut: "June 24, 2028",
-    status: "Pending"
+    status: "Pending",
   },
   {
     bookingId: "LG-B00111",
@@ -94,7 +94,7 @@ const bookings: Booking[] = [
     duration: "4 nights",
     checkIn: "June 19, 2028",
     checkOut: "June 23, 2028",
-    status: "Checked-In"
+    status: "Checked-In",
   },
   {
     bookingId: "LG-B00112",
@@ -104,7 +104,7 @@ const bookings: Booking[] = [
     duration: "2 nights",
     checkIn: "June 20, 2028",
     checkOut: "June 22, 2028",
-    status: "Pending"
+    status: "Pending",
   },
   {
     bookingId: "LG-B00113",
@@ -114,8 +114,8 @@ const bookings: Booking[] = [
     duration: "7 nights",
     checkIn: "June 21, 2028",
     checkOut: "June 28, 2028",
-    status: "Checked-In"
-  }
+    status: "Checked-In",
+  },
 ];
 
 const columns: ColumnDef<Booking>[] = [
@@ -125,12 +125,13 @@ const columns: ColumnDef<Booking>[] = [
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        className="text-muted-foreground px-0 font-normal hover:bg-transparent">
+        className="text-muted-foreground px-0 font-normal hover:bg-transparent"
+      >
         Booking ID
         <ArrowUpDown className="ml-1 h-3 w-3" />
       </Button>
     ),
-    cell: ({ row }) => <span className="text-foreground">{row.getValue("bookingId")}</span>
+    cell: ({ row }) => <span className="text-foreground">{row.getValue("bookingId")}</span>,
   },
   {
     accessorKey: "guestName",
@@ -138,12 +139,13 @@ const columns: ColumnDef<Booking>[] = [
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        className="text-muted-foreground px-0 font-normal hover:bg-transparent">
+        className="text-muted-foreground px-0 font-normal hover:bg-transparent"
+      >
         Guest Name
         <ArrowUpDown className="ml-1 h-3 w-3" />
       </Button>
     ),
-    cell: ({ row }) => <span className="text-foreground">{row.getValue("guestName")}</span>
+    cell: ({ row }) => <span className="text-foreground">{row.getValue("guestName")}</span>,
   },
   {
     accessorKey: "roomType",
@@ -151,7 +153,8 @@ const columns: ColumnDef<Booking>[] = [
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        className="text-muted-foreground px-0 font-normal hover:bg-transparent">
+        className="text-muted-foreground px-0 font-normal hover:bg-transparent"
+      >
         Room Type
         <ArrowUpDown className="ml-1 h-3 w-3" />
       </Button>
@@ -161,11 +164,12 @@ const columns: ColumnDef<Booking>[] = [
         <span className="h-2 w-2 rounded-full bg-lime-400" />
         <Badge
           variant="outline"
-          className="border-lime-300 bg-lime-50 font-normal text-lime-700 dark:border-lime-900 dark:bg-lime-950 dark:text-lime-300">
+          className="border-lime-300 bg-lime-50 font-normal text-lime-700 dark:border-lime-900 dark:bg-lime-950 dark:text-lime-300"
+        >
           {row.getValue("roomType")}
         </Badge>
       </div>
-    )
+    ),
   },
   {
     accessorKey: "roomNumber",
@@ -173,12 +177,13 @@ const columns: ColumnDef<Booking>[] = [
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        className="text-muted-foreground px-0 font-normal hover:bg-transparent">
+        className="text-muted-foreground px-0 font-normal hover:bg-transparent"
+      >
         Room Number
         <ArrowUpDown className="ml-1 h-3 w-3" />
       </Button>
     ),
-    cell: ({ row }) => <span className="text-foreground">{row.getValue("roomNumber")}</span>
+    cell: ({ row }) => <span className="text-foreground">{row.getValue("roomNumber")}</span>,
   },
   {
     accessorKey: "duration",
@@ -186,12 +191,13 @@ const columns: ColumnDef<Booking>[] = [
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        className="text-muted-foreground px-0 font-normal hover:bg-transparent">
+        className="text-muted-foreground px-0 font-normal hover:bg-transparent"
+      >
         Duration
         <ArrowUpDown className="ml-1 h-3 w-3" />
       </Button>
     ),
-    cell: ({ row }) => <span className="text-foreground">{row.getValue("duration")}</span>
+    cell: ({ row }) => <span className="text-foreground">{row.getValue("duration")}</span>,
   },
   {
     id: "checkInOut",
@@ -200,7 +206,8 @@ const columns: ColumnDef<Booking>[] = [
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        className="text-muted-foreground px-0 font-normal hover:bg-transparent">
+        className="text-muted-foreground px-0 font-normal hover:bg-transparent"
+      >
         Check-In & Check-Out
         <ArrowUpDown className="ml-1 h-3 w-3" />
       </Button>
@@ -209,7 +216,7 @@ const columns: ColumnDef<Booking>[] = [
       <span className="text-foreground">
         {row.original.checkIn} - {row.original.checkOut}
       </span>
-    )
+    ),
   },
   {
     accessorKey: "status",
@@ -218,7 +225,8 @@ const columns: ColumnDef<Booking>[] = [
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="text-muted-foreground px-0 font-normal hover:bg-transparent">
+          className="text-muted-foreground px-0 font-normal hover:bg-transparent"
+        >
           Status
           <ArrowUpDown className="ml-1 h-3 w-3" />
         </Button>
@@ -234,7 +242,8 @@ const columns: ColumnDef<Booking>[] = [
               status === "Checked-In"
                 ? "border-lime-300 bg-lime-50 font-normal text-lime-700 dark:border-lime-900 dark:bg-lime-950 dark:text-lime-300"
                 : "border-yellow-300 bg-yellow-50 font-normal text-yellow-700"
-            }>
+            }
+          >
             {status}
           </Badge>
         </div>
@@ -243,8 +252,8 @@ const columns: ColumnDef<Booking>[] = [
     filterFn: (row, columnId, filterValue) => {
       if (filterValue === "all") return true;
       return row.getValue(columnId) === filterValue;
-    }
-  }
+    },
+  },
 ];
 
 export function BookingList() {
@@ -259,20 +268,16 @@ export function BookingList() {
     state: {
       sorting,
       globalFilter,
-      columnFilters
+      columnFilters,
     },
-    initialState: {
-      pagination: {
-        pageSize: 4
-      }
-    },
+    initialState: {},
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel()
+    getPaginationRowModel: getPaginationRowModel(),
   });
 
   const handleStatusChange = (value: string) => {
@@ -321,7 +326,8 @@ export function BookingList() {
                   {headerGroup.headers.map((header) => (
                     <TableHead
                       key={header.id}
-                      className="bg-muted py-2 first:rounded-tl-lg first:rounded-bl-lg last:rounded-tr-lg last:rounded-br-lg">
+                      className="bg-muted py-2 first:rounded-tl-lg first:rounded-bl-lg last:rounded-tr-lg last:rounded-br-lg"
+                    >
                       {header.isPlaceholder
                         ? null
                         : flexRender(header.column.columnDef.header, header.getContext())}
@@ -362,28 +368,32 @@ export function BookingList() {
                 variant="outline"
                 size="icon"
                 onClick={() => table.setPageIndex(0)}
-                disabled={!table.getCanPreviousPage()}>
+                disabled={!table.getCanPreviousPage()}
+              >
                 <ChevronsLeft />
               </Button>
               <Button
                 variant="outline"
                 size="icon"
                 onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}>
+                disabled={!table.getCanPreviousPage()}
+              >
                 <ChevronLeft />
               </Button>
               <Button
                 variant="outline"
                 size="icon"
                 onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}>
+                disabled={!table.getCanNextPage()}
+              >
                 <ChevronRight />
               </Button>
               <Button
                 variant="outline"
                 size="icon"
                 onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                disabled={!table.getCanNextPage()}>
+                disabled={!table.getCanNextPage()}
+              >
                 <ChevronsRight />
               </Button>
             </div>
