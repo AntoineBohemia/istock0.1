@@ -201,7 +201,7 @@ export default async function TechnicianDetailPage({
             <TabsList>
               <TabsTrigger value="inventory">
                 <Package className="size-4 mr-1.5" />
-                Inventaire
+                Total annuel
               </TabsTrigger>
               <TabsTrigger value="history">
                 <CalendarClock className="size-4 mr-1.5" />
