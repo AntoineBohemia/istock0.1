@@ -9,7 +9,7 @@ const tabs = [
   { key: "home", label: "Accueil", href: "/actions", icon: Home },
   { key: "scan", label: "Scan", href: null, icon: ScanLine },
   { key: "techs", label: "Techs", href: "/techniciens", icon: Users },
-  { key: "more", label: "Plus", href: "/more", icon: MoreHorizontal },
+  { key: "more", label: "Plus", href: "/plus", icon: MoreHorizontal },
 ] as const;
 
 interface MobileBottomTabsProps {

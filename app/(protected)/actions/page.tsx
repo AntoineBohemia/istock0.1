@@ -539,8 +539,8 @@ export default function GlobalPage() {
           })
         }
         className={cn(
-          "relative aspect-square rounded-xl border p-3 flex flex-col justify-between text-left transition-all",
-          "hover:border-primary/40 hover:shadow-sm active:scale-[0.97]",
+          "relative aspect-square rounded-xl border bg-card p-3 flex flex-col justify-between text-left transition-all shadow-sm",
+          "hover:border-primary/40 hover:shadow-md active:scale-[0.97]",
           inCart && "ring-2 ring-primary border-primary/30 bg-primary/5",
           !inCart && status === "critique" && "border-critique/30",
           !inCart && status === "attention" && "border-attention/30"
@@ -584,8 +584,8 @@ export default function GlobalPage() {
       key={t.id}
       onClick={() => selectTechnician(t.id)}
       className={cn(
-        "flex items-center gap-3 rounded-xl border transition-all active:scale-[0.97]",
-        "hover:border-primary/40 hover:bg-accent",
+        "flex items-center gap-3 rounded-xl border bg-card shadow-sm transition-all active:scale-[0.97]",
+        "hover:border-primary/40 hover:shadow-md",
         compact ? "p-3 gap-2" : "p-4"
       )}
     >
@@ -618,7 +618,7 @@ export default function GlobalPage() {
             searchInputRef.current?.blur();
           }
         }}
-        className="pl-9 h-11 text-base bg-white dark:bg-card"
+        className="pl-9 h-11 text-base bg-card rounded-xl shadow-sm"
         autoFocus={autoFocus}
       />
       {searchQuery && (
@@ -976,14 +976,13 @@ export default function GlobalPage() {
   return (
     <>
       {/* ═══════ MOBILE ═══════ */}
-      <div className="md:hidden flex flex-col gap-3 pb-6">
+      <div className="md:hidden flex flex-col gap-4 pb-6">
         {/* Back button */}
-        {step !== "action" && renderBackButton("mb-1")}
+        {step !== "action" && renderBackButton("mb-0")}
 
         {/* Step 1: Choose action */}
         {step === "action" && (
-          <div className="space-y-3">
-            <h2 className="font-heading font-semibold">Actions rapides</h2>
+          <div className="space-y-4">
             {renderActionCards(true)}
           </div>
         )}
@@ -991,7 +990,9 @@ export default function GlobalPage() {
         {/* Step 2: Choose technician */}
         {step === "technician" && (
           <div className="space-y-3">
-            <h2 className="font-heading font-semibold">Sélectionner un technicien</h2>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Sélectionner un technicien
+            </p>
             {techniciansData.length > 5 && renderSearchInput()}
             {filteredTechnicians.length > 0 ? (
               <div className="grid grid-cols-2 gap-2">
@@ -1014,11 +1015,13 @@ export default function GlobalPage() {
                   {stepLabel}
                 </p>
                 {technicianId && (
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <h2 className="font-heading font-semibold">{techFullName}</h2>
-                    <button onClick={clearTechnician} className="text-muted-foreground">
-                      <X className="size-3.5" />
-                    </button>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1 text-sm font-medium">
+                      {techFullName}
+                      <button onClick={clearTechnician} className="hover:bg-primary/20 rounded-full p-0.5 -mr-1">
+                        <X className="size-3" />
+                      </button>
+                    </span>
                   </div>
                 )}
               </div>
@@ -1046,7 +1049,7 @@ export default function GlobalPage() {
 
         {/* Step 4: Product detail (single mode) */}
         {step === "detail" && product && (
-          <div className="rounded-xl border bg-card p-4 space-y-4">
+          <div className="rounded-xl border bg-card p-4 space-y-4 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">

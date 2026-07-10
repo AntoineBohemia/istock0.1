@@ -151,9 +151,6 @@ export default function TechnicianHistory({ movements, year }: TechnicianHistory
             <Collapsible key={session.id} defaultOpen={sessionIndex === 0 || !!search}>
               <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors cursor-pointer select-none">
                 <div className="flex items-center gap-3">
-                  <div className="flex size-7 items-center justify-center rounded-md bg-primary/10 shrink-0">
-                    <Package className="size-3.5 text-primary" />
-                  </div>
                   <span className="font-medium text-sm">
                     {session.date.toLocaleDateString("fr-FR", {
                       day: "numeric",
@@ -172,7 +169,7 @@ export default function TechnicianHistory({ movements, year }: TechnicianHistory
                     {session.movements.length} produit
                     {session.movements.length > 1 ? "s" : ""}
                   </span>
-                  <span className="font-heading font-bold text-foreground text-sm tabular-nums">
+                  <span className="font-heading font-bold text-foreground text-base tabular-nums">
                     +{session.totalItems}
                   </span>
                 </div>
@@ -210,7 +207,7 @@ export default function TechnicianHistory({ movements, year }: TechnicianHistory
                           )}
                         </div>
                       </div>
-                      <span className="font-heading font-bold tabular-nums text-sm text-foreground">
+                      <span className="tabular-nums text-sm text-muted-foreground">
                         +{movement.quantity}
                       </span>
                     </div>
