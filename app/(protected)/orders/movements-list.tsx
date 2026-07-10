@@ -11,14 +11,34 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, ArrowDownToLine, ArrowUpFromLine, Search, History } from "lucide-react";
+import {
+  ArrowUpDown,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Search,
+  History,
+  CalendarDays,
+  X,
+} from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
-import { format } from "date-fns";
+import {
+  format,
+  subDays,
+  startOfMonth,
+  startOfYear,
+  isWithinInterval,
+  startOfDay,
+  endOfDay,
+} from "date-fns";
 import { fr } from "date-fns/locale";
+import type { DateRange } from "react-day-picker";
 
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HeroNumber } from "@/components/ui/hero-number";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { StockMovement, MOVEMENT_TYPE_LABELS } from "@/lib/supabase/queries/stock-movements";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useStockMovements } from "@/hooks/queries";
@@ -104,6 +124,8 @@ export default function MovementsList() {
   const prefersReducedMotion = useReducedMotion();
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const [filters, setFilters] = useQueryStates({
     type: parseAsString.withDefault("all"),
@@ -142,7 +164,7 @@ export default function MovementsList() {
     return counts;
   }, [allMovements]);
 
-  // Client-side type + search filter
+  // Client-side type + search + date filter
   const filteredMovements = useMemo(() => {
     let result = allMovements;
     if (filterType !== "all") {
@@ -158,8 +180,16 @@ export default function MovementsList() {
         return productName.includes(q) || techName.includes(q);
       });
     }
+    if (dateRange?.from) {
+      const from = startOfDay(dateRange.from);
+      const to = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
+      result = result.filter((m) => {
+        if (!m.created_at) return false;
+        return isWithinInterval(new Date(m.created_at), { start: from, end: to });
+      });
+    }
     return result;
-  }, [allMovements, filterType, debouncedSearch]);
+  }, [allMovements, filterType, debouncedSearch, dateRange]);
 
   const handleRowClick = (movement: StockMovement) => {
     if (movement.movement_type === "entry") {
@@ -410,7 +440,7 @@ export default function MovementsList() {
 
   return (
     <div className="space-y-3">
-      {/* Search + type chips — responsive like technicians */}
+      {/* Search + date picker + type chips */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -421,6 +451,80 @@ export default function MovementsList() {
             className="pl-9 bg-white dark:bg-card"
           />
         </div>
+
+        <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+          <PopoverTrigger>
+            <Button
+              variant="outline"
+              className={cn(
+                "h-9 gap-2 text-xs font-medium whitespace-nowrap",
+                dateRange?.from && "text-foreground"
+              )}
+            >
+              <CalendarDays className="size-3.5" />
+              {dateRange?.from ? (
+                dateRange.to ? (
+                  <>
+                    {format(dateRange.from, "dd MMM", { locale: fr })} –{" "}
+                    {format(dateRange.to, "dd MMM yyyy", { locale: fr })}
+                  </>
+                ) : (
+                  format(dateRange.from, "dd MMM yyyy", { locale: fr })
+                )
+              ) : (
+                "Période"
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-auto p-0">
+            <div className="p-3 space-y-3">
+              <Calendar
+                mode="range"
+                selected={dateRange}
+                onSelect={setDateRange}
+                numberOfMonths={1}
+                locale={fr}
+                fixedWeeks
+              />
+              <div className="border-t pt-3 flex flex-wrap gap-1.5">
+                {[
+                  { label: "Aujourd'hui", from: new Date(), to: new Date() },
+                  { label: "7 derniers jours", from: subDays(new Date(), 6), to: new Date() },
+                  { label: "30 derniers jours", from: subDays(new Date(), 29), to: new Date() },
+                  { label: "Ce mois", from: startOfMonth(new Date()), to: new Date() },
+                  { label: "Cette année", from: startOfYear(new Date()), to: new Date() },
+                ].map((preset) => (
+                  <Button
+                    key={preset.label}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-7 flex-1"
+                    onClick={() => {
+                      setDateRange({ from: preset.from, to: preset.to });
+                      setDatePickerOpen(false);
+                    }}
+                  >
+                    {preset.label}
+                  </Button>
+                ))}
+              </div>
+              {dateRange?.from && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-xs h-7 text-muted-foreground"
+                  onClick={() => {
+                    setDateRange(undefined);
+                    setDatePickerOpen(false);
+                  }}
+                >
+                  <X className="size-3 mr-1" />
+                  Effacer la période
+                </Button>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
 
         <div className="flex items-center gap-1.5">
           {TYPE_FILTER_OPTIONS.map((opt) => {
@@ -517,7 +621,7 @@ export default function MovementsList() {
                       </div>
                       <h3 className="text-lg font-semibold">Aucun mouvement</h3>
                       <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-                        {searchQuery || filterType !== "all"
+                        {searchQuery || filterType !== "all" || dateRange?.from
                           ? "Aucun mouvement ne correspond à ces filtres."
                           : "Les mouvements de stock apparaîtront ici."}
                       </p>
