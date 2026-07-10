@@ -45,57 +45,46 @@ async function getTechnician(id: string, year: number) {
     return null;
   }
 
-  // Inventaire actuel
-  const { data: inventory } = await supabase
-    .from("technician_inventory")
-    .select("quantity")
-    .eq("technician_id", id);
-
-  const inventoryCount = inventory?.reduce((sum, item) => sum + item.quantity, 0) || 0;
-
-  // Dernier réappro
-  const { data: lastMovement } = await supabase
-    .from("stock_movements")
-    .select("created_at")
-    .eq("technician_id", id)
-    .eq("movement_type", "exit_technician")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .single();
-
-  // Bornes de l'année sélectionnée
   const yearStart = new Date(year, 0, 1).toISOString();
   const yearEnd = new Date(year + 1, 0, 1).toISOString();
 
-  // Nombre de réappros (sessions distinctes dans l'historique)
-  const { count: totalRestocks } = await supabase
-    .from("technician_inventory_history")
-    .select("id", { count: "exact", head: true })
-    .eq("technician_id", id)
-    .gte("created_at", yearStart)
-    .lt("created_at", yearEnd);
+  // Toutes les queries sont indépendantes → paralléliser
+  const [inventoryResult, lastMovementResult, restocksResult, yearMovementsResult] =
+    await Promise.all([
+      supabase.from("technician_inventory").select("quantity").eq("technician_id", id),
+      supabase
+        .from("stock_movements")
+        .select("created_at")
+        .eq("technician_id", id)
+        .eq("movement_type", "exit_technician")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single(),
+      supabase
+        .from("technician_inventory_history")
+        .select("id", { count: "exact", head: true })
+        .eq("technician_id", id)
+        .gte("created_at", yearStart)
+        .lt("created_at", yearEnd),
+      supabase
+        .from("stock_movements")
+        .select("quantity")
+        .eq("technician_id", id)
+        .eq("movement_type", "exit_technician")
+        .gte("created_at", yearStart)
+        .lt("created_at", yearEnd),
+    ]);
 
-  // Unités sorties sur l'année
-  const { data: yearMovements } = await supabase
-    .from("stock_movements")
-    .select("quantity")
-    .eq("technician_id", id)
-    .eq("movement_type", "exit_technician")
-    .gte("created_at", yearStart)
-    .lt("created_at", yearEnd);
-
-  const yearUnitsTotal = yearMovements?.reduce((sum, m) => sum + m.quantity, 0) || 0;
-
-  // Année de création du technicien (pour limiter le sélecteur)
-  const createdYear = new Date(technician.created_at!).getFullYear();
+  const inventoryCount = inventoryResult.data?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+  const yearUnitsTotal = yearMovementsResult.data?.reduce((sum, m) => sum + m.quantity, 0) || 0;
 
   return {
     ...technician,
     inventory_count: inventoryCount,
     year_units_total: yearUnitsTotal,
-    last_restock_at: lastMovement?.created_at || null,
-    total_restocks: totalRestocks || 0,
-    created_year: createdYear,
+    last_restock_at: lastMovementResult.data?.created_at || null,
+    total_restocks: restocksResult.count || 0,
+    created_year: new Date(technician.created_at!).getFullYear(),
   };
 }
 
