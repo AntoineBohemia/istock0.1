@@ -24,8 +24,13 @@ import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import {
   format,
   subDays,
+  startOfWeek,
+  endOfWeek,
   startOfMonth,
+  endOfMonth,
   startOfYear,
+  subMonths,
+  subYears,
   isWithinInterval,
   startOfDay,
   endOfDay,
@@ -125,6 +130,7 @@ export default function MovementsList() {
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [draftRange, setDraftRange] = useState<DateRange | undefined>(undefined);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const [filters, setFilters] = useQueryStates({
@@ -452,7 +458,13 @@ export default function MovementsList() {
           />
         </div>
 
-        <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+        <Popover
+          open={datePickerOpen}
+          onOpenChange={(open) => {
+            setDatePickerOpen(open);
+            if (open) setDraftRange(dateRange);
+          }}
+        >
           <PopoverTrigger>
             <Button
               variant="outline"
@@ -474,54 +486,140 @@ export default function MovementsList() {
               ) : (
                 "Période"
               )}
+              {dateRange?.from && (
+                <span
+                  role="button"
+                  className="ml-1 rounded-full hover:bg-foreground/10 p-0.5"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDateRange(undefined);
+                    setDraftRange(undefined);
+                  }}
+                >
+                  <X className="size-3" />
+                </span>
+              )}
             </Button>
           </PopoverTrigger>
           <PopoverContent align="end" className="w-auto p-0">
-            <div className="p-3 space-y-3">
-              <Calendar
-                mode="range"
-                selected={dateRange}
-                onSelect={setDateRange}
-                numberOfMonths={1}
-                locale={fr}
-                fixedWeeks
-              />
-              <div className="border-t pt-3 flex flex-wrap gap-1.5">
+            <div className="flex">
+              {/* Sidebar presets */}
+              <div className="border-r py-3 px-1 flex flex-col gap-0.5 min-w-[140px]">
                 {[
                   { label: "Aujourd'hui", from: new Date(), to: new Date() },
-                  { label: "7 derniers jours", from: subDays(new Date(), 6), to: new Date() },
-                  { label: "30 derniers jours", from: subDays(new Date(), 29), to: new Date() },
+                  { label: "Hier", from: subDays(new Date(), 1), to: subDays(new Date(), 1) },
+                  {
+                    label: "Cette semaine",
+                    from: startOfWeek(new Date(), { weekStartsOn: 1 }),
+                    to: endOfWeek(new Date(), { weekStartsOn: 1 }),
+                  },
+                  {
+                    label: "Semaine dernière",
+                    from: startOfWeek(subDays(new Date(), 7), { weekStartsOn: 1 }),
+                    to: endOfWeek(subDays(new Date(), 7), { weekStartsOn: 1 }),
+                  },
                   { label: "Ce mois", from: startOfMonth(new Date()), to: new Date() },
+                  {
+                    label: "Mois dernier",
+                    from: startOfMonth(subMonths(new Date(), 1)),
+                    to: endOfMonth(subMonths(new Date(), 1)),
+                  },
                   { label: "Cette année", from: startOfYear(new Date()), to: new Date() },
+                  {
+                    label: "Année dernière",
+                    from: startOfYear(subYears(new Date(), 1)),
+                    to: new Date(new Date().getFullYear() - 1, 11, 31),
+                  },
+                  { label: "Tout", from: undefined, to: undefined },
                 ].map((preset) => (
-                  <Button
+                  <button
                     key={preset.label}
-                    variant="outline"
-                    size="sm"
-                    className="text-xs h-7 flex-1"
+                    type="button"
+                    className={cn(
+                      "text-left text-sm px-3 py-1.5 rounded-md transition-colors hover:bg-muted",
+                      !preset.from && !draftRange?.from && "font-semibold text-foreground",
+                      preset.from &&
+                        draftRange?.from &&
+                        format(preset.from, "yyyy-MM-dd") ===
+                          format(draftRange.from, "yyyy-MM-dd") &&
+                        "font-semibold text-foreground bg-muted"
+                    )}
                     onClick={() => {
-                      setDateRange({ from: preset.from, to: preset.to });
-                      setDatePickerOpen(false);
+                      if (!preset.from) {
+                        setDraftRange(undefined);
+                        setDateRange(undefined);
+                        setDatePickerOpen(false);
+                      } else {
+                        const range = { from: preset.from, to: preset.to };
+                        setDraftRange(range);
+                        setDateRange(range);
+                        setDatePickerOpen(false);
+                      }
                     }}
                   >
                     {preset.label}
-                  </Button>
+                  </button>
                 ))}
               </div>
-              {dateRange?.from && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full text-xs h-7 text-muted-foreground"
-                  onClick={() => {
-                    setDateRange(undefined);
-                    setDatePickerOpen(false);
-                  }}
-                >
-                  <X className="size-3 mr-1" />
-                  Effacer la période
-                </Button>
-              )}
+
+              {/* Calendars */}
+              <div className="p-3">
+                <Calendar
+                  mode="range"
+                  selected={draftRange}
+                  onSelect={setDraftRange}
+                  numberOfMonths={2}
+                  locale={fr}
+                  fixedWeeks
+                  showYearSwitcher={false}
+                />
+
+                {/* Footer */}
+                <div className="border-t mt-2 pt-3 flex items-center justify-between gap-4">
+                  <div className="text-sm text-muted-foreground tabular-nums">
+                    {draftRange?.from ? (
+                      <>
+                        <span className="font-medium text-foreground">
+                          {format(draftRange.from, "dd/MM/yyyy", { locale: fr })}
+                        </span>
+                        {draftRange.to && (
+                          <>
+                            <span className="mx-2">–</span>
+                            <span className="font-medium text-foreground">
+                              {format(draftRange.to, "dd/MM/yyyy", { locale: fr })}
+                            </span>
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      "Sélectionnez une période"
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => {
+                        setDraftRange(dateRange);
+                        setDatePickerOpen(false);
+                      }}
+                    >
+                      Annuler
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => {
+                        setDateRange(draftRange);
+                        setDatePickerOpen(false);
+                      }}
+                    >
+                      Appliquer
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
           </PopoverContent>
         </Popover>
