@@ -11,7 +11,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, ArrowDownToLine, ArrowUpFromLine, Search } from "lucide-react";
+import { ArrowUpDown, ArrowDownToLine, ArrowUpFromLine, Search, History } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -462,8 +462,18 @@ export default function MovementsList() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={columns.length} className="h-32 text-center">
-                    <div className="text-muted-foreground">Aucun mouvement trouvé.</div>
+                  <td colSpan={columns.length}>
+                    <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+                      <div className="flex size-16 items-center justify-center rounded-2xl bg-muted mb-4">
+                        <History className="size-7 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-lg font-semibold">Aucun mouvement</h3>
+                      <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+                        {searchQuery || filterType !== "all"
+                          ? "Aucun mouvement ne correspond à ces filtres."
+                          : "Les mouvements de stock apparaîtront ici."}
+                      </p>
+                    </div>
                   </td>
                 </tr>
               )}
@@ -471,6 +481,19 @@ export default function MovementsList() {
           </tbody>
         </table>
       </div>
+
+      {/* Footer count */}
+      {movements.length > 0 && (
+        <p className="text-muted-foreground text-sm px-1">
+          <span className="font-heading font-semibold text-foreground tabular-nums">
+            {filteredMovements.length}
+          </span>
+          {filteredMovements.length !== movements.length && (
+            <span className="tabular-nums"> sur {movements.length}</span>
+          )}{" "}
+          mouvement{movements.length > 1 ? "s" : ""}
+        </p>
+      )}
     </div>
   );
 }

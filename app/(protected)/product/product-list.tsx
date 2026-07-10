@@ -10,7 +10,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, Search, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { ArrowUpDown, Search, ArrowDownToLine, ArrowUpFromLine, Package } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
@@ -422,12 +422,22 @@ export default function ProductList() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={columns.length} className="h-32 text-center">
-                    <div className="text-muted-foreground">
-                      Aucun produit trouvé.{" "}
-                      <Link href="/product/create" className="text-primary hover:underline">
-                        Créer un produit
-                      </Link>
+                  <td colSpan={columns.length}>
+                    <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+                      <div className="flex size-16 items-center justify-center rounded-2xl bg-muted mb-4">
+                        <Package className="size-7 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-lg font-semibold">Aucun produit</h3>
+                      <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+                        {searchQuery || categoryFilter
+                          ? "Aucun produit ne correspond à cette recherche."
+                          : "Ajoutez vos produits pour commencer à gérer votre stock."}
+                      </p>
+                      {!searchQuery && !categoryFilter && (
+                        <Button asChild className="mt-5">
+                          <Link href="/product/create">Ajouter un produit</Link>
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -436,6 +446,19 @@ export default function ProductList() {
           </tbody>
         </table>
       </div>
+
+      {/* Footer count */}
+      {products.length > 0 && (
+        <p className="text-muted-foreground text-sm px-1">
+          <span className="font-heading font-semibold text-foreground tabular-nums">
+            {table.getRowModel().rows.length}
+          </span>
+          {productsResult && table.getRowModel().rows.length !== productsResult.total && (
+            <span className="tabular-nums"> sur {productsResult.total}</span>
+          )}{" "}
+          produit{(productsResult?.total ?? 0) > 1 ? "s" : ""}
+        </p>
+      )}
 
       {/* Stock movement modal */}
       <QuickStockMovementModal
