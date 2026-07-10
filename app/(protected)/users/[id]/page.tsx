@@ -178,13 +178,7 @@ export default async function TechnicianDetailPage({
           <span className="font-heading text-5xl font-bold tabular-nums leading-none">
             {technician.year_units_total}
           </span>
-          <span className="text-muted-foreground text-lg">unités en</span>
-          <YearSelector
-            currentYear={currentYear}
-            selectedYear={year}
-            minYear={technician.created_year}
-            technicianId={id}
-          />
+          <span className="text-muted-foreground text-lg">unités en {year}</span>
           <span className="text-muted-foreground text-lg mx-1.5">·</span>
           <span className="font-heading text-xl font-bold tabular-nums">
             {technician.inventory_count}
@@ -200,25 +194,37 @@ export default async function TechnicianDetailPage({
         </div>
       </div>
 
-      {/* ── Tabs: Inventaire + Historique ── */}
-      <Tabs defaultValue="inventory" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="inventory">
-            <Package className="size-4 mr-1.5" />
-            Inventaire
-          </TabsTrigger>
-          <TabsTrigger value="history">
-            <CalendarClock className="size-4 mr-1.5" />
-            Historique
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="inventory">
-          <TechnicianInventory technicianId={id} />
-        </TabsContent>
-        <TabsContent value="history">
-          <TechnicianHistory technicianId={id} />
-        </TabsContent>
-      </Tabs>
+      {/* ── Year selector + Tabs ── */}
+      <div className="flex items-center justify-between">
+        <Tabs defaultValue="inventory" className="flex-1">
+          <div className="flex items-center justify-between">
+            <TabsList>
+              <TabsTrigger value="inventory">
+                <Package className="size-4 mr-1.5" />
+                Inventaire
+              </TabsTrigger>
+              <TabsTrigger value="history">
+                <CalendarClock className="size-4 mr-1.5" />
+                Historique
+              </TabsTrigger>
+            </TabsList>
+            <YearSelector
+              currentYear={currentYear}
+              selectedYear={year}
+              minYear={technician.created_year}
+              technicianId={id}
+            />
+          </div>
+          <div className="mt-4">
+            <TabsContent value="inventory">
+              <TechnicianInventory technicianId={id} />
+            </TabsContent>
+            <TabsContent value="history">
+              <TechnicianHistory technicianId={id} />
+            </TabsContent>
+          </div>
+        </Tabs>
+      </div>
     </div>
   );
 }

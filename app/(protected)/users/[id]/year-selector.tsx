@@ -1,13 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface YearSelectorProps {
   currentYear: number;
@@ -23,35 +18,42 @@ export default function YearSelector({
   technicianId,
 }: YearSelectorProps) {
   const router = useRouter();
-
   const effectiveMin = Math.min(minYear, currentYear - 2);
-  const years: number[] = [];
-  for (let y = currentYear; y >= effectiveMin; y--) {
-    years.push(y);
-  }
+
+  const canGoBack = selectedYear > effectiveMin;
+  const canGoForward = selectedYear < currentYear;
+
+  const navigate = (y: number) => {
+    if (y === currentYear) {
+      router.push(`/users/${technicianId}`);
+    } else {
+      router.push(`/users/${technicianId}?year=${y}`);
+    }
+  };
 
   return (
-    <Select
-      value={String(selectedYear)}
-      onValueChange={(value) => {
-        const y = parseInt(value, 10);
-        if (y === currentYear) {
-          router.push(`/users/${technicianId}`);
-        } else {
-          router.push(`/users/${technicianId}?year=${y}`);
-        }
-      }}
-    >
-      <SelectTrigger className="w-auto h-auto gap-1 border-none bg-transparent p-0 font-heading text-lg font-bold tabular-nums shadow-none focus:ring-0">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {years.map((y) => (
-          <SelectItem key={y} value={String(y)}>
-            {y}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div className="flex items-center gap-1">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-7"
+        disabled={!canGoBack}
+        onClick={() => navigate(selectedYear - 1)}
+      >
+        <ChevronLeft className="size-4" />
+      </Button>
+      <span className="font-heading text-sm font-bold tabular-nums min-w-[3ch] text-center">
+        {selectedYear}
+      </span>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-7"
+        disabled={!canGoForward}
+        onClick={() => navigate(selectedYear + 1)}
+      >
+        <ChevronRight className="size-4" />
+      </Button>
+    </div>
   );
 }
