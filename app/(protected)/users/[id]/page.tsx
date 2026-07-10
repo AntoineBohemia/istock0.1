@@ -68,11 +68,12 @@ async function getTechnician(id: string, year: number) {
         .lt("created_at", yearEnd),
       supabase
         .from("stock_movements")
-        .select("product_id, quantity, product:products(id, name, sku, image_url)")
+        .select("id, product_id, quantity, created_at, product:products(id, name, sku, image_url)")
         .eq("technician_id", id)
         .eq("movement_type", "exit_technician")
         .gte("created_at", yearStart)
-        .lt("created_at", yearEnd),
+        .lt("created_at", yearEnd)
+        .order("created_at", { ascending: false }),
     ]);
 
   const inventoryCount = inventoryResult.data?.reduce((sum, item) => sum + item.quantity, 0) || 0;
@@ -109,11 +110,21 @@ async function getTechnician(id: string, year: number) {
   );
   const yearUnitsTotal = yearlyProductTotals.reduce((sum, p) => sum + p.total_quantity, 0);
 
+  // Mouvements de l'année pour l'historique (déjà fetchés, on normalise)
+  const yearMovements = (yearMovementsResult.data || []).map((item) => ({
+    id: item.id,
+    product_id: item.product_id,
+    quantity: item.quantity,
+    created_at: item.created_at,
+    product: Array.isArray(item.product) ? item.product[0] : item.product,
+  }));
+
   return {
     ...technician,
     inventory_count: inventoryCount,
     year_units_total: yearUnitsTotal,
     yearly_product_totals: yearlyProductTotals,
+    year_movements: yearMovements,
     last_restock_at: lastMovementResult.data?.created_at || null,
     total_restocks: restocksResult.count || 0,
     created_year: new Date(technician.created_at!).getFullYear(),
@@ -241,7 +252,7 @@ export default async function TechnicianDetailPage({
               <TechnicianInventory totals={technician.yearly_product_totals} year={year} />
             </TabsContent>
             <TabsContent value="history">
-              <TechnicianHistory technicianId={id} />
+              <TechnicianHistory movements={technician.year_movements} year={year} />
             </TabsContent>
           </div>
         </Tabs>

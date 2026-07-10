@@ -20,17 +20,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  createTechnician,
-  updateTechnician,
-} from "@/lib/supabase/queries/technicians";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { createTechnician, updateTechnician } from "@/lib/supabase/queries/technicians";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 const FormSchema = z.object({
@@ -56,10 +47,7 @@ interface TechnicianFormProps {
   initialData?: FormValues & { id?: string };
 }
 
-export default function TechnicianForm({
-  mode = "create",
-  initialData,
-}: TechnicianFormProps) {
+export default function TechnicianForm({ mode = "create", initialData }: TechnicianFormProps) {
   const router = useRouter();
   const { currentOrganization } = useOrganizationStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -85,7 +73,7 @@ export default function TechnicianForm({
 
     try {
       if (mode === "edit" && initialData?.id) {
-        await updateTechnician(initialData.id, data);
+        await updateTechnician(initialData.id, data, currentOrganization.id);
         toast.success("Technicien mis à jour avec succès");
         router.push(`/users/${initialData.id}`);
       } else {
@@ -124,7 +112,9 @@ export default function TechnicianForm({
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button variant="outline-contrast" size="icon" type="button" asChild>
-              <Link href={mode === "edit" && initialData?.id ? `/users/${initialData.id}` : "/users"}>
+              <Link
+                href={mode === "edit" && initialData?.id ? `/users/${initialData.id}` : "/users"}
+              >
                 <ChevronLeft />
               </Link>
             </Button>
@@ -152,9 +142,7 @@ export default function TechnicianForm({
           <Card>
             <CardHeader>
               <CardTitle>Informations personnelles</CardTitle>
-              <CardDescription>
-                Nom, prénom et coordonnées du technicien
-              </CardDescription>
+              <CardDescription>Nom, prénom et coordonnées du technicien</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
@@ -192,11 +180,7 @@ export default function TechnicianForm({
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="jean.dupont@example.com"
-                        {...field}
-                      />
+                      <Input type="email" placeholder="jean.dupont@example.com" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -208,9 +192,7 @@ export default function TechnicianForm({
           <Card>
             <CardHeader>
               <CardTitle>Contact et localisation</CardTitle>
-              <CardDescription>
-                Informations optionnelles de contact
-              </CardDescription>
+              <CardDescription>Informations optionnelles de contact</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <FormField
@@ -220,11 +202,7 @@ export default function TechnicianForm({
                   <FormItem>
                     <FormLabel>Téléphone</FormLabel>
                     <FormControl>
-                      <Input
-                        type="tel"
-                        placeholder="06 12 34 56 78"
-                        {...field}
-                      />
+                      <Input type="tel" placeholder="06 12 34 56 78" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -239,9 +217,7 @@ export default function TechnicianForm({
                     <FormControl>
                       <Input placeholder="Paris" {...field} />
                     </FormControl>
-                    <FormDescription>
-                      Ville d&apos;affectation du technicien
-                    </FormDescription>
+                    <FormDescription>Ville d&apos;affectation du technicien</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
