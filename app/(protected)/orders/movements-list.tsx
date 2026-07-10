@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryStates, parseAsString } from "nuqs";
 import {
@@ -257,12 +257,12 @@ function DateRangePicker({
                   onClick={() => {
                     if (presetRange === null) {
                       setDraft(undefined);
-                      onDateRangeChange(undefined);
                       setOpen(false);
+                      startTransition(() => onDateRangeChange(undefined));
                     } else if (presetRange) {
                       setDraft(presetRange);
-                      onDateRangeChange(presetRange);
                       setOpen(false);
+                      startTransition(() => onDateRangeChange(presetRange));
                     }
                   }}
                 >
@@ -324,8 +324,8 @@ function DateRangePicker({
                   className="text-xs"
                   disabled={!hasDraft || !hasChanges}
                   onClick={() => {
-                    onDateRangeChange(draft);
                     setOpen(false);
+                    startTransition(() => onDateRangeChange(draft));
                   }}
                 >
                   Appliquer
