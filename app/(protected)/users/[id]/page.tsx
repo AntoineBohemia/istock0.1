@@ -68,7 +68,7 @@ async function getTechnician(id: string, year: number) {
         .lt("created_at", yearEnd),
       supabase
         .from("stock_movements")
-        .select("quantity")
+        .select("product_id, quantity, product:products(id, name, sku, image_url)")
         .eq("technician_id", id)
         .eq("movement_type", "exit_technician")
         .gte("created_at", yearStart)
@@ -76,12 +76,44 @@ async function getTechnician(id: string, year: number) {
     ]);
 
   const inventoryCount = inventoryResult.data?.reduce((sum, item) => sum + item.quantity, 0) || 0;
-  const yearUnitsTotal = yearMovementsResult.data?.reduce((sum, m) => sum + m.quantity, 0) || 0;
+
+  // Agréger les sorties par produit côté serveur
+  const productMap = new Map<
+    string,
+    {
+      product_id: string;
+      product_name: string;
+      product_sku: string | null;
+      product_image_url: string | null;
+      total_quantity: number;
+    }
+  >();
+  for (const item of yearMovementsResult.data || []) {
+    const product = Array.isArray(item.product) ? item.product[0] : item.product;
+    const pid = item.product_id;
+    const existing = productMap.get(pid);
+    if (existing) {
+      existing.total_quantity += item.quantity;
+    } else {
+      productMap.set(pid, {
+        product_id: pid,
+        product_name: product?.name || "Produit supprimé",
+        product_sku: product?.sku || null,
+        product_image_url: product?.image_url || null,
+        total_quantity: item.quantity,
+      });
+    }
+  }
+  const yearlyProductTotals = Array.from(productMap.values()).sort(
+    (a, b) => b.total_quantity - a.total_quantity
+  );
+  const yearUnitsTotal = yearlyProductTotals.reduce((sum, p) => sum + p.total_quantity, 0);
 
   return {
     ...technician,
     inventory_count: inventoryCount,
     year_units_total: yearUnitsTotal,
+    yearly_product_totals: yearlyProductTotals,
     last_restock_at: lastMovementResult.data?.created_at || null,
     total_restocks: restocksResult.count || 0,
     created_year: new Date(technician.created_at!).getFullYear(),
@@ -206,7 +238,7 @@ export default async function TechnicianDetailPage({
           </div>
           <div className="mt-4">
             <TabsContent value="inventory">
-              <TechnicianInventory technicianId={id} year={year} />
+              <TechnicianInventory totals={technician.yearly_product_totals} year={year} />
             </TabsContent>
             <TabsContent value="history">
               <TechnicianHistory technicianId={id} />
