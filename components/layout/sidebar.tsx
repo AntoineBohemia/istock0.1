@@ -65,6 +65,8 @@ export default function Sidebar() {
           avatar: authUser.user_metadata?.avatar_url || null,
         });
       }
+    }).catch(() => {
+      // Network error during HMR or cold start — ignore silently
     });
   }, []);
 

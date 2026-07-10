@@ -145,7 +145,7 @@ export default function MembersPage() {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data: { user } }) => {
       setCurrentUserId(user?.id || null);
-    });
+    }).catch(() => {});
   }, []);
 
   const handleInvite = () => {
