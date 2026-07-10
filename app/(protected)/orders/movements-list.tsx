@@ -18,6 +18,7 @@ import {
   Search,
   History,
   CalendarDays,
+  Building2,
   X,
 } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
@@ -358,13 +359,16 @@ export default function MovementsList() {
   const [filters, setFilters] = useQueryStates({
     type: parseAsString.withDefault("all"),
     search: parseAsString.withDefault(""),
+    supplier: parseAsString.withDefault(""),
   });
 
   const filterType = filters.type;
   const searchQuery = filters.search;
+  const filterSupplier = filters.supplier;
 
   const setFilterType = (value: string) => setFilters({ type: value });
   const setSearchQuery = (value: string) => setFilters({ search: value });
+  const setFilterSupplier = (value: string) => setFilters({ supplier: value });
 
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -392,6 +396,19 @@ export default function MovementsList() {
     return counts;
   }, [allMovements]);
 
+  // Unique suppliers from movements (for filter)
+  const availableSuppliers = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of allMovements) {
+      if (m.supplier?.id && m.supplier.name) {
+        map.set(m.supplier.id, m.supplier.name);
+      }
+    }
+    return Array.from(map, ([id, name]) => ({ id, name })).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+  }, [allMovements]);
+
   // Client-side type + search + date filter
   const filteredMovements = useMemo(() => {
     let result = allMovements;
@@ -408,6 +425,9 @@ export default function MovementsList() {
         return productName.includes(q) || techName.includes(q);
       });
     }
+    if (filterSupplier) {
+      result = result.filter((m) => m.supplier?.id === filterSupplier);
+    }
     if (dateRange?.from) {
       const from = startOfDay(dateRange.from);
       const to = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
@@ -417,7 +437,7 @@ export default function MovementsList() {
       });
     }
     return result;
-  }, [allMovements, filterType, debouncedSearch, dateRange]);
+  }, [allMovements, filterType, debouncedSearch, filterSupplier, dateRange]);
 
   const handleRowClick = (movement: StockMovement) => {
     if (movement.movement_type === "entry") {
@@ -682,6 +702,58 @@ export default function MovementsList() {
 
         <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
 
+        {availableSuppliers.length > 0 && (
+          <Popover>
+            <PopoverTrigger
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none cursor-pointer",
+                filterSupplier
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
+              )}
+            >
+              <Building2 className="size-3" />
+              {filterSupplier
+                ? (availableSuppliers.find((s) => s.id === filterSupplier)?.name ?? "Entreprise")
+                : "Entreprise"}
+              {filterSupplier && (
+                <span
+                  role="button"
+                  className="ml-0.5 rounded-full hover:bg-white/20 p-0.5 -mr-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFilterSupplier("");
+                  }}
+                >
+                  <X className="size-3" />
+                </span>
+              )}
+            </PopoverTrigger>
+            <PopoverContent
+              align="start"
+              className="w-auto min-w-[180px] p-1 rounded-xl overflow-hidden"
+            >
+              <div className="flex flex-col gap-0.5 max-h-[280px] overflow-y-auto">
+                {availableSuppliers.map((sup) => (
+                  <button
+                    key={sup.id}
+                    type="button"
+                    className={cn(
+                      "text-left text-[13px] px-3 py-1.5 rounded-lg transition-colors",
+                      filterSupplier === sup.id
+                        ? "bg-primary text-primary-foreground font-medium"
+                        : "text-foreground/70 hover:bg-muted hover:text-foreground"
+                    )}
+                    onClick={() => setFilterSupplier(filterSupplier === sup.id ? "" : sup.id)}
+                  >
+                    {sup.name}
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
+
         <div className="flex items-center gap-1.5">
           {TYPE_FILTER_OPTIONS.map((opt) => {
             const isActive = filterType === opt.value;
@@ -777,7 +849,7 @@ export default function MovementsList() {
                       </div>
                       <h3 className="text-lg font-semibold">Aucun mouvement</h3>
                       <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-                        {searchQuery || filterType !== "all" || dateRange?.from
+                        {searchQuery || filterType !== "all" || dateRange?.from || filterSupplier
                           ? "Aucun mouvement ne correspond à ces filtres."
                           : "Les mouvements de stock apparaîtront ici."}
                       </p>
