@@ -26,9 +26,6 @@ export interface ProductWithRelations extends Product {
   supplier?: Supplier | null;
 }
 
-/** @deprecated Use ProductWithRelations instead */
-export type ProductWithCategory = ProductWithRelations;
-
 export interface ProductFilters {
   organizationId?: string;
   search?: string;
@@ -39,7 +36,7 @@ export interface ProductFilters {
 }
 
 export interface ProductsResult {
-  products: ProductWithCategory[];
+  products: ProductWithRelations[];
   total: number;
 }
 
@@ -119,7 +116,7 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
     throw new Error(`Erreur lors de la récupération des produits: ${error.message}`);
   }
 
-  let products = (data as ProductWithCategory[]) || [];
+  let products = (data as ProductWithRelations[]) || [];
 
   // Apply stock status filter client-side (column-to-column comparison)
   if (stockStatus && stockStatus !== "all") {
@@ -137,7 +134,7 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
 /**
  * Récupère un produit par son ID avec sa catégorie
  */
-export async function getProduct(id: string): Promise<ProductWithCategory | null> {
+export async function getProduct(id: string): Promise<ProductWithRelations | null> {
   const supabase = createClient();
 
   const { data, error } = await supabase
@@ -153,7 +150,7 @@ export async function getProduct(id: string): Promise<ProductWithCategory | null
     throw new Error(`Erreur lors de la récupération du produit: ${error.message}`);
   }
 
-  return data as ProductWithCategory;
+  return data as ProductWithRelations;
 }
 
 /**

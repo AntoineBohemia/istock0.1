@@ -1,23 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  Edit2,
-  Loader2,
-  MoreHorizontal,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { Edit2, Loader2, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -72,7 +60,10 @@ export default function CategoriesPage() {
   const [categoryName, setCategoryName] = useState("");
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
 
-  const isSubmitting = createCategoryMutation.isPending || updateCategoryMutation.isPending || deleteCategoryMutation.isPending;
+  const isSubmitting =
+    createCategoryMutation.isPending ||
+    updateCategoryMutation.isPending ||
+    deleteCategoryMutation.isPending;
 
   const openCreateDialog = () => {
     setEditingCategory(null);
@@ -104,7 +95,11 @@ export default function CategoriesPage() {
 
     if (editingCategory) {
       updateCategoryMutation.mutate(
-        { id: editingCategory.id, name: categoryName.trim() },
+        {
+          id: editingCategory.id,
+          name: categoryName.trim(),
+          organizationId: currentOrganization.id,
+        },
         {
           onSuccess: () => {
             toast.success("Catégorie mise à jour avec succès");
@@ -134,16 +129,19 @@ export default function CategoriesPage() {
   const handleDelete = () => {
     if (!categoryToDelete) return;
 
-    deleteCategoryMutation.mutate(categoryToDelete.id, {
-      onSuccess: () => {
-        toast.success("Catégorie supprimée avec succès");
-        setIsDeleteDialogOpen(false);
-        setCategoryToDelete(null);
-      },
-      onError: (error) => {
-        toast.error(error instanceof Error ? error.message : "Une erreur est survenue");
-      },
-    });
+    deleteCategoryMutation.mutate(
+      { id: categoryToDelete.id, organizationId: currentOrganization?.id },
+      {
+        onSuccess: () => {
+          toast.success("Catégorie supprimée avec succès");
+          setIsDeleteDialogOpen(false);
+          setCategoryToDelete(null);
+        },
+        onError: (error) => {
+          toast.error(error instanceof Error ? error.message : "Une erreur est survenue");
+        },
+      }
+    );
   };
 
   if (isLoading) {
@@ -172,9 +170,7 @@ export default function CategoriesPage() {
       <Card>
         <CardHeader>
           <CardTitle>Liste des catégories</CardTitle>
-          <CardDescription>
-            {categories.length} catégorie(s)
-          </CardDescription>
+          <CardDescription>{categories.length} catégorie(s)</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -191,11 +187,7 @@ export default function CategoriesPage() {
                   <TableCell colSpan={3} className="h-24 text-center">
                     <div className="text-muted-foreground">
                       Aucune catégorie trouvée.{" "}
-                      <Button
-                        variant="link"
-                        className="px-1"
-                        onClick={openCreateDialog}
-                      >
+                      <Button variant="link" className="px-1" onClick={openCreateDialog}>
                         Créer une catégorie
                       </Button>
                     </div>
@@ -209,7 +201,7 @@ export default function CategoriesPage() {
                     </TableCell>
                     <TableCell>
                       <span className="text-muted-foreground text-sm">
-                        {new Date(category.created_at ?? Date.now()).toLocaleDateString("fr-FR")}
+                        {new Date(category.created_at ?? 0).toLocaleDateString("fr-FR")}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -284,10 +276,7 @@ export default function CategoriesPage() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-      >
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer la catégorie</AlertDialogTitle>
@@ -297,9 +286,7 @@ export default function CategoriesPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSubmitting}>
-              Annuler
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={isSubmitting}>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={isSubmitting}

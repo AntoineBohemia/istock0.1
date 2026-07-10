@@ -21,7 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import QuickStockMovementModal from "@/components/quick-stock-movement-modal";
 
-import { ProductWithCategory } from "@/lib/supabase/queries/products";
+import { ProductWithRelations } from "@/lib/supabase/queries/products";
 import { calculateStockScore, getStockScoreColor, getStockBadgeVariant } from "@/lib/utils/stock";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProducts, useCategories } from "@/hooks/queries";
@@ -140,7 +140,7 @@ export default function ProductList() {
 
   const products = productsResult?.products || [];
 
-  const columns: ColumnDef<ProductWithCategory>[] = [
+  const columns: ColumnDef<ProductWithRelations>[] = [
     {
       accessorKey: "name",
       header: ({ column }) => <SortHeader label="Produit" column={column} />,

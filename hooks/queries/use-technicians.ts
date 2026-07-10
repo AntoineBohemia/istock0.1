@@ -7,10 +7,8 @@ import {
   getTechnicians,
   getTechnician,
   getTechniciansStats,
-  getTechnicianInventoryHistory,
   getTechnicianStockMovements,
   getTechnicianEvolutionData,
-  getTechnicianYearlyTotals,
 } from "@/lib/supabase/queries/technicians";
 
 export function useTechnicians(orgId?: string) {
@@ -38,26 +36,10 @@ export function useTechniciansStats(orgId: string) {
   });
 }
 
-export function useTechnicianHistory(techId: string) {
-  return useQuery({
-    queryKey: queryKeys.technicians.history(techId),
-    queryFn: () => getTechnicianInventoryHistory(techId),
-    enabled: !!techId,
-  });
-}
-
 export function useTechnicianMovements(techId: string) {
   return useQuery({
     queryKey: queryKeys.technicians.movements(techId),
     queryFn: () => getTechnicianStockMovements(techId),
-    enabled: !!techId,
-  });
-}
-
-export function useTechnicianYearlyTotals(techId: string, year: number) {
-  return useQuery({
-    queryKey: queryKeys.technicians.yearlyTotals(techId, year),
-    queryFn: () => getTechnicianYearlyTotals(techId, year),
     enabled: !!techId,
   });
 }

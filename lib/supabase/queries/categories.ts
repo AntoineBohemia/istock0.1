@@ -18,10 +18,7 @@ export interface CategoryWithChildren extends Category {
 export async function getCategories(organizationId?: string): Promise<Category[]> {
   const supabase = createClient();
 
-  let query = supabase
-    .from("categories")
-    .select("*")
-    .order("name", { ascending: true });
+  let query = supabase.from("categories").select("*").order("name", { ascending: true });
 
   if (organizationId) {
     query = query.eq("organization_id", organizationId);
@@ -140,19 +137,24 @@ export async function createCategory(
 export async function updateCategory(
   id: string,
   name: string,
-  parentId?: string | null
+  parentId?: string | null,
+  organizationId?: string
 ): Promise<Category> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("categories")
     .update({
       name,
       parent_id: parentId === undefined ? undefined : parentId,
     })
-    .eq("id", id)
-    .select()
-    .single();
+    .eq("id", id);
+
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { data, error } = await query.select().single();
 
   if (error) {
     throw new Error(`Erreur lors de la mise à jour de la catégorie: ${error.message}`);
@@ -164,23 +166,23 @@ export async function updateCategory(
 /**
  * Supprime une catégorie
  */
-export async function deleteCategory(id: string): Promise<void> {
+export async function deleteCategory(id: string, organizationId?: string): Promise<void> {
   const supabase = createClient();
 
   // Vérifier s'il y a des sous-catégories
-  const { data: children } = await supabase
-    .from("categories")
-    .select("id")
-    .eq("parent_id", id);
+  const { data: children } = await supabase.from("categories").select("id").eq("parent_id", id);
 
   if (children && children.length > 0) {
     throw new Error("Impossible de supprimer une catégorie qui contient des sous-catégories");
   }
 
-  const { error } = await supabase
-    .from("categories")
-    .delete()
-    .eq("id", id);
+  let query = supabase.from("categories").delete().eq("id", id);
+
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { error } = await query;
 
   if (error) {
     throw new Error(`Erreur lors de la suppression de la catégorie: ${error.message}`);
@@ -193,11 +195,7 @@ export async function deleteCategory(id: string): Promise<void> {
 export async function getCategoryById(id: string): Promise<Category | null> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
-    .from("categories")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const { data, error } = await supabase.from("categories").select("*").eq("id", id).single();
 
   if (error) {
     if (error.code === "PGRST116") {

@@ -2,11 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import {
-  createCategory,
-  updateCategory,
-  deleteCategory,
-} from "@/lib/supabase/queries/categories";
+import { createCategory, updateCategory, deleteCategory } from "@/lib/supabase/queries/categories";
 
 export function useCreateCategory() {
   const qc = useQueryClient();
@@ -33,30 +29,30 @@ export function useUpdateCategory() {
       id,
       name,
       parentId,
+      organizationId,
     }: {
       id: string;
       name: string;
       parentId?: string | null;
-    }) => updateCategory(id, name, parentId),
+      organizationId?: string;
+    }) => updateCategory(id, name, parentId, organizationId),
     onMutate: async ({ id, name, parentId }) => {
       await qc.cancelQueries({ queryKey: queryKeys.categories.all });
       const previousLists: [readonly unknown[], any][] = [];
 
-      qc.getQueriesData({ queryKey: queryKeys.categories.all }).forEach(
-        ([key, data]) => {
-          if (Array.isArray(data)) {
-            previousLists.push([key, data]);
-            qc.setQueryData(
-              key,
-              data.map((c: any) =>
-                c.id === id
-                  ? { ...c, name, ...(parentId !== undefined ? { parent_id: parentId } : {}) }
-                  : c
-              )
-            );
-          }
+      qc.getQueriesData({ queryKey: queryKeys.categories.all }).forEach(([key, data]) => {
+        if (Array.isArray(data)) {
+          previousLists.push([key, data]);
+          qc.setQueryData(
+            key,
+            data.map((c: any) =>
+              c.id === id
+                ? { ...c, name, ...(parentId !== undefined ? { parent_id: parentId } : {}) }
+                : c
+            )
+          );
         }
-      );
+      });
 
       return { previousLists };
     },
@@ -74,26 +70,25 @@ export function useUpdateCategory() {
 export function useDeleteCategory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => deleteCategory(id),
-    onMutate: async (id) => {
+    mutationFn: ({ id, organizationId }: { id: string; organizationId?: string }) =>
+      deleteCategory(id, organizationId),
+    onMutate: async ({ id }) => {
       await qc.cancelQueries({ queryKey: queryKeys.categories.all });
       const previousLists: [readonly unknown[], any][] = [];
 
-      qc.getQueriesData({ queryKey: queryKeys.categories.all }).forEach(
-        ([key, data]) => {
-          if (Array.isArray(data)) {
-            previousLists.push([key, data]);
-            qc.setQueryData(
-              key,
-              data.filter((c: any) => c.id !== id)
-            );
-          }
+      qc.getQueriesData({ queryKey: queryKeys.categories.all }).forEach(([key, data]) => {
+        if (Array.isArray(data)) {
+          previousLists.push([key, data]);
+          qc.setQueryData(
+            key,
+            data.filter((c: any) => c.id !== id)
+          );
         }
-      );
+      });
 
       return { previousLists };
     },
-    onError: (_err, _id, context) => {
+    onError: (_err, _vars, context) => {
       context?.previousLists?.forEach(([key, data]) => {
         qc.setQueryData(key, data);
       });
