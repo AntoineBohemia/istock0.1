@@ -2,7 +2,8 @@ CREATE OR REPLACE FUNCTION create_stock_entry(
   p_organization_id UUID,
   p_product_id UUID,
   p_quantity INT,
-  p_notes TEXT DEFAULT NULL
+  p_notes TEXT DEFAULT NULL,
+  p_supplier_id UUID DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -27,10 +28,10 @@ BEGIN
     RAISE EXCEPTION 'Produit non trouvé: %', p_product_id;
   END IF;
 
-  -- Create the movement
-  INSERT INTO stock_movements (organization_id, product_id, quantity, movement_type, notes)
-  VALUES (p_organization_id, p_product_id, p_quantity, 'entry', p_notes)
-  RETURNING id, product_id, quantity, movement_type, technician_id, notes, organization_id, created_at
+  -- Create the movement with optional supplier
+  INSERT INTO stock_movements (organization_id, product_id, quantity, movement_type, notes, supplier_id)
+  VALUES (p_organization_id, p_product_id, p_quantity, 'entry', p_notes, p_supplier_id)
+  RETURNING id, product_id, quantity, movement_type, technician_id, notes, organization_id, created_at, supplier_id
   INTO v_movement;
 
   -- Increment stock
@@ -47,7 +48,8 @@ BEGIN
     'technician_id', v_movement.technician_id,
     'notes', v_movement.notes,
     'organization_id', v_movement.organization_id,
-    'created_at', v_movement.created_at
+    'created_at', v_movement.created_at,
+    'supplier_id', v_movement.supplier_id
   );
 END;
 $$;

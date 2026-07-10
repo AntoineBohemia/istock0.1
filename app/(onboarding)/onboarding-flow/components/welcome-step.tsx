@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useOnboardingStore } from "../store";
-import { Package, Users, TrendingUp, Sparkles, ArrowRight } from "lucide-react";
+import { Package, Users, TrendingUp, ArrowRight } from "lucide-react";
 
 const features = [
   {
@@ -33,22 +33,17 @@ export function WelcomeStep() {
   return (
     <div className="space-y-8">
       <div className="text-center space-y-4">
-        <div className="mx-auto bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center">
-          <Sparkles className="size-8 text-primary" />
-        </div>
+        <img src="/logo/iStock-majuscule.svg" alt="iStock" className="mx-auto h-12" />
         <h1 className="text-3xl font-bold">Bienvenue sur iStock</h1>
         <p className="text-muted-foreground text-lg max-w-md mx-auto">
-          La solution complete pour gerer votre stock de peintures et revetements.
-          Configurons votre espace en quelques etapes.
+          La solution complete pour gerer votre stock de peintures et revetements. Configurons votre
+          espace en quelques etapes.
         </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         {features.map((feature) => (
-          <div
-            key={feature.title}
-            className="rounded-lg border bg-card p-6 text-center space-y-3"
-          >
+          <div key={feature.title} className="rounded-lg border bg-card p-6 text-center space-y-3">
             <div className="mx-auto bg-primary/10 w-12 h-12 rounded-full flex items-center justify-center">
               <feature.icon className="size-6 text-primary" />
             </div>

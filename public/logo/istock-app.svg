@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="istock">
+  <!-- Icône istock (squircle iOS) — fond blanc, logo violet + jaune. Fine bordure pour le détacher sur fond blanc. -->
+  <rect x="4" y="4" width="504" height="504" rx="112" fill="#ffffff" stroke="#e5e7eb" stroke-width="4"/>
+  <rect x="181" y="50" width="150" height="128" rx="36" fill="#f59e0b"/>
+  <g fill="#4f46e5">
+    <rect x="181" y="218" width="150" height="72" rx="32"/>
+    <rect x="181" y="304" width="150" height="72" rx="32"/>
+    <rect x="181" y="390" width="150" height="72" rx="32"/>
+  </g>
+</svg>

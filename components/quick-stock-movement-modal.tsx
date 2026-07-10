@@ -55,7 +55,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Badge } from "@/components/ui/badge";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
-import { useProducts, useTechnicians } from "@/hooks/queries";
+import { useProducts, useTechnicians, useSuppliers } from "@/hooks/queries";
 import { useCreateStockEntry, useCreateStockExit } from "@/hooks/mutations";
 
 interface QuickStockMovementModalProps {
@@ -72,6 +72,7 @@ interface Product {
   image_url: string | null;
   stock_current: number | null;
   price: number | null;
+  supplier_id: string | null;
 }
 
 interface Technician {
@@ -82,8 +83,9 @@ interface Technician {
 
 const FormSchema = z.object({
   direction: z.enum(["entry", "exit"]),
-  exit_type: z.enum(["exit_technician", "exit_anonymous", "exit_loss"]).optional(),
+  exit_type: z.enum(["exit_technician", "exit_anonymous"]).optional(),
   technician_id: z.string().optional(),
+  supplier_id: z.string().optional(),
   quantity: z.number().min(1, "La quantité doit être au moins 1"),
   notes: z.string().optional(),
 });
@@ -104,6 +106,7 @@ export default function QuickStockMovementModal({
   const { data: techniciansData = [], isLoading: isLoadingTechnicians } = useTechnicians(
     currentOrganization?.id
   );
+  const { data: suppliers = [] } = useSuppliers(currentOrganization?.id);
   const createEntryMutation = useCreateStockEntry();
   const createExitMutation = useCreateStockExit();
 
@@ -114,6 +117,7 @@ export default function QuickStockMovementModal({
     image_url: p.image_url,
     stock_current: p.stock_current,
     price: p.price,
+    supplier_id: p.supplier_id,
   }));
   const technicians: Technician[] = techniciansData.map((t) => ({
     id: t.id,
@@ -148,10 +152,11 @@ export default function QuickStockMovementModal({
     }
 
     // If productId is provided, find and set the product from cached data
+    let matchedProduct: Product | undefined;
     if (productId && allProducts.length > 0) {
-      const foundProduct = allProducts.find((p) => p.id === productId);
-      if (foundProduct) {
-        setProduct(foundProduct);
+      matchedProduct = allProducts.find((p) => p.id === productId);
+      if (matchedProduct) {
+        setProduct(matchedProduct);
       } else {
         toast.error("Produit non trouvé");
         onClose();
@@ -163,6 +168,7 @@ export default function QuickStockMovementModal({
       direction: defaultDirection,
       exit_type: "exit_anonymous",
       technician_id: "",
+      supplier_id: matchedProduct?.supplier_id || "",
       quantity: 1,
       notes: "",
     });
@@ -183,6 +189,7 @@ export default function QuickStockMovementModal({
           productId: product.id,
           quantity: data.quantity,
           notes: data.notes,
+          supplierId: data.supplier_id || undefined,
         },
         {
           onSuccess: () => {
@@ -336,6 +343,34 @@ export default function QuickStockMovementModal({
                 )}
               />
 
+              {/* Supplier (only for entries) */}
+              {direction === "entry" && suppliers.length > 0 && (
+                <FormField
+                  control={form.control}
+                  name="supplier_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Société / Fournisseur</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Sélectionner une société" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {suppliers.map((sup) => (
+                            <SelectItem key={sup.id} value={sup.id}>
+                              {sup.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
               {/* Exit Type (only for exits) */}
               {direction === "exit" && (
                 <FormField
@@ -351,9 +386,8 @@ export default function QuickStockMovementModal({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="exit_technician">Vers technicien</SelectItem>
-                          <SelectItem value="exit_anonymous">Sortie anonyme</SelectItem>
-                          <SelectItem value="exit_loss">Perte / Casse</SelectItem>
+                          <SelectItem value="exit_technician">Sortie technicien</SelectItem>
+                          <SelectItem value="exit_anonymous">Sortie autre</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

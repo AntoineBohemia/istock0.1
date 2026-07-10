@@ -9,6 +9,7 @@ interface CreateEntryParams {
   productId: string;
   quantity: number;
   notes?: string;
+  supplierId?: string;
 }
 
 interface CreateExitParams {
@@ -24,7 +25,13 @@ export function useCreateStockEntry() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (params: CreateEntryParams) =>
-      createEntry(params.organizationId, params.productId, params.quantity, params.notes),
+      createEntry(
+        params.organizationId,
+        params.productId,
+        params.quantity,
+        params.notes,
+        params.supplierId
+      ),
     onMutate: async (params) => {
       // Optimistic update on product detail
       await qc.cancelQueries({

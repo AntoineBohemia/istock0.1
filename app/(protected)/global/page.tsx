@@ -30,11 +30,10 @@ import { cn } from "@/lib/utils";
 const MOVEMENT_LABELS: Record<string, string> = {
   entry: "Entrée",
   exit_technician: "Sortie technicien",
-  exit_anonymous: "Sortie anonyme",
-  exit_loss: "Perte / Casse",
+  exit_anonymous: "Sortie autre",
 };
 
-type ActionMode = "entry" | "exit_technician" | "exit_anonymous" | "exit_loss";
+type ActionMode = "entry" | "exit_technician" | "exit_anonymous";
 
 interface ConsoleProduct {
   id: string;
@@ -220,7 +219,6 @@ export default function GlobalPage() {
   const submitLabel = useMemo(() => {
     const u = quantity > 1 ? "unités" : "unité";
     if (actionMode === "entry") return `Entrer ${quantity} ${u}`;
-    if (actionMode === "exit_loss") return `Déclarer perte · ${quantity} ${u}`;
     return `Sortir ${quantity} ${u}`;
   }, [actionMode, quantity]);
 
@@ -655,7 +653,6 @@ export default function GlobalPage() {
               {[
                 { mode: "entry" as const, label: "Entrée", icon: ArrowDownToLine },
                 { mode: "exit_anonymous" as const, label: "Sortie", icon: ArrowUpFromLine },
-                { mode: "exit_loss" as const, label: "Perte", icon: X },
               ].map(({ mode, label, icon: ModeIcon }) => (
                 <button
                   key={mode}
@@ -1110,11 +1107,7 @@ export default function GlobalPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                      {actionMode === "entry"
-                        ? "Entrée de stock"
-                        : actionMode === "exit_loss"
-                          ? "Perte / Casse"
-                          : "Sortie anonyme"}
+                      {actionMode === "entry" ? "Entrée de stock" : "Sortie autre"}
                     </p>
                     <h2 className="font-heading text-xl font-semibold leading-tight">
                       {product.name}
@@ -1182,28 +1175,17 @@ export default function GlobalPage() {
                     {isSubmitting ? "En cours…" : submitLabel}
                   </Button>
                   {actionMode === "entry" && (
-                    <>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="h-10 text-xs"
-                        onClick={() => setActionMode("exit_anonymous")}
-                      >
-                        <ArrowUpFromLine className="size-3.5" />
-                        Sortie anonyme
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="h-10 text-xs"
-                        onClick={() => setActionMode("exit_loss")}
-                      >
-                        <X className="size-3.5" />
-                        Perte / Casse
-                      </Button>
-                    </>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="h-10 text-xs"
+                      onClick={() => setActionMode("exit_anonymous")}
+                    >
+                      <ArrowUpFromLine className="size-3.5" />
+                      Sortie autre
+                    </Button>
                   )}
-                  {(actionMode === "exit_anonymous" || actionMode === "exit_loss") && (
+                  {actionMode === "exit_anonymous" && (
                     <Button
                       variant="default"
                       size="sm"

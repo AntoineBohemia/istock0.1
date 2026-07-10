@@ -7,12 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import {
-  ColumnDef,
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { ColumnDef, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { ImageIcon } from "lucide-react";
 
 import {
@@ -45,18 +40,15 @@ const MOVEMENT_BADGE_STYLES: Record<string, string> = {
     "border-blue-400 bg-blue-100 text-blue-900 dark:border-blue-700 dark:bg-blue-900 dark:text-white",
   exit_anonymous:
     "border-gray-400 bg-gray-100 text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-white",
-  exit_loss:
-    "border-red-400 bg-red-100 text-red-900 dark:border-red-700 dark:bg-red-900 dark:text-white",
 };
 
 const MOVEMENT_LABELS: Record<string, string> = {
-  entry: "Entree",
+  entry: "Entrée",
   exit_technician: "Sortie tech.",
-  exit_anonymous: "Sortie anon.",
-  exit_loss: "Perte",
+  exit_anonymous: "Sortie autre",
 };
 
-type FilterType = "all" | "entry" | "exit_technician" | "exit_anonymous" | "exit_loss";
+type FilterType = "all" | "entry" | "exit_technician" | "exit_anonymous";
 
 const columns: ColumnDef<RecentMovement>[] = [
   {
@@ -77,9 +69,7 @@ const columns: ColumnDef<RecentMovement>[] = [
             <ImageIcon className="size-4 text-muted-foreground" />
           )}
         </div>
-        <span className="text-sm font-medium truncate">
-          {row.original.product?.name}
-        </span>
+        <span className="text-sm font-medium truncate">{row.original.product?.name}</span>
       </div>
     ),
   },
@@ -104,9 +94,7 @@ const columns: ColumnDef<RecentMovement>[] = [
       <span
         className={cn(
           "font-semibold text-sm tabular-nums",
-          row.original.movement_type === "entry"
-            ? "text-green-600"
-            : "text-red-600"
+          row.original.movement_type === "entry" ? "text-green-600" : "text-red-600"
         )}
       >
         {row.original.movement_type === "entry" ? "+" : "-"}
@@ -132,11 +120,9 @@ const columns: ColumnDef<RecentMovement>[] = [
     header: "Date",
     cell: ({ row }) => (
       <span className="text-xs text-muted-foreground whitespace-nowrap">
-        {format(
-          new Date(row.original.created_at ?? Date.now()),
-          "dd MMM yyyy, HH:mm",
-          { locale: fr }
-        )}
+        {format(new Date(row.original.created_at ?? Date.now()), "dd MMM yyyy, HH:mm", {
+          locale: fr,
+        })}
       </span>
     ),
   },
@@ -153,11 +139,21 @@ function FluxSkeleton() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead><Skeleton className="h-4 w-16" /></TableHead>
-              <TableHead><Skeleton className="h-4 w-12" /></TableHead>
-              <TableHead><Skeleton className="h-4 w-14" /></TableHead>
-              <TableHead><Skeleton className="h-4 w-16" /></TableHead>
-              <TableHead><Skeleton className="h-4 w-20" /></TableHead>
+              <TableHead>
+                <Skeleton className="h-4 w-16" />
+              </TableHead>
+              <TableHead>
+                <Skeleton className="h-4 w-12" />
+              </TableHead>
+              <TableHead>
+                <Skeleton className="h-4 w-14" />
+              </TableHead>
+              <TableHead>
+                <Skeleton className="h-4 w-16" />
+              </TableHead>
+              <TableHead>
+                <Skeleton className="h-4 w-20" />
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -169,10 +165,18 @@ function FluxSkeleton() {
                     <Skeleton className="h-4 w-24" />
                   </div>
                 </TableCell>
-                <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-8" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                <TableCell><Skeleton className="h-3 w-28" /></TableCell>
+                <TableCell>
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-4 w-8" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-4 w-20" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-3 w-28" />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -216,10 +220,9 @@ export function TabFlux() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous</SelectItem>
-            <SelectItem value="entry">Entrees</SelectItem>
+            <SelectItem value="entry">Entrées</SelectItem>
             <SelectItem value="exit_technician">Sorties tech.</SelectItem>
-            <SelectItem value="exit_anonymous">Sorties anon.</SelectItem>
-            <SelectItem value="exit_loss">Pertes</SelectItem>
+            <SelectItem value="exit_anonymous">Sorties autre</SelectItem>
           </SelectContent>
         </Select>
       </div>

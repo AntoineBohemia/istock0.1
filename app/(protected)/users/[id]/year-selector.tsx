@@ -36,19 +36,19 @@ export default function YearSelector({
       <Button
         variant="ghost"
         size="icon"
-        className="size-7"
+        className="size-8"
         disabled={!canGoBack}
         onClick={() => navigate(selectedYear - 1)}
       >
         <ChevronLeft className="size-4" />
       </Button>
-      <span className="font-heading text-sm font-bold tabular-nums min-w-[3ch] text-center">
+      <span className="font-heading text-lg font-bold tabular-nums min-w-[4ch] text-center">
         {selectedYear}
       </span>
       <Button
         variant="ghost"
         size="icon"
-        className="size-7"
+        className="size-8"
         disabled={!canGoForward}
         onClick={() => navigate(selectedYear + 1)}
       >

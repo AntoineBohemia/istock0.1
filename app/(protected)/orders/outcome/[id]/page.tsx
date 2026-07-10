@@ -2,31 +2,19 @@ import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import {
-  ChevronLeft,
+  ArrowLeft,
   Upload01,
   Package,
   User01,
   UserX01,
-  Trash01,
-  AlertTriangle,
   Image01,
+  ArrowRight,
 } from "@untitled-ui/icons-react";
 import { generateMeta } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
-
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 const EXIT_TYPE_CONFIG: Record<
   string,
@@ -38,14 +26,9 @@ const EXIT_TYPE_CONFIG: Record<
     icon: <User01 className="size-4" />,
   },
   exit_anonymous: {
-    label: "Sortie anonyme",
+    label: "Sortie autre",
     variant: "secondary",
     icon: <UserX01 className="size-4" />,
-  },
-  exit_loss: {
-    label: "Perte / Casse",
-    variant: "destructive",
-    icon: <Trash01 className="size-4" />,
   },
 };
 
@@ -101,25 +84,21 @@ export default async function OutcomeDetailPage({ params }: { params: Promise<{ 
   const totalValue = unitPrice * movement.quantity;
 
   return (
-    <div className="mx-auto max-w-screen-lg space-y-4 lg:mt-10">
+    <div className="space-y-5 pb-20">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <Button asChild variant="outline-contrast">
-          <Link href="/orders">
-            <ChevronLeft />
-          </Link>
-        </Button>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Info Card */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Upload01 className="size-5 text-red-600" />
-              <CardTitle className="font-display text-2xl">Sortie de stock</CardTitle>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" asChild className="shrink-0 -ml-2">
+            <Link href="/orders">
+              <ArrowLeft className="size-4" />
+            </Link>
+          </Button>
+          <div>
+            <div className="flex items-center gap-2.5">
+              <Upload01 className="size-5 text-red-600 shrink-0" />
+              <h1 className="font-heading text-2xl font-bold tracking-tight">Sortie de stock</h1>
             </div>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-sm text-muted-foreground mt-0.5">
               {exitDate.toLocaleDateString("fr-FR", {
                 weekday: "long",
                 day: "numeric",
@@ -132,171 +111,135 @@ export default async function OutcomeDetailPage({ params }: { params: Promise<{ 
                 minute: "2-digit",
               })}
             </p>
-          </CardHeader>
-          <CardContent>
-            <Separator className="mb-4" />
-            <div className="space-y-4">
-              {/* Type de sortie */}
-              <div className="space-y-2">
-                <h3 className="font-semibold flex items-center gap-2">
-                  {config.icon}
-                  Type de sortie
-                </h3>
-                <Badge variant={config.variant}>{config.label}</Badge>
-              </div>
-
-              {/* Technicien */}
-              {movement.technician && exitType === "exit_technician" && (
-                <div className="space-y-2">
-                  <h3 className="font-semibold flex items-center gap-2">
-                    <User01 className="size-4" />
-                    Technicien
-                  </h3>
-                  <div className="flex items-center gap-3">
-                    <Avatar className="size-10">
-                      <AvatarFallback>
-                        {movement.technician.first_name[0]}
-                        {movement.technician.last_name[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">
-                        {movement.technician.first_name} {movement.technician.last_name}
-                      </p>
-                      <p className="text-sm text-muted-foreground">{movement.technician.email}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Alerte perte */}
-              {exitType === "exit_loss" && (
-                <div className="flex items-start gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm">
-                  <AlertTriangle className="size-4 text-destructive shrink-0 mt-0.5" />
-                  <p className="text-destructive">Produit marqué comme perte ou casse.</p>
-                </div>
-              )}
-
-              {/* Notes */}
-              {movement.notes && (
-                <div className="space-y-2">
-                  <h3 className="font-semibold">Notes</h3>
-                  <p className="text-muted-foreground text-sm">{movement.notes}</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Summary Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Résumé de la sortie</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between">
-              <span>Quantité</span>
-              <Badge variant="destructive">-{movement.quantity} unités</Badge>
-            </div>
-            <div className="flex justify-between">
-              <span>Prix unitaire</span>
-              <span>
-                {unitPrice.toLocaleString("fr-FR", {
-                  style: "currency",
-                  currency: "EUR",
-                })}
-              </span>
-            </div>
-            <Separator />
-            <div className="flex justify-between font-semibold">
-              <span>Valeur sortie</span>
-              <span className="text-red-600">
-                {totalValue.toLocaleString("fr-FR", {
-                  style: "currency",
-                  currency: "EUR",
-                })}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
-      {/* Product Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="size-5" />
-            Produit sorti
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Produit</TableHead>
-                <TableHead className="text-right">Quantité</TableHead>
-                <TableHead className="text-right">Prix unitaire</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell>
-                  <div className="flex items-center gap-4">
-                    <figure className="flex size-14 items-center justify-center rounded-lg border bg-muted">
-                      {movement.product?.image_url ? (
-                        <Image
-                          src={movement.product.image_url}
-                          width={56}
-                          height={56}
-                          alt={movement.product.name}
-                          className="size-full rounded-lg object-cover"
-                        />
-                      ) : (
-                        <Image01 className="size-6 text-muted-foreground" />
-                      )}
-                    </figure>
-                    <div>
-                      <p className="font-medium">{movement.product?.name || "Produit inconnu"}</p>
-                      {movement.product?.sku && (
-                        <p className="text-xs text-muted-foreground font-mono">
-                          {movement.product.sku}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell className="text-right font-semibold text-red-600">
-                  -{movement.quantity}
-                </TableCell>
-                <TableCell className="text-right">
-                  {unitPrice.toLocaleString("fr-FR", {
-                    style: "currency",
-                    currency: "EUR",
-                  })}
-                </TableCell>
-                <TableCell className="text-right font-semibold">
-                  {totalValue.toLocaleString("fr-FR", {
-                    style: "currency",
-                    currency: "EUR",
-                  })}
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* Hero — quantité sortie */}
+      <div className="rounded-xl border bg-card px-6 py-5 flex items-end justify-between gap-4">
+        <div>
+          <span className="font-heading text-5xl font-bold tabular-nums leading-none block text-red-600">
+            -{movement.quantity}
+          </span>
+          <p className="text-sm text-muted-foreground mt-2">
+            unité{movement.quantity > 1 ? "s" : ""} retirée{movement.quantity > 1 ? "s" : ""} du
+            stock
+          </p>
+        </div>
+        <Badge variant={config.variant} className="text-sm">
+          {config.label}
+        </Badge>
+      </div>
 
-      {/* Actions */}
-      <div className="flex justify-end gap-2">
-        {movement.technician && (
-          <Button variant="outline-contrast" asChild>
-            <Link href={`/users/${movement.technician.id}`}>Voir le technicien</Link>
-          </Button>
+      {/* Détails */}
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="px-5 pt-4 pb-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground/50">
+            Détails du mouvement
+          </p>
+        </div>
+        <div className="divide-y text-sm">
+          <div className="flex justify-between px-5 py-2.5">
+            <span className="text-muted-foreground">Type de sortie</span>
+            <span className="font-medium flex items-center gap-1.5">
+              {config.icon}
+              {config.label}
+            </span>
+          </div>
+          <div className="flex justify-between px-5 py-2.5">
+            <span className="text-muted-foreground">Quantité</span>
+            <span className="font-semibold tabular-nums text-red-600">
+              -{movement.quantity} unités
+            </span>
+          </div>
+          <div className="flex justify-between px-5 py-2.5">
+            <span className="text-muted-foreground">Prix unitaire</span>
+            <span className="font-semibold tabular-nums">
+              {unitPrice
+                ? unitPrice.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })
+                : "—"}
+            </span>
+          </div>
+          <div className="flex justify-between px-5 py-2.5">
+            <span className="text-muted-foreground">Valeur sortie</span>
+            <span className="font-semibold tabular-nums text-red-600">
+              {totalValue.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
+            </span>
+          </div>
+          {movement.notes && (
+            <div className="flex justify-between px-5 py-2.5">
+              <span className="text-muted-foreground">Notes</span>
+              <span className="font-medium text-right max-w-[60%]">{movement.notes}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Technicien */}
+      {movement.technician && exitType === "exit_technician" && (
+        <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="px-5 pt-4 pb-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground/50 flex items-center gap-1.5">
+              <User01 className="size-3.5" />
+              Technicien
+            </p>
+          </div>
+          <Link
+            href={`/users/${movement.technician.id}`}
+            className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-muted/50 group"
+          >
+            <Avatar className="size-10 shrink-0">
+              <AvatarFallback>
+                {movement.technician.first_name[0]}
+                {movement.technician.last_name[0]}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">
+                {movement.technician.first_name} {movement.technician.last_name}
+              </p>
+              <p className="text-sm text-muted-foreground truncate">{movement.technician.email}</p>
+            </div>
+            <ArrowRight className="size-4 text-muted-foreground opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" />
+          </Link>
+        </div>
+      )}
+
+      {/* Produit concerné */}
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="px-5 pt-4 pb-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground/50 flex items-center gap-1.5">
+            <Package className="size-3.5" />
+            Produit sorti
+          </p>
+        </div>
+        {movement.product && (
+          <Link
+            href={`/product/${movement.product.id}`}
+            className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-muted/50 group"
+          >
+            <figure className="flex size-14 items-center justify-center rounded-lg border bg-muted shrink-0">
+              {movement.product.image_url ? (
+                <Image
+                  src={movement.product.image_url}
+                  width={56}
+                  height={56}
+                  alt={movement.product.name}
+                  className="size-full rounded-lg object-cover"
+                />
+              ) : (
+                <Image01 className="size-6 text-muted-foreground" />
+              )}
+            </figure>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium truncate">{movement.product.name}</p>
+              {movement.product.sku && (
+                <p className="text-xs text-muted-foreground font-mono">{movement.product.sku}</p>
+              )}
+            </div>
+            <ArrowRight className="size-4 text-muted-foreground opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" />
+          </Link>
         )}
-        <Button variant="outline" asChild>
-          <Link href={`/product/${movement.product?.id}`}>Voir le produit</Link>
-        </Button>
       </div>
     </div>
   );

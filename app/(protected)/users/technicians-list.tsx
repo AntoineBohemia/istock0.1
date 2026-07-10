@@ -242,12 +242,12 @@ export default function TechniciansList() {
       ),
     },
     {
-      accessorKey: "inventory_count",
+      accessorKey: "year_units_total",
       header: ({ column }) => (
-        <SortHeader label="Inventaire" column={column} className="justify-center w-full" />
+        <SortHeader label="Unités (année)" column={column} className="justify-center w-full" />
       ),
       cell: ({ row }) => {
-        const count = row.original.inventory_count;
+        const count = row.original.year_units_total;
         return (
           <span
             className={cn(
@@ -412,7 +412,8 @@ export default function TechniciansList() {
             </div>
             <h3 className="text-lg font-semibold">Aucun technicien</h3>
             <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-              Ajoutez vos techniciens pour suivre leur inventaire et planifier les réapprovisionnements.
+              Ajoutez vos techniciens pour suivre leur inventaire et planifier les
+              réapprovisionnements.
             </p>
             <Button asChild className="mt-5">
               <Link href="/users/create">

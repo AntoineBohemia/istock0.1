@@ -28,7 +28,10 @@ export default function MobileTopBar() {
 
   return (
     <header className="flex h-12 shrink-0 items-center justify-between border-b bg-background px-4 md:hidden">
-      <h1 className="text-base font-semibold truncate">{title}</h1>
+      <div className="flex items-center gap-2">
+        <img src="/logo/istock-app.svg" alt="iStock" className="size-7" />
+        <h1 className="text-base font-semibold truncate">{title}</h1>
+      </div>
       {currentOrganization && (
         <Avatar className="size-7">
           {currentOrganization.logo_url && (

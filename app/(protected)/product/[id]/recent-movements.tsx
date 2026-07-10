@@ -63,7 +63,7 @@ export default function RecentMovements({ productId }: RecentMovementsProps) {
               <div key={m.id} className="flex items-center gap-3 px-5 py-2.5">
                 <span
                   className={cn(
-                    "font-heading font-bold tabular-nums text-sm w-10 text-right shrink-0",
+                    "font-heading font-bold tabular-nums text-base w-10 text-right shrink-0",
                     isEntry ? "text-standard" : "text-critique"
                   )}
                 >

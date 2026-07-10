@@ -134,7 +134,7 @@ export default function MobileTechniciansList() {
                           <span className="flex items-center gap-1">
                             <Package className="size-3" />
                             <span className="font-heading tabular-nums font-bold">
-                              {tech.inventory_count}
+                              {tech.year_units_total}
                             </span>
                           </span>
                           <StatusPill status={status} label={restockLabel(days)} />

@@ -2,13 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useOnboardingStore } from "../store";
-import {
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  BookOpen,
-  Package,
-  RefreshCw,
-} from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, BookOpen, Package, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const stockMovements = [
@@ -35,12 +29,12 @@ const stockMovements = [
   {
     id: "exit_anonymous",
     icon: Package,
-    title: "Sortie anonyme",
-    description: "Vente directe ou sortie sans attribution a un technicien",
+    title: "Sortie autre",
+    description: "Sortie sans attribution a un technicien",
     color: "text-orange-600",
     bgColor: "bg-orange-100 dark:bg-orange-900/30",
     borderColor: "border-orange-200 dark:border-orange-800",
-    example: "Ex: Vente comptoir a un client de passage",
+    example: "Ex: Vente comptoir, usage chantier, prêt",
   },
   {
     id: "restock",
@@ -78,30 +72,15 @@ export function StockTutorialStep() {
 
       <div className="grid gap-4 md:grid-cols-2">
         {stockMovements.map((movement) => (
-          <div
-            key={movement.id}
-            className={cn(
-              "rounded-lg border p-5",
-              movement.borderColor
-            )}
-          >
+          <div key={movement.id} className={cn("rounded-lg border p-5", movement.borderColor)}>
             <div className="flex items-start gap-4">
-              <div
-                className={cn(
-                  "rounded-lg p-3",
-                  movement.bgColor
-                )}
-              >
+              <div className={cn("rounded-lg p-3", movement.bgColor)}>
                 <movement.icon className={cn("size-6", movement.color)} />
               </div>
               <div className="space-y-1 flex-1">
                 <h3 className="font-semibold">{movement.title}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {movement.description}
-                </p>
-                <p className="text-xs text-muted-foreground italic mt-2">
-                  {movement.example}
-                </p>
+                <p className="text-sm text-muted-foreground">{movement.description}</p>
+                <p className="text-xs text-muted-foreground italic mt-2">{movement.example}</p>
               </div>
             </div>
           </div>

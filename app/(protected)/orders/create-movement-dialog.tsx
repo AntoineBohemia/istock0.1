@@ -38,14 +38,15 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Badge } from "@/components/ui/badge";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
-import { useProducts, useTechnicians } from "@/hooks/queries";
+import { useProducts, useTechnicians, useSuppliers } from "@/hooks/queries";
 import { useCreateStockEntry, useCreateStockExit } from "@/hooks/mutations";
 
 const FormSchema = z.object({
   direction: z.enum(["entry", "exit"]),
-  exit_type: z.enum(["exit_technician", "exit_anonymous", "exit_loss"]).optional(),
+  exit_type: z.enum(["exit_technician", "exit_anonymous"]).optional(),
   product_id: z.string().min(1, "Veuillez sélectionner un produit"),
   technician_id: z.string().optional(),
+  supplier_id: z.string().optional(),
   quantity: z.number().min(1, "La quantité doit être au moins 1"),
   notes: z.string().optional(),
 });
@@ -64,6 +65,7 @@ interface Product {
   sku: string | null;
   image_url: string | null;
   stock_current: number | null;
+  supplier_id: string | null;
 }
 
 interface Technician {
@@ -84,6 +86,9 @@ export default function CreateMovementDialog({
   const { data: techniciansData = [], isLoading: isLoadingTechnicians } = useTechnicians(
     currentOrganization?.id
   );
+  const { data: suppliers = [], isLoading: isLoadingSuppliers } = useSuppliers(
+    currentOrganization?.id
+  );
   const createEntryMutation = useCreateStockEntry();
   const createExitMutation = useCreateStockExit();
 
@@ -93,6 +98,7 @@ export default function CreateMovementDialog({
     sku: p.sku,
     image_url: p.image_url,
     stock_current: p.stock_current,
+    supplier_id: p.supplier_id,
   }));
   const technicians: Technician[] = techniciansData.map((t) => ({
     id: t.id,
@@ -100,7 +106,7 @@ export default function CreateMovementDialog({
     last_name: t.last_name,
   }));
 
-  const isLoading = isLoadingProducts || isLoadingTechnicians;
+  const isLoading = isLoadingProducts || isLoadingTechnicians || isLoadingSuppliers;
   const isSubmitting = createEntryMutation.isPending || createExitMutation.isPending;
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
@@ -111,6 +117,7 @@ export default function CreateMovementDialog({
       exit_type: "exit_anonymous",
       product_id: "",
       technician_id: "",
+      supplier_id: "",
       quantity: 1,
       notes: "",
     },
@@ -131,6 +138,10 @@ export default function CreateMovementDialog({
     if (watchedProductId) {
       const product = products.find((p) => p.id === watchedProductId);
       setSelectedProduct(product || null);
+      // Pre-fill supplier from product's default supplier
+      if (product?.supplier_id && direction === "entry") {
+        form.setValue("supplier_id", product.supplier_id);
+      }
     } else {
       setSelectedProduct(null);
     }
@@ -146,6 +157,7 @@ export default function CreateMovementDialog({
           productId: data.product_id,
           quantity: data.quantity,
           notes: data.notes,
+          supplierId: data.supplier_id || undefined,
         },
         {
           onSuccess: () => {
@@ -240,6 +252,34 @@ export default function CreateMovementDialog({
                 )}
               />
 
+              {/* Supplier (only for entries) */}
+              {direction === "entry" && suppliers.length > 0 && (
+                <FormField
+                  control={form.control}
+                  name="supplier_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Société / Fournisseur</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Sélectionner une société" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {suppliers.map((sup) => (
+                            <SelectItem key={sup.id} value={sup.id}>
+                              {sup.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
               {/* Exit Type (only for exits) */}
               {direction === "exit" && (
                 <FormField
@@ -255,9 +295,8 @@ export default function CreateMovementDialog({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="exit_technician">Vers technicien</SelectItem>
-                          <SelectItem value="exit_anonymous">Sortie anonyme</SelectItem>
-                          <SelectItem value="exit_loss">Perte / Casse</SelectItem>
+                          <SelectItem value="exit_technician">Sortie technicien</SelectItem>
+                          <SelectItem value="exit_anonymous">Sortie autre</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

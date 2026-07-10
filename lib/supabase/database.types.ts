@@ -244,6 +244,71 @@ export type Database = {
           },
         ];
       };
+      stock_movements: {
+        Row: {
+          created_at: string | null;
+          id: string;
+          movement_type: Database["public"]["Enums"]["stock_movement_type"];
+          notes: string | null;
+          organization_id: string | null;
+          product_id: string;
+          quantity: number;
+          supplier_id: string | null;
+          technician_id: string | null;
+        };
+        Insert: {
+          created_at?: string | null;
+          id?: string;
+          movement_type: Database["public"]["Enums"]["stock_movement_type"];
+          notes?: string | null;
+          organization_id?: string | null;
+          product_id: string;
+          quantity: number;
+          supplier_id?: string | null;
+          technician_id?: string | null;
+        };
+        Update: {
+          created_at?: string | null;
+          id?: string;
+          movement_type?: Database["public"]["Enums"]["stock_movement_type"];
+          notes?: string | null;
+          organization_id?: string | null;
+          product_id?: string;
+          quantity?: number;
+          supplier_id?: string | null;
+          technician_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_movements_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_movements_supplier_id_fkey";
+            columns: ["supplier_id"];
+            isOneToOne: false;
+            referencedRelation: "suppliers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_movements_technician_id_fkey";
+            columns: ["technician_id"];
+            isOneToOne: false;
+            referencedRelation: "technicians";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       suppliers: {
         Row: {
           created_at: string | null;
@@ -272,61 +337,6 @@ export type Database = {
             columns: ["organization_id"];
             isOneToOne: false;
             referencedRelation: "organizations";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      stock_movements: {
-        Row: {
-          created_at: string | null;
-          id: string;
-          movement_type: Database["public"]["Enums"]["stock_movement_type"];
-          notes: string | null;
-          organization_id: string | null;
-          product_id: string;
-          quantity: number;
-          technician_id: string | null;
-        };
-        Insert: {
-          created_at?: string | null;
-          id?: string;
-          movement_type: Database["public"]["Enums"]["stock_movement_type"];
-          notes?: string | null;
-          organization_id?: string | null;
-          product_id: string;
-          quantity: number;
-          technician_id?: string | null;
-        };
-        Update: {
-          created_at?: string | null;
-          id?: string;
-          movement_type?: Database["public"]["Enums"]["stock_movement_type"];
-          notes?: string | null;
-          organization_id?: string | null;
-          product_id?: string;
-          quantity?: number;
-          technician_id?: string | null;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "stock_movements_organization_id_fkey";
-            columns: ["organization_id"];
-            isOneToOne: false;
-            referencedRelation: "organizations";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "stock_movements_product_id_fkey";
-            columns: ["product_id"];
-            isOneToOne: false;
-            referencedRelation: "products";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "stock_movements_technician_id_fkey";
-            columns: ["technician_id"];
-            isOneToOne: false;
-            referencedRelation: "technicians";
             referencedColumns: ["id"];
           },
         ];
@@ -533,15 +543,26 @@ export type Database = {
         Args: { org_logo_url?: string; org_name: string; org_slug: string };
         Returns: Json;
       };
-      create_stock_entry: {
-        Args: {
-          p_notes?: string;
-          p_organization_id: string;
-          p_product_id: string;
-          p_quantity: number;
-        };
-        Returns: Json;
-      };
+      create_stock_entry:
+        | {
+            Args: {
+              p_notes?: string;
+              p_organization_id: string;
+              p_product_id: string;
+              p_quantity: number;
+            };
+            Returns: Json;
+          }
+        | {
+            Args: {
+              p_notes?: string;
+              p_organization_id: string;
+              p_product_id: string;
+              p_quantity: number;
+              p_supplier_id?: string;
+            };
+            Returns: Json;
+          };
       create_stock_exit: {
         Args: {
           p_notes?: string;
@@ -553,14 +574,7 @@ export type Database = {
         };
         Returns: Json;
       };
-      get_health_score: {
-        Args: { p_organization_id: string };
-        Returns: Json;
-      };
-      get_health_score_history: {
-        Args: { p_organization_id: string; p_months?: number };
-        Returns: Json;
-      };
+      current_user_role_in_org: { Args: { p_org_id: string }; Returns: string };
       get_dashboard_stats: {
         Args: { p_organization_id?: string };
         Returns: Json;
@@ -569,6 +583,12 @@ export type Database = {
         Args: { p_organization_id: string };
         Returns: Json;
       };
+      get_health_score: { Args: { p_organization_id: string }; Returns: Json };
+      get_health_score_history: {
+        Args: { p_months?: number; p_organization_id: string };
+        Returns: Json;
+      };
+      get_invitation_details: { Args: { p_token: string }; Returns: Json };
       get_technicians_with_stats: {
         Args: { p_organization_id?: string };
         Returns: Json;
@@ -580,7 +600,7 @@ export type Database = {
         Args: { p_org_id: string; p_user_id: string };
         Returns: boolean;
       };
-      get_invitation_details: { Args: { p_token: string }; Returns: Json };
+      is_org_member_non_guest: { Args: { p_org_id: string }; Returns: boolean };
       is_organization_owner: { Args: { org_id: string }; Returns: boolean };
       leave_organization: { Args: { p_organization_id: string }; Returns: Json };
       restock_technician:

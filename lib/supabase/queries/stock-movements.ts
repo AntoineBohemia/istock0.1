@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 
+// Active types used in UI — exit_loss is deprecated but kept in DB enum for historical data
 export type MovementType = "entry" | "exit_technician" | "exit_anonymous" | "exit_loss";
 
 export interface StockMovement {
@@ -8,6 +9,7 @@ export interface StockMovement {
   quantity: number;
   movement_type: MovementType;
   technician_id: string | null;
+  supplier_id: string | null;
   notes: string | null;
   organization_id: string | null;
   created_at: string | null;
@@ -16,11 +18,16 @@ export interface StockMovement {
     name: string;
     sku: string;
     image_url: string | null;
+    supplier_id: string | null;
   };
   technician?: {
     id: string;
     first_name: string;
     last_name: string;
+  } | null;
+  supplier?: {
+    id: string;
+    name: string;
   } | null;
 }
 
@@ -41,15 +48,15 @@ export interface StockMovementsResult {
 export const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
   entry: "Entrée",
   exit_technician: "Sortie technicien",
-  exit_anonymous: "Sortie anonyme",
-  exit_loss: "Perte/Casse",
+  exit_anonymous: "Sortie autre",
+  exit_loss: "Sortie autre",
 };
 
 export const MOVEMENT_TYPE_COLORS: Record<MovementType, string> = {
   entry: "success",
   exit_technician: "info",
   exit_anonymous: "secondary",
-  exit_loss: "destructive",
+  exit_loss: "secondary",
 };
 
 /**
@@ -64,8 +71,9 @@ export async function getStockMovements(
   let query = supabase.from("stock_movements").select(
     `
       *,
-      product:products(id, name, sku, image_url),
-      technician:technicians(id, first_name, last_name)
+      product:products(id, name, sku, image_url, supplier_id),
+      technician:technicians(id, first_name, last_name),
+      supplier:suppliers(id, name)
     `,
     { count: "exact" }
   );
@@ -148,7 +156,8 @@ export async function createEntry(
   organizationId: string,
   productId: string,
   quantity: number,
-  notes?: string
+  notes?: string,
+  supplierId?: string
 ): Promise<StockMovement> {
   const supabase = createClient();
 
@@ -157,6 +166,7 @@ export async function createEntry(
     p_product_id: productId,
     p_quantity: quantity,
     p_notes: notes || undefined,
+    p_supplier_id: supplierId || undefined,
   });
 
   if (error) {

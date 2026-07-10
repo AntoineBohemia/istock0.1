@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { CommandIcon, SearchIcon, icons, Package, Users, Loader2 } from "lucide-react";
+import { SearchIcon, icons, Package, Users, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { page_routes } from "@/lib/routes-config";
 import { useEffect, useRef, useState } from "react";
@@ -100,10 +100,6 @@ export default function Search() {
           readOnly
           onClick={() => setOpen(true)}
         />
-        <div className="absolute top-1/2 right-2 hidden -translate-y-1/2 items-center gap-0.5 rounded-sm bg-zinc-200 p-1 font-mono text-xs font-medium sm:flex dark:bg-neutral-700">
-          <CommandIcon className="size-3" />
-          <span>k</span>
-        </div>
       </div>
       <div className="block lg:hidden">
         <Button size="icon" variant="outline" onClick={() => setOpen(true)}>

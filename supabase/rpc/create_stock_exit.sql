@@ -19,8 +19,8 @@ BEGIN
     RAISE EXCEPTION 'La quantité doit être positive';
   END IF;
 
-  IF p_type NOT IN ('exit_technician', 'exit_anonymous', 'exit_loss') THEN
-    RAISE EXCEPTION 'Type de mouvement invalide: %', p_type;
+  IF p_type NOT IN ('exit_technician', 'exit_anonymous') THEN
+    RAISE EXCEPTION 'Type de sortie invalide: %', p_type;
   END IF;
 
   IF p_type = 'exit_technician' AND p_technician_id IS NULL THEN

@@ -20,6 +20,7 @@ BEGIN
       'created_at', t.created_at,
       'inventory', '[]'::JSONB,
       'inventory_count', COALESCE(inv.total_quantity, 0),
+      'year_units_total', COALESCE(ymv.year_total, 0),
       'last_restock_at', hist.last_restock
     ) ORDER BY t.last_name ASC
   ), '[]'::JSONB)
@@ -30,6 +31,13 @@ BEGIN
     FROM technician_inventory
     GROUP BY technician_id
   ) inv ON inv.technician_id = t.id
+  LEFT JOIN (
+    SELECT technician_id, SUM(quantity) AS year_total
+    FROM stock_movements
+    WHERE movement_type = 'exit_technician'
+      AND created_at >= date_trunc('year', CURRENT_DATE)
+    GROUP BY technician_id
+  ) ymv ON ymv.technician_id = t.id
   LEFT JOIN (
     SELECT DISTINCT ON (technician_id)
       technician_id,

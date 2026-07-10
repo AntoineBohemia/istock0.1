@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryStates, parseAsString } from "nuqs";
 import {
@@ -18,11 +18,8 @@ import { fr } from "date-fns/locale";
 
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  StockMovement,
-  MovementType,
-  MOVEMENT_TYPE_LABELS,
-} from "@/lib/supabase/queries/stock-movements";
+import { HeroNumber } from "@/components/ui/hero-number";
+import { StockMovement, MOVEMENT_TYPE_LABELS } from "@/lib/supabase/queries/stock-movements";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useStockMovements } from "@/hooks/queries";
 import ProductIconDisplay from "@/components/product-icon-display";
@@ -54,7 +51,7 @@ function AnimatedRow({
         duration: 0.35,
         delay: reducedMotion ? 0 : index * 0.03,
       }}
-      className="group border-b last:border-b-0 transition-colors hover:bg-muted/60 cursor-pointer"
+      className="group border-b last:border-b-0 cursor-pointer transition-colors hover:bg-muted/50"
       onClick={onClick}
     >
       {children}
@@ -94,12 +91,11 @@ function SortHeader({
 }
 
 // ─── Type filter chips ──────────────────────────────────────
-const TYPE_FILTER_OPTIONS = [
+const TYPE_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: "all", label: "Tous" },
   { value: "entry", label: "Entrées" },
-  { value: "exit_technician", label: "Technicien" },
-  { value: "exit_anonymous", label: "Anonyme" },
-  { value: "exit_loss", label: "Perte" },
+  { value: "exit_technician", label: "Sortie technicien" },
+  { value: "exit_anonymous", label: "Autre" },
 ];
 
 // ─── Main component ────────────────────────────────────────
@@ -130,24 +126,40 @@ export default function MovementsList() {
     return () => clearTimeout(debounceRef.current);
   }, [searchQuery]);
 
+  // Fetch all movements (client-side filtering, like technicians page)
   const { data: movementsResult, isLoading } = useStockMovements({
     organizationId: currentOrganization?.id,
-    movementType: filterType !== "all" ? (filterType as MovementType) : undefined,
   });
 
-  const movements = movementsResult?.movements || [];
+  const allMovements = movementsResult?.movements || [];
 
-  // Client-side search within current page
-  const filteredMovements = debouncedSearch
-    ? movements.filter((m) => {
-        const q = debouncedSearch.toLowerCase();
+  // Count per type for chip badges
+  const typeCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: allMovements.length };
+    for (const m of allMovements) {
+      counts[m.movement_type] = (counts[m.movement_type] || 0) + 1;
+    }
+    return counts;
+  }, [allMovements]);
+
+  // Client-side type + search filter
+  const filteredMovements = useMemo(() => {
+    let result = allMovements;
+    if (filterType !== "all") {
+      result = result.filter((m) => m.movement_type === filterType);
+    }
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
+      result = result.filter((m) => {
         const productName = m.product?.name?.toLowerCase() || "";
         const techName = m.technician
           ? `${m.technician.first_name} ${m.technician.last_name}`.toLowerCase()
           : "";
         return productName.includes(q) || techName.includes(q);
-      })
-    : movements;
+      });
+    }
+    return result;
+  }, [allMovements, filterType, debouncedSearch]);
 
   const handleRowClick = (movement: StockMovement) => {
     if (movement.movement_type === "entry") {
@@ -196,8 +208,7 @@ export default function MovementsList() {
                 "inline-flex items-center rounded-full px-2 py-0.5 text-[13px] font-medium",
                 type === "entry" && "text-standard bg-standard-bg",
                 type === "exit_technician" && "text-foreground/80 bg-muted",
-                type === "exit_anonymous" && "text-attention bg-attention-bg",
-                type === "exit_loss" && "text-critique bg-critique-bg"
+                type === "exit_anonymous" && "text-attention bg-attention-bg"
               )}
             >
               {MOVEMENT_TYPE_LABELS[type]}
@@ -229,6 +240,23 @@ export default function MovementsList() {
             </div>
           </div>
         );
+      },
+    },
+    {
+      id: "supplier",
+      header: () => (
+        <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
+          Société
+        </span>
+      ),
+      enableSorting: false,
+      cell: ({ row }) => {
+        if (row.original.movement_type !== "entry") {
+          return <span className="text-muted-foreground">—</span>;
+        }
+        const supplier = row.original.supplier;
+        if (!supplier) return <span className="text-muted-foreground">—</span>;
+        return <span className="text-[15px]">{supplier.name}</span>;
       },
     },
     {
@@ -295,14 +323,16 @@ export default function MovementsList() {
     state: { sorting },
   });
 
-  if ((isLoading || isOrgLoading) && movements.length === 0) {
+  if ((isLoading || isOrgLoading) && allMovements.length === 0) {
     return (
       <div className="space-y-3">
-        <Skeleton className="h-9 w-full rounded-md" />
-        <div className="flex gap-1.5">
-          {[...Array(5)].map((_, i) => (
-            <Skeleton key={i} className="h-7 w-20 rounded-full" />
-          ))}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Skeleton className="h-9 flex-1 rounded-md" />
+          <div className="flex gap-1.5">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-7 w-20 rounded-full" />
+            ))}
+          </div>
         </div>
         <div className="rounded-xl border bg-card overflow-hidden">
           <table className="w-full">
@@ -313,6 +343,9 @@ export default function MovementsList() {
                 </th>
                 <th className="h-11 px-5 text-left">
                   <Skeleton className="h-3 w-12" />
+                </th>
+                <th className="h-11 px-5 text-left">
+                  <Skeleton className="h-3 w-14" />
                 </th>
                 <th className="h-11 px-5 text-left">
                   <Skeleton className="h-3 w-14" />
@@ -352,6 +385,9 @@ export default function MovementsList() {
                       </div>
                     </div>
                   </td>
+                  <td className="px-5 py-4">
+                    <Skeleton className="h-4 w-20" />
+                  </td>
                   <td className="px-5 py-4 text-center">
                     <Skeleton className="h-5 w-8 mx-auto" />
                   </td>
@@ -370,11 +406,13 @@ export default function MovementsList() {
     );
   }
 
+  const totalCount = allMovements.length;
+
   return (
     <div className="space-y-3">
-      {/* Search + type chips */}
-      <div className="space-y-2">
-        <div className="relative">
+      {/* Search + type chips — responsive like technicians */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Rechercher un mouvement..."
@@ -384,24 +422,34 @@ export default function MovementsList() {
           />
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
-          {TYPE_FILTER_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() =>
-                setFilterType(filterType === opt.value && opt.value !== "all" ? "all" : opt.value)
-              }
-              className={cn(
-                "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                filterType === opt.value
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-1.5">
+          {TYPE_FILTER_OPTIONS.map((opt) => {
+            const isActive = filterType === opt.value;
+            const count = typeCounts[opt.value] || 0;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setFilterType(isActive && opt.value !== "all" ? "all" : opt.value)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none",
+                  isActive
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
+                )}
+              >
+                {opt.label}
+                <span
+                  className={cn(
+                    "tabular-nums font-heading",
+                    isActive ? "opacity-80" : "opacity-50"
+                  )}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -482,17 +530,17 @@ export default function MovementsList() {
         </table>
       </div>
 
-      {/* Footer count */}
-      {movements.length > 0 && (
-        <p className="text-muted-foreground text-sm px-1">
-          <span className="font-heading font-semibold text-foreground tabular-nums">
-            {filteredMovements.length}
-          </span>
-          {filteredMovements.length !== movements.length && (
-            <span className="tabular-nums"> sur {movements.length}</span>
-          )}{" "}
-          mouvement{movements.length > 1 ? "s" : ""}
-        </p>
+      {/* Footer — animated count */}
+      {totalCount > 0 && (
+        <div className="px-1">
+          <p className="text-muted-foreground text-sm">
+            <HeroNumber value={filteredMovements.length} className="text-sm" />
+            {filteredMovements.length !== totalCount && (
+              <span className="tabular-nums"> sur {totalCount}</span>
+            )}{" "}
+            mouvement{totalCount > 1 ? "s" : ""}
+          </p>
+        </div>
       )}
     </div>
   );

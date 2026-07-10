@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { page_routes, filterRoutesByRole, isRoleAllowed, SETTINGS_ALLOWED_ROLES } from "@/lib/routes-config";
+import {
+  page_routes,
+  filterRoutesByRole,
+  isRoleAllowed,
+  SETTINGS_ALLOWED_ROLES,
+} from "@/lib/routes-config";
 import { Settings } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
@@ -22,6 +27,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Icon from "../icon";
+import IstockLogo from "@/components/layout/istock-logo";
 import { useIsTablet } from "@/hooks/use-mobile";
 import { createClient } from "@/lib/supabase/client";
 
@@ -33,7 +39,9 @@ export default function Sidebar() {
   const { currentOrganization } = useOrganizationStore();
 
   // User data for footer
-  const [user, setUser] = useState<{ name: string; email: string; avatar: string | null } | null>(null);
+  const [user, setUser] = useState<{ name: string; email: string; avatar: string | null } | null>(
+    null
+  );
 
   useEffect(() => {
     if (isMobile) setOpenMobile(false);
@@ -61,28 +69,27 @@ export default function Sidebar() {
   }, []);
 
   const showSettings = isRoleAllowed(currentOrganization?.role, SETTINGS_ALLOWED_ROLES);
-  const initials = user
-    ? (user.name || user.email || "U").slice(0, 2).toUpperCase()
-    : "U";
+  const initials = user ? (user.name || user.email || "U").slice(0, 2).toUpperCase() : "U";
 
   // Resolve active item href for layout animation
-  const allItems = filterRoutesByRole(page_routes, currentOrganization?.role).flatMap((r) => r.items);
+  const allItems = filterRoutesByRole(page_routes, currentOrganization?.role).flatMap(
+    (r) => r.items
+  );
   const activeHref = allItems.find(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
   )?.href;
 
   return (
-    <SidebarContainer
-      collapsible="icon"
-      variant="floating"
-      className="bg-background"
-    >
+    <SidebarContainer collapsible="icon" variant="floating" className="bg-background">
       {/* ── Branding ── */}
-      <SidebarHeader className="pt-3 pb-0 transition-all group-data-[collapsible=icon]:pt-2">
+      <SidebarHeader className="pt-2 pb-2 transition-all group-data-[collapsible=icon]:pt-2">
         <div className="px-2 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
-          <span className="text-sm font-bold font-heading tracking-tight text-foreground/70 group-data-[collapsible=icon]:text-xs">
-            iStock
-          </span>
+          <IstockLogo className="h-5 group-data-[collapsible=icon]:hidden" />
+          <img
+            src="/logo/istock-app.svg"
+            alt="iStock"
+            className="hidden size-8 group-data-[collapsible=icon]:block"
+          />
         </div>
       </SidebarHeader>
 
@@ -116,12 +123,7 @@ export default function Sidebar() {
                         isActive={isActive}
                       >
                         <Link href={item.href}>
-                          {item.icon && (
-                            <Icon
-                              name={item.icon}
-                              className="size-4"
-                            />
-                          )}
+                          {item.icon && <Icon name={item.icon} className="size-4" />}
                           <span>{item.title}</span>
                         </Link>
                       </SidebarMenuButton>
@@ -172,7 +174,6 @@ export default function Sidebar() {
           </div>
         )}
       </SidebarFooter>
-
     </SidebarContainer>
   );
 }

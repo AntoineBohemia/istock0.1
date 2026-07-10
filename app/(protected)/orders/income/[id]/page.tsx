@@ -1,22 +1,18 @@
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { ChevronLeft, Download01, Package, Truck01, Image01 } from "@untitled-ui/icons-react";
+import {
+  ArrowLeft,
+  Download01,
+  Package,
+  Truck01,
+  Image01,
+  ArrowRight,
+} from "@untitled-ui/icons-react";
 import { generateMeta } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
-
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -35,7 +31,8 @@ async function getMovement(id: string) {
     .select(
       `
       *,
-      product:products(id, name, sku, image_url, price, stock_current, supplier:suppliers(name, website_url))
+      product:products(id, name, sku, image_url, price, stock_current),
+      supplier:suppliers(id, name, website_url)
     `
     )
     .eq("id", id)
@@ -64,25 +61,21 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
   const totalValue = unitPrice * movement.quantity;
 
   return (
-    <div className="mx-auto max-w-screen-lg space-y-4 lg:mt-10">
+    <div className="space-y-5 pb-20">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <Button asChild variant="outline-contrast">
-          <Link href="/orders">
-            <ChevronLeft />
-          </Link>
-        </Button>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Info Card */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Download01 className="size-5 text-green-600" />
-              <CardTitle className="font-display text-2xl">Entrée de stock</CardTitle>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" asChild className="shrink-0 -ml-2">
+            <Link href="/orders">
+              <ArrowLeft className="size-4" />
+            </Link>
+          </Button>
+          <div>
+            <div className="flex items-center gap-2.5">
+              <Download01 className="size-5 text-green-600 shrink-0" />
+              <h1 className="font-heading text-2xl font-bold tracking-tight">Entrée de stock</h1>
             </div>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-sm text-muted-foreground mt-0.5">
               {entryDate.toLocaleDateString("fr-FR", {
                 weekday: "long",
                 day: "numeric",
@@ -95,131 +88,105 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
                 minute: "2-digit",
               })}
             </p>
-          </CardHeader>
-          <CardContent>
-            <Separator className="mb-4" />
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Truck01 className="size-4" />
-                  Fournisseur
-                </h3>
-                <p>{movement.product?.supplier?.name || "Non spécifié"}</p>
-              </div>
-              {movement.notes && (
-                <div className="space-y-2">
-                  <h3 className="font-semibold">Notes</h3>
-                  <p className="text-muted-foreground text-sm">{movement.notes}</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Summary Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Résumé de l&apos;entrée</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between">
-              <span>Quantité</span>
-              <Badge variant="success">+{movement.quantity} unités</Badge>
-            </div>
-            <div className="flex justify-between">
-              <span>Prix unitaire</span>
-              <span>
-                {unitPrice.toLocaleString("fr-FR", {
-                  style: "currency",
-                  currency: "EUR",
-                })}
-              </span>
-            </div>
-            <Separator />
-            <div className="flex justify-between font-semibold">
-              <span>Valeur totale</span>
-              <span className="text-green-600">
-                {totalValue.toLocaleString("fr-FR", {
-                  style: "currency",
-                  currency: "EUR",
-                })}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
-      {/* Product Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="size-5" />
-            Produit réapprovisionné
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Produit</TableHead>
-                <TableHead className="text-right">Quantité</TableHead>
-                <TableHead className="text-right">Prix unitaire</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell>
-                  <div className="flex items-center gap-4">
-                    <figure className="flex size-14 items-center justify-center rounded-lg border bg-muted">
-                      {movement.product?.image_url ? (
-                        <Image
-                          src={movement.product.image_url}
-                          width={56}
-                          height={56}
-                          alt={movement.product.name}
-                          className="size-full rounded-lg object-cover"
-                        />
-                      ) : (
-                        <Image01 className="size-6 text-muted-foreground" />
-                      )}
-                    </figure>
-                    <div>
-                      <p className="font-medium">{movement.product?.name || "Produit inconnu"}</p>
-                      {movement.product?.sku && (
-                        <p className="text-xs text-muted-foreground font-mono">
-                          {movement.product.sku}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell className="text-right font-semibold text-green-600">
-                  +{movement.quantity}
-                </TableCell>
-                <TableCell className="text-right">
-                  {unitPrice.toLocaleString("fr-FR", {
-                    style: "currency",
-                    currency: "EUR",
-                  })}
-                </TableCell>
-                <TableCell className="text-right font-semibold">
-                  {totalValue.toLocaleString("fr-FR", {
-                    style: "currency",
-                    currency: "EUR",
-                  })}
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* Hero — quantité entrée */}
+      <div className="rounded-xl border bg-card px-6 py-5 flex items-end justify-between gap-4">
+        <div>
+          <span className="font-heading text-5xl font-bold tabular-nums leading-none block text-green-600">
+            +{movement.quantity}
+          </span>
+          <p className="text-sm text-muted-foreground mt-2">
+            unité{movement.quantity > 1 ? "s" : ""} ajoutée{movement.quantity > 1 ? "s" : ""} au
+            stock
+          </p>
+        </div>
+        <Badge variant="success" className="text-sm">
+          Entrée
+        </Badge>
+      </div>
 
-      {/* Actions */}
-      <div className="flex justify-end">
-        <Button variant="outline-contrast" asChild>
-          <Link href={`/product/${movement.product?.id}`}>Voir le produit</Link>
-        </Button>
+      {/* Détails */}
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="px-5 pt-4 pb-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground/50">
+            Détails du mouvement
+          </p>
+        </div>
+        <div className="divide-y text-sm">
+          <div className="flex justify-between px-5 py-2.5">
+            <span className="text-muted-foreground">Quantité</span>
+            <span className="font-semibold tabular-nums text-green-600">
+              +{movement.quantity} unités
+            </span>
+          </div>
+          <div className="flex justify-between px-5 py-2.5">
+            <span className="text-muted-foreground">Prix unitaire</span>
+            <span className="font-semibold tabular-nums">
+              {unitPrice
+                ? unitPrice.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })
+                : "—"}
+            </span>
+          </div>
+          <div className="flex justify-between px-5 py-2.5">
+            <span className="text-muted-foreground">Valeur totale</span>
+            <span className="font-semibold tabular-nums text-green-600">
+              {totalValue.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
+            </span>
+          </div>
+          <div className="flex justify-between px-5 py-2.5">
+            <span className="text-muted-foreground flex items-center gap-1.5">
+              <Truck01 className="size-3.5" />
+              Fournisseur
+            </span>
+            <span className="font-medium">{movement.supplier?.name || "Non spécifié"}</span>
+          </div>
+          {movement.notes && (
+            <div className="flex justify-between px-5 py-2.5">
+              <span className="text-muted-foreground">Notes</span>
+              <span className="font-medium text-right max-w-[60%]">{movement.notes}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Produit concerné */}
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="px-5 pt-4 pb-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground/50 flex items-center gap-1.5">
+            <Package className="size-3.5" />
+            Produit réapprovisionné
+          </p>
+        </div>
+        {movement.product && (
+          <Link
+            href={`/product/${movement.product.id}`}
+            className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-muted/50 group"
+          >
+            <figure className="flex size-14 items-center justify-center rounded-lg border bg-muted shrink-0">
+              {movement.product.image_url ? (
+                <Image
+                  src={movement.product.image_url}
+                  width={56}
+                  height={56}
+                  alt={movement.product.name}
+                  className="size-full rounded-lg object-cover"
+                />
+              ) : (
+                <Image01 className="size-6 text-muted-foreground" />
+              )}
+            </figure>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium truncate">{movement.product.name}</p>
+              {movement.product.sku && (
+                <p className="text-xs text-muted-foreground font-mono">{movement.product.sku}</p>
+              )}
+            </div>
+            <ArrowRight className="size-4 text-muted-foreground opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" />
+          </Link>
+        )}
       </div>
     </div>
   );
