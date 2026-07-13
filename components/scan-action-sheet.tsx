@@ -114,7 +114,7 @@ export default function ScanActionSheet({
               <Users className="size-5 text-primary" />
             </div>
             <div className="text-left">
-              <p className="font-semibold text-sm">Restocker technicien</p>
+              <p className="font-semibold text-sm">Réapprovisionner technicien</p>
               <p className="text-xs text-muted-foreground">Attribuer à un technicien</p>
             </div>
           </Button>

@@ -133,7 +133,7 @@ export default function GlobalPage() {
   // ─── Data ──────────────────────────────────────────────
   const { data: productsResult, isLoading: isSearching } = useProducts({
     organizationId: orgId,
-    search: step === "product" ? (searchQuery || undefined) : undefined,
+    search: step === "product" ? searchQuery || undefined : undefined,
   });
   const { data: techniciansData = [] } = useTechnicians(orgId);
   const searchResults = productsResult?.products ?? [];
@@ -276,7 +276,7 @@ export default function GlobalPage() {
     if (!actionMode) return "";
     const u = quantity > 1 ? "unités" : "unité";
     if (actionMode === "entry") return `Entrer ${quantity} ${u}`;
-    return `Sortir ${quantity} ${u}`;
+    return `Sortie ${quantity} ${u}`;
   }, [actionMode, quantity]);
 
   // ─── Step label ───────────────────────────────────────
@@ -574,10 +574,7 @@ export default function GlobalPage() {
     );
   };
 
-  const renderTechnicianCard = (
-    t: (typeof techniciansData)[number],
-    compact?: boolean
-  ) => (
+  const renderTechnicianCard = (t: (typeof techniciansData)[number], compact?: boolean) => (
     <button
       key={t.id}
       onClick={() => selectTechnician(t.id)}
@@ -979,11 +976,7 @@ export default function GlobalPage() {
         {step !== "action" && renderBackButton("mb-0")}
 
         {/* Step 1: Choose action */}
-        {step === "action" && (
-          <div className="space-y-4">
-            {renderActionCards(true)}
-          </div>
-        )}
+        {step === "action" && <div className="space-y-4">{renderActionCards(true)}</div>}
 
         {/* Step 2: Choose technician */}
         {step === "technician" && (
@@ -1016,7 +1009,10 @@ export default function GlobalPage() {
                   <div className="flex items-center gap-2 mt-1">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1 text-sm font-medium">
                       {techFullName}
-                      <button onClick={clearTechnician} className="hover:bg-primary/20 rounded-full p-0.5 -mr-1">
+                      <button
+                        onClick={clearTechnician}
+                        className="hover:bg-primary/20 rounded-full p-0.5 -mr-1"
+                      >
                         <X className="size-3" />
                       </button>
                     </span>
@@ -1177,9 +1173,7 @@ export default function GlobalPage() {
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
                     Sortie technicien
                   </p>
-                  <h2 className="font-heading text-xl font-semibold">
-                    Sélectionner un technicien
-                  </h2>
+                  <h2 className="font-heading text-xl font-semibold">Sélectionner un technicien</h2>
                 </div>
                 {techniciansData.length > 5 && renderSearchInput(true)}
                 {filteredTechnicians.length > 0 ? (
@@ -1337,7 +1331,7 @@ export default function GlobalPage() {
                       onClick={() => setActionMode("entry")}
                     >
                       <ArrowDownToLine className="size-3.5" />
-                      Entrer
+                      Entrer en stock
                     </Button>
                   )}
                 </div>

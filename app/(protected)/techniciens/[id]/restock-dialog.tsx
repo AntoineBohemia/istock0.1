@@ -1,16 +1,11 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Loader2, Minus, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { RestockItem } from "@/lib/supabase/queries/inventory";
 import { useAvailableProductsForRestock } from "@/hooks/queries";
@@ -43,16 +38,22 @@ export default function RestockDialog({
   onSuccess,
 }: RestockDialogProps) {
   const { currentOrganization } = useOrganizationStore();
-  const { data: products = [], isLoading } = useAvailableProductsForRestock(currentOrganization?.id);
+  const { data: products = [], isLoading } = useAvailableProductsForRestock(
+    currentOrganization?.id
+  );
   const addToInventoryMutation = useAddToTechnicianInventory();
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
   const isSubmitting = addToInventoryMutation.isPending;
 
-  useEffect(() => {
-    if (open) {
-      setSelectedProducts([]);
-    }
-  }, [open]);
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (nextOpen) {
+        setSelectedProducts([]);
+      }
+      onOpenChange(nextOpen);
+    },
+    [onOpenChange]
+  );
 
   const selectedIds = useMemo(
     () => new Set(selectedProducts.map((p) => p.productId)),
@@ -113,11 +114,13 @@ export default function RestockDialog({
       {
         onSuccess: () => {
           toast.success("Réapprovisionnement effectué");
-          onOpenChange(false);
+          handleOpenChange(false);
           onSuccess();
         },
         onError: (error) => {
-          toast.error(error instanceof Error ? error.message : "Erreur lors du réapprovisionnement");
+          toast.error(
+            error instanceof Error ? error.message : "Erreur lors du réapprovisionnement"
+          );
         },
       }
     );
@@ -126,10 +129,10 @@ export default function RestockDialog({
   const totalItems = selectedProducts.reduce((sum, p) => sum + p.quantity, 0);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-sm gap-0 p-0 flex flex-col max-h-[85vh]">
         <DialogHeader className="px-5 pt-5 pb-3">
-          <DialogTitle className="text-base font-semibold">Réapprovisionner</DialogTitle>
+          <DialogTitle className="text-base font-semibold">Réapprovisionner technicien</DialogTitle>
         </DialogHeader>
 
         {isLoading ? (
@@ -149,7 +152,9 @@ export default function RestockDialog({
                 className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 shadow-xs outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
               >
                 <option value="" disabled>
-                  {availableProducts.length === 0 ? "Tous les produits ajoutés" : "Ajouter un produit..."}
+                  {availableProducts.length === 0
+                    ? "Tous les produits ajoutés"
+                    : "Ajouter un produit..."}
                 </option>
                 {availableProducts.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -170,10 +175,7 @@ export default function RestockDialog({
               ) : (
                 <div className="divide-y">
                   {selectedProducts.map((product) => (
-                    <div
-                      key={product.productId}
-                      className="flex items-center gap-3 px-5 py-3"
-                    >
+                    <div key={product.productId} className="flex items-center gap-3 px-5 py-3">
                       <ProductIconDisplay
                         iconName={product.icon_name}
                         iconColor={product.icon_color}
@@ -189,7 +191,9 @@ export default function RestockDialog({
                       <div className="flex items-center gap-0.5 shrink-0">
                         <button
                           type="button"
-                          onClick={() => handleQuantityChange(product.productId, product.quantity - 1)}
+                          onClick={() =>
+                            handleQuantityChange(product.productId, product.quantity - 1)
+                          }
                           disabled={product.quantity <= 1}
                           className="flex size-7 items-center justify-center rounded-full border bg-white dark:bg-card hover:bg-muted transition-colors disabled:opacity-30"
                         >
@@ -207,7 +211,9 @@ export default function RestockDialog({
                         />
                         <button
                           type="button"
-                          onClick={() => handleQuantityChange(product.productId, product.quantity + 1)}
+                          onClick={() =>
+                            handleQuantityChange(product.productId, product.quantity + 1)
+                          }
                           disabled={product.quantity >= (product.stock_current ?? 0)}
                           className="flex size-7 items-center justify-center rounded-full border bg-white dark:bg-card hover:bg-muted transition-colors disabled:opacity-30"
                         >
@@ -232,14 +238,14 @@ export default function RestockDialog({
               <p className="flex-1 text-sm text-muted-foreground tabular-nums">
                 {selectedProducts.length > 0 && (
                   <>
-                    <span className="font-semibold text-foreground">{totalItems}</span>
-                    {" "}unité{totalItems > 1 ? "s" : ""}
+                    <span className="font-semibold text-foreground">{totalItems}</span> unité
+                    {totalItems > 1 ? "s" : ""}
                   </>
                 )}
               </p>
               <Button
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={() => handleOpenChange(false)}
                 disabled={isSubmitting}
                 className="h-10 bg-white dark:bg-card"
               >

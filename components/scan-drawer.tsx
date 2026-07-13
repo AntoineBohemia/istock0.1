@@ -3,14 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Html5Qrcode } from "html5-qrcode";
-import {
-  Camera,
-  Loader2,
-  Minus,
-  Plus,
-  Search,
-  Trash2,
-} from "lucide-react";
+import { Camera, Loader2, Minus, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -80,15 +73,17 @@ interface ScanDrawerProps {
   preselectedTechnicianId?: string | null;
 }
 
-export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId }: ScanDrawerProps) {
+export default function ScanDrawer({
+  open,
+  onOpenChange,
+  preselectedTechnicianId,
+}: ScanDrawerProps) {
   const { currentOrganization } = useOrganizationStore();
   const orgId = currentOrganization?.id;
   const pathname = usePathname();
 
-  const { data: technicians = [], isLoading: isLoadingTechnicians } =
-    useTechnicians(orgId);
-  const { data: products = [], isLoading: isLoadingProducts } =
-    useAvailableProductsForRestock(orgId);
+  const { data: technicians = [], isLoading: isLoadingTechnicians } = useTechnicians(orgId);
+  const { data: products = [] } = useAvailableProductsForRestock(orgId);
   const addToInventoryMutation = useAddToTechnicianInventory();
 
   const [step, setStep] = useState<Step>("technician");
@@ -119,8 +114,8 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
   // Skip technician step when preselected
   useEffect(() => {
     if (open && preselectedTechnicianId) {
-      setSelectedTechnicianId(preselectedTechnicianId);
-      setStep("scan");
+      setSelectedTechnicianId(preselectedTechnicianId); // eslint-disable-line react-hooks/set-state-in-effect
+      setStep("scan");  
     }
   }, [open, preselectedTechnicianId]);
 
@@ -238,7 +233,7 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
   // Auto-start camera when entering scan step
   useEffect(() => {
     if (step === "scan" && open) {
-      setCameraActive(true);
+      setCameraActive(true); // eslint-disable-line react-hooks/set-state-in-effect
     }
   }, [step, open]);
 
@@ -250,7 +245,7 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
     }
 
     let mounted = true;
-    setCameraStarting(true);
+    setCameraStarting(true); // eslint-disable-line react-hooks/set-state-in-effect
 
     const startScanner = async () => {
       // Wait for DOM
@@ -265,7 +260,9 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
         },
       };
       const onSuccess = (text: string) => handleScanResult(text);
-      const onFailure = () => {/* no QR in frame - ignore */};
+      const onFailure = () => {
+        /* no QR in frame - ignore */
+      };
 
       try {
         const scanner = new Html5Qrcode("qr-reader-drawer");
@@ -275,15 +272,9 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
         const rearId = await getRearCameraId();
 
         if (rearId) {
-          await scanner.start(
-            { deviceId: { exact: rearId } },
-            scanConfig, onSuccess, onFailure
-          );
+          await scanner.start({ deviceId: { exact: rearId } }, scanConfig, onSuccess, onFailure);
         } else {
-          await scanner.start(
-            { facingMode: "environment" },
-            scanConfig, onSuccess, onFailure
-          );
+          await scanner.start({ facingMode: "environment" }, scanConfig, onSuccess, onFailure);
         }
 
         if (mounted) {
@@ -320,10 +311,7 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
         setCameraActive(false);
 
         if (err instanceof Error) {
-          if (
-            err.message.includes("Permission") ||
-            err.message.includes("NotAllowedError")
-          ) {
+          if (err.message.includes("Permission") || err.message.includes("NotAllowedError")) {
             toast.error("Acces a la camera refuse. Autorisez la camera dans les parametres.");
           } else if (err.message.includes("NotFoundError")) {
             toast.error("Aucune camera detectee.");
@@ -345,7 +333,7 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
   // Stop camera when leaving scan step or closing drawer
   useEffect(() => {
     if (step !== "scan" || !open) {
-      setCameraActive(false);
+      setCameraActive(false); // eslint-disable-line react-hooks/set-state-in-effect
     }
   }, [step, open]);
 
@@ -357,9 +345,7 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
     const max = product.stock_current ?? 999;
     const clamped = Math.max(1, Math.min(quantity, max));
     setSelectedProducts((prev) =>
-      prev.map((p) =>
-        p.productId === productId ? { ...p, quantity: clamped } : p
-      )
+      prev.map((p) => (p.productId === productId ? { ...p, quantity: clamped } : p))
     );
   };
 
@@ -393,9 +379,7 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
           onOpenChange(false);
         },
         onError: (error) => {
-          toast.error(
-            error instanceof Error ? error.message : "Erreur lors de l'enregistrement"
-          );
+          toast.error(error instanceof Error ? error.message : "Erreur lors de l'enregistrement");
         },
       }
     );
@@ -412,9 +396,7 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
           <>
             <DrawerHeader className="pb-2">
               <DrawerTitle>Choisir un technicien</DrawerTitle>
-              <DrawerDescription>
-                Selectionnez le technicien a restocker
-              </DrawerDescription>
+              <DrawerDescription>Sélectionnez le technicien à réapprovisionner</DrawerDescription>
             </DrawerHeader>
 
             <div className="flex-1 overflow-auto px-4 pb-4">
@@ -508,9 +490,7 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
                       />
                       <div className="flex-1 min-w-0">
                         <p className="truncate text-sm font-medium">{p.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Stock: {p.stock_current}
-                        </p>
+                        <p className="text-xs text-muted-foreground">Stock: {p.stock_current}</p>
                       </div>
                     </CommandItem>
                   ))}
@@ -521,10 +501,7 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
             {/* Camera zone - takes remaining space */}
             {cameraActive && (
               <div className="relative flex-1 min-h-0 mx-3 overflow-hidden rounded-lg bg-black">
-                <div
-                  id="qr-reader-drawer"
-                  className="w-full"
-                />
+                <div id="qr-reader-drawer" className="w-full" />
                 {cameraStarting && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/50">
                     <div className="text-center text-white">
@@ -540,7 +517,8 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
             {selectedProducts.length > 0 && (
               <div className="shrink-0 px-3 py-2 space-y-1">
                 <p className="text-xs text-muted-foreground">
-                  {selectedProducts.length} produit{selectedProducts.length > 1 ? "s" : ""} · {totalItems} item{totalItems > 1 ? "s" : ""}
+                  {selectedProducts.length} produit{selectedProducts.length > 1 ? "s" : ""} ·{" "}
+                  {totalItems} item{totalItems > 1 ? "s" : ""}
                 </p>
                 {selectedProducts.map((product) => (
                   <div
@@ -617,9 +595,7 @@ export default function ScanDrawer({ open, onOpenChange, preselectedTechnicianId
                   onClick={handleSubmit}
                 >
                   {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
-                  {selectedProducts.length > 0
-                    ? `Enregistrer (${totalItems})`
-                    : "Enregistrer"}
+                  {selectedProducts.length > 0 ? `Enregistrer (${totalItems})` : "Enregistrer"}
                 </Button>
               </div>
             </DrawerFooter>

@@ -127,29 +127,7 @@ function avatarRingClass(status: StockStatus): string {
   }
 }
 
-// ─── Filter chips ──────────────────────────────────────────
-type FilterValue = "all" | StockStatus;
-
-const FILTER_OPTIONS: { value: FilterValue; label: string }[] = [
-  { value: "all", label: "Tous" },
-  { value: "critique", label: "Critique" },
-  { value: "attention", label: "Attention" },
-  { value: "standard", label: "OK" },
-];
-
-function chipClass(filter: FilterValue, active: boolean): string {
-  if (!active) return "bg-muted/50 text-muted-foreground hover:bg-muted";
-  switch (filter) {
-    case "critique":
-      return "bg-critique-bg text-critique ring-1 ring-critique/20";
-    case "attention":
-      return "bg-attention-bg text-attention ring-1 ring-attention/20";
-    case "standard":
-      return "bg-standard-bg text-standard ring-1 ring-standard/20";
-    default:
-      return "bg-primary text-primary-foreground";
-  }
-}
+// ─── Filter helpers ──────────────────────────────────────────
 
 // ─── Main component ────────────────────────────────────────
 export default function TechniciansList() {
@@ -163,7 +141,6 @@ export default function TechniciansList() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [restockTechId, setRestockTechId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<FilterValue>("all");
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
@@ -173,35 +150,15 @@ export default function TechniciansList() {
     return () => clearTimeout(debounceRef.current);
   }, [searchQuery]);
 
-  // Count per status for chip badges
-  const statusCounts = useMemo(() => {
-    const counts = { critique: 0, attention: 0, standard: 0 };
-    for (const tech of technicians) {
-      const days = daysSince(tech.last_restock_at);
-      const status = restockStatus(days);
-      counts[status]++;
-    }
-    return counts;
-  }, [technicians]);
-
-  // Filter data by status chip + search
+  // Filter data by search
   const filteredData = useMemo(() => {
-    let result = technicians;
-    if (statusFilter !== "all") {
-      result = result.filter((tech) => {
-        const days = daysSince(tech.last_restock_at);
-        return restockStatus(days) === statusFilter;
-      });
-    }
-    if (debouncedSearch) {
-      const q = debouncedSearch.toLowerCase();
-      result = result.filter((tech) => {
-        const name = `${tech.first_name} ${tech.last_name}`.toLowerCase();
-        return name.includes(q);
-      });
-    }
-    return result;
-  }, [technicians, statusFilter, debouncedSearch]);
+    if (!debouncedSearch) return technicians;
+    const q = debouncedSearch.toLowerCase();
+    return technicians.filter((tech) => {
+      const name = `${tech.first_name} ${tech.last_name}`.toLowerCase();
+      return name.includes(q);
+    });
+  }, [technicians, debouncedSearch]);
 
   const columns: ColumnDef<TechnicianWithInventory>[] = [
     {
@@ -243,12 +200,7 @@ export default function TechniciansList() {
     },
     {
       accessorKey: "phone",
-      header: () => (
-        <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
-          Téléphone
-        </span>
-      ),
-      enableSorting: false,
+      header: ({ column }) => <SortHeader label="Téléphone" column={column} />,
       cell: ({ row }) => (
         <span className="text-[15px] tabular-nums">{row.original.phone || "—"}</span>
       ),
@@ -426,35 +378,6 @@ export default function TechniciansList() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 bg-white dark:bg-card"
           />
-        </div>
-
-        {/* Status filter chips */}
-        <div className="flex items-center gap-1.5">
-          {FILTER_OPTIONS.map((opt) => {
-            const isActive = statusFilter === opt.value;
-            const count = opt.value === "all" ? totalCount : statusCounts[opt.value as StockStatus];
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setStatusFilter(isActive ? "all" : opt.value)}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none",
-                  chipClass(opt.value, isActive)
-                )}
-              >
-                {opt.label}
-                <span
-                  className={cn(
-                    "tabular-nums font-heading",
-                    isActive ? "opacity-80" : "opacity-50"
-                  )}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
         </div>
       </div>
 

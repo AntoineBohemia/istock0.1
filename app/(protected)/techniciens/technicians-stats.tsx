@@ -59,7 +59,7 @@ export default function TechnicianStats() {
           </CardTitle>
           <CardAction>
             {stats.emptyInventory > 0 ? (
-              <Badge variant="warning">À restocker</Badge>
+              <Badge variant="warning">À réappro</Badge>
             ) : (
               <Badge variant="success">OK</Badge>
             )}

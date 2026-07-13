@@ -21,7 +21,7 @@ export default function RestockButton({ productId }: RestockButtonProps) {
         onClick={() => setIsModalOpen(true)}
       >
         <ArrowDownToLine className="size-4" />
-        <span className="hidden sm:inline">Restocker</span>
+        <span className="hidden sm:inline">Réapprovisionner technicien</span>
       </Button>
 
       <StockEntryModal

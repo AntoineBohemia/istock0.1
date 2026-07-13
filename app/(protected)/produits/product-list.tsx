@@ -208,7 +208,7 @@ export default function ProductList() {
               }}
             >
               <ArrowUpFromLine className="size-3.5" />
-              Sortir
+              Sortie de stock
             </Button>
             <Button
               size="sm"
@@ -219,7 +219,7 @@ export default function ProductList() {
               }}
             >
               <ArrowDownToLine className="size-3.5" />
-              Entrer
+              Entrer en stock
             </Button>
           </div>
         );

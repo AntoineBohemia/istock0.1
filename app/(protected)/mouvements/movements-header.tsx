@@ -16,13 +16,17 @@ export default function MovementsHeader() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Mouvements de stock</h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setExitOpen(true)}>
+          <Button
+            variant="outline"
+            className="bg-white dark:bg-card"
+            onClick={() => setExitOpen(true)}
+          >
             <ArrowUpFromLine className="size-4" />
-            Sortie
+            Sortie de stock
           </Button>
           <Button onClick={() => setEntryOpen(true)}>
             <ArrowDownToLine className="size-4" />
-            Entrée
+            Entrer en stock
           </Button>
         </div>
       </div>

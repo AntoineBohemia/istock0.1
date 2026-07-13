@@ -1,31 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Minus, Plus, Search } from "lucide-react";
+import { Loader2, Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormMessage,
-} from "@/components/ui/form";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProducts, useOrganizations } from "@/hooks/queries";
 import { useCreateStockEntry } from "@/hooks/mutations";
-import ProductIconDisplay from "@/components/product-icon-display";
+
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
@@ -52,8 +41,6 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
   const createEntry = useCreateStockEntry();
   const isMultiOrg = (userOrgs?.length ?? 0) > 1;
   const [priceEditing, setPriceEditing] = useState(false);
-  const [productSearch, setProductSearch] = useState("");
-  const [showProductSearch, setShowProductSearch] = useState(false);
 
   const form = useForm<EntryValues>({
     resolver: zodResolver(EntrySchema),
@@ -75,8 +62,6 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
   useEffect(() => {
     if (open) {
       setPriceEditing(false);
-      setProductSearch("");
-      setShowProductSearch(!productId);
       form.reset({
         organization_id: isMultiOrg ? "" : (userOrgs?.[0]?.id ?? ""),
         product_id: productId || "",
@@ -93,15 +78,9 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
     }
   }, [selectedProduct?.id, open]);
 
-  const filteredProducts = useMemo(() => {
-    if (!productSearch) return products.slice(0, 6);
-    const q = productSearch.toLowerCase();
-    return products
-      .filter((p) => p.name.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q))
-      .slice(0, 6);
-  }, [products, productSearch]);
-
   const onSubmit = (data: EntryValues) => {
+    // Only send unitPrice if user explicitly unlocked and changed the price
+    // Always send the unit_price — it's the purchase price for this entry, not a product price update
     const price = data.unit_price ? parseFloat(data.unit_price) : undefined;
     createEntry.mutate(
       {
@@ -171,70 +150,23 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
               control={form.control}
               name="product_id"
               render={({ field }) => (
-                <FormItem className="border-t">
-                  {selectedProduct && !showProductSearch ? (
-                    <button
-                      type="button"
-                      onClick={!productId ? () => { setShowProductSearch(true); setProductSearch(""); } : undefined}
-                      className={cn(
-                        "flex w-full items-center gap-3 px-5 py-3 text-left",
-                        !productId && "hover:bg-muted/40 transition-colors"
-                      )}
+                <FormItem className="border-t px-5 py-3">
+                  <FormControl>
+                    <select
+                      value={field.value}
+                      onChange={(e) => field.onChange(e.target.value)}
+                      disabled={!!productId}
+                      className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 shadow-xs outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
                     >
-                      <ProductIconDisplay
-                        iconName={selectedProduct.icon_name}
-                        iconColor={selectedProduct.icon_color}
-                        imageUrl={selectedProduct.image_url}
-                        size="sm"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{selectedProduct.name}</p>
-                        {selectedProduct.sku && (
-                          <p className="text-[11px] text-muted-foreground font-mono">{selectedProduct.sku}</p>
-                        )}
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-sm font-semibold tabular-nums">{selectedProduct.stock_current ?? 0}</p>
-                        <p className="text-[10px] text-muted-foreground">en stock</p>
-                      </div>
-                    </button>
-                  ) : (
-                    <div className="px-5 py-3 space-y-1">
-                      <div className="relative">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
-                        <Input
-                          placeholder="Produit..."
-                          value={productSearch}
-                          onChange={(e) => setProductSearch(e.target.value)}
-                          className="pl-8 h-8 text-sm bg-white dark:bg-card"
-                          autoFocus
-                        />
-                      </div>
-                      <div className="max-h-40 overflow-y-auto">
-                        {filteredProducts.length === 0 ? (
-                          <p className="py-2 text-center text-xs text-muted-foreground">Aucun résultat</p>
-                        ) : (
-                          filteredProducts.map((p) => (
-                            <button
-                              key={p.id}
-                              type="button"
-                              onClick={() => {
-                                field.onChange(p.id);
-                                setShowProductSearch(false);
-                                setProductSearch("");
-                              }}
-                              className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-muted/60 transition-colors text-left"
-                            >
-                              <ProductIconDisplay iconName={p.icon_name} iconColor={p.icon_color} imageUrl={p.image_url} size="sm" />
-                              <span className="flex-1 text-sm truncate">{p.name}</span>
-                              <span className="text-xs tabular-nums text-muted-foreground shrink-0">{p.stock_current ?? 0}</span>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  <FormMessage className="px-5" />
+                      <option value="">Sélectionner un produit…</option>
+                      {products.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.stock_current ?? 0} en stock)
+                        </option>
+                      ))}
+                    </select>
+                  </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -309,7 +241,11 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
                   </div>
                   {total > 0 && (
                     <p className="text-right text-xs text-muted-foreground tabular-nums mt-1">
-                      {quantity} × {unitPrice.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} € = <span className="font-medium text-foreground">{total.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €</span>
+                      {quantity} × {unitPrice.toLocaleString("fr-FR", { minimumFractionDigits: 2 })}{" "}
+                      € ={" "}
+                      <span className="font-medium text-foreground">
+                        {total.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €
+                      </span>
                     </p>
                   )}
                   <FormMessage />

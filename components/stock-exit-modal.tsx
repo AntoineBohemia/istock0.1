@@ -4,29 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Minus, Plus, ArrowRight, Search } from "lucide-react";
+import { Loader2, Minus, Plus, ArrowRight, Search, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormMessage,
-} from "@/components/ui/form";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProducts, useTechnicians } from "@/hooks/queries";
 import { useCreateStockExit } from "@/hooks/mutations";
 import ProductIconDisplay from "@/components/product-icon-display";
-import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
 const ExitSchema = z.object({
@@ -133,45 +121,36 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            {/* Motif */}
+            {/* Motif — toggle simple */}
             <FormField
               control={form.control}
               name="exit_type"
               render={({ field }) => (
                 <FormItem className="px-5 py-3 border-t">
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="flex rounded-lg border bg-muted/30 p-0.5">
                     <button
                       type="button"
                       onClick={() => field.onChange("exit_technician")}
                       className={cn(
-                        "flex items-center gap-2.5 rounded-lg border bg-white dark:bg-card px-3 py-2.5 text-sm font-medium transition-all",
+                        "flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all",
                         field.value === "exit_technician"
-                          ? "border-foreground text-foreground"
-                          : "border-border text-muted-foreground hover:border-foreground/30"
+                          ? "bg-card shadow-sm text-foreground"
+                          : "text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      <Checkbox
-                        checked={field.value === "exit_technician"}
-                        className="rounded-md pointer-events-none data-checked:bg-foreground data-checked:border-foreground"
-                        tabIndex={-1}
-                      />
                       Technicien
                     </button>
                     <button
                       type="button"
                       onClick={() => field.onChange("exit_anonymous")}
                       className={cn(
-                        "flex items-center gap-2.5 rounded-lg border bg-white dark:bg-card px-3 py-2.5 text-sm font-medium transition-all",
+                        "flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-all",
                         field.value === "exit_anonymous"
-                          ? "border-foreground text-foreground"
-                          : "border-border text-muted-foreground hover:border-foreground/30"
+                          ? "bg-card shadow-sm text-foreground"
+                          : "text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      <Checkbox
-                        checked={field.value === "exit_anonymous"}
-                        className="rounded-md pointer-events-none data-checked:bg-foreground data-checked:border-foreground"
-                        tabIndex={-1}
-                      />
+                      <AlertTriangle className="size-3.5" />
                       Erreur stock
                     </button>
                   </div>
@@ -192,7 +171,9 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
                         onChange={(e) => field.onChange(e.target.value)}
                         className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 shadow-xs outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
                       >
-                        <option value="" disabled>Choisir un technicien</option>
+                        <option value="" disabled>
+                          Choisir un technicien
+                        </option>
                         {technicians.map((t) => (
                           <option key={t.id} value={t.id}>
                             {t.first_name} {t.last_name}
@@ -215,7 +196,14 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
                   {selectedProduct && !showProductSearch ? (
                     <button
                       type="button"
-                      onClick={!productId ? () => { setShowProductSearch(true); setProductSearch(""); } : undefined}
+                      onClick={
+                        !productId
+                          ? () => {
+                              setShowProductSearch(true);
+                              setProductSearch("");
+                            }
+                          : undefined
+                      }
                       className={cn(
                         "flex w-full items-center gap-3 px-5 py-3 text-left",
                         !productId && "hover:bg-muted/40 transition-colors"
@@ -230,14 +218,18 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{selectedProduct.name}</p>
                         {selectedProduct.sku && (
-                          <p className="text-[11px] text-muted-foreground font-mono">{selectedProduct.sku}</p>
+                          <p className="text-[11px] text-muted-foreground font-mono">
+                            {selectedProduct.sku}
+                          </p>
                         )}
                       </div>
                       <div className="text-right shrink-0">
-                        <p className={cn(
-                          "text-sm font-semibold tabular-nums",
-                          stockAvailable === 0 && "text-destructive"
-                        )}>
+                        <p
+                          className={cn(
+                            "text-sm font-semibold tabular-nums",
+                            stockAvailable === 0 && "text-destructive"
+                          )}
+                        >
                           {stockAvailable}
                         </p>
                         <p className="text-[10px] text-muted-foreground">dispo</p>
@@ -257,7 +249,9 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
                       </div>
                       <div className="max-h-40 overflow-y-auto">
                         {filteredProducts.length === 0 ? (
-                          <p className="py-2 text-center text-xs text-muted-foreground">Aucun résultat</p>
+                          <p className="py-2 text-center text-xs text-muted-foreground">
+                            Aucun résultat
+                          </p>
                         ) : (
                           filteredProducts.map((p) => (
                             <button
@@ -270,9 +264,16 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
                               }}
                               className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-muted/60 transition-colors text-left"
                             >
-                              <ProductIconDisplay iconName={p.icon_name} iconColor={p.icon_color} imageUrl={p.image_url} size="sm" />
+                              <ProductIconDisplay
+                                iconName={p.icon_name}
+                                iconColor={p.icon_color}
+                                imageUrl={p.image_url}
+                                size="sm"
+                              />
                               <span className="flex-1 text-sm truncate">{p.name}</span>
-                              <span className="text-xs tabular-nums text-muted-foreground shrink-0">{p.stock_current ?? 0}</span>
+                              <span className="text-xs tabular-nums text-muted-foreground shrink-0">
+                                {p.stock_current ?? 0}
+                              </span>
                             </button>
                           ))
                         )}
@@ -306,7 +307,9 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
                         className="w-20 h-12 text-center text-2xl font-semibold bg-white dark:bg-card focus-visible:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         {...field}
                         onChange={(e) =>
-                          field.onChange(Math.min(parseInt(e.target.value) || 1, stockAvailable || 9999))
+                          field.onChange(
+                            Math.min(parseInt(e.target.value) || 1, stockAvailable || 9999)
+                          )
                         }
                       />
                     </FormControl>
@@ -325,10 +328,16 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
                     <p className="text-center text-xs text-muted-foreground tabular-nums mt-1">
                       {stockAvailable}
                       <ArrowRight className="inline size-3 mx-1" />
-                      <span className={cn(
-                        "font-medium",
-                        stockAfter <= 0 ? "text-destructive" : stockAfter <= (selectedProduct.stock_min ?? 0) ? "text-orange-500" : "text-foreground"
-                      )}>
+                      <span
+                        className={cn(
+                          "font-medium",
+                          stockAfter <= 0
+                            ? "text-destructive"
+                            : stockAfter <= (selectedProduct.stock_min ?? 0)
+                              ? "text-orange-500"
+                              : "text-foreground"
+                        )}
+                      >
                         {Math.max(0, stockAfter)}
                       </span>
                     </p>

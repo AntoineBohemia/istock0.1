@@ -19,6 +19,7 @@ import {
   CalendarDays,
   Building2,
   HardHat,
+  Wrench,
   Check,
   X,
 } from "lucide-react";
@@ -355,6 +356,8 @@ const TYPE_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: "entry", label: "Entrées" },
   { value: "exit_technician", label: "Sortie technicien" },
   { value: "exit_anonymous", label: "Erreur stock" },
+  { value: "assign_equipment", label: "Assignation outil" },
+  { value: "unassign_equipment", label: "Retour outil" },
 ];
 
 // ─── Main component ────────────────────────────────────────
@@ -483,136 +486,131 @@ export default function MovementsList() {
     }
   };
 
-  const columns: ColumnDef<StockMovement>[] = useMemo(() => [
-    {
-      accessorKey: "created_at",
-      header: ({ column }) => <SortHeader label="Date" column={column} />,
-      cell: ({ row }) => {
-        const date = new Date(row.original.created_at ?? Date.now());
-        return (
-          <div>
-            <div className="text-[15px]">{format(date, "dd MMM yyyy", { locale: fr })}</div>
-            <div className="text-xs text-muted-foreground">
-              {format(date, "HH:mm", { locale: fr })}
+  const columns: ColumnDef<StockMovement>[] = useMemo(
+    () => [
+      {
+        accessorKey: "created_at",
+        header: ({ column }) => <SortHeader label="Date" column={column} />,
+        cell: ({ row }) => {
+          const date = new Date(row.original.created_at ?? Date.now());
+          return (
+            <div>
+              <div className="text-[15px]">{format(date, "dd MMM yyyy", { locale: fr })}</div>
+              <div className="text-xs text-muted-foreground">
+                {format(date, "HH:mm", { locale: fr })}
+              </div>
             </div>
-          </div>
-        );
+          );
+        },
       },
-    },
-    {
-      accessorKey: "movement_type",
-      header: () => (
-        <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
-          Type
-        </span>
-      ),
-      enableSorting: false,
-      cell: ({ row }) => {
-        const type = row.original.movement_type;
-        const isEntry = type === "entry";
-        return (
-          <div className="flex items-center gap-2">
-            {isEntry ? (
-              <ArrowDownToLine className="size-3.5 text-standard" />
-            ) : (
-              <ArrowUpFromLine className="size-3.5 text-critique" />
-            )}
+      {
+        accessorKey: "movement_type",
+        header: ({ column }) => <SortHeader label="Type" column={column} />,
+        cell: ({ row }) => {
+          const type = row.original.movement_type;
+          const isEntry = type === "entry";
+          const isEquipment = type === "assign_equipment" || type === "unassign_equipment";
+          return (
+            <div className="flex items-center gap-2">
+              {isEquipment ? (
+                <Wrench className="size-3.5 text-primary" />
+              ) : isEntry ? (
+                <ArrowDownToLine className="size-3.5 text-standard" />
+              ) : type === "exit_anonymous" ? (
+                <ArrowUpFromLine className="size-3.5 text-attention" />
+              ) : (
+                <ArrowUpFromLine className="size-3.5 text-critique" />
+              )}
+              <span
+                className={cn(
+                  "inline-flex items-center rounded-full px-2 py-0.5 text-[13px] font-medium",
+                  type === "entry" && "text-standard bg-standard-bg",
+                  type === "exit_technician" && "text-critique bg-critique-bg",
+                  type === "exit_anonymous" && "text-attention bg-attention-bg",
+                  isEquipment && "text-primary bg-primary/10"
+                )}
+              >
+                {MOVEMENT_TYPE_LABELS[type]}
+              </span>
+            </div>
+          );
+        },
+      },
+      {
+        id: "product",
+        accessorFn: (row) => row.product?.name ?? "",
+        header: ({ column }) => <SortHeader label="Produit" column={column} />,
+        cell: ({ row }) => {
+          const product = row.original.product;
+          return (
+            <div className="flex items-center gap-4">
+              <ProductIconDisplay imageUrl={product?.image_url} size="md" />
+              <div className="min-w-0">
+                <div className="font-semibold text-[15px] leading-tight">
+                  {product?.name || "Produit inconnu"}
+                </div>
+                {product?.sku && (
+                  <div className="text-xs text-muted-foreground mt-0.5 font-mono">
+                    {product.sku}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        id: "organization",
+        accessorFn: (row) => row.organization?.name ?? "",
+        header: ({ column }) => <SortHeader label="Société" column={column} />,
+        cell: ({ row }) => {
+          if (row.original.movement_type !== "entry") {
+            return <span className="text-muted-foreground">—</span>;
+          }
+          const org = row.original.organization;
+          if (!org) return <span className="text-muted-foreground">—</span>;
+          return <span className="text-[15px]">{org.name}</span>;
+        },
+      },
+      {
+        accessorKey: "quantity",
+        header: ({ column }) => (
+          <SortHeader label="Qté" column={column} className="justify-center w-full" />
+        ),
+        cell: ({ row }) => {
+          const isEntry = row.original.movement_type === "entry";
+          return (
             <span
               className={cn(
-                "inline-flex items-center rounded-full px-2 py-0.5 text-[13px] font-medium",
-                type === "entry" && "text-standard bg-standard-bg",
-                type === "exit_technician" && "text-foreground/80 bg-muted",
-                type === "exit_anonymous" && "text-attention bg-attention-bg"
+                "font-heading font-bold tabular-nums text-xl",
+                isEntry ? "text-standard" : "text-critique"
               )}
             >
-              {MOVEMENT_TYPE_LABELS[type]}
+              {isEntry ? "+" : "−"}
+              {row.original.quantity}
             </span>
-          </div>
-        );
+          );
+        },
+        meta: { align: "center" },
       },
-    },
-    {
-      accessorKey: "product",
-      header: () => (
-        <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
-          Produit
-        </span>
-      ),
-      enableSorting: false,
-      cell: ({ row }) => {
-        const product = row.original.product;
-        return (
-          <div className="flex items-center gap-4">
-            <ProductIconDisplay imageUrl={product?.image_url} size="md" />
-            <div className="min-w-0">
-              <div className="font-semibold text-[15px] leading-tight">
-                {product?.name || "Produit inconnu"}
-              </div>
-              {product?.sku && (
-                <div className="text-xs text-muted-foreground mt-0.5 font-mono">{product.sku}</div>
-              )}
-            </div>
-          </div>
-        );
+      {
+        id: "technician",
+        accessorFn: (row) =>
+          row.technician ? `${row.technician.first_name} ${row.technician.last_name}` : "",
+        header: ({ column }) => <SortHeader label="Technicien" column={column} />,
+        cell: ({ row }) => {
+          const technician = row.original.technician;
+          if (!technician) return <span className="text-muted-foreground">—</span>;
+          return (
+            <span className="text-[15px]">
+              {technician.first_name} {technician.last_name}
+            </span>
+          );
+        },
       },
-    },
-    {
-      id: "organization",
-      header: () => (
-        <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
-          Société
-        </span>
-      ),
-      enableSorting: false,
-      cell: ({ row }) => {
-        if (row.original.movement_type !== "entry") {
-          return <span className="text-muted-foreground">—</span>;
-        }
-        const org = row.original.organization;
-        if (!org) return <span className="text-muted-foreground">—</span>;
-        return <span className="text-[15px]">{org.name}</span>;
-      },
-    },
-    {
-      accessorKey: "quantity",
-      header: ({ column }) => (
-        <SortHeader label="Qté" column={column} className="justify-center w-full" />
-      ),
-      cell: ({ row }) => {
-        const isEntry = row.original.movement_type === "entry";
-        return (
-          <span
-            className={cn(
-              "font-heading font-bold tabular-nums text-xl",
-              isEntry ? "text-standard" : "text-critique"
-            )}
-          >
-            {isEntry ? "+" : "−"}
-            {row.original.quantity}
-          </span>
-        );
-      },
-      meta: { align: "center" },
-    },
-    {
-      accessorKey: "technician",
-      header: () => (
-        <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
-          Technicien
-        </span>
-      ),
-      enableSorting: false,
-      cell: ({ row }) => {
-        const technician = row.original.technician;
-        if (!technician) return <span className="text-muted-foreground">—</span>;
-        return (
-          <span className="text-[15px]">
-            {technician.first_name} {technician.last_name}
-          </span>
-        );
-      },
-    },
-  ], []);
+    ],
+    []
+  );
 
   const table = useReactTable({
     data: filteredMovements,
@@ -767,7 +765,12 @@ export default function MovementsList() {
                         startTransition(() => setFilterOrgs((prev) => toggleSet(prev, sup.id)));
                       }}
                     >
-                      <span className={cn("size-3.5 flex items-center justify-center", !selected && "opacity-0")}>
+                      <span
+                        className={cn(
+                          "size-3.5 flex items-center justify-center",
+                          !selected && "opacity-0"
+                        )}
+                      >
                         <Check className="size-3.5" />
                       </span>
                       {sup.name}
@@ -828,7 +831,12 @@ export default function MovementsList() {
                         startTransition(() => setFilterTechs((prev) => toggleSet(prev, tech.id)));
                       }}
                     >
-                      <span className={cn("size-3.5 flex items-center justify-center", !selected && "opacity-0")}>
+                      <span
+                        className={cn(
+                          "size-3.5 flex items-center justify-center",
+                          !selected && "opacity-0"
+                        )}
+                      >
                         <Check className="size-3.5" />
                       </span>
                       {tech.name}
@@ -944,7 +952,11 @@ export default function MovementsList() {
                     </div>
                     <h3 className="text-lg font-semibold">Aucun mouvement</h3>
                     <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-                      {debouncedSearch || filterTypes.size > 0 || dateRange?.from || filterOrgs.size > 0 || filterTechs.size > 0
+                      {debouncedSearch ||
+                      filterTypes.size > 0 ||
+                      dateRange?.from ||
+                      filterOrgs.size > 0 ||
+                      filterTechs.size > 0
                         ? "Aucun mouvement ne correspond à ces filtres."
                         : "Les mouvements de stock apparaîtront ici."}
                     </p>

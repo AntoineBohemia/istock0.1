@@ -19,24 +19,16 @@ export default function StockActions({ productId }: StockActionsProps) {
       <div className="flex gap-2">
         <Button variant="outline" onClick={() => setExitOpen(true)}>
           <ArrowUpFromLine className="size-4" />
-          Sortir produit
+          Sortie de stock
         </Button>
         <Button onClick={() => setEntryOpen(true)}>
           <ArrowDownToLine className="size-4" />
-          Entrer produit
+          Entrer en stock
         </Button>
       </div>
 
-      <StockEntryModal
-        open={entryOpen}
-        onClose={() => setEntryOpen(false)}
-        productId={productId}
-      />
-      <StockExitModal
-        open={exitOpen}
-        onClose={() => setExitOpen(false)}
-        productId={productId}
-      />
+      <StockEntryModal open={entryOpen} onClose={() => setEntryOpen(false)} productId={productId} />
+      <StockExitModal open={exitOpen} onClose={() => setExitOpen(false)} productId={productId} />
     </>
   );
 }

@@ -38,7 +38,7 @@ BEGIN
   RETURNING id, product_id, quantity, movement_type, technician_id, organization_id, created_at, supplier_id, unit_price
   INTO v_movement;
 
-  -- Increment stock
+  -- Increment stock (price is never updated here — use product edit for that)
   UPDATE products
   SET stock_current = stock_current + p_quantity,
       updated_at = NOW()

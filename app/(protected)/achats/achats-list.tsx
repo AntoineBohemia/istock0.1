@@ -98,8 +98,8 @@ function SortHeader({
   );
 }
 
-// ─── Collapsible org detail rows (with price breakdown) ─────
-function OrgDetailRows({
+// ─── Collapsible org detail cards ─────────────────────────
+function OrgDetailCards({
   productId,
   entryData,
   orgNameById,
@@ -110,63 +110,54 @@ function OrgDetailRows({
 }) {
   const orgEntries = Object.entries(entryData).sort(([, a], [, b]) => b.qty - a.qty);
   const fmt = (n: number) => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
-  const multiOrg = orgEntries.length > 1;
-
-  const rows: React.ReactNode[] = [];
-
-  orgEntries.forEach(([orgId, detail], orgIdx) => {
-    const orgName = orgNameById.get(orgId) ?? orgId;
-
-    // Org separator label (only when multi-org)
-    if (multiOrg) {
-      rows.push(
-        <tr key={`${productId}-${orgId}-label`} className="bg-muted/20">
-          <td colSpan={6} className="px-5 pt-3 pb-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {orgName} — {detail.qty} unité{detail.qty > 1 ? "s" : ""} — {fmt(detail.byPrice.reduce((s, bp) => s + bp.unitPrice * bp.qty, 0))}
-            </span>
-          </td>
-        </tr>
-      );
-    }
-
-    // Each price line = a real data row
-    detail.byPrice.forEach((bp, priceIdx) => {
-      const isLast = orgIdx === orgEntries.length - 1 && priceIdx === detail.byPrice.length - 1;
-      rows.push(
-        <tr
-          key={`${productId}-${orgId}-p${priceIdx}`}
-          className={cn(
-            "bg-muted/10",
-            !isLast && "border-b border-border/30"
-          )}
-        >
-          <td className="pl-4 pr-0 w-10" />
-          <td className="px-5 py-3">
-            {!multiOrg && (
-              <span className="text-sm text-muted-foreground">{orgName}</span>
-            )}
-          </td>
-          <td className="px-5 py-3 text-right">
-            <span className="tabular-nums text-sm font-medium">{fmt(bp.unitPrice)}</span>
-          </td>
-          <td className="px-5 py-3 text-center">
-            <span className="font-heading font-bold tabular-nums text-base">{bp.qty}</span>
-          </td>
-          <td className="px-5 py-3" />
-          <td className="px-5 py-3 text-right">
-            <span className="tabular-nums text-sm font-semibold">{fmt(bp.unitPrice * bp.qty)}</span>
-          </td>
-        </tr>
-      );
-    });
-  });
 
   return (
-    <>
-      {rows}
-      <tr className="border-b" />
-    </>
+    <tr key={`detail-cards-${productId}`} className="border-b">
+      <td colSpan={6} className="px-5 pb-4 pt-2">
+        <div className="flex flex-col gap-2">
+          {orgEntries.map(([orgId, detail]) => {
+            const orgName = orgNameById.get(orgId) ?? orgId;
+            const orgTotal = detail.byPrice.reduce((s, bp) => s + bp.unitPrice * bp.qty, 0);
+
+            return (
+              <div
+                key={`${productId}-${orgId}`}
+                className="rounded-lg border bg-muted/20 px-4 py-3"
+              >
+                {/* Card header */}
+                <div className="flex items-baseline justify-between mb-2">
+                  <span className="text-sm font-semibold text-foreground">{orgName}</span>
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {detail.qty} unité{detail.qty > 1 ? "s" : ""}
+                    </span>
+                    <span className="text-sm font-semibold tabular-nums">{fmt(orgTotal)}</span>
+                  </div>
+                </div>
+
+                {/* Price breakdown lines */}
+                <div className="space-y-1">
+                  {detail.byPrice.map((bp, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between text-[13px] text-muted-foreground"
+                    >
+                      <span className="tabular-nums">
+                        {fmt(bp.unitPrice)} <span className="text-foreground/30 mx-1">×</span>{" "}
+                        <span className="font-medium text-foreground">{bp.qty}</span>
+                      </span>
+                      <span className="tabular-nums font-medium text-foreground/70">
+                        {fmt(bp.unitPrice * bp.qty)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </td>
+    </tr>
   );
 }
 
@@ -203,7 +194,6 @@ export default function AchatsList() {
   });
 
   const allProducts = productsResult?.products || [];
-
 
   // Filter products by org: only show products that have entries for the selected org
   const products = useMemo(() => {
@@ -347,9 +337,7 @@ export default function AchatsList() {
         ),
         cell: ({ row }) => {
           const data = entryQtyByProduct?.[row.original.id];
-          const total = data
-            ? Object.values(data).reduce((sum, d) => sum + d.qty, 0)
-            : 0;
+          const total = data ? Object.values(data).reduce((sum, d) => sum + d.qty, 0) : 0;
 
           if (total === 0) {
             return <span className="text-muted-foreground">—</span>;
@@ -366,30 +354,23 @@ export default function AchatsList() {
       },
       {
         id: "organization",
-        header: () => (
-          <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
-            Entreprise
-          </span>
-        ),
-        enableSorting: false,
+        accessorFn: (row) => {
+          const data = entryQtyByProduct?.[row.id];
+          if (!data) return "";
+          const orgIds = Object.keys(data);
+          return orgIds.map((id) => orgNameById.get(id) ?? id).join(", ");
+        },
+        header: ({ column }) => <SortHeader label="Entreprise" column={column} />,
         cell: ({ row }) => {
           const data = entryQtyByProduct?.[row.original.id];
           if (!data) return <span className="text-muted-foreground">—</span>;
           const orgIds = Object.keys(data);
 
           if (orgIds.length === 1) {
-            return (
-              <span className="text-[15px]">
-                {orgNameById.get(orgIds[0]) ?? orgIds[0]}
-              </span>
-            );
+            return <span className="text-[15px]">{orgNameById.get(orgIds[0]) ?? orgIds[0]}</span>;
           }
 
-          return (
-            <span className="text-[15px]">
-              {orgIds.length} entreprises
-            </span>
-          );
+          return <span className="text-[15px]">{orgIds.length} entreprises</span>;
         },
       },
       {
@@ -398,7 +379,8 @@ export default function AchatsList() {
           const data = entryQtyByProduct?.[row.id];
           if (!data) return 0;
           return Object.values(data).reduce(
-            (s, d) => s + d.byPrice.reduce((ps, bp) => ps + bp.unitPrice * bp.qty, 0), 0
+            (s, d) => s + d.byPrice.reduce((ps, bp) => ps + bp.unitPrice * bp.qty, 0),
+            0
           );
         },
         header: ({ column }) => (
@@ -408,7 +390,8 @@ export default function AchatsList() {
           const data = entryQtyByProduct?.[row.original.id];
           if (!data) return <span className="text-muted-foreground">—</span>;
           const value = Object.values(data).reduce(
-            (s, d) => s + d.byPrice.reduce((ps, bp) => ps + bp.unitPrice * bp.qty, 0), 0
+            (s, d) => s + d.byPrice.reduce((ps, bp) => ps + bp.unitPrice * bp.qty, 0),
+            0
           );
           if (value === 0) return <span className="text-muted-foreground">—</span>;
           return (
@@ -526,7 +509,9 @@ export default function AchatsList() {
               <button
                 key={org.id}
                 type="button"
-                onClick={() => startTransition(() => setFilterOrg(filterOrg === org.id ? "" : org.id))}
+                onClick={() =>
+                  startTransition(() => setFilterOrg(filterOrg === org.id ? "" : org.id))
+                }
                 className={cn(
                   "rounded-full px-3 py-1 text-xs font-medium transition-colors",
                   filterOrg === org.id
@@ -571,59 +556,63 @@ export default function AchatsList() {
 
           <tbody>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row, index) => {
-                const productId = row.original.id;
-                const isExpanded = expandedRows.has(productId);
-                const entryData = entryQtyByProduct?.[productId];
-                const showDetail = isExpanded && entryData && (Object.keys(entryData).length > 1 || Object.values(entryData).some((d) => d.byPrice.length > 1));
+              table
+                .getRowModel()
+                .rows.map((row, index) => {
+                  return (
+                    <AnimatedRow
+                      key={productId}
+                      index={index}
+                      reducedMotion={prefersReducedMotion}
+                      isInitial={isInitialMount.current}
+                      onClick={() => router.push(`/produits/${productId}`)}
+                    >
+                      {row.getVisibleCells().map((cell) => {
+                        const meta = cell.column.columnDef.meta as
+                          | { align?: string; width?: string }
+                          | undefined;
+                        const align = meta?.align;
+                        const isExpandCol = cell.column.id === "expand";
+                        return (
+                          <td
+                            key={cell.id}
+                            className={cn(
+                              "py-4 whitespace-nowrap",
+                              isExpandCol ? "pl-4 pr-0 w-10" : "px-5",
+                              align === "right" && "text-right",
+                              align === "center" && "text-center"
+                            )}
+                          >
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </td>
+                        );
+                      })}
+                    </AnimatedRow>
+                  );
+                })
+                .flatMap((rowEl, i) => {
+                  const row = table.getRowModel().rows[i];
+                  const productId = row.original.id;
+                  const isExpanded = expandedRows.has(productId);
+                  const entryData = entryQtyByProduct?.[productId];
+                  const showDetail =
+                    isExpanded &&
+                    entryData &&
+                    (Object.keys(entryData).length > 1 ||
+                      Object.values(entryData).some((d) => d.byPrice.length > 1));
 
-                return (
-                  <AnimatedRow
-                    key={productId}
-                    index={index}
-                    reducedMotion={prefersReducedMotion}
-                    isInitial={isInitialMount.current}
-                    onClick={() => router.push(`/produits/${productId}`)}
-                  >
-                    {row.getVisibleCells().map((cell) => {
-                      const meta = cell.column.columnDef.meta as { align?: string; width?: string } | undefined;
-                      const align = meta?.align;
-                      const isExpandCol = cell.column.id === "expand";
-                      return (
-                        <td
-                          key={cell.id}
-                          className={cn(
-                            "py-4 whitespace-nowrap",
-                            isExpandCol ? "pl-4 pr-0 w-10" : "px-5",
-                            align === "right" && "text-right",
-                            align === "center" && "text-center"
-                          )}
-                        >
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </td>
-                      );
-                    })}
-                  </AnimatedRow>
-                );
-              }).flatMap((rowEl, i) => {
-                const row = table.getRowModel().rows[i];
-                const productId = row.original.id;
-                const isExpanded = expandedRows.has(productId);
-                const entryData = entryQtyByProduct?.[productId];
-                const showDetail = isExpanded && entryData && (Object.keys(entryData).length > 1 || Object.values(entryData).some((d) => d.byPrice.length > 1));
+                  if (!showDetail) return [rowEl];
 
-                if (!showDetail) return [rowEl];
-
-                return [
-                  rowEl,
-                  <OrgDetailRows
-                    key={`detail-${productId}`}
-                    productId={productId}
-                    entryData={entryData}
-                    orgNameById={orgNameById}
-                  />,
-                ];
-              })
+                  return [
+                    rowEl,
+                    <OrgDetailCards
+                      key={`detail-${productId}`}
+                      productId={productId}
+                      entryData={entryData}
+                      orgNameById={orgNameById}
+                    />,
+                  ];
+                })
             ) : (
               <tr>
                 <td colSpan={columns.length}>

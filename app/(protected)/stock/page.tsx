@@ -78,8 +78,8 @@ export default function StockPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
-              Accédez à la liste des produits et cliquez sur "Restocker" pour enregistrer un
-              mouvement.
+              Accédez à la liste des produits et cliquez sur "Réapprovisionner technicien" pour
+              enregistrer un mouvement.
             </p>
             <Button variant="outline" className="w-full" asChild>
               <Link href="/produits">

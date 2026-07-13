@@ -96,13 +96,7 @@ function SortHeader({
 }
 
 // ── Distribution bar ──
-function DistributionBar({
-  assigned,
-  total,
-}: {
-  assigned: number;
-  total: number;
-}) {
+function DistributionBar({ assigned, total }: { assigned: number; total: number }) {
   if (total === 0) return null;
   const pct = Math.round((assigned / total) * 100);
   const isFull = assigned === total;
@@ -226,12 +220,8 @@ export default function EquipmentList() {
     },
     {
       id: "assigned_to",
-      header: () => (
-        <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
-          Équipé par
-        </span>
-      ),
-      enableSorting: false,
+      accessorFn: (row) => row.assignments?.length ?? 0,
+      header: ({ column }) => <SortHeader label="Équipé par" column={column} />,
       cell: ({ row }) => {
         const assignments = row.original.assignments;
         if (assignments.length === 0) {
@@ -252,9 +242,7 @@ export default function EquipmentList() {
                   title={`${tech.first_name} ${tech.last_name} (x${a.quantity})`}
                 >
                   {tech.photo_url && <AvatarImage src={tech.photo_url} />}
-                  <AvatarFallback className="text-[9px] font-semibold">
-                    {initials}
-                  </AvatarFallback>
+                  <AvatarFallback className="text-[9px] font-semibold">{initials}</AvatarFallback>
                 </Avatar>
               );
             })}
@@ -323,11 +311,21 @@ export default function EquipmentList() {
                       <Skeleton className="h-4 w-28" />
                     </div>
                   </td>
-                  <td className="px-5 py-4"><Skeleton className="h-4 w-20" /></td>
-                  <td className="px-5 py-4"><Skeleton className="h-1.5 w-24 rounded-full" /></td>
-                  <td className="px-5 py-4 text-center"><Skeleton className="h-5 w-8 mx-auto" /></td>
-                  <td className="px-5 py-4"><Skeleton className="h-7 w-16" /></td>
-                  <td className="px-5 py-4"><Skeleton className="h-7 w-20 ml-auto" /></td>
+                  <td className="px-5 py-4">
+                    <Skeleton className="h-4 w-20" />
+                  </td>
+                  <td className="px-5 py-4">
+                    <Skeleton className="h-1.5 w-24 rounded-full" />
+                  </td>
+                  <td className="px-5 py-4 text-center">
+                    <Skeleton className="h-5 w-8 mx-auto" />
+                  </td>
+                  <td className="px-5 py-4">
+                    <Skeleton className="h-7 w-16" />
+                  </td>
+                  <td className="px-5 py-4">
+                    <Skeleton className="h-7 w-20 ml-auto" />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -356,9 +354,7 @@ export default function EquipmentList() {
               /{stats.totalStock} assignés
             </div>
             {stats.totalValue > 0 && (
-              <div className="text-muted-foreground tabular-nums">
-                {fmtPrice(stats.totalValue)}
-              </div>
+              <div className="text-muted-foreground tabular-nums">{fmtPrice(stats.totalValue)}</div>
             )}
           </div>
         </div>
@@ -394,9 +390,7 @@ export default function EquipmentList() {
               <button
                 key={cat.id}
                 type="button"
-                onClick={() =>
-                  setQueryStates({ category: category === cat.id ? null : cat.id })
-                }
+                onClick={() => setQueryStates({ category: category === cat.id ? null : cat.id })}
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none",
                   category === cat.id

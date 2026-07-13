@@ -133,7 +133,12 @@ export function TabTechniciens({ onRestockClick }: TabTechniciensProps) {
           </Button>
         ),
         cell: ({ row }) => (
-          <span className={cn("text-xs tabular-nums font-medium", row.original.coverage_pct < 50 ? "text-attention" : "text-muted-foreground")}>
+          <span
+            className={cn(
+              "text-xs tabular-nums font-medium",
+              row.original.coverage_pct < 50 ? "text-attention" : "text-muted-foreground"
+            )}
+          >
             {row.original.coverage_pct}%
           </span>
         ),
@@ -151,7 +156,7 @@ export function TabTechniciens({ onRestockClick }: TabTechniciensProps) {
             }}
           >
             <PackagePlus className="size-3.5 mr-1" />
-            Restocker
+            Réapprovisionner technicien
           </Button>
         ),
       },
@@ -174,10 +179,18 @@ export function TabTechniciens({ onRestockClick }: TabTechniciensProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead><Skeleton className="h-4 w-20" /></TableHead>
-              <TableHead><Skeleton className="h-4 w-10" /></TableHead>
-              <TableHead><Skeleton className="h-4 w-24" /></TableHead>
-              <TableHead><Skeleton className="h-4 w-16" /></TableHead>
+              <TableHead>
+                <Skeleton className="h-4 w-20" />
+              </TableHead>
+              <TableHead>
+                <Skeleton className="h-4 w-10" />
+              </TableHead>
+              <TableHead>
+                <Skeleton className="h-4 w-24" />
+              </TableHead>
+              <TableHead>
+                <Skeleton className="h-4 w-16" />
+              </TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
@@ -190,10 +203,18 @@ export function TabTechniciens({ onRestockClick }: TabTechniciensProps) {
                     <Skeleton className="h-4 w-24" />
                   </div>
                 </TableCell>
-                <TableCell><Skeleton className="h-4 w-14" /></TableCell>
-                <TableCell><Skeleton className="h-3 w-20" /></TableCell>
-                <TableCell><Skeleton className="h-3 w-10" /></TableCell>
-                <TableCell><Skeleton className="h-7 w-20" /></TableCell>
+                <TableCell>
+                  <Skeleton className="h-4 w-14" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-3 w-20" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-3 w-10" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-7 w-20" />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

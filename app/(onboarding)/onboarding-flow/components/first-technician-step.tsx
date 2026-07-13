@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useOnboardingStore } from "../store";
-import { Users, Loader2, Info, Truck } from "lucide-react";
+import { Users, Loader2, Truck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
@@ -82,8 +82,7 @@ export function FirstTechnicianStep() {
   };
 
   const isValid =
-    localTechnician.firstName.trim().length >= 2 &&
-    localTechnician.lastName.trim().length >= 2;
+    localTechnician.firstName.trim().length >= 2 && localTechnician.lastName.trim().length >= 2;
 
   return (
     <div className="space-y-8">
@@ -108,7 +107,7 @@ export function FirstTechnicianStep() {
               <li>1. Vous enregistrez vos techniciens dans l'application</li>
               <li>2. Vous leur attribuez du stock (sortie vers technicien)</li>
               <li>3. Chaque technicien a son propre inventaire a suivre</li>
-              <li>4. Vous pouvez les restocker a tout moment</li>
+              <li>4. Vous pouvez les réapprovisionner à tout moment</li>
             </ul>
           </div>
         </div>
