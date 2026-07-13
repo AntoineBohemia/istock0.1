@@ -105,7 +105,6 @@ export interface RecentMovement {
   quantity: number;
   movement_type: "entry" | "exit_technician" | "exit_anonymous" | "exit_loss";
   created_at: string | null;
-  notes: string | null;
   product: {
     id: string;
     name: string;
@@ -370,7 +369,6 @@ export async function getRecentMovements(
       quantity,
       movement_type,
       created_at,
-      notes,
       product:products(id, name, sku, image_url, price),
       technician:technicians(id, first_name, last_name)
     `
@@ -399,7 +397,6 @@ export async function getRecentMovements(
       quantity: item.quantity,
       movement_type: item.movement_type as RecentMovement["movement_type"],
       created_at: item.created_at,
-      notes: item.notes,
       product: productData as RecentMovement["product"],
       technician: technicianData as RecentMovement["technician"],
     };

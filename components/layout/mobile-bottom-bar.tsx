@@ -10,9 +10,7 @@ import { useProducts } from "@/hooks/queries";
 const ScanDrawer = dynamic(() => import("@/components/scan-drawer"), { ssr: false });
 const QrScannerModal = dynamic(() => import("@/components/qr-scanner-modal"), { ssr: false });
 const ScanActionSheet = dynamic(() => import("@/components/scan-action-sheet"), { ssr: false });
-const QuickStockMovementModal = dynamic(() => import("@/components/quick-stock-movement-modal"), {
-  ssr: false,
-});
+const StockExitModal = dynamic(() => import("@/components/stock-exit-modal"), { ssr: false });
 
 export default function MobileBottomBar() {
   const {
@@ -102,12 +100,11 @@ export default function MobileBottomBar() {
         onTechnicianRestock={handleTechnicianRestock}
       />
 
-      {/* Quick stock movement modal (for stock exit) */}
-      <QuickStockMovementModal
+      {/* Stock exit modal (for stock exit after scan) */}
+      <StockExitModal
         open={stockModalOpen}
         onClose={handleStockModalClose}
         productId={scannedProductId}
-        defaultDirection="exit"
       />
 
       {/* Existing restock drawer (for technician restock) */}

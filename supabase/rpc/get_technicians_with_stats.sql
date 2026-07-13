@@ -16,6 +16,12 @@ BEGIN
       'email', t.email,
       'phone', t.phone,
       'city', t.city,
+      'vehicle_plate', t.vehicle_plate,
+      'vehicle_brand', t.vehicle_brand,
+      'photo_url', t.photo_url,
+      'organization_name', o.name,
+      'tablet_ref', t.tablet_ref,
+      'clothing_size', t.clothing_size,
       'organization_id', t.organization_id,
       'created_at', t.created_at,
       'inventory', '[]'::JSONB,
@@ -26,6 +32,7 @@ BEGIN
   ), '[]'::JSONB)
   INTO v_result
   FROM technicians t
+  LEFT JOIN organizations o ON o.id = t.organization_id
   LEFT JOIN (
     SELECT technician_id, SUM(quantity) AS total_quantity
     FROM technician_inventory

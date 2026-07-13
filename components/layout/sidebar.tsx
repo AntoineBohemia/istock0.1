@@ -161,15 +161,17 @@ export default function Sidebar() {
           <div className="border-t pt-2 mt-2">
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton tooltip={user.name || "Utilisateur"} className="cursor-default">
-                  <Avatar className="size-6 shrink-0">
-                    {user.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
-                    <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
-                  </Avatar>
-                  <div className="grid text-left leading-tight group-data-[collapsible=icon]:hidden">
-                    <span className="truncate text-sm font-medium">{user.name}</span>
-                    <span className="truncate text-[11px] text-muted-foreground">{user.email}</span>
-                  </div>
+                <SidebarMenuButton tooltip={user.name || "Utilisateur"} asChild>
+                  <Link href="/parametres">
+                    <Avatar className="size-6 shrink-0">
+                      {user.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
+                      <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
+                    </Avatar>
+                    <div className="grid text-left leading-tight group-data-[collapsible=icon]:hidden">
+                      <span className="truncate text-sm font-medium">{user.name}</span>
+                      <span className="truncate text-[11px] text-muted-foreground">{user.email}</span>
+                    </div>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

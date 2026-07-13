@@ -80,8 +80,8 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
   // Construire la requête de base
   let query = supabase.from("products").select("*, category:categories(*), supplier:suppliers(*)");
 
-  // Exclure les produits archivés
-  query = query.is("archived_at", null);
+  // Exclure les produits archivés et outillage (page séparée)
+  query = query.is("archived_at", null).eq("product_type", "consumable");
 
   // Filtrer par organisation
   if (organizationId) {
@@ -175,6 +175,7 @@ export async function createProduct(data: CreateProductData): Promise<Product> {
     stock_min: data.stock_min ?? 10,
     category_id: data.category_id || null,
     supplier_id: data.supplier_id || null,
+    product_type: ((data as any).product_type as "consumable" | "equipment") || "consumable",
   };
 
   const { data: product, error } = await supabase

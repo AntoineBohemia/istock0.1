@@ -129,7 +129,6 @@ export function ProductsStep() {
               product_id: created.id,
               quantity: product.stockInitial,
               movement_type: "entry",
-              notes: "Stock initial (onboarding)",
             });
           }
 

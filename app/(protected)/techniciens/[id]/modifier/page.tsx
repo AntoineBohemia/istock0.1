@@ -63,6 +63,12 @@ export default async function EditTechnicianPage({
     email: technician.email ?? "",
     phone: technician.phone || "",
     city: technician.city || "",
+    vehicle_plate: technician.vehicle_plate || "",
+    vehicle_brand: technician.vehicle_brand || "",
+    photo_url: technician.photo_url || null,
+    organization_id: technician.organization_id || "",
+    tablet_ref: technician.tablet_ref || "",
+    clothing_size: technician.clothing_size || "",
   };
 
   return <TechnicianForm mode="edit" initialData={initialData} />;

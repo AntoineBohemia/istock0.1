@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ColumnDef,
@@ -11,13 +10,13 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, Loader2, Package, Search, UserPlus } from "lucide-react";
+import { ArrowUpDown, Loader2, Package, Plus, Search, UserPlus, Wrench } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill, StockStatus } from "@/components/ui/status-pill";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { HeroNumber } from "@/components/ui/hero-number";
 import { Button } from "@/components/ui/button";
 
@@ -25,6 +24,8 @@ import { TechnicianWithInventory } from "@/lib/supabase/queries/technicians";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useTechnicians } from "@/hooks/queries";
 import { cn } from "@/lib/utils";
+import RestockDialog from "./[id]/restock-dialog";
+import CreateTechnicianDialog from "./create-technician-dialog";
 
 // ─── Animated table row ────────────────────────────────────
 const MotionTr = motion.create("tr");
@@ -160,6 +161,8 @@ export default function TechniciansList() {
   const [sorting, setSorting] = useState<SortingState>([{ id: "restock", desc: true }]);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [restockTechId, setRestockTechId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<FilterValue>("all");
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -212,6 +215,7 @@ export default function TechniciansList() {
         return (
           <div className="flex items-center gap-4">
             <Avatar className={cn("size-9", avatarRingClass(status))}>
+              {tech.photo_url && <AvatarImage src={tech.photo_url} />}
               <AvatarFallback className="text-xs font-semibold">
                 {tech.first_name.charAt(0)}
                 {tech.last_name.charAt(0)}
@@ -230,6 +234,14 @@ export default function TechniciansList() {
       cell: ({ row }) => <span className="text-[15px]">{row.original.city || "—"}</span>,
     },
     {
+      id: "organization",
+      accessorFn: (row) => row.organization_name || "",
+      header: ({ column }) => <SortHeader label="Organisation" column={column} />,
+      cell: ({ row }) => (
+        <span className="text-[15px]">{row.original.organization_name || "—"}</span>
+      ),
+    },
+    {
       accessorKey: "phone",
       header: () => (
         <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
@@ -240,6 +252,28 @@ export default function TechniciansList() {
       cell: ({ row }) => (
         <span className="text-[15px] tabular-nums">{row.original.phone || "—"}</span>
       ),
+    },
+    {
+      id: "equipment",
+      accessorFn: (row) => row.equipment_count ?? 0,
+      header: ({ column }) => (
+        <SortHeader label="Outillage" column={column} className="justify-center w-full" />
+      ),
+      cell: ({ row }) => {
+        const count = row.original.equipment_count ?? 0;
+        if (count === 0) return <span className="text-muted-foreground/40">{"\u2014"}</span>;
+        return (
+          <div className="relative inline-flex items-center justify-center">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-foreground/[0.04] border border-foreground/[0.06]">
+              <Wrench className="size-3.5 text-foreground/50" />
+            </div>
+            <span className="absolute -top-1 -right-1.5 flex size-4 items-center justify-center rounded-full bg-foreground text-background text-[9px] font-bold tabular-nums leading-none">
+              {count}
+            </span>
+          </div>
+        );
+      },
+      meta: { align: "center" },
     },
     {
       accessorKey: "year_units_total",
@@ -281,6 +315,27 @@ export default function TechniciansList() {
         return <StatusPill status={status} label={label} />;
       },
       sortingFn: "basic",
+      meta: { align: "right" },
+    },
+    {
+      id: "actions",
+      enableSorting: false,
+      header: () => null,
+      cell: ({ row }) => (
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            className="h-7 px-2.5 text-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              setRestockTechId(row.original.id);
+            }}
+          >
+            <Plus className="size-3.5" />
+            Réappro
+          </Button>
+        </div>
+      ),
       meta: { align: "right" },
     },
   ];
@@ -415,11 +470,9 @@ export default function TechniciansList() {
               Ajoutez vos techniciens pour suivre leur inventaire et planifier les
               réapprovisionnements.
             </p>
-            <Button asChild className="mt-5">
-              <Link href="/techniciens/create">
-                <UserPlus className="mr-2 size-4" />
-                Ajouter un technicien
-              </Link>
+            <Button className="mt-5" onClick={() => setCreateOpen(true)}>
+              <UserPlus className="mr-2 size-4" />
+              Ajouter un technicien
             </Button>
           </div>
         </div>
@@ -505,6 +558,17 @@ export default function TechniciansList() {
           </p>
         </div>
       )}
+
+      {restockTechId && (
+        <RestockDialog
+          technicianId={restockTechId}
+          open={!!restockTechId}
+          onOpenChange={(open) => !open && setRestockTechId(null)}
+          onSuccess={() => setRestockTechId(null)}
+        />
+      )}
+
+      <CreateTechnicianDialog open={createOpen} onOpenChange={setCreateOpen} />
     </div>
   );
 }

@@ -74,11 +74,6 @@ describe("MovementFormSchema", () => {
   });
 
   // ─── optional fields ──────────────────────────────────────────────
-  it("accepts optional notes", () => {
-    const result = MovementFormSchema.safeParse({ ...validEntry, notes: "Restock urgent" });
-    expect(result.success).toBe(true);
-  });
-
   it("accepts optional technician_id", () => {
     const result = MovementFormSchema.safeParse({ ...validEntry, technician_id: "tech-1" });
     expect(result.success).toBe(true);

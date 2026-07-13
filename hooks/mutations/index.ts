@@ -5,3 +5,4 @@ export * from "./use-category-mutations";
 export * from "./use-supplier-mutations";
 export * from "./use-organization-mutations";
 export * from "./use-inventory-mutations";
+export * from "./use-equipment-mutations";

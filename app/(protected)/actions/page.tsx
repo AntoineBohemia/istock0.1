@@ -440,7 +440,6 @@ export default function GlobalPage() {
             productId: entry.productId,
             quantity: entry.quantity,
             type: "exit_anonymous",
-            notes: "Annulation",
           },
           { onSuccess, onError }
         );
@@ -450,7 +449,6 @@ export default function GlobalPage() {
             organizationId: orgId,
             productId: entry.productId,
             quantity: entry.quantity,
-            notes: "Annulation",
           },
           { onSuccess, onError }
         );

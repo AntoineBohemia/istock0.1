@@ -5,7 +5,7 @@ export async function generateMetadata() {
   return generateMeta({
     title: "Ajouter un technicien",
     description: "Créer un nouveau technicien",
-    canonical: "/techniciens/create",
+    canonical: "/techniciens/nouveau",
   });
 }
 

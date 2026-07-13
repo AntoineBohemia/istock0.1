@@ -7,6 +7,12 @@ export interface Technician {
   email: string | null;
   phone: string | null;
   city: string | null;
+  photo_url: string | null;
+  supplier_id: string | null;
+  tablet_ref: string | null;
+  clothing_size: string | null;
+  vehicle_plate: string | null;
+  vehicle_brand: string | null;
   organization_id: string | null;
   created_at: string | null;
   archived_at: string | null;
@@ -32,6 +38,8 @@ export interface TechnicianWithInventory extends Technician {
   inventory_count: number;
   year_units_total: number;
   last_restock_at: string | null;
+  organization_name?: string | null;
+  equipment_count?: number;
 }
 
 export interface TechnicianInventoryHistorySnapshot {
@@ -59,6 +67,11 @@ export interface CreateTechnicianData {
   email?: string | null;
   phone?: string | null;
   city?: string | null;
+  photo_url?: string | null;
+  tablet_ref?: string | null;
+  clothing_size?: string | null;
+  vehicle_plate?: string | null;
+  vehicle_brand?: string | null;
 }
 
 export type UpdateTechnicianData = Partial<CreateTechnicianData>;
@@ -160,6 +173,11 @@ export async function createTechnician(data: CreateTechnicianData): Promise<Tech
       email: data.email || null,
       phone: data.phone || null,
       city: data.city || null,
+      photo_url: data.photo_url || null,
+      tablet_ref: data.tablet_ref || null,
+      clothing_size: data.clothing_size || null,
+      vehicle_plate: data.vehicle_plate || null,
+      vehicle_brand: data.vehicle_brand || null,
     })
     .select()
     .single();
@@ -191,6 +209,12 @@ export async function updateTechnician(
   if (data.email !== undefined) updateData.email = data.email || null;
   if (data.phone !== undefined) updateData.phone = data.phone;
   if (data.city !== undefined) updateData.city = data.city;
+  if (data.photo_url !== undefined) updateData.photo_url = data.photo_url || null;
+  if (data.organization_id !== undefined) updateData.organization_id = data.organization_id || null;
+  if (data.tablet_ref !== undefined) updateData.tablet_ref = data.tablet_ref || null;
+  if (data.clothing_size !== undefined) updateData.clothing_size = data.clothing_size || null;
+  if (data.vehicle_plate !== undefined) updateData.vehicle_plate = data.vehicle_plate || null;
+  if (data.vehicle_brand !== undefined) updateData.vehicle_brand = data.vehicle_brand || null;
 
   let query = supabase.from("technicians").update(updateData).eq("id", id);
 
@@ -258,7 +282,6 @@ export interface TechnicianStockMovement {
   product_id: string;
   quantity: number;
   movement_type: "exit_technician";
-  notes: string | null;
   created_at: string;
   product: {
     id: string;
@@ -284,7 +307,6 @@ export async function getTechnicianStockMovements(
       product_id,
       quantity,
       movement_type,
-      notes,
       created_at,
       product:products(id, name, sku, image_url)
     `
@@ -501,4 +523,41 @@ export async function getTechniciansStats(organizationId: string): Promise<Techn
     totalItems,
     recentRestocks: uniqueRestockedTechnicians.size,
   };
+}
+
+/**
+ * Upload une photo de technicien dans le bucket technician-photos
+ */
+export async function uploadTechnicianPhoto(file: File, technicianId: string): Promise<string> {
+  const supabase = createClient();
+
+  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const path = `${technicianId}-${Date.now()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("technician-photos")
+    .upload(path, file, { cacheControl: "3600", upsert: false });
+
+  if (uploadError) {
+    throw new Error(`Erreur lors de l'upload: ${uploadError.message}`);
+  }
+
+  const { data: urlData } = supabase.storage
+    .from("technician-photos")
+    .getPublicUrl(path);
+
+  return urlData.publicUrl;
+}
+
+/**
+ * Supprime une photo de technicien du bucket
+ */
+export async function deleteTechnicianPhoto(photoUrl: string): Promise<void> {
+  const supabase = createClient();
+
+  const parts = photoUrl.split("/technician-photos/");
+  if (parts.length < 2) return;
+
+  const filePath = parts[1];
+  await supabase.storage.from("technician-photos").remove([filePath]);
 }

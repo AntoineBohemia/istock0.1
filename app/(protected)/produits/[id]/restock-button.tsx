@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Package } from "lucide-react";
+import { ArrowDownToLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import QuickStockMovementModal from "@/components/quick-stock-movement-modal";
+import StockEntryModal from "@/components/stock-entry-modal";
 
 interface RestockButtonProps {
   productId: string;
@@ -20,11 +20,11 @@ export default function RestockButton({ productId }: RestockButtonProps) {
         className="sm:size-default"
         onClick={() => setIsModalOpen(true)}
       >
-        <Package className="size-4" />
+        <ArrowDownToLine className="size-4" />
         <span className="hidden sm:inline">Restocker</span>
       </Button>
 
-      <QuickStockMovementModal
+      <StockEntryModal
         open={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         productId={productId}

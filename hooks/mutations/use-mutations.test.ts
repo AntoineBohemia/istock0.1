@@ -38,11 +38,10 @@ describe("useCreateStockEntry", () => {
         organizationId: "org-1",
         productId: "p1",
         quantity: 10,
-        notes: "Restock",
       });
     });
 
-    expect(mockCreateEntry).toHaveBeenCalledWith("org-1", "p1", 10, "Restock");
+    expect(mockCreateEntry).toHaveBeenCalledWith("org-1", "p1", 10);
   });
 
   it("performs optimistic update: +quantity on product detail", async () => {

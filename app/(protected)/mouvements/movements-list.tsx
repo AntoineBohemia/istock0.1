@@ -18,6 +18,8 @@ import {
   History,
   CalendarDays,
   Building2,
+  HardHat,
+  Check,
   X,
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
@@ -362,8 +364,10 @@ export default function MovementsList() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [orgPickerOpen, setOrgPickerOpen] = useState(false);
-  const [filterType, setFilterType] = useState("all");
-  const [filterOrg, setFilterOrg] = useState("");
+  const [techPickerOpen, setTechPickerOpen] = useState(false);
+  const [filterTypes, setFilterTypes] = useState<Set<string>>(new Set());
+  const [filterOrgs, setFilterOrgs] = useState<Set<string>>(new Set());
+  const [filterTechs, setFilterTechs] = useState<Set<string>>(new Set());
 
   // Search: local state for instant input, debounced for filtering
   const [searchInput, setSearchInput] = useState("");
@@ -404,6 +408,20 @@ export default function MovementsList() {
     return counts;
   }, [allMovements]);
 
+  // Unique technicians from movements (for filter)
+  const availableTechs = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>();
+    for (const m of allMovements) {
+      if (m.technician) {
+        map.set(m.technician.id, {
+          id: m.technician.id,
+          name: `${m.technician.first_name} ${m.technician.last_name}`,
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allMovements]);
+
   // User's organizations (for filter)
   const { data: userOrgs } = useOrganizations();
 
@@ -413,11 +431,19 @@ export default function MovementsList() {
     return { availableOrgs: orgs, orgNameById: map };
   }, [userOrgs]);
 
+  // Helper to toggle a value in a Set (immutable)
+  const toggleSet = useCallback((prev: Set<string>, value: string) => {
+    const next = new Set(prev);
+    if (next.has(value)) next.delete(value);
+    else next.add(value);
+    return next;
+  }, []);
+
   // Client-side type + search + date filter
   const filteredMovements = useMemo(() => {
     let result = allMovements;
-    if (filterType !== "all") {
-      result = result.filter((m) => m.movement_type === filterType);
+    if (filterTypes.size > 0) {
+      result = result.filter((m) => filterTypes.has(m.movement_type));
     }
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase();
@@ -429,10 +455,13 @@ export default function MovementsList() {
         return productName.includes(q) || techName.includes(q);
       });
     }
-    if (filterOrg) {
+    if (filterOrgs.size > 0) {
       result = result.filter(
-        (m) => m.movement_type === "entry" && m.organization_id === filterOrg
+        (m) => m.movement_type === "entry" && m.organization_id && filterOrgs.has(m.organization_id)
       );
+    }
+    if (filterTechs.size > 0) {
+      result = result.filter((m) => m.technician_id && filterTechs.has(m.technician_id));
     }
     if (dateRange?.from) {
       const fromTs = startOfDay(dateRange.from).getTime();
@@ -444,13 +473,13 @@ export default function MovementsList() {
       });
     }
     return result;
-  }, [allMovements, filterType, debouncedSearch, filterOrg, dateRange]);
+  }, [allMovements, filterTypes, debouncedSearch, filterOrgs, filterTechs, dateRange]);
 
   const handleRowClick = (movement: StockMovement) => {
     if (movement.movement_type === "entry") {
-      router.push(`/orders/income/${movement.id}`);
+      router.push(`/mouvements/entree/${movement.id}`);
     } else {
-      router.push(`/orders/outcome/${movement.id}`);
+      router.push(`/mouvements/sortie/${movement.id}`);
     }
   };
 
@@ -583,20 +612,6 @@ export default function MovementsList() {
         );
       },
     },
-    {
-      accessorKey: "notes",
-      header: () => (
-        <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
-          Notes
-        </span>
-      ),
-      enableSorting: false,
-      cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground truncate max-w-[200px] block">
-          {row.original.notes || "—"}
-        </span>
-      ),
-    },
   ], []);
 
   const table = useReactTable({
@@ -641,9 +656,6 @@ export default function MovementsList() {
                 <th className="h-11 px-5 text-left">
                   <Skeleton className="h-3 w-18" />
                 </th>
-                <th className="h-11 px-5 text-left">
-                  <Skeleton className="h-3 w-10" />
-                </th>
               </tr>
             </thead>
             <tbody>
@@ -679,9 +691,6 @@ export default function MovementsList() {
                   <td className="px-5 py-4">
                     <Skeleton className="h-4 w-24" />
                   </td>
-                  <td className="px-5 py-4">
-                    <Skeleton className="h-4 w-16" />
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -714,26 +723,27 @@ export default function MovementsList() {
             <PopoverTrigger
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none cursor-pointer",
-                filterOrg
+                filterOrgs.size > 0
                   ? "bg-primary text-primary-foreground"
                   : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
               )}
             >
               <Building2 className="size-3" />
-              {filterOrg
-                ? (orgNameById.get(filterOrg) ?? "Entreprise")
-                : "Entreprise"}
-              {filterOrg && (
-                <span
-                  role="button"
-                  className="ml-0.5 rounded-full hover:bg-white/20 p-0.5 -mr-1"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    startTransition(() => setFilterOrg(""));
-                  }}
-                >
-                  <X className="size-3" />
-                </span>
+              Entreprise
+              {filterOrgs.size > 0 && (
+                <>
+                  <span className="opacity-80 tabular-nums font-heading">{filterOrgs.size}</span>
+                  <span
+                    role="button"
+                    className="ml-0.5 rounded-full hover:bg-white/20 p-0.5 -mr-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startTransition(() => setFilterOrgs(new Set()));
+                    }}
+                  >
+                    <X className="size-3" />
+                  </span>
+                </>
               )}
             </PopoverTrigger>
             <PopoverContent
@@ -741,25 +751,90 @@ export default function MovementsList() {
               className="w-auto min-w-[180px] p-1 rounded-xl overflow-hidden"
             >
               <div className="flex flex-col gap-0.5 max-h-[280px] overflow-y-auto">
-                {availableOrgs.map((sup) => (
-                  <button
-                    key={sup.id}
-                    type="button"
-                    className={cn(
-                      "text-left text-[13px] px-3 py-1.5 rounded-lg transition-colors",
-                      filterOrg === sup.id
-                        ? "bg-primary text-primary-foreground font-medium"
-                        : "text-foreground/70 hover:bg-muted hover:text-foreground"
-                    )}
-                    onClick={() => {
-                      const newValue = filterOrg === sup.id ? "" : sup.id;
-                      startTransition(() => setFilterOrg(newValue));
-                      setOrgPickerOpen(false);
+                {availableOrgs.map((sup) => {
+                  const selected = filterOrgs.has(sup.id);
+                  return (
+                    <button
+                      key={sup.id}
+                      type="button"
+                      className={cn(
+                        "flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-lg transition-colors",
+                        selected
+                          ? "bg-primary/10 text-foreground font-medium"
+                          : "text-foreground/70 hover:bg-muted hover:text-foreground"
+                      )}
+                      onClick={() => {
+                        startTransition(() => setFilterOrgs((prev) => toggleSet(prev, sup.id)));
+                      }}
+                    >
+                      <span className={cn("size-3.5 flex items-center justify-center", !selected && "opacity-0")}>
+                        <Check className="size-3.5" />
+                      </span>
+                      {sup.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
+
+        {availableTechs.length > 0 && (
+          <Popover open={techPickerOpen} onOpenChange={setTechPickerOpen}>
+            <PopoverTrigger
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none cursor-pointer",
+                filterTechs.size > 0
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
+              )}
+            >
+              <HardHat className="size-3" />
+              Technicien
+              {filterTechs.size > 0 && (
+                <>
+                  <span className="opacity-80 tabular-nums font-heading">{filterTechs.size}</span>
+                  <span
+                    role="button"
+                    className="ml-0.5 rounded-full hover:bg-white/20 p-0.5 -mr-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startTransition(() => setFilterTechs(new Set()));
                     }}
                   >
-                    {sup.name}
-                  </button>
-                ))}
+                    <X className="size-3" />
+                  </span>
+                </>
+              )}
+            </PopoverTrigger>
+            <PopoverContent
+              align="start"
+              className="w-auto min-w-[180px] p-1 rounded-xl overflow-hidden"
+            >
+              <div className="flex flex-col gap-0.5 max-h-[280px] overflow-y-auto">
+                {availableTechs.map((tech) => {
+                  const selected = filterTechs.has(tech.id);
+                  return (
+                    <button
+                      key={tech.id}
+                      type="button"
+                      className={cn(
+                        "flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-lg transition-colors",
+                        selected
+                          ? "bg-primary/10 text-foreground font-medium"
+                          : "text-foreground/70 hover:bg-muted hover:text-foreground"
+                      )}
+                      onClick={() => {
+                        startTransition(() => setFilterTechs((prev) => toggleSet(prev, tech.id)));
+                      }}
+                    >
+                      <span className={cn("size-3.5 flex items-center justify-center", !selected && "opacity-0")}>
+                        <Check className="size-3.5" />
+                      </span>
+                      {tech.name}
+                    </button>
+                  );
+                })}
               </div>
             </PopoverContent>
           </Popover>
@@ -767,13 +842,22 @@ export default function MovementsList() {
 
         <div className="flex items-center gap-1.5">
           {TYPE_FILTER_OPTIONS.map((opt) => {
-            const isActive = filterType === opt.value;
+            const isAll = opt.value === "all";
+            const isActive = isAll ? filterTypes.size === 0 : filterTypes.has(opt.value);
             const count = typeCounts[opt.value] || 0;
             return (
               <button
                 key={opt.value}
                 type="button"
-                onClick={() => startTransition(() => setFilterType(isActive && opt.value !== "all" ? "all" : opt.value))}
+                onClick={() =>
+                  startTransition(() => {
+                    if (isAll) {
+                      setFilterTypes(new Set());
+                    } else {
+                      setFilterTypes((prev) => toggleSet(prev, opt.value));
+                    }
+                  })
+                }
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none",
                   isActive
@@ -860,7 +944,7 @@ export default function MovementsList() {
                     </div>
                     <h3 className="text-lg font-semibold">Aucun mouvement</h3>
                     <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-                      {debouncedSearch || filterType !== "all" || dateRange?.from || filterOrg
+                      {debouncedSearch || filterTypes.size > 0 || dateRange?.from || filterOrgs.size > 0 || filterTechs.size > 0
                         ? "Aucun mouvement ne correspond à ces filtres."
                         : "Les mouvements de stock apparaîtront ici."}
                     </p>

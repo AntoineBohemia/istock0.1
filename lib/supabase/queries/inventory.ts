@@ -32,6 +32,7 @@ export async function getAvailableProductsForRestock(organizationId: string): Pr
     .select("id, name, sku, icon_name, icon_color, image_url, stock_current")
     .eq("organization_id", organizationId)
     .is("archived_at", null)
+    .eq("product_type", "consumable")
     .gt("stock_current", 0)
     .order("name", { ascending: true });
 

@@ -31,27 +31,13 @@ describe("createEntry", () => {
 
     mockClient._setResult({ data: movementData, error: null });
 
-    const result = await createEntry("org-1", "prod-1", 10, "Restock");
+    const result = await createEntry("org-1", "prod-1", 10);
 
     expect(result).toEqual(movementData);
     expect(mockClient.rpc).toHaveBeenCalledWith("create_stock_entry", {
       p_organization_id: "org-1",
       p_product_id: "prod-1",
       p_quantity: 10,
-      p_notes: "Restock",
-    });
-  });
-
-  it("passes null notes when none provided", async () => {
-    mockClient._setResult({ data: { id: "mv-2" }, error: null });
-
-    await createEntry("org-1", "prod-1", 5);
-
-    expect(mockClient.rpc).toHaveBeenCalledWith("create_stock_entry", {
-      p_organization_id: "org-1",
-      p_product_id: "prod-1",
-      p_quantity: 5,
-      p_notes: undefined,
     });
   });
 
@@ -79,15 +65,14 @@ describe("createExit", () => {
       p_quantity: 5,
       p_type: "exit_anonymous",
       p_technician_id: undefined,
-      p_notes: undefined,
     });
   });
 
-  it("passes technician_id and notes when provided", async () => {
+  it("passes technician_id when provided", async () => {
     const movementData = { id: "mv-4", quantity: 3, movement_type: "exit_technician" };
     mockClient._setResult({ data: movementData, error: null });
 
-    const result = await createExit("org-1", "prod-1", 3, "exit_technician", "tech-1", "Field job");
+    const result = await createExit("org-1", "prod-1", 3, "exit_technician", "tech-1");
 
     expect(result).toEqual(movementData);
     expect(mockClient.rpc).toHaveBeenCalledWith("create_stock_exit", {
@@ -96,7 +81,6 @@ describe("createExit", () => {
       p_quantity: 3,
       p_type: "exit_technician",
       p_technician_id: "tech-1",
-      p_notes: "Field job",
     });
   });
 

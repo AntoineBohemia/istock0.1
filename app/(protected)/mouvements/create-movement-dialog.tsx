@@ -27,7 +27,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -48,7 +47,6 @@ const FormSchema = z.object({
   technician_id: z.string().optional(),
   supplier_id: z.string().optional(),
   quantity: z.number().min(1, "La quantité doit être au moins 1"),
-  notes: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof FormSchema>;
@@ -119,7 +117,6 @@ export default function CreateMovementDialog({
       technician_id: "",
       supplier_id: "",
       quantity: 1,
-      notes: "",
     },
   });
 
@@ -156,7 +153,6 @@ export default function CreateMovementDialog({
           organizationId: currentOrganization.id,
           productId: data.product_id,
           quantity: data.quantity,
-          notes: data.notes,
           supplierId: data.supplier_id || undefined,
         },
         {
@@ -185,7 +181,6 @@ export default function CreateMovementDialog({
           quantity: data.quantity,
           type: exitTypeValue,
           technicianId: exitTypeValue === "exit_technician" ? data.technician_id : undefined,
-          notes: data.notes,
         },
         {
           onSuccess: () => {
@@ -414,21 +409,6 @@ export default function CreateMovementDialog({
                         Maximum disponible: {selectedProduct.stock_current}
                       </FormDescription>
                     )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Notes */}
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Notes</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Notes optionnelles..." {...field} />
-                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

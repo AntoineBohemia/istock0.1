@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronLeft, Loader2 } from "lucide-react";
+import { Camera, ChevronLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -21,8 +22,9 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { createTechnician, updateTechnician } from "@/lib/supabase/queries/technicians";
+import { createTechnician, updateTechnician, uploadTechnicianPhoto } from "@/lib/supabase/queries/technicians";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
+import { useOrganizations } from "@/hooks/queries";
 
 const FormSchema = z.object({
   first_name: z.string().min(2, {
@@ -38,19 +40,28 @@ const FormSchema = z.object({
     .or(z.literal("")),
   phone: z.string().optional(),
   city: z.string().optional(),
+  organization_id: z.string().optional(),
+  tablet_ref: z.string().optional(),
+  clothing_size: z.string().optional(),
+  vehicle_plate: z.string().optional(),
+  vehicle_brand: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof FormSchema>;
 
 interface TechnicianFormProps {
   mode?: "create" | "edit";
-  initialData?: FormValues & { id?: string };
+  initialData?: FormValues & { id?: string; photo_url?: string | null };
 }
 
 export default function TechnicianForm({ mode = "create", initialData }: TechnicianFormProps) {
   const router = useRouter();
   const { currentOrganization } = useOrganizationStore();
+  const { data: userOrgs } = useOrganizations();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(initialData?.photo_url || null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
@@ -60,6 +71,11 @@ export default function TechnicianForm({ mode = "create", initialData }: Technic
       email: initialData?.email || "",
       phone: initialData?.phone || "",
       city: initialData?.city || "",
+      organization_id: initialData?.organization_id || currentOrganization?.id || "",
+      tablet_ref: initialData?.tablet_ref || "",
+      clothing_size: initialData?.clothing_size || "",
+      vehicle_plate: initialData?.vehicle_plate || "",
+      vehicle_brand: initialData?.vehicle_brand || "",
     },
   });
 
@@ -72,14 +88,22 @@ export default function TechnicianForm({ mode = "create", initialData }: Technic
     setIsSubmitting(true);
 
     try {
+      // Upload photo if a new file was selected
+      let photoUrl = initialData?.photo_url || null;
+      if (photoFile) {
+        const tempId = initialData?.id || crypto.randomUUID();
+        photoUrl = await uploadTechnicianPhoto(photoFile, tempId);
+      }
+
       if (mode === "edit" && initialData?.id) {
-        await updateTechnician(initialData.id, data, currentOrganization.id);
+        await updateTechnician(initialData.id, { ...data, photo_url: photoUrl }, currentOrganization.id);
         toast.success("Technicien mis à jour avec succès");
         router.push(`/techniciens/${initialData.id}`);
       } else {
         const technician = await createTechnician({
           ...data,
-          organization_id: currentOrganization.id,
+          photo_url: photoUrl,
+          organization_id: data.organization_id || currentOrganization.id,
         });
         toast.success("Technicien créé avec succès");
         router.push(`/techniciens/${technician.id}`);
@@ -141,8 +165,38 @@ export default function TechnicianForm({ mode = "create", initialData }: Technic
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>Informations personnelles</CardTitle>
-              <CardDescription>Nom, prénom et coordonnées du technicien</CardDescription>
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="relative size-16 rounded-full border-2 border-dashed border-border hover:border-foreground/30 transition-colors overflow-hidden shrink-0 group"
+                >
+                  {photoPreview ? (
+                    <Image src={photoPreview} alt="Photo" fill className="object-cover" />
+                  ) : (
+                    <div className="flex items-center justify-center size-full bg-muted">
+                      <Camera className="size-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                    </div>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setPhotoFile(file);
+                        setPhotoPreview(URL.createObjectURL(file));
+                      }
+                    }}
+                  />
+                </button>
+                <div>
+                  <CardTitle>Informations personnelles</CardTitle>
+                  <CardDescription>Nom, prénom et coordonnées du technicien</CardDescription>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
@@ -195,6 +249,30 @@ export default function TechnicianForm({ mode = "create", initialData }: Technic
               <CardDescription>Informations optionnelles de contact</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {(userOrgs?.length ?? 0) > 1 && (
+                <FormField
+                  control={form.control}
+                  name="organization_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Organisation</FormLabel>
+                      <FormControl>
+                        <select
+                          value={field.value || ""}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          className="border-input bg-background text-sm flex h-9 w-full rounded-md border px-3 py-1.5 shadow-xs outline-none focus:border-ring focus:ring-ring/50 focus:ring-[3px]"
+                        >
+                          <option value="" disabled>Sélectionner</option>
+                          {userOrgs?.map((o) => (
+                            <option key={o.id} value={o.id}>{o.name}</option>
+                          ))}
+                        </select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
               <FormField
                 control={form.control}
                 name="phone"
@@ -222,6 +300,71 @@ export default function TechnicianForm({ mode = "create", initialData }: Technic
                   </FormItem>
                 )}
               />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="tablet_ref"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Réf. tablette</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Samsung Tab A8" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="clothing_size"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Taille vêtement</FormLabel>
+                      <FormControl>
+                        <select
+                          value={field.value || ""}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          className="border-input bg-background text-sm flex h-9 w-full rounded-md border px-3 py-1.5 shadow-xs outline-none focus:border-ring focus:ring-ring/50 focus:ring-[3px]"
+                        >
+                          <option value="">—</option>
+                          {["XS", "S", "M", "L", "XL", "XXL", "3XL"].map((s) => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="vehicle_plate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Plaque véhicule</FormLabel>
+                      <FormControl>
+                        <Input placeholder="AB-123-CD" className="font-mono uppercase" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="vehicle_brand"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Marque</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Renault" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </CardContent>
           </Card>
         </div>

@@ -357,7 +357,6 @@ describe("getRecentMovements", () => {
         quantity: 5,
         movement_type: "entry",
         created_at: "2024-06-15",
-        notes: null,
         product: { id: "p1", name: "Widget", sku: null, image_url: null, price: 10 },
         technician: null,
       },

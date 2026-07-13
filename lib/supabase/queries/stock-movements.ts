@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/client";
 
 // Active types used in UI — exit_loss is deprecated but kept in DB enum for historical data
-export type MovementType = "entry" | "exit_technician" | "exit_anonymous" | "exit_loss";
+export type MovementType = "entry" | "exit_technician" | "exit_anonymous" | "exit_loss" | "assign_equipment" | "unassign_equipment";
 
 export interface StockMovement {
   id: string;
@@ -10,7 +10,6 @@ export interface StockMovement {
   movement_type: MovementType;
   technician_id: string | null;
   supplier_id: string | null;
-  notes: string | null;
   organization_id: string | null;
   unit_price: number | null;
   created_at: string | null;
@@ -55,6 +54,8 @@ export const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
   exit_technician: "Sortie technicien",
   exit_anonymous: "Erreur stock",
   exit_loss: "Erreur stock",
+  assign_equipment: "Assignation outil",
+  unassign_equipment: "Retour outil",
 };
 
 export const MOVEMENT_TYPE_COLORS: Record<MovementType, string> = {
@@ -62,6 +63,8 @@ export const MOVEMENT_TYPE_COLORS: Record<MovementType, string> = {
   exit_technician: "info",
   exit_anonymous: "secondary",
   exit_loss: "secondary",
+  assign_equipment: "info",
+  unassign_equipment: "success",
 };
 
 /**
@@ -163,7 +166,6 @@ export async function createEntry(
   organizationId: string,
   productId: string,
   quantity: number,
-  notes?: string,
   supplierId?: string,
   unitPrice?: number
 ): Promise<StockMovement> {
@@ -173,7 +175,6 @@ export async function createEntry(
     p_organization_id: organizationId,
     p_product_id: productId,
     p_quantity: quantity,
-    p_notes: notes || undefined,
     p_supplier_id: supplierId || undefined,
     p_unit_price: unitPrice || undefined,
   });
@@ -194,8 +195,7 @@ export async function createExit(
   productId: string,
   quantity: number,
   type: "exit_technician" | "exit_anonymous" | "exit_loss",
-  technicianId?: string,
-  notes?: string
+  technicianId?: string
 ): Promise<StockMovement> {
   const supabase = createClient();
 
@@ -205,7 +205,6 @@ export async function createExit(
     p_quantity: quantity,
     p_type: type,
     p_technician_id: technicianId || undefined,
-    p_notes: notes || undefined,
   });
 
   if (error) {

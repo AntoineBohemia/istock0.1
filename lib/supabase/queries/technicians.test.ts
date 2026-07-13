@@ -427,7 +427,6 @@ describe("getTechnicianStockMovements", () => {
         product_id: "p1",
         quantity: 5,
         movement_type: "exit_technician",
-        notes: null,
         created_at: "2024-06-15",
         product: [{ id: "p1", name: "Widget", sku: null, image_url: null }],
       },

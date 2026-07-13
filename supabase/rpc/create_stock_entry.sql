@@ -2,7 +2,6 @@ CREATE OR REPLACE FUNCTION create_stock_entry(
   p_organization_id UUID,
   p_product_id UUID,
   p_quantity INT,
-  p_notes TEXT DEFAULT NULL,
   p_supplier_id UUID DEFAULT NULL,
   p_unit_price NUMERIC DEFAULT NULL
 )
@@ -34,9 +33,9 @@ BEGIN
   v_price := COALESCE(p_unit_price, v_product.price);
 
   -- Create the movement with unit_price
-  INSERT INTO stock_movements (organization_id, product_id, quantity, movement_type, notes, supplier_id, unit_price)
-  VALUES (p_organization_id, p_product_id, p_quantity, 'entry', p_notes, p_supplier_id, v_price)
-  RETURNING id, product_id, quantity, movement_type, technician_id, notes, organization_id, created_at, supplier_id, unit_price
+  INSERT INTO stock_movements (organization_id, product_id, quantity, movement_type, supplier_id, unit_price)
+  VALUES (p_organization_id, p_product_id, p_quantity, 'entry', p_supplier_id, v_price)
+  RETURNING id, product_id, quantity, movement_type, technician_id, organization_id, created_at, supplier_id, unit_price
   INTO v_movement;
 
   -- Increment stock
@@ -51,7 +50,6 @@ BEGIN
     'quantity', v_movement.quantity,
     'movement_type', v_movement.movement_type,
     'technician_id', v_movement.technician_id,
-    'notes', v_movement.notes,
     'organization_id', v_movement.organization_id,
     'created_at', v_movement.created_at,
     'supplier_id', v_movement.supplier_id,

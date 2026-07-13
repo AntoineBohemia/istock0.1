@@ -8,7 +8,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import dynamic from "next/dynamic";
-import QuickStockMovementModal from "@/components/quick-stock-movement-modal";
+import StockEntryModal from "@/components/stock-entry-modal";
 
 const QrScannerModal = dynamic(() => import("@/components/qr-scanner-modal"), { ssr: false });
 
@@ -97,7 +97,7 @@ export default function StockPage() {
         onScan={handleScan}
       />
 
-      <QuickStockMovementModal
+      <StockEntryModal
         open={isEffectiveModalOpen}
         onClose={handleCloseModal}
         productId={activeProductId}

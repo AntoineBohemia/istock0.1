@@ -8,7 +8,6 @@ interface CreateEntryParams {
   organizationId: string;
   productId: string;
   quantity: number;
-  notes?: string;
   supplierId?: string;
   unitPrice?: number;
 }
@@ -19,7 +18,6 @@ interface CreateExitParams {
   quantity: number;
   type: "exit_technician" | "exit_anonymous" | "exit_loss";
   technicianId?: string;
-  notes?: string;
 }
 
 export function useCreateStockEntry() {
@@ -30,7 +28,6 @@ export function useCreateStockEntry() {
         params.organizationId,
         params.productId,
         params.quantity,
-        params.notes,
         params.supplierId,
         params.unitPrice
       ),
@@ -69,8 +66,7 @@ export function useCreateStockExit() {
         params.productId,
         params.quantity,
         params.type,
-        params.technicianId,
-        params.notes
+        params.technicianId
       ),
     onMutate: async (params) => {
       await qc.cancelQueries({

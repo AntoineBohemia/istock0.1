@@ -47,7 +47,6 @@ describe("MovementFormSchema", () => {
       product_id: "prod-1",
       technician_id: "tech-1",
       quantity: 3,
-      notes: "urgent",
     });
     expect(result.success).toBe(true);
   });

@@ -32,7 +32,7 @@ export default function ProductIconDisplay({
     if (LucideIcon) {
       return (
         <div
-          className={`flex ${s.container} items-center justify-center rounded-lg border bg-muted ${className ?? ""}`}
+          className={`flex ${s.container} items-center justify-center rounded-lg border bg-white dark:bg-card ${className ?? ""}`}
         >
           <LucideIcon className={s.icon} style={{ color: iconColor ?? undefined }} />
         </div>
@@ -56,7 +56,7 @@ export default function ProductIconDisplay({
       );
     }
     return (
-      <div className={`flex ${s.container} items-center justify-center overflow-hidden rounded-lg border bg-muted ${className ?? ""}`}>
+      <div className={`flex ${s.container} items-center justify-center overflow-hidden rounded-lg border bg-white dark:bg-card ${className ?? ""}`}>
         <Image
           src={imageUrl}
           width={s.image}
@@ -71,7 +71,7 @@ export default function ProductIconDisplay({
   // Priority 3: Fallback
   return (
     <div
-      className={`flex ${s.container} items-center justify-center rounded-lg border bg-muted ${className ?? ""}`}
+      className={`flex ${s.container} items-center justify-center rounded-lg border bg-white dark:bg-card ${className ?? ""}`}
     >
       <Package className={`${s.icon} text-muted-foreground`} />
     </div>

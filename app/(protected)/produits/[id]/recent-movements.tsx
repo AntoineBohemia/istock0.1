@@ -67,7 +67,7 @@ export default function RecentMovements({ productId }: RecentMovementsProps) {
                 const unitPrice = m.unit_price;
                 const totalValue = unitPrice ? unitPrice * m.quantity : null;
 
-                const detail = techName || orgName || m.notes || "—";
+                const detail = techName || orgName || "—";
 
                 return (
                   <tr key={m.id} className="hover:bg-muted/30 transition-colors">

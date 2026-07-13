@@ -1,14 +1,15 @@
 import { generateMeta } from "@/lib/utils";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Edit3Icon, CalendarClock, Package } from "lucide-react";
+import { ArrowLeft, Edit3Icon, CalendarClock, Package, Wrench } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createClient } from "@/lib/supabase/server";
 import TechnicianInventory from "./technician-inventory";
 import TechnicianHistory from "./technician-history";
+import TechnicianEquipment from "./technician-equipment";
 import ArchiveTechnicianButton from "./archive-technician-button";
 import TechnicianRestockButton from "./restock-button";
 import YearSelector from "./year-selector";
@@ -49,7 +50,7 @@ async function getTechnician(id: string, year: number) {
   const yearEnd = new Date(year + 1, 0, 1).toISOString();
 
   // Toutes les queries sont indépendantes → paralléliser
-  const [inventoryResult, lastMovementResult, restocksResult, yearMovementsResult] =
+  const [inventoryResult, lastMovementResult, restocksResult, yearMovementsResult, equipmentResult] =
     await Promise.all([
       supabase.from("technician_inventory").select("quantity").eq("technician_id", id),
       supabase
@@ -74,9 +75,14 @@ async function getTechnician(id: string, year: number) {
         .gte("created_at", yearStart)
         .lt("created_at", yearEnd)
         .order("created_at", { ascending: false }),
+      supabase
+        .from("equipment_assignments")
+        .select("quantity")
+        .eq("technician_id", id),
     ]);
 
   const inventoryCount = inventoryResult.data?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+  const equipmentCount = equipmentResult.data?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
   // Agréger les sorties par produit côté serveur
   const productMap = new Map<
@@ -127,6 +133,7 @@ async function getTechnician(id: string, year: number) {
     year_movements: yearMovements,
     last_restock_at: lastMovementResult.data?.created_at || null,
     total_restocks: restocksResult.count || 0,
+    equipment_count: equipmentCount,
     created_year: new Date(technician.created_at!).getFullYear(),
   };
 }
@@ -175,6 +182,7 @@ export default async function TechnicianDetailPage({
             </Link>
           </Button>
           <Avatar className="size-14 shrink-0">
+            {technician.photo_url && <AvatarImage src={technician.photo_url} />}
             <AvatarFallback className="text-lg font-bold">{initials}</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
@@ -223,6 +231,17 @@ export default async function TechnicianDetailPage({
           <span className="text-muted-foreground text-lg">
             réappro{year !== currentYear ? ` en ${year}` : ""}
           </span>
+          {technician.equipment_count > 0 && (
+            <>
+              <span className="text-muted-foreground text-lg mx-1.5">&middot;</span>
+              <span className="font-heading text-xl font-bold tabular-nums">
+                {technician.equipment_count}
+              </span>
+              <span className="text-muted-foreground text-lg">
+                outil{technician.equipment_count > 1 ? "s" : ""}
+              </span>
+            </>
+          )}
         </div>
       </div>
 
@@ -239,6 +258,15 @@ export default async function TechnicianDetailPage({
                 <CalendarClock className="size-4 mr-1.5" />
                 Historique
               </TabsTrigger>
+              <TabsTrigger value="equipment">
+                <Wrench className="size-4 mr-1.5" />
+                Outillage
+                {technician.equipment_count > 0 && (
+                  <span className="ml-1.5 flex size-5 items-center justify-center rounded-full bg-foreground/[0.07] text-[10px] font-bold tabular-nums leading-none">
+                    {technician.equipment_count}
+                  </span>
+                )}
+              </TabsTrigger>
             </TabsList>
             <YearSelector
               currentYear={currentYear}
@@ -249,10 +277,21 @@ export default async function TechnicianDetailPage({
           </div>
           <div className="mt-4">
             <TabsContent value="inventory">
-              <TechnicianInventory totals={technician.yearly_product_totals} year={year} />
+              <TechnicianInventory
+                totals={technician.yearly_product_totals}
+                year={year}
+                technicianId={id}
+                technicianName={`${technician.first_name} ${technician.last_name.charAt(0)}.`}
+              />
             </TabsContent>
             <TabsContent value="history">
               <TechnicianHistory movements={technician.year_movements} year={year} />
+            </TabsContent>
+            <TabsContent value="equipment">
+              <TechnicianEquipment
+                technicianId={id}
+                technicianName={`${technician.first_name} ${technician.last_name.charAt(0)}.`}
+              />
             </TabsContent>
           </div>
         </Tabs>

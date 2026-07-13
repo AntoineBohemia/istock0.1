@@ -34,6 +34,11 @@ export const page_routes: PageRoutesType[] = [
         icon: "Package",
       },
       {
+        title: "Outillage",
+        href: "/outillage",
+        icon: "Wrench",
+      },
+      {
         title: "Achats",
         href: "/achats",
         icon: "ShoppingCart",

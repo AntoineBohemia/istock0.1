@@ -166,12 +166,6 @@ export default async function OutcomeDetailPage({ params }: { params: Promise<{ 
               {totalValue.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
             </span>
           </div>
-          {movement.notes && (
-            <div className="flex justify-between px-5 py-2.5">
-              <span className="text-muted-foreground">Notes</span>
-              <span className="font-medium text-right max-w-[60%]">{movement.notes}</span>
-            </div>
-          )}
         </div>
       </div>
 

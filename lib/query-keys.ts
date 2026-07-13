@@ -81,6 +81,18 @@ export const queryKeys = {
     myInvitations: () => [...queryKeys.organizations.all, "my-invitations"] as const,
   },
 
+  equipment: {
+    all: ["equipment"] as const,
+    lists: () => [...queryKeys.equipment.all, "list"] as const,
+    list: (filters: { organizationId?: string; search?: string; categoryId?: string }) => [...queryKeys.equipment.lists(), filters] as const,
+    details: () => [...queryKeys.equipment.all, "detail"] as const,
+    detail: (id: string) => [...queryKeys.equipment.details(), id] as const,
+    byTechnician: (techId: string) =>
+      [...queryKeys.equipment.all, "byTechnician", techId] as const,
+    available: (orgId?: string) =>
+      [...queryKeys.equipment.all, "available", orgId] as const,
+  },
+
   inventory: {
     all: ["inventory"] as const,
     availableProducts: (orgId?: string) =>

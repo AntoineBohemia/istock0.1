@@ -78,6 +78,58 @@ export type Database = {
           },
         ]
       }
+      equipment_assignments: {
+        Row: {
+          assigned_at: string
+          created_at: string | null
+          id: string
+          organization_id: string | null
+          product_id: string
+          quantity: number
+          technician_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          created_at?: string | null
+          id?: string
+          organization_id?: string | null
+          product_id: string
+          quantity?: number
+          technician_id: string
+        }
+        Update: {
+          assigned_at?: string
+          created_at?: string | null
+          id?: string
+          organization_id?: string | null
+          product_id?: string
+          quantity?: number
+          technician_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_assignments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_assignments_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_assignments_technician_id_fkey"
+            columns: ["technician_id"]
+            isOneToOne: false
+            referencedRelation: "technicians"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       onboarding_progress: {
         Row: {
           completed_at: string | null
@@ -241,6 +293,7 @@ export type Database = {
           name: string
           organization_id: string | null
           price: number | null
+          product_type: Database["public"]["Enums"]["product_type"]
           sku: string
           stock_current: number | null
           stock_min: number | null
@@ -259,6 +312,7 @@ export type Database = {
           name: string
           organization_id?: string | null
           price?: number | null
+          product_type?: Database["public"]["Enums"]["product_type"]
           sku: string
           stock_current?: number | null
           stock_min?: number | null
@@ -277,6 +331,7 @@ export type Database = {
           name?: string
           organization_id?: string | null
           price?: number | null
+          product_type?: Database["public"]["Enums"]["product_type"]
           sku?: string
           stock_current?: number | null
           stock_min?: number | null
@@ -499,6 +554,7 @@ export type Database = {
         Row: {
           archived_at: string | null
           city: string | null
+          clothing_size: string | null
           created_at: string | null
           email: string | null
           first_name: string
@@ -506,10 +562,16 @@ export type Database = {
           last_name: string
           organization_id: string | null
           phone: string | null
+          photo_url: string | null
+          supplier_id: string | null
+          tablet_ref: string | null
+          vehicle_brand: string | null
+          vehicle_plate: string | null
         }
         Insert: {
           archived_at?: string | null
           city?: string | null
+          clothing_size?: string | null
           created_at?: string | null
           email?: string | null
           first_name: string
@@ -517,10 +579,16 @@ export type Database = {
           last_name: string
           organization_id?: string | null
           phone?: string | null
+          photo_url?: string | null
+          supplier_id?: string | null
+          tablet_ref?: string | null
+          vehicle_brand?: string | null
+          vehicle_plate?: string | null
         }
         Update: {
           archived_at?: string | null
           city?: string | null
+          clothing_size?: string | null
           created_at?: string | null
           email?: string | null
           first_name?: string
@@ -528,6 +596,11 @@ export type Database = {
           last_name?: string
           organization_id?: string | null
           phone?: string | null
+          photo_url?: string | null
+          supplier_id?: string | null
+          tablet_ref?: string | null
+          vehicle_brand?: string | null
+          vehicle_plate?: string | null
         }
         Relationships: [
           {
@@ -535,6 +608,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "technicians_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
         ]
@@ -605,41 +685,30 @@ export type Database = {
         Args: { p_items: Json; p_technician_id: string }
         Returns: Json
       }
+      assign_equipment: {
+        Args: {
+          p_organization_id: string
+          p_product_id: string
+          p_quantity?: number
+          p_technician_id: string
+        }
+        Returns: Json
+      }
       create_organization_with_owner: {
         Args: { org_logo_url?: string; org_name: string; org_slug: string }
         Returns: Json
       }
-      create_stock_entry:
-        | {
-            Args: {
-              p_notes?: string
-              p_organization_id: string
-              p_product_id: string
-              p_quantity: number
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_notes?: string
-              p_organization_id: string
-              p_product_id: string
-              p_quantity: number
-              p_supplier_id?: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_notes?: string
-              p_organization_id: string
-              p_product_id: string
-              p_quantity: number
-              p_supplier_id?: string
-              p_unit_price?: number
-            }
-            Returns: Json
-          }
+      create_stock_entry: {
+        Args: {
+          p_notes?: string
+          p_organization_id: string
+          p_product_id: string
+          p_quantity: number
+          p_supplier_id?: string
+          p_unit_price?: number
+        }
+        Returns: Json
+      }
       create_stock_exit: {
         Args: {
           p_notes?: string
@@ -695,13 +764,25 @@ export type Database = {
         Args: { p_new_owner_id: string; p_organization_id: string }
         Returns: Json
       }
+      unassign_equipment: {
+        Args: {
+          p_organization_id: string
+          p_product_id: string
+          p_quantity?: number
+          p_technician_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
+      product_type: "consumable" | "equipment"
       stock_movement_type:
         | "entry"
         | "exit_technician"
         | "exit_anonymous"
         | "exit_loss"
+        | "assign_equipment"
+        | "unassign_equipment"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -832,11 +913,14 @@ export const Constants = {
   },
   public: {
     Enums: {
+      product_type: ["consumable", "equipment"],
       stock_movement_type: [
         "entry",
         "exit_technician",
         "exit_anonymous",
         "exit_loss",
+        "assign_equipment",
+        "unassign_equipment",
       ],
     },
   },

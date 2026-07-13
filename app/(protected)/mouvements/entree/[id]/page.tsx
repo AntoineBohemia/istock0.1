@@ -143,12 +143,6 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
             </span>
             <span className="font-medium">{movement.supplier?.name || "Non spécifié"}</span>
           </div>
-          {movement.notes && (
-            <div className="flex justify-between px-5 py-2.5">
-              <span className="text-muted-foreground">Notes</span>
-              <span className="font-medium text-right max-w-[60%]">{movement.notes}</span>
-            </div>
-          )}
         </div>
       </div>
 

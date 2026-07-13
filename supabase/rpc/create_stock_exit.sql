@@ -3,8 +3,7 @@ CREATE OR REPLACE FUNCTION create_stock_exit(
   p_product_id UUID,
   p_quantity INT,
   p_type TEXT,
-  p_technician_id UUID DEFAULT NULL,
-  p_notes TEXT DEFAULT NULL
+  p_technician_id UUID DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -44,16 +43,15 @@ BEGIN
   END IF;
 
   -- Create the movement
-  INSERT INTO stock_movements (organization_id, product_id, quantity, movement_type, technician_id, notes)
+  INSERT INTO stock_movements (organization_id, product_id, quantity, movement_type, technician_id)
   VALUES (
     p_organization_id,
     p_product_id,
     p_quantity,
     p_type,
-    CASE WHEN p_type = 'exit_technician' THEN p_technician_id ELSE NULL END,
-    p_notes
+    CASE WHEN p_type = 'exit_technician' THEN p_technician_id ELSE NULL END
   )
-  RETURNING id, product_id, quantity, movement_type, technician_id, notes, organization_id, created_at
+  RETURNING id, product_id, quantity, movement_type, technician_id, organization_id, created_at
   INTO v_movement;
 
   -- Decrement stock
@@ -87,7 +85,6 @@ BEGIN
     'quantity', v_movement.quantity,
     'movement_type', v_movement.movement_type,
     'technician_id', v_movement.technician_id,
-    'notes', v_movement.notes,
     'organization_id', v_movement.organization_id,
     'created_at', v_movement.created_at
   );

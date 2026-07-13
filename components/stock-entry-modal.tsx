@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowDownToLine, Loader2, Minus, Plus, Lock, Unlock } from "lucide-react";
+import { Loader2, Minus, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -19,22 +19,14 @@ import {
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProducts, useOrganizations } from "@/hooks/queries";
 import { useCreateStockEntry } from "@/hooks/mutations";
 import ProductIconDisplay from "@/components/product-icon-display";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
 const EntrySchema = z.object({
@@ -42,7 +34,6 @@ const EntrySchema = z.object({
   product_id: z.string().min(1, "Sélectionnez un produit"),
   quantity: z.number().min(1, "Minimum 1"),
   unit_price: z.string().optional(),
-  notes: z.string().optional(),
 });
 
 type EntryValues = z.infer<typeof EntrySchema>;
@@ -60,7 +51,9 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
   const products = productsResult?.products || [];
   const createEntry = useCreateStockEntry();
   const isMultiOrg = (userOrgs?.length ?? 0) > 1;
-  const [priceLocked, setPriceLocked] = useState(true);
+  const [priceEditing, setPriceEditing] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
+  const [showProductSearch, setShowProductSearch] = useState(false);
 
   const form = useForm<EntryValues>({
     resolver: zodResolver(EntrySchema),
@@ -69,7 +62,6 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
       product_id: productId || "",
       quantity: 1,
       unit_price: "",
-      notes: "",
     },
   });
 
@@ -82,24 +74,32 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
 
   useEffect(() => {
     if (open) {
-      setPriceLocked(true);
+      setPriceEditing(false);
+      setProductSearch("");
+      setShowProductSearch(!productId);
       form.reset({
         organization_id: isMultiOrg ? "" : (userOrgs?.[0]?.id ?? ""),
         product_id: productId || "",
         quantity: 1,
         unit_price: "",
-        notes: "",
       });
     }
   }, [open]);
 
-  // Pre-fill price from product whenever product changes
   useEffect(() => {
     if (selectedProduct?.price != null) {
       form.setValue("unit_price", selectedProduct.price.toString());
-      setPriceLocked(true);
+      setPriceEditing(false);
     }
-  }, [selectedProduct?.id]);
+  }, [selectedProduct?.id, open]);
+
+  const filteredProducts = useMemo(() => {
+    if (!productSearch) return products.slice(0, 6);
+    const q = productSearch.toLowerCase();
+    return products
+      .filter((p) => p.name.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [products, productSearch]);
 
   const onSubmit = (data: EntryValues) => {
     const price = data.unit_price ? parseFloat(data.unit_price) : undefined;
@@ -109,7 +109,6 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
         productId: data.product_id,
         quantity: data.quantity,
         unitPrice: price,
-        notes: data.notes,
       },
       {
         onSuccess: () => {
@@ -125,42 +124,38 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
-              <ArrowDownToLine className="size-5 text-primary" />
-            </div>
-            <div>
-              <DialogTitle>Entrée de stock</DialogTitle>
-              <p className="text-sm text-muted-foreground">Ajouter des produits au stock</p>
-            </div>
-          </div>
+      <DialogContent className="max-w-sm gap-0 p-0">
+        <DialogHeader className="px-5 pt-5 pb-3">
+          <DialogTitle className="text-base font-semibold">Entrée de stock</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-            {/* Organisation pills */}
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            {/* Organisation */}
             {isMultiOrg && (
               <FormField
                 control={form.control}
                 name="organization_id"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Organisation</FormLabel>
-                    <div className="flex gap-2">
+                  <FormItem className="px-5 py-3 border-t">
+                    <div className="grid grid-cols-2 gap-2">
                       {userOrgs?.map((org) => (
                         <button
                           key={org.id}
                           type="button"
                           onClick={() => field.onChange(org.id)}
                           className={cn(
-                            "flex-1 rounded-xl border-2 px-3 py-2.5 text-sm font-medium transition-all",
+                            "flex items-center gap-2.5 rounded-lg border bg-white dark:bg-card px-3 py-2.5 text-sm font-medium transition-all",
                             field.value === org.id
-                              ? "border-primary bg-primary/5 text-primary"
-                              : "border-border text-muted-foreground hover:border-primary/30"
+                              ? "border-foreground text-foreground"
+                              : "border-border text-muted-foreground hover:border-foreground/30"
                           )}
                         >
+                          <Checkbox
+                            checked={field.value === org.id}
+                            className="rounded-md pointer-events-none data-checked:bg-foreground data-checked:border-foreground"
+                            tabIndex={-1}
+                          />
                           {org.name}
                         </button>
                       ))}
@@ -176,183 +171,166 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
               control={form.control}
               name="product_id"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Produit</FormLabel>
-                  {selectedProduct ? (
-                    <div
+                <FormItem className="border-t">
+                  {selectedProduct && !showProductSearch ? (
+                    <button
+                      type="button"
+                      onClick={!productId ? () => { setShowProductSearch(true); setProductSearch(""); } : undefined}
                       className={cn(
-                        "flex items-center gap-3 rounded-xl border bg-muted/30 p-3",
-                        !productId && "cursor-pointer hover:bg-muted/50 transition-colors"
+                        "flex w-full items-center gap-3 px-5 py-3 text-left",
+                        !productId && "hover:bg-muted/40 transition-colors"
                       )}
                     >
                       <ProductIconDisplay
                         iconName={selectedProduct.icon_name}
                         iconColor={selectedProduct.icon_color}
                         imageUrl={selectedProduct.image_url}
-                        size="md"
+                        size="sm"
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{selectedProduct.name}</p>
+                        <p className="text-sm font-medium truncate">{selectedProduct.name}</p>
                         {selectedProduct.sku && (
-                          <p className="text-xs text-muted-foreground font-mono">{selectedProduct.sku}</p>
+                          <p className="text-[11px] text-muted-foreground font-mono">{selectedProduct.sku}</p>
                         )}
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="font-heading font-bold text-lg tabular-nums">
-                          {selectedProduct.stock_current ?? 0}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground">en stock</p>
+                        <p className="text-sm font-semibold tabular-nums">{selectedProduct.stock_current ?? 0}</p>
+                        <p className="text-[10px] text-muted-foreground">en stock</p>
                       </div>
-                      {!productId && (
-                        <Select value={field.value} onValueChange={field.onChange}>
-                          <SelectTrigger className="absolute inset-0 opacity-0 cursor-pointer" />
-                          <SelectContent>
-                            {products.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    </div>
+                    </button>
                   ) : (
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <div className="px-5 py-3 space-y-1">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                        <Input
+                          placeholder="Produit..."
+                          value={productSearch}
+                          onChange={(e) => setProductSearch(e.target.value)}
+                          className="pl-8 h-8 text-sm bg-white dark:bg-card"
+                          autoFocus
+                        />
+                      </div>
+                      <div className="max-h-40 overflow-y-auto">
+                        {filteredProducts.length === 0 ? (
+                          <p className="py-2 text-center text-xs text-muted-foreground">Aucun résultat</p>
+                        ) : (
+                          filteredProducts.map((p) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => {
+                                field.onChange(p.id);
+                                setShowProductSearch(false);
+                                setProductSearch("");
+                              }}
+                              className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-muted/60 transition-colors text-left"
+                            >
+                              <ProductIconDisplay iconName={p.icon_name} iconColor={p.icon_color} imageUrl={p.image_url} size="sm" />
+                              <span className="flex-1 text-sm truncate">{p.name}</span>
+                              <span className="text-xs tabular-nums text-muted-foreground shrink-0">{p.stock_current ?? 0}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  <FormMessage className="px-5" />
+                </FormItem>
+              )}
+            />
+
+            {/* Quantité */}
+            <FormField
+              control={form.control}
+              name="quantity"
+              render={({ field }) => (
+                <FormItem className="border-t px-5 py-4">
+                  <div className="flex items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => field.onChange(Math.max(1, (field.value || 1) - 1))}
+                      className="flex size-10 items-center justify-center rounded-full border bg-white dark:bg-card hover:bg-muted transition-colors"
+                    >
+                      <Minus className="size-4" />
+                    </button>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={1}
+                        className="w-20 h-12 text-center text-2xl font-semibold bg-white dark:bg-card focus-visible:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                      />
+                    </FormControl>
+                    <button
+                      type="button"
+                      onClick={() => field.onChange((field.value || 1) + 1)}
+                      className="flex size-10 items-center justify-center rounded-full border bg-white dark:bg-card hover:bg-muted transition-colors"
+                    >
+                      <Plus className="size-4" />
+                    </button>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Prix */}
+            <FormField
+              control={form.control}
+              name="unit_price"
+              render={({ field }) => (
+                <FormItem className="border-t px-5 py-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Prix HT</span>
+                    <div className="flex items-center gap-2">
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choisir un produit" />
-                        </SelectTrigger>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="—"
+                          className={cn(
+                            "w-24 h-8 text-right text-sm border-0 bg-transparent focus-visible:ring-0 pr-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                            !priceEditing && "text-muted-foreground"
+                          )}
+                          disabled={!priceEditing}
+                          {...field}
+                        />
                       </FormControl>
-                      <SelectContent>
-                        {products.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      <span className="text-sm text-muted-foreground">€</span>
+                      <button
+                        type="button"
+                        onClick={() => setPriceEditing(!priceEditing)}
+                        className="text-xs text-primary hover:underline ml-1"
+                      >
+                        {priceEditing ? "OK" : "Modifier"}
+                      </button>
+                    </div>
+                  </div>
+                  {total > 0 && (
+                    <p className="text-right text-xs text-muted-foreground tabular-nums mt-1">
+                      {quantity} × {unitPrice.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} € = <span className="font-medium text-foreground">{total.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €</span>
+                    </p>
                   )}
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {/* Quantity with +/- buttons + Unit price */}
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="quantity"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Quantité</FormLabel>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => field.onChange(Math.max(1, (field.value || 1) - 1))}
-                        className="flex size-9 items-center justify-center rounded-lg border bg-muted/50 hover:bg-muted transition-colors"
-                      >
-                        <Minus className="size-3.5" />
-                      </button>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min={1}
-                          className="text-center font-heading font-bold text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                        />
-                      </FormControl>
-                      <button
-                        type="button"
-                        onClick={() => field.onChange((field.value || 1) + 1)}
-                        className="flex size-9 items-center justify-center rounded-lg border bg-muted/50 hover:bg-muted transition-colors"
-                      >
-                        <Plus className="size-3.5" />
-                      </button>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="unit_price"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Prix unitaire HT</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="0,00"
-                          className={cn("pr-16", priceLocked && "bg-muted/50 text-muted-foreground")}
-                          disabled={priceLocked}
-                          {...field}
-                        />
-                        <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                          <span className="text-sm text-muted-foreground">€</span>
-                          <button
-                            type="button"
-                            onClick={() => setPriceLocked(!priceLocked)}
-                            className={cn(
-                              "flex size-7 items-center justify-center rounded-md transition-colors",
-                              priceLocked
-                                ? "text-muted-foreground hover:text-foreground hover:bg-muted"
-                                : "text-primary bg-primary/10"
-                            )}
-                            title={priceLocked ? "Modifier le prix" : "Verrouiller le prix"}
-                          >
-                            {priceLocked ? <Lock className="size-3.5" /> : <Unlock className="size-3.5" />}
-                          </button>
-                        </div>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Total */}
-            {total > 0 && (
-              <div className="rounded-xl bg-primary/5 border border-primary/10 px-4 py-3 flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">
-                  {quantity} × {unitPrice.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
-                </span>
-                <span className="font-heading font-bold text-lg tabular-nums text-primary">
-                  {total.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
-                </span>
-              </div>
-            )}
-
-            {/* Notes */}
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Optionnel..." rows={2} {...field} />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-
             {/* Submit */}
-            <Button
-              type="submit"
-              disabled={createEntry.isPending}
-              className="w-full h-11"
-            >
-              {createEntry.isPending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <ArrowDownToLine className="size-4" />
-              )}
-              Entrer en stock
-            </Button>
+            <div className="px-5 pt-2 pb-5">
+              <Button
+                type="submit"
+                disabled={createEntry.isPending}
+                className="w-full h-10 rounded-lg"
+              >
+                {createEntry.isPending && <Loader2 className="size-4 animate-spin" />}
+                Entrer en stock
+              </Button>
+            </div>
           </form>
         </Form>
       </DialogContent>
-
     </Dialog>
   );
 }
