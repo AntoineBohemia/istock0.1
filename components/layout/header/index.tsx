@@ -1,19 +1,13 @@
 "use client";
 
-import * as React from "react";
-import { PanelLeftIcon, ClipboardList } from "lucide-react";
+import { PanelLeftIcon } from "lucide-react";
 
 import { useSidebar } from "@/components/ui/sidebar";
-import Search from "@/components/layout/header/search";
 import ThemeSwitch from "@/components/layout/header/theme-switch";
-// import Notifications from "@/components/layout/header/notifications";
 import { Button } from "@/components/ui/button";
-import { useTaskDrawerStore } from "@/lib/stores/task-drawer-store";
-//import { ThemeCustomizerPanel } from "@/components/theme-customizer";
 
 export default function Header() {
   const { toggleSidebar } = useSidebar();
-  const openTaskDrawer = useTaskDrawerStore((s) => s.setOpen);
 
   return (
     <div className="sticky top-0 z-50 hidden flex-col md:flex">
@@ -26,18 +20,7 @@ export default function Header() {
         >
           <PanelLeftIcon />
         </Button>
-        <Search />
-        <Button
-          size="icon"
-          variant="outline"
-          className="sm:hidden"
-          onClick={() => openTaskDrawer(true)}
-        >
-          <ClipboardList className="size-5" />
-          <span className="sr-only">A faire</span>
-        </Button>
-        {/* <Notifications /> */}
-        {/*<ThemeCustomizerPanel />*/}
+        <div className="flex-1" />
         <ThemeSwitch />
       </header>
     </div>
