@@ -23,6 +23,8 @@ import { Button } from "@/components/ui/button";
 import { TechnicianWithInventory } from "@/lib/supabase/queries/technicians";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useTechnicians } from "@/hooks/queries";
+import { TableColumnToggle } from "@/components/table-column-toggle";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { cn } from "@/lib/utils";
 import RestockDialog from "./[id]/restock-dialog";
 import CreateTechnicianDialog from "./create-technician-dialog";
@@ -160,9 +162,12 @@ export default function TechniciansList() {
     });
   }, [technicians, debouncedSearch]);
 
+  const [columnVisibility, setColumnVisibility] = useColumnVisibility("techniciens");
+
   const columns: ColumnDef<TechnicianWithInventory>[] = [
     {
       accessorKey: "name",
+      enableHiding: false,
       accessorFn: (row) => `${row.first_name} ${row.last_name}`,
       header: ({ column }) => <SortHeader label="Technicien" column={column} />,
       cell: ({ row }) => {
@@ -187,11 +192,13 @@ export default function TechniciansList() {
     },
     {
       accessorKey: "city",
+      meta: { label: "Département" },
       header: ({ column }) => <SortHeader label="Département" column={column} />,
       cell: ({ row }) => <span className="text-[15px]">{row.original.city || "—"}</span>,
     },
     {
       id: "organization",
+      meta: { label: "Organisation" },
       accessorFn: (row) => row.organization_name || "",
       header: ({ column }) => <SortHeader label="Organisation" column={column} />,
       cell: ({ row }) => (
@@ -200,6 +207,7 @@ export default function TechniciansList() {
     },
     {
       accessorKey: "phone",
+      meta: { label: "Téléphone" },
       header: ({ column }) => <SortHeader label="Téléphone" column={column} />,
       cell: ({ row }) => (
         <span className="text-[15px] tabular-nums">{row.original.phone || "—"}</span>
@@ -225,7 +233,7 @@ export default function TechniciansList() {
           </div>
         );
       },
-      meta: { align: "center" },
+      meta: { align: "center", label: "Outillage" },
     },
     {
       accessorKey: "year_units_total",
@@ -245,7 +253,7 @@ export default function TechniciansList() {
           </span>
         );
       },
-      meta: { align: "center" },
+      meta: { align: "center", label: "Unités (année)" },
     },
     {
       id: "restock",
@@ -267,11 +275,12 @@ export default function TechniciansList() {
         return <StatusPill status={status} label={label} />;
       },
       sortingFn: "basic",
-      meta: { align: "right" },
+      meta: { align: "right", label: "Réappro" },
     },
     {
       id: "actions",
       enableSorting: false,
+      enableHiding: false,
       header: () => null,
       cell: ({ row }) => (
         <div className="flex justify-end">
@@ -296,9 +305,10 @@ export default function TechniciansList() {
     data: filteredData,
     columns,
     onSortingChange: setSorting,
+    onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    state: { sorting },
+    state: { sorting, columnVisibility },
   });
 
   if (isLoading || isOrgLoading) {
@@ -379,6 +389,7 @@ export default function TechniciansList() {
             className="pl-9 bg-white dark:bg-card"
           />
         </div>
+        <TableColumnToggle table={table} />
       </div>
 
       {totalCount === 0 ? (

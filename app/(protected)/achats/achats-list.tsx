@@ -21,6 +21,8 @@ import { useProducts, useOrganizations } from "@/hooks/queries";
 import { useYearlyEntryQtyByProduct } from "@/hooks/queries/use-stock-movements";
 import type { OrgEntryDetail } from "@/lib/supabase/queries/stock-movements";
 import ProductIconDisplay from "@/components/product-icon-display";
+import { TableColumnToggle } from "@/components/table-column-toggle";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { cn } from "@/lib/utils";
 
 // ─── Animated table row (initial mount only) ──────────────
@@ -113,7 +115,7 @@ function OrgDetailCards({
 
   return (
     <tr key={`detail-cards-${productId}`} className="border-b">
-      <td colSpan={6} className="px-5 pb-4 pt-2">
+      <td colSpan={7} className="px-5 pb-4 pt-2">
         <div className="flex flex-col gap-2">
           {orgEntries.map(([orgId, detail]) => {
             const orgName = orgNameById.get(orgId) ?? orgId;
@@ -152,6 +154,21 @@ function OrgDetailCards({
                     </div>
                   ))}
                 </div>
+
+                {/* Suppliers breakdown */}
+                {detail.suppliers.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5 border-t border-border/60 pt-2">
+                    {detail.suppliers.map((s, i) => (
+                      <span
+                        key={i}
+                        className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
+                      >
+                        {s.name}
+                        <span className="tabular-nums font-medium text-foreground/70">{s.qty}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -168,6 +185,7 @@ export default function AchatsList() {
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [columnVisibility, setColumnVisibility] = useColumnVisibility("achats");
 
   // Search: local state + debounce
   const [searchInput, setSearchInput] = useState("");
@@ -235,12 +253,14 @@ export default function AchatsList() {
         id: "expand",
         header: () => null,
         enableSorting: false,
+        enableHiding: false,
         cell: ({ row }) => {
           const data = entryQtyByProduct?.[row.original.id];
           if (!data) return null;
           const hasMultiPrice = Object.values(data).some((d) => d.byPrice.length > 1);
           const hasMultiOrg = Object.keys(data).length > 1;
-          if (!hasMultiOrg && !hasMultiPrice) return null;
+          const hasMultiSupplier = Object.values(data).some((d) => d.suppliers.length > 1);
+          if (!hasMultiOrg && !hasMultiPrice && !hasMultiSupplier) return null;
           const isExpanded = expandedRows.has(row.original.id);
           return (
             <button
@@ -269,6 +289,7 @@ export default function AchatsList() {
       },
       {
         accessorKey: "name",
+        enableHiding: false,
         header: ({ column }) => <SortHeader label="Produit" column={column} />,
         cell: ({ row }) => {
           const product = row.original;
@@ -319,7 +340,7 @@ export default function AchatsList() {
             </div>
           );
         },
-        meta: { align: "right" },
+        meta: { align: "right", label: "Prix HT" },
       },
       {
         id: "entries",
@@ -350,7 +371,7 @@ export default function AchatsList() {
           );
         },
         sortingFn: "basic",
-        meta: { align: "center" },
+        meta: { align: "center", label: `Entrées ${currentYear}` },
       },
       {
         id: "organization",
@@ -372,6 +393,30 @@ export default function AchatsList() {
 
           return <span className="text-[15px]">{orgIds.length} entreprises</span>;
         },
+        meta: { label: "Entreprise" },
+      },
+      {
+        id: "supplier",
+        accessorFn: (row) => {
+          const data = entryQtyByProduct?.[row.id];
+          if (!data) return "";
+          const names = new Set<string>();
+          Object.values(data).forEach((d) => d.suppliers.forEach((s) => names.add(s.name)));
+          return Array.from(names).join(", ");
+        },
+        header: ({ column }) => <SortHeader label="Fournisseur" column={column} />,
+        cell: ({ row }) => {
+          const data = entryQtyByProduct?.[row.original.id];
+          if (!data) return <span className="text-muted-foreground">—</span>;
+          const names = new Set<string>();
+          Object.values(data).forEach((d) => d.suppliers.forEach((s) => names.add(s.name)));
+          const list = Array.from(names);
+
+          if (list.length === 0) return <span className="text-muted-foreground">—</span>;
+          if (list.length === 1) return <span className="text-[15px]">{list[0]}</span>;
+          return <span className="text-[15px]">{list.length} fournisseurs</span>;
+        },
+        meta: { label: "Fournisseur" },
       },
       {
         id: "totalValue",
@@ -401,7 +446,7 @@ export default function AchatsList() {
           );
         },
         sortingFn: "basic",
-        meta: { align: "right" },
+        meta: { align: "right", label: "Valeur achats" },
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -412,9 +457,10 @@ export default function AchatsList() {
     data: products,
     columns,
     onSortingChange: setSorting,
+    onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    state: { sorting },
+    state: { sorting, columnVisibility },
   });
 
   if (isLoading || isOrgLoading || !currentOrganization) {
@@ -481,14 +527,17 @@ export default function AchatsList() {
     <div className="space-y-3">
       {/* Search + category filter */}
       <div className="space-y-2">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher un produit..."
-            value={searchInput}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-9 bg-white dark:bg-card"
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Rechercher un produit..."
+              value={searchInput}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="pl-9 bg-white dark:bg-card"
+            />
+          </div>
+          <TableColumnToggle table={table} />
         </div>
 
         {(userOrgs?.length ?? 0) > 0 && (
@@ -559,6 +608,7 @@ export default function AchatsList() {
               table
                 .getRowModel()
                 .rows.map((row, index) => {
+                  const productId = row.original.id;
                   return (
                     <AnimatedRow
                       key={productId}
@@ -599,7 +649,9 @@ export default function AchatsList() {
                     isExpanded &&
                     entryData &&
                     (Object.keys(entryData).length > 1 ||
-                      Object.values(entryData).some((d) => d.byPrice.length > 1));
+                      Object.values(entryData).some(
+                        (d) => d.byPrice.length > 1 || d.suppliers.length > 1
+                      ));
 
                   if (!showDetail) return [rowEl];
 

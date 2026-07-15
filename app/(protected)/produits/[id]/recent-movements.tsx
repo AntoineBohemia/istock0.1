@@ -8,8 +8,7 @@ interface RecentMovementsProps {
   productId: string;
 }
 
-const fmtPrice = (n: number) =>
-  n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+const fmtPrice = (n: number) => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 
 function formatRelativeTime(dateStr: string): string {
   const date = new Date(dateStr);
@@ -67,7 +66,11 @@ export default function RecentMovements({ productId }: RecentMovementsProps) {
                 const unitPrice = m.unit_price;
                 const totalValue = unitPrice ? unitPrice * m.quantity : null;
 
-                const detail = techName || orgName || "—";
+                // Entrée : société. Sortie : technicien (ou société pour une erreur stock),
+                // avec la société en second si elle diffère (utile pour voir dans quelle
+                // société la sortie a été puisée).
+                const detailPrimary = isEntry ? orgName || "—" : techName || orgName || "—";
+                const detailSecondary = !isEntry && techName && orgName ? orgName : null;
 
                 return (
                   <tr key={m.id} className="hover:bg-muted/30 transition-colors">
@@ -90,8 +93,13 @@ export default function RecentMovements({ productId }: RecentMovementsProps) {
                     </td>
 
                     {/* Detail */}
-                    <td className="px-3 py-3 max-w-[200px]">
-                      <span className="truncate block font-medium">{detail}</span>
+                    <td className="px-3 py-3 max-w-[220px]">
+                      <span className="truncate block font-medium">{detailPrimary}</span>
+                      {detailSecondary && (
+                        <span className="truncate block text-xs text-muted-foreground">
+                          {detailSecondary}
+                        </span>
+                      )}
                     </td>
 
                     {/* Unit price */}

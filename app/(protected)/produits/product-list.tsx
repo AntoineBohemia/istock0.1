@@ -27,6 +27,8 @@ import { calculateStockScore, getStockScoreColor, getStockBadgeVariant } from "@
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProducts, useCategories } from "@/hooks/queries";
 import ProductIconDisplay from "@/components/product-icon-display";
+import { TableColumnToggle } from "@/components/table-column-toggle";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { cn } from "@/lib/utils";
 
 // ─── Animated table row ────────────────────────────────────
@@ -134,9 +136,12 @@ export default function ProductList() {
 
   const products = productsResult?.products || [];
 
+  const [columnVisibility, setColumnVisibility] = useColumnVisibility("produits");
+
   const columns: ColumnDef<ProductWithRelations>[] = [
     {
       accessorKey: "name",
+      enableHiding: false,
       header: ({ column }) => <SortHeader label="Produit" column={column} />,
       cell: ({ row }) => {
         const product = row.original;
@@ -174,7 +179,7 @@ export default function ProductList() {
           </span>
         );
       },
-      meta: { align: "center" },
+      meta: { align: "center", label: "Stock" },
     },
     {
       id: "status",
@@ -189,10 +194,11 @@ export default function ProductList() {
         return <StatusPill status={status} />;
       },
       sortingFn: "basic",
-      meta: { align: "right" },
+      meta: { align: "right", label: "Statut" },
     },
     {
       id: "actions",
+      enableHiding: false,
       header: () => null,
       cell: ({ row }) => {
         const product = row.original;
@@ -232,9 +238,10 @@ export default function ProductList() {
     data: products,
     columns,
     onSortingChange: setSorting,
+    onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    state: { sorting },
+    state: { sorting, columnVisibility },
   });
 
   if (isLoading || isOrgLoading || !currentOrganization) {
@@ -294,14 +301,17 @@ export default function ProductList() {
     <div className="space-y-3">
       {/* Search + category filter */}
       <div className="space-y-2">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher un produit..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 bg-white dark:bg-card"
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Rechercher un produit..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-white dark:bg-card"
+            />
+          </div>
+          <TableColumnToggle table={table} />
         </div>
 
         {categories.length > 0 && (

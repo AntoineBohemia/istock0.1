@@ -1,3 +1,13 @@
+-- Réapprovisionnement technicien : allocation de la sortie « société au plus faible stock d'abord ».
+--
+-- Auparavant, add_to_technician_inventory créait UN seul mouvement de sortie tagué avec la
+-- société du technicien. Désormais, la quantité sortie est répartie entre les sociétés selon
+-- leur stock courant du produit (dérivé des mouvements : entrées − sorties) : on puise d'abord
+-- dans la société qui en a le moins jusqu'à 0, puis dans la suivante (égalité départagée par le
+-- nom de société, ordre alphabétique). Chaque portion puisée génère un mouvement distinct tagué
+-- avec sa société, afin que le stock par société reste exact. Le stock global du produit
+-- (products.stock_current) est décrémenté du total, comme avant.
+
 CREATE OR REPLACE FUNCTION add_to_technician_inventory(
   p_technician_id UUID,
   p_items JSONB
@@ -69,7 +79,7 @@ BEGIN
     jsonb_build_object('items', v_snapshot_items, 'total_items', v_total_quantity)
   );
 
-  -- 3. Pour chaque item : vérifier stock, upsert inventaire, créer mouvement, décrémenter stock
+  -- 3. Pour chaque item : vérifier stock, upsert inventaire, créer mouvements, décrémenter stock
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
   LOOP
     -- Vérifier le stock avec FOR UPDATE (anti race condition)

@@ -1,7 +1,13 @@
 import { createClient } from "@/lib/supabase/client";
 
 // Active types used in UI — exit_loss is deprecated but kept in DB enum for historical data
-export type MovementType = "entry" | "exit_technician" | "exit_anonymous" | "exit_loss" | "assign_equipment" | "unassign_equipment";
+export type MovementType =
+  | "entry"
+  | "exit_technician"
+  | "exit_anonymous"
+  | "exit_loss"
+  | "assign_equipment"
+  | "unassign_equipment";
 
 export interface StockMovement {
   id: string;
@@ -374,19 +380,20 @@ export async function getMovementsSummary(organizationId?: string): Promise<{
   };
 }
 
-/** Entry detail per org, optionally broken down by unit_price */
+/** Entry detail per org, optionally broken down by unit_price and supplier */
 export interface OrgEntryDetail {
   qty: number;
   byPrice: { unitPrice: number; qty: number }[];
+  suppliers: { name: string; qty: number }[];
 }
 
 /**
  * Agrège les quantités d'entrées par produit et par organisation pour une année civile.
  * Inclut le détail par prix unitaire pour chaque org.
  */
-export async function getYearlyEntryQtyByProduct(year?: number): Promise<
-  Record<string, Record<string, OrgEntryDetail>>
-> {
+export async function getYearlyEntryQtyByProduct(
+  year?: number
+): Promise<Record<string, Record<string, OrgEntryDetail>>> {
   const supabase = createClient();
   const targetYear = year ?? new Date().getFullYear();
   const startOfYear = new Date(targetYear, 0, 1).toISOString();
@@ -394,7 +401,7 @@ export async function getYearlyEntryQtyByProduct(year?: number): Promise<
 
   const { data, error } = await supabase
     .from("stock_movements")
-    .select("product_id, organization_id, quantity, unit_price")
+    .select("product_id, organization_id, quantity, unit_price, supplier:suppliers(name)")
     .eq("movement_type", "entry")
     .gte("created_at", startOfYear)
     .lt("created_at", endOfYear);
@@ -411,7 +418,7 @@ export async function getYearlyEntryQtyByProduct(year?: number): Promise<
     const price = m.unit_price ?? 0;
 
     if (!result[pid]) result[pid] = {};
-    if (!result[pid][oid]) result[pid][oid] = { qty: 0, byPrice: [] };
+    if (!result[pid][oid]) result[pid][oid] = { qty: 0, byPrice: [], suppliers: [] };
 
     result[pid][oid].qty += m.quantity;
 
@@ -421,13 +428,26 @@ export async function getYearlyEntryQtyByProduct(year?: number): Promise<
     } else {
       result[pid][oid].byPrice.push({ unitPrice: price, qty: m.quantity });
     }
+
+    // Fournisseur de l'entrée (jointure many-to-one : objet ou tableau selon l'inférence)
+    const supRel = m.supplier as { name: string | null } | { name: string | null }[] | null;
+    const supplierName = Array.isArray(supRel) ? supRel[0]?.name : supRel?.name;
+    if (supplierName) {
+      const existingSup = result[pid][oid].suppliers.find((s) => s.name === supplierName);
+      if (existingSup) {
+        existingSup.qty += m.quantity;
+      } else {
+        result[pid][oid].suppliers.push({ name: supplierName, qty: m.quantity });
+      }
+    }
   });
 
-  // Sort byPrice descending by unitPrice
+  // Tri : prix décroissant, fournisseurs par quantité décroissante
   Object.values(result).forEach((orgs) =>
-    Object.values(orgs).forEach((detail) =>
-      detail.byPrice.sort((a, b) => b.unitPrice - a.unitPrice)
-    )
+    Object.values(orgs).forEach((detail) => {
+      detail.byPrice.sort((a, b) => b.unitPrice - a.unitPrice);
+      detail.suppliers.sort((a, b) => b.qty - a.qty);
+    })
   );
 
   return result;

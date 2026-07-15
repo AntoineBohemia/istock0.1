@@ -18,6 +18,7 @@ import {
   History,
   CalendarDays,
   Building2,
+  Truck,
   HardHat,
   Wrench,
   Check,
@@ -49,6 +50,8 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { StockMovement, MOVEMENT_TYPE_LABELS } from "@/lib/supabase/queries/stock-movements";
 import { useStockMovements, useOrganizations } from "@/hooks/queries";
 import ProductIconDisplay from "@/components/product-icon-display";
+import { TableColumnToggle } from "@/components/table-column-toggle";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { cn } from "@/lib/utils";
 
 // ─── Table row — animated on initial mount, plain <tr> after ──
@@ -367,10 +370,13 @@ export default function MovementsList() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [orgPickerOpen, setOrgPickerOpen] = useState(false);
+  const [supplierPickerOpen, setSupplierPickerOpen] = useState(false);
   const [techPickerOpen, setTechPickerOpen] = useState(false);
   const [filterTypes, setFilterTypes] = useState<Set<string>>(new Set());
   const [filterOrgs, setFilterOrgs] = useState<Set<string>>(new Set());
+  const [filterSuppliers, setFilterSuppliers] = useState<Set<string>>(new Set());
   const [filterTechs, setFilterTechs] = useState<Set<string>>(new Set());
+  const [columnVisibility, setColumnVisibility] = useColumnVisibility("mouvements");
 
   // Search: local state for instant input, debounced for filtering
   const [searchInput, setSearchInput] = useState("");
@@ -425,6 +431,17 @@ export default function MovementsList() {
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [allMovements]);
 
+  // Unique suppliers from entry movements (for filter)
+  const availableSuppliers = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>();
+    for (const m of allMovements) {
+      if (m.movement_type === "entry" && m.supplier) {
+        map.set(m.supplier.id, { id: m.supplier.id, name: m.supplier.name });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allMovements]);
+
   // User's organizations (for filter)
   const { data: userOrgs } = useOrganizations();
 
@@ -463,6 +480,11 @@ export default function MovementsList() {
         (m) => m.movement_type === "entry" && m.organization_id && filterOrgs.has(m.organization_id)
       );
     }
+    if (filterSuppliers.size > 0) {
+      result = result.filter(
+        (m) => m.movement_type === "entry" && m.supplier_id && filterSuppliers.has(m.supplier_id)
+      );
+    }
     if (filterTechs.size > 0) {
       result = result.filter((m) => m.technician_id && filterTechs.has(m.technician_id));
     }
@@ -476,7 +498,15 @@ export default function MovementsList() {
       });
     }
     return result;
-  }, [allMovements, filterTypes, debouncedSearch, filterOrgs, filterTechs, dateRange]);
+  }, [
+    allMovements,
+    filterTypes,
+    debouncedSearch,
+    filterOrgs,
+    filterSuppliers,
+    filterTechs,
+    dateRange,
+  ]);
 
   const handleRowClick = (movement: StockMovement) => {
     if (movement.movement_type === "entry") {
@@ -490,6 +520,7 @@ export default function MovementsList() {
     () => [
       {
         accessorKey: "created_at",
+        meta: { label: "Date" },
         header: ({ column }) => <SortHeader label="Date" column={column} />,
         cell: ({ row }) => {
           const date = new Date(row.original.created_at ?? Date.now());
@@ -505,6 +536,7 @@ export default function MovementsList() {
       },
       {
         accessorKey: "movement_type",
+        meta: { label: "Type" },
         header: ({ column }) => <SortHeader label="Type" column={column} />,
         cell: ({ row }) => {
           const type = row.original.movement_type;
@@ -538,6 +570,7 @@ export default function MovementsList() {
       },
       {
         id: "product",
+        enableHiding: false,
         accessorFn: (row) => row.product?.name ?? "",
         header: ({ column }) => <SortHeader label="Produit" column={column} />,
         cell: ({ row }) => {
@@ -561,15 +594,28 @@ export default function MovementsList() {
       },
       {
         id: "organization",
+        meta: { label: "Société" },
         accessorFn: (row) => row.organization?.name ?? "",
         header: ({ column }) => <SortHeader label="Société" column={column} />,
+        cell: ({ row }) => {
+          // Société de l'entrée, ou société drainée pour une sortie technicien
+          const org = row.original.organization;
+          if (!org) return <span className="text-muted-foreground">—</span>;
+          return <span className="text-[15px]">{org.name}</span>;
+        },
+      },
+      {
+        id: "supplier",
+        meta: { label: "Fournisseur" },
+        accessorFn: (row) => row.supplier?.name ?? "",
+        header: ({ column }) => <SortHeader label="Fournisseur" column={column} />,
         cell: ({ row }) => {
           if (row.original.movement_type !== "entry") {
             return <span className="text-muted-foreground">—</span>;
           }
-          const org = row.original.organization;
-          if (!org) return <span className="text-muted-foreground">—</span>;
-          return <span className="text-[15px]">{org.name}</span>;
+          const supplier = row.original.supplier;
+          if (!supplier) return <span className="text-muted-foreground">—</span>;
+          return <span className="text-[15px]">{supplier.name}</span>;
         },
       },
       {
@@ -591,10 +637,11 @@ export default function MovementsList() {
             </span>
           );
         },
-        meta: { align: "center" },
+        meta: { align: "center", label: "Qté" },
       },
       {
         id: "technician",
+        meta: { label: "Technicien" },
         accessorFn: (row) =>
           row.technician ? `${row.technician.first_name} ${row.technician.last_name}` : "",
         header: ({ column }) => <SortHeader label="Technicien" column={column} />,
@@ -616,9 +663,10 @@ export default function MovementsList() {
     data: filteredMovements,
     columns,
     onSortingChange: setSorting,
+    onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    state: { sorting },
+    state: { sorting, columnVisibility },
   });
 
   if (isLoading && allMovements.length === 0) {
@@ -782,6 +830,76 @@ export default function MovementsList() {
           </Popover>
         )}
 
+        {availableSuppliers.length > 0 && (
+          <Popover open={supplierPickerOpen} onOpenChange={setSupplierPickerOpen}>
+            <PopoverTrigger
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none cursor-pointer",
+                filterSuppliers.size > 0
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
+              )}
+            >
+              <Truck className="size-3" />
+              Fournisseur
+              {filterSuppliers.size > 0 && (
+                <>
+                  <span className="opacity-80 tabular-nums font-heading">
+                    {filterSuppliers.size}
+                  </span>
+                  <span
+                    role="button"
+                    className="ml-0.5 rounded-full hover:bg-white/20 p-0.5 -mr-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startTransition(() => setFilterSuppliers(new Set()));
+                    }}
+                  >
+                    <X className="size-3" />
+                  </span>
+                </>
+              )}
+            </PopoverTrigger>
+            <PopoverContent
+              align="start"
+              className="w-auto min-w-[180px] p-1 rounded-xl overflow-hidden"
+            >
+              <div className="flex flex-col gap-0.5 max-h-[280px] overflow-y-auto">
+                {availableSuppliers.map((sup) => {
+                  const selected = filterSuppliers.has(sup.id);
+                  return (
+                    <button
+                      key={sup.id}
+                      type="button"
+                      className={cn(
+                        "flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-lg transition-colors",
+                        selected
+                          ? "bg-primary/10 text-foreground font-medium"
+                          : "text-foreground/70 hover:bg-muted hover:text-foreground"
+                      )}
+                      onClick={() => {
+                        startTransition(() =>
+                          setFilterSuppliers((prev) => toggleSet(prev, sup.id))
+                        );
+                      }}
+                    >
+                      <span
+                        className={cn(
+                          "size-3.5 flex items-center justify-center",
+                          !selected && "opacity-0"
+                        )}
+                      >
+                        <Check className="size-3.5" />
+                      </span>
+                      {sup.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
+
         {availableTechs.length > 0 && (
           <Popover open={techPickerOpen} onOpenChange={setTechPickerOpen}>
             <PopoverTrigger
@@ -886,6 +1004,8 @@ export default function MovementsList() {
             );
           })}
         </div>
+
+        <TableColumnToggle table={table} />
       </div>
 
       {/* Table */}
@@ -956,6 +1076,7 @@ export default function MovementsList() {
                       filterTypes.size > 0 ||
                       dateRange?.from ||
                       filterOrgs.size > 0 ||
+                      filterSuppliers.size > 0 ||
                       filterTechs.size > 0
                         ? "Aucun mouvement ne correspond à ces filtres."
                         : "Les mouvements de stock apparaîtront ici."}

@@ -26,6 +26,8 @@ import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useEquipmentProducts } from "@/hooks/queries";
 import { useCategories } from "@/hooks/queries";
 import ProductIconDisplay from "@/components/product-icon-display";
+import { TableColumnToggle } from "@/components/table-column-toggle";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { cn } from "@/lib/utils";
 
 import AssignEquipmentModal from "./assign-equipment-modal";
@@ -158,9 +160,12 @@ export default function EquipmentList() {
     return { totalStock, totalAssigned, totalValue };
   }, [equipment]);
 
+  const [columnVisibility, setColumnVisibility] = useColumnVisibility("outillage");
+
   const columns: ColumnDef<EquipmentProduct>[] = [
     {
       accessorKey: "name",
+      enableHiding: false,
       header: ({ column }) => <SortHeader label="Outil" column={column} />,
       cell: ({ row }) => {
         const p = row.original;
@@ -182,6 +187,7 @@ export default function EquipmentList() {
     },
     {
       id: "category",
+      meta: { label: "Catégorie" },
       accessorFn: (row) => row.category?.name || "",
       header: ({ column }) => <SortHeader label="Catégorie" column={column} />,
       cell: ({ row }) => (
@@ -190,6 +196,7 @@ export default function EquipmentList() {
     },
     {
       id: "distribution",
+      meta: { label: "Répartition" },
       accessorFn: (row) => row.total_assigned,
       header: ({ column }) => <SortHeader label="Répartition" column={column} />,
       cell: ({ row }) => {
@@ -216,10 +223,11 @@ export default function EquipmentList() {
           </span>
         );
       },
-      meta: { align: "center" },
+      meta: { align: "center", label: "Disponible" },
     },
     {
       id: "assigned_to",
+      meta: { label: "Équipé par" },
       accessorFn: (row) => row.assignments?.length ?? 0,
       header: ({ column }) => <SortHeader label="Équipé par" column={column} />,
       cell: ({ row }) => {
@@ -258,6 +266,7 @@ export default function EquipmentList() {
     {
       id: "actions",
       enableSorting: false,
+      enableHiding: false,
       header: () => null,
       cell: ({ row }) => (
         <div className="flex justify-end">
@@ -282,9 +291,10 @@ export default function EquipmentList() {
     data: equipment,
     columns,
     onSortingChange: setSorting,
+    onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    state: { sorting },
+    state: { sorting, columnVisibility },
   });
 
   if (isLoading || isOrgLoading) {
@@ -403,6 +413,8 @@ export default function EquipmentList() {
             ))}
           </div>
         )}
+
+        <TableColumnToggle table={table} className="sm:ml-auto" />
       </div>
 
       {totalCount === 0 && !search && !category ? (
