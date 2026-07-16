@@ -1176,29 +1176,6 @@ export default function ActionsMobileSheet() {
                         </span>
                       </p>
                     )}
-
-                  {/* Submit button */}
-                  <Button
-                    className="w-full h-12 text-[15px] active:scale-[0.97]"
-                    onClick={() => {
-                      navigator.vibrate?.(10);
-                      handleSubmit();
-                    }}
-                    disabled={
-                      isSubmitting ||
-                      quantity < 1 ||
-                      (actionMode !== "entry" && quantity > product.stock_current)
-                    }
-                    variant="default"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="size-4 animate-spin" /> En cours&hellip;
-                      </>
-                    ) : (
-                      submitLabel
-                    )}
-                  </Button>
                 </motion.div>
               )}
 
@@ -1279,24 +1256,55 @@ export default function ActionsMobileSheet() {
                       </li>
                     ))}
                   </ul>
-
-                  <Button
-                    onClick={handleBatchSubmit}
-                    disabled={isSubmitting || cart.length === 0}
-                    className="w-full h-12 text-[15px] active:scale-[0.97]"
-                  >
-                    {isBatchSubmitting ? (
-                      <>
-                        <Loader2 className="size-4 animate-spin" /> En cours&hellip;
-                      </>
-                    ) : (
-                      <>Valider la sortie vers {techFullName}</>
-                    )}
-                  </Button>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
+
+          {/* ── Sticky bottom button (detail + cart steps) ── */}
+          {drawerStep === "detail" && product && (
+            <div className="shrink-0 border-t bg-background px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+              <Button
+                className="w-full h-12 text-[15px] active:scale-[0.97]"
+                onClick={() => {
+                  navigator.vibrate?.(10);
+                  handleSubmit();
+                }}
+                disabled={
+                  isSubmitting ||
+                  quantity < 1 ||
+                  (actionMode !== "entry" && quantity > product.stock_current)
+                }
+                variant="default"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" /> En cours&hellip;
+                  </>
+                ) : (
+                  submitLabel
+                )}
+              </Button>
+            </div>
+          )}
+
+          {actionMode === "exit_technician" && drawerStep === "cart" && cart.length > 0 && (
+            <div className="shrink-0 border-t bg-background px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+              <Button
+                onClick={handleBatchSubmit}
+                disabled={isSubmitting || cart.length === 0}
+                className="w-full h-12 text-[15px] active:scale-[0.97]"
+              >
+                {isBatchSubmitting ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" /> En cours&hellip;
+                  </>
+                ) : (
+                  <>Valider la sortie vers {techFullName}</>
+                )}
+              </Button>
+            </div>
+          )}
 
           {/* ── "Voir le panier" floating button (products step, tech mode) ── */}
           {actionMode === "exit_technician" && drawerStep === "products" && cart.length > 0 && (
