@@ -297,18 +297,14 @@ export default function MembersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Membres</h1>
-          <p className="text-muted-foreground">Gérez les membres de {currentOrganization.name}</p>
-        </div>
-        {canManageMembers && (
+      {canManageMembers && (
+        <div className="flex justify-end">
           <Button onClick={() => setIsInviteDialogOpen(true)}>
             <UserPlus className="mr-2 size-4" />
             Inviter un membre
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Members List */}
       <Card>

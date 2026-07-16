@@ -18,13 +18,7 @@ import {
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -243,9 +237,7 @@ export default function OrganizationsPage() {
       }
       setIsDialogOpen(false);
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Une erreur est survenue"
-      );
+      toast.error(error instanceof Error ? error.message : "Une erreur est survenue");
     }
   };
 
@@ -268,9 +260,7 @@ export default function OrganizationsPage() {
         }
       }
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Une erreur est survenue"
-      );
+      toast.error(error instanceof Error ? error.message : "Une erreur est survenue");
     }
   };
 
@@ -289,9 +279,7 @@ export default function OrganizationsPage() {
       setIsDeleteDialogOpen(false);
       setOrgToDelete(null);
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Une erreur est survenue"
-      );
+      toast.error(error instanceof Error ? error.message : "Une erreur est survenue");
     }
   };
 
@@ -305,13 +293,7 @@ export default function OrganizationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Organisations</h1>
-          <p className="text-muted-foreground">
-            Gérez vos organisations et leurs paramètres
-          </p>
-        </div>
+      <div className="flex justify-end">
         <Button onClick={openCreateDialog}>
           <Plus className="mr-2 size-4" />
           Nouvelle organisation
@@ -341,11 +323,7 @@ export default function OrganizationsPage() {
                   <TableCell colSpan={4} className="h-24 text-center">
                     <div className="text-muted-foreground">
                       Aucune organisation trouvée.{" "}
-                      <Button
-                        variant="link"
-                        className="px-1"
-                        onClick={openCreateDialog}
-                      >
+                      <Button variant="link" className="px-1" onClick={openCreateDialog}>
                         Créer une organisation
                       </Button>
                     </div>
@@ -381,20 +359,11 @@ export default function OrganizationsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <code className="rounded bg-muted px-2 py-1 text-sm">
-                          {org.slug}
-                        </code>
+                        <code className="rounded bg-muted px-2 py-1 text-sm">{org.slug}</code>
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant={isOwner ? "default" : "secondary"}
-                          className="gap-1"
-                        >
-                          {isOwner ? (
-                            <Crown className="size-3" />
-                          ) : (
-                            <Users className="size-3" />
-                          )}
+                        <Badge variant={isOwner ? "default" : "secondary"} className="gap-1">
+                          {isOwner ? <Crown className="size-3" /> : <Users className="size-3" />}
                           {org.role === "owner"
                             ? "Propriétaire"
                             : org.role === "admin"
@@ -405,20 +374,14 @@ export default function OrganizationsPage() {
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="size-8"
-                            >
+                            <Button variant="ghost" size="icon" className="size-8">
                               <MoreHorizontal className="size-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             {isOwner && (
                               <>
-                                <DropdownMenuItem
-                                  onClick={() => openEditDialog(org)}
-                                >
+                                <DropdownMenuItem onClick={() => openEditDialog(org)}>
                                   <Edit2 className="mr-2 size-4" />
                                   Modifier
                                 </DropdownMenuItem>
@@ -481,10 +444,7 @@ export default function OrganizationsPage() {
                 <div className="relative">
                   <Avatar className="size-16 border-2 border-dashed border-muted-foreground/25">
                     {logoPreview || existingLogoUrl ? (
-                      <AvatarImage
-                        src={logoPreview || existingLogoUrl || ""}
-                        alt="Logo preview"
-                      />
+                      <AvatarImage src={logoPreview || existingLogoUrl || ""} alt="Logo preview" />
                     ) : null}
                     <AvatarFallback className="bg-muted">
                       <ImageIcon className="size-6 text-muted-foreground" />
@@ -522,9 +482,7 @@ export default function OrganizationsPage() {
                     <Upload className="mr-2 size-4" />
                     {logoPreview || existingLogoUrl ? "Changer" : "Ajouter un logo"}
                   </Button>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    PNG, JPG ou WebP. Max 2MB.
-                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">PNG, JPG ou WebP. Max 2MB.</p>
                 </div>
               </div>
             </div>
@@ -549,8 +507,7 @@ export default function OrganizationsPage() {
                 disabled={isSubmitting}
               />
               <p className="text-xs text-muted-foreground">
-                Utilisé dans les URLs. Lettres minuscules, chiffres et tirets
-                uniquement.
+                Utilisé dans les URLs. Lettres minuscules, chiffres et tirets uniquement.
               </p>
             </div>
           </div>
@@ -563,9 +520,7 @@ export default function OrganizationsPage() {
               Annuler
             </Button>
             <Button onClick={handleSubmit} disabled={isSubmitting}>
-              {isSubmitting && (
-                <Loader2 className="mr-2 size-4 animate-spin" />
-              )}
+              {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
               {uploadLogoMutation.isPending
                 ? "Upload du logo..."
                 : editingOrg
@@ -577,10 +532,7 @@ export default function OrganizationsPage() {
       </Dialog>
 
       {/* Leave Confirmation Dialog */}
-      <AlertDialog
-        open={isLeaveDialogOpen}
-        onOpenChange={setIsLeaveDialogOpen}
-      >
+      <AlertDialog open={isLeaveDialogOpen} onOpenChange={setIsLeaveDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Quitter l'organisation</AlertDialogTitle>
@@ -588,14 +540,12 @@ export default function OrganizationsPage() {
               Êtes-vous sûr de vouloir quitter &quot;{orgToLeave?.name}&quot; ?
               <br />
               <br />
-              Vous perdrez l'accès à toutes les données de cette organisation.
-              Un administrateur devra vous ré-inviter si vous changez d'avis.
+              Vous perdrez l'accès à toutes les données de cette organisation. Un administrateur
+              devra vous ré-inviter si vous changez d'avis.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSubmitting}>
-              Annuler
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={isSubmitting}>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleLeave}
               disabled={isSubmitting}
@@ -609,10 +559,7 @@ export default function OrganizationsPage() {
       </AlertDialog>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-      >
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer l'organisation</AlertDialogTitle>
@@ -622,15 +569,13 @@ export default function OrganizationsPage() {
               <br />
               <br />
               <strong className="text-destructive">
-                Cette action est irréversible et supprimera toutes les données
-                associées (produits, techniciens, mouvements de stock, etc.).
+                Cette action est irréversible et supprimera toutes les données associées (produits,
+                techniciens, mouvements de stock, etc.).
               </strong>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSubmitting}>
-              Annuler
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={isSubmitting}>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={isSubmitting}

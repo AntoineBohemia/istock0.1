@@ -2,13 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  page_routes,
-  filterRoutesByRole,
-  isRoleAllowed,
-  SETTINGS_ALLOWED_ROLES,
-} from "@/lib/routes-config";
-import { Settings, LogOut, Users, Building2 } from "lucide-react";
+import { page_routes, filterRoutesByRole } from "@/lib/routes-config";
+import { LogOut, Users, Building2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { motion } from "motion/react";
@@ -75,7 +70,6 @@ export default function Sidebar() {
       });
   }, []);
 
-  const showSettings = isRoleAllowed(currentOrganization?.role, SETTINGS_ALLOWED_ROLES);
   const initials = user ? (user.name || user.email || "U").slice(0, 2).toUpperCase() : "U";
 
   // Resolve active item href for layout animation
@@ -145,23 +139,6 @@ export default function Sidebar() {
 
       {/* ── Footer : Paramètres + Utilisateur ── */}
       <SidebarFooter className="gap-0">
-        {showSettings && (
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                className="hover:text-foreground active:text-foreground"
-                asChild
-                tooltip="Paramètres"
-                isActive={pathname === "/parametres" || pathname.startsWith("/parametres/")}
-              >
-                <Link href="/parametres">
-                  <Settings className="size-4" />
-                  <span>Paramètres</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        )}
         {user && (
           <div className="relative border-t pt-2 mt-2">
             <button
