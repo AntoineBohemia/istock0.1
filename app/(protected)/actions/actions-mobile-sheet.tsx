@@ -71,7 +71,7 @@ interface SessionEntry {
 
 // ─── Constants ──────────────────────────────────────────────
 const MOVEMENT_LABELS: Record<string, string> = {
-  entry: "Entree",
+  entry: "Entr\u00e9e",
   exit_technician: "Sortie technicien",
   exit_anonymous: "Sortie autre",
 };
@@ -85,7 +85,7 @@ const ACTION_OPTIONS: {
 }[] = [
   {
     mode: "entry",
-    label: "Entree stock",
+    label: "Entr\u00e9e stock",
     icon: ArrowDownToLine,
     color: "text-standard",
     borderColor: "hover:border-standard",
@@ -218,9 +218,9 @@ export default function ActionsMobileSheet() {
 
   const submitLabel = useMemo(() => {
     if (!actionMode) return "";
-    const u = quantity > 1 ? "unites" : "unite";
+    const u = quantity > 1 ? "unit\u00e9s" : "unit\u00e9";
     if (actionMode === "entry") return `Entrer ${quantity} ${u}`;
-    return `Sortie ${quantity} ${u}`;
+    return `Sortir ${quantity} ${u}`;
   }, [actionMode, quantity]);
 
   // ─── Open drawer for a given action ────────────────────
@@ -604,7 +604,7 @@ export default function ActionsMobileSheet() {
 
   // ─── Drawer title (for accessibility) ─────────────────
   const drawerTitle = useMemo(() => {
-    if (actionMode === "entry") return "Entree stock";
+    if (actionMode === "entry") return "Entr\u00e9e stock";
     if (actionMode === "exit_technician") return "Sortie technicien";
     if (actionMode === "exit_anonymous") return "Sortie autre";
     return "Action";
@@ -617,36 +617,26 @@ export default function ActionsMobileSheet() {
     <div className="pb-[calc(5rem+env(safe-area-inset-bottom))]">
       {/* ── Main Screen (always visible) ── */}
       <div className="space-y-6 px-1">
-        {/* ── QR Scan button (hero) ── */}
-        <button
-          onClick={() => setScannerOpen(true)}
-          className={cn(
-            "w-full flex items-center justify-center gap-3 rounded-2xl py-4",
-            "bg-primary text-primary-foreground",
-            "active:scale-[0.97] transition-all duration-150"
-          )}
-        >
-          <ScanLine className="size-6" />
-          <span className="font-heading font-semibold text-base">Scanner un QR code</span>
-        </button>
+        {/* Action cards — 2x2 grid with scan as primary */}
+        <div className="grid grid-cols-2 gap-2.5">
+          {/* QR Scan — primary action */}
+          <button
+            onClick={() => setScannerOpen(true)}
+            className="flex items-center gap-3 rounded-2xl bg-foreground text-background px-4 py-4 active:scale-[0.97] transition-all col-span-2"
+          >
+            <ScanLine className="size-5" />
+            <span className="font-semibold text-[15px]">Scanner un QR code</span>
+          </button>
 
-        {/* Action cards */}
-        <div className="grid grid-cols-3 gap-3">
-          {ACTION_OPTIONS.map(({ mode, label, icon: Icon, color, borderColor }) => (
+          {/* 3 action buttons */}
+          {ACTION_OPTIONS.map(({ mode, label, icon: Icon, color }) => (
             <button
               key={mode}
               onClick={() => openDrawer(mode)}
-              className={cn(
-                "group flex flex-col items-center justify-center gap-3 rounded-2xl border bg-card",
-                "transition-all duration-200 active:scale-[0.97]",
-                borderColor,
-                "py-6 px-3"
-              )}
+              className="flex items-center gap-2.5 rounded-xl border bg-background px-3.5 py-3 active:scale-[0.97] transition-all"
             >
-              <Icon className={cn("shrink-0 size-6", color)} />
-              <span className="font-heading font-semibold text-center leading-tight text-xs">
-                {label}
-              </span>
+              <Icon className={cn("shrink-0 size-[18px]", color)} />
+              <span className="font-medium text-[13px] text-left leading-tight">{label}</span>
             </button>
           ))}
         </div>
@@ -1120,41 +1110,56 @@ export default function ActionsMobileSheet() {
                   transition={{ duration: 0.2 }}
                   className="space-y-5 pt-1"
                 >
-                  {/* Back link */}
-                  <button
-                    onClick={drawerGoBack}
-                    className="flex items-center gap-1 text-sm text-muted-foreground active:text-foreground transition-colors min-h-[44px]"
-                  >
-                    <ChevronLeft className="size-4" />
-                    Autre produit
-                  </button>
-
-                  {/* Product header */}
-                  <div>
-                    <h2 className="font-heading text-lg font-semibold leading-tight">
-                      {product.name}
-                    </h2>
-                    {product.sku && (
-                      <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                        {product.sku}
-                      </p>
-                    )}
+                  {/* Product header + stock */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <h2 className="font-heading text-[17px] font-semibold leading-tight">
+                        {product.name}
+                      </h2>
+                      {product.sku && (
+                        <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                          {product.sku}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="font-heading font-bold text-2xl tabular-nums">
+                        <HeroNumber value={product.stock_current} />
+                      </span>
+                      <div className="mt-0.5">
+                        <StatusPill status={stockStatus} />
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Stock display */}
-                  <div className="flex items-center gap-3">
-                    <span className="font-heading font-bold text-4xl tabular-nums">
-                      <HeroNumber value={product.stock_current} />
-                    </span>
-                    <StatusPill status={stockStatus} />
+                  {/* Entr\u00e9e / Sortie toggle */}
+                  <div className="flex rounded-xl bg-muted/60 p-1 gap-1">
+                    {[
+                      { mode: "entry" as const, label: "Entr\u00e9e", icon: ArrowDownToLine },
+                      { mode: "exit_anonymous" as const, label: "Sortie", icon: ArrowUpFromLine },
+                    ].map(({ mode, label, icon: ModeIcon }) => (
+                      <button
+                        key={mode}
+                        onClick={() => setActionMode(mode)}
+                        className={cn(
+                          "flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-[13px] font-semibold transition-all",
+                          actionMode === mode
+                            ? "bg-background text-foreground"
+                            : "text-muted-foreground active:text-foreground"
+                        )}
+                      >
+                        <ModeIcon className="size-3.5" />
+                        {label}
+                      </button>
+                    ))}
                   </div>
 
                   {/* Quantity stepper */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                       disabled={quantity <= 1}
-                      className="size-14 rounded-xl border flex items-center justify-center active:bg-muted shrink-0 disabled:opacity-30 min-h-[44px]"
+                      className="size-12 rounded-xl bg-muted/60 flex items-center justify-center active:bg-muted shrink-0 disabled:opacity-30 min-h-[44px]"
                     >
                       <Minus className="size-5" />
                     </button>
@@ -1172,7 +1177,7 @@ export default function ActionsMobileSheet() {
                           handleSubmit();
                         }
                       }}
-                      className="flex-1 h-14 text-2xl font-heading font-bold tabular-nums text-center bg-muted/30 rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="flex-1 h-12 text-2xl font-heading font-bold tabular-nums text-center rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <button
                       onClick={() => {
@@ -1180,7 +1185,7 @@ export default function ActionsMobileSheet() {
                         setQuantity((q) => Math.min(q + 1, max));
                       }}
                       disabled={actionMode !== "entry" && quantity >= product.stock_current}
-                      className="size-14 rounded-xl border flex items-center justify-center active:bg-muted shrink-0 disabled:opacity-30 min-h-[44px]"
+                      className="size-12 rounded-xl bg-muted/60 flex items-center justify-center active:bg-muted shrink-0 disabled:opacity-30 min-h-[44px]"
                     >
                       <Plus className="size-5" />
                     </button>
@@ -1188,7 +1193,7 @@ export default function ActionsMobileSheet() {
 
                   {/* Submit button */}
                   <Button
-                    className="w-full h-14 text-base active:scale-[0.97]"
+                    className="w-full h-12 text-[15px] active:scale-[0.97]"
                     onClick={() => {
                       navigator.vibrate?.(10);
                       handleSubmit();
@@ -1202,7 +1207,7 @@ export default function ActionsMobileSheet() {
                   >
                     {isSubmitting ? (
                       <>
-                        <Loader2 className="size-4 animate-spin" /> En cours\u2026
+                        <Loader2 className="size-4 animate-spin" /> En cours&hellip;
                       </>
                     ) : (
                       submitLabel
@@ -1235,17 +1240,17 @@ export default function ActionsMobileSheet() {
           {scannedProduct && (
             <>
               {/* Product info */}
-              <div className="flex items-center gap-3 mx-4 mb-4 rounded-xl border bg-muted/50 p-3">
+              <div className="flex items-center gap-3 mx-4 mb-3 px-1">
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold truncate">{scannedProduct.name}</p>
+                  <p className="font-semibold text-[15px] truncate">{scannedProduct.name}</p>
                   {scannedProduct.sku && (
                     <p className="text-xs text-muted-foreground font-mono">{scannedProduct.sku}</p>
                   )}
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="font-heading font-bold tabular-nums">
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="font-heading font-bold text-lg tabular-nums">
                     {scannedProduct.stock_current}
-                  </p>
+                  </span>
                   <StatusPill
                     status={getStockBadgeVariant(
                       calculateStockScore(scannedProduct.stock_current, scannedProduct.stock_min)
@@ -1254,46 +1259,40 @@ export default function ActionsMobileSheet() {
                 </div>
               </div>
 
-              {/* Action buttons */}
-              <div className="flex flex-col gap-2 mx-4 mb-4">
-                <button
-                  onClick={() => handleScanAction("entry")}
-                  className="w-full flex items-center gap-3 rounded-xl border p-4 min-h-[56px] active:scale-[0.98] transition-all hover:bg-muted/40"
-                >
-                  <div className="size-9 rounded-full bg-standard-bg flex items-center justify-center shrink-0">
-                    <ArrowDownToLine className="size-5 text-standard" />
-                  </div>
-                  <div className="text-left">
-                    <p className="font-semibold text-sm">Entrer en stock</p>
-                    <p className="text-xs text-muted-foreground">Ajouter au stock</p>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => handleScanAction("exit_anonymous")}
-                  className="w-full flex items-center gap-3 rounded-xl border p-4 min-h-[56px] active:scale-[0.98] transition-all hover:bg-muted/40"
-                >
-                  <div className="size-9 rounded-full bg-critique-bg flex items-center justify-center shrink-0">
-                    <ArrowUpFromLine className="size-5 text-critique" />
-                  </div>
-                  <div className="text-left">
-                    <p className="font-semibold text-sm">Sortie autre</p>
-                    <p className="text-xs text-muted-foreground">Retirer du stock</p>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => handleScanAction("exit_technician")}
-                  className="w-full flex items-center gap-3 rounded-xl border p-4 min-h-[56px] active:scale-[0.98] transition-all hover:bg-muted/40"
-                >
-                  <div className="size-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <HardHat className="size-5 text-primary" />
-                  </div>
-                  <div className="text-left">
-                    <p className="font-semibold text-sm">Sortie technicien</p>
-                    <p className="text-xs text-muted-foreground">Attribuer a un technicien</p>
-                  </div>
-                </button>
+              {/* Action buttons — iOS-style list */}
+              <div className="mx-4 mb-4 rounded-xl border divide-y overflow-hidden">
+                {(
+                  [
+                    {
+                      mode: "entry",
+                      label: "Entr\u00e9e stock",
+                      icon: ArrowDownToLine,
+                      color: "text-standard",
+                    },
+                    {
+                      mode: "exit_anonymous",
+                      label: "Sortie autre",
+                      icon: ArrowUpFromLine,
+                      color: "text-critique",
+                    },
+                    {
+                      mode: "exit_technician",
+                      label: "Sortie technicien",
+                      icon: HardHat,
+                      color: "text-primary",
+                    },
+                  ] as const
+                ).map(({ mode, label, icon: ActionIcon, color }) => (
+                  <button
+                    key={mode}
+                    onClick={() => handleScanAction(mode)}
+                    className="w-full flex items-center gap-3 px-4 py-3.5 min-h-[48px] active:bg-muted/60 transition-colors"
+                  >
+                    <ActionIcon className={cn("size-[18px] shrink-0", color)} />
+                    <span className="font-medium text-[15px]">{label}</span>
+                    <ChevronLeft className="size-4 text-muted-foreground/40 ml-auto rotate-180" />
+                  </button>
+                ))}
               </div>
             </>
           )}
