@@ -793,7 +793,7 @@ export default function ActionsMobileSheet() {
           if (!open) closeDrawer();
         }}
       >
-        <DrawerContent className="max-h-[85vh] flex flex-col">
+        <DrawerContent className="max-h-[92vh] flex flex-col">
           {/* Accessible title (visually hidden — grab handle + step label handle visual) */}
           <DrawerTitle className="sr-only">{drawerTitle}</DrawerTitle>
 
@@ -1130,28 +1130,6 @@ export default function ActionsMobileSheet() {
                         <StatusPill status={stockStatus} />
                       </div>
                     </div>
-                  </div>
-
-                  {/* Entr\u00e9e / Sortie toggle */}
-                  <div className="flex rounded-xl bg-muted/60 p-1 gap-1">
-                    {[
-                      { mode: "entry" as const, label: "Entr\u00e9e", icon: ArrowDownToLine },
-                      { mode: "exit_anonymous" as const, label: "Sortie", icon: ArrowUpFromLine },
-                    ].map(({ mode, label, icon: ModeIcon }) => (
-                      <button
-                        key={mode}
-                        onClick={() => setActionMode(mode)}
-                        className={cn(
-                          "flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-[13px] font-semibold transition-all",
-                          actionMode === mode
-                            ? "bg-background text-foreground"
-                            : "text-muted-foreground active:text-foreground"
-                        )}
-                      >
-                        <ModeIcon className="size-3.5" />
-                        {label}
-                      </button>
-                    ))}
                   </div>
 
                   {/* Quantity stepper */}
