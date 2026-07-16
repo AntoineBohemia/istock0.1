@@ -1036,83 +1036,6 @@ export default function ActionsMobileSheet() {
                       </p>
                     </div>
                   )}
-
-                  {/* ── Cart section (exit_technician) ── */}
-                  {actionMode === "exit_technician" && cart.length > 0 && (
-                    <div className="mt-4 rounded-xl border bg-card p-3 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                          Panier
-                        </p>
-                        <span className="text-xs text-muted-foreground tabular-nums font-heading">
-                          {cart.length} prod. &middot; {cartTotalItems} items
-                        </span>
-                      </div>
-
-                      <ul className="space-y-2.5">
-                        {cart.map((item) => (
-                          <li key={item.product.id} className="flex items-center gap-3">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{item.product.name}</p>
-                              <p className="text-[11px] text-muted-foreground">
-                                dispo {item.product.stock_current}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => updateCartQty(item.product.id, -1)}
-                                disabled={item.quantity <= 1}
-                                className="size-9 rounded-lg border flex items-center justify-center active:bg-muted disabled:opacity-30 min-h-[44px]"
-                              >
-                                <Minus className="size-3.5" />
-                              </button>
-                              <input
-                                type="number"
-                                min={1}
-                                max={item.product.stock_current}
-                                value={item.quantity}
-                                onChange={(e) =>
-                                  setCartQty(item.product.id, parseInt(e.target.value) || 1)
-                                }
-                                className="w-10 text-center font-heading font-bold tabular-nums text-sm bg-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                              />
-                              <button
-                                onClick={() => updateCartQty(item.product.id, 1)}
-                                disabled={item.quantity >= item.product.stock_current}
-                                className="size-9 rounded-lg border flex items-center justify-center active:bg-muted disabled:opacity-30 min-h-[44px]"
-                              >
-                                <Plus className="size-3.5" />
-                              </button>
-                            </div>
-                            <button
-                              onClick={() => removeFromCart(item.product.id)}
-                              className="text-muted-foreground active:text-destructive transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-                            >
-                              <Trash2 className="size-4" />
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-
-                      <Button
-                        onClick={handleBatchSubmit}
-                        disabled={isSubmitting}
-                        className="w-full h-12 text-base active:scale-[0.97]"
-                      >
-                        {isBatchSubmitting ? (
-                          <>
-                            <Loader2 className="size-4 animate-spin" /> En cours\u2026
-                          </>
-                        ) : (
-                          <>
-                            <ArrowUpFromLine className="size-4" />
-                            Valider la sortie ({cart.length} produit
-                            {cart.length > 1 ? "s" : ""})
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  )}
                 </motion.div>
               )}
 
@@ -1275,6 +1198,78 @@ export default function ActionsMobileSheet() {
               )}
             </AnimatePresence>
           </div>
+
+          {/* ── Sticky cart footer (exit_technician) ── */}
+          {actionMode === "exit_technician" && drawerStep === "products" && cart.length > 0 && (
+            <div className="shrink-0 border-t bg-background px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Panier
+                </p>
+                <span className="text-xs text-muted-foreground tabular-nums font-heading">
+                  {cart.length} prod. &middot; {cartTotalItems} unit{"\u00E9"}s
+                </span>
+              </div>
+
+              <ul className="space-y-2 max-h-40 overflow-y-auto mb-3">
+                {cart.map((item) => (
+                  <li key={item.product.id} className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-medium truncate">{item.product.name}</p>
+                    </div>
+                    <div className="flex items-center gap-0.5">
+                      <button
+                        onClick={() => updateCartQty(item.product.id, -1)}
+                        disabled={item.quantity <= 1}
+                        className="size-8 rounded-lg border flex items-center justify-center active:bg-muted disabled:opacity-30"
+                      >
+                        <Minus className="size-3" />
+                      </button>
+                      <input
+                        type="number"
+                        min={1}
+                        max={item.product.stock_current}
+                        value={item.quantity}
+                        onChange={(e) => setCartQty(item.product.id, parseInt(e.target.value) || 1)}
+                        className="w-8 text-center font-heading font-bold tabular-nums text-sm bg-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <button
+                        onClick={() => updateCartQty(item.product.id, 1)}
+                        disabled={item.quantity >= item.product.stock_current}
+                        className="size-8 rounded-lg border flex items-center justify-center active:bg-muted disabled:opacity-30"
+                      >
+                        <Plus className="size-3" />
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => removeFromCart(item.product.id)}
+                      className="text-muted-foreground active:text-destructive transition-colors min-h-[44px] flex items-center justify-center pl-1"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+
+              <Button
+                onClick={handleBatchSubmit}
+                disabled={isSubmitting}
+                className="w-full h-12 text-[15px] active:scale-[0.97]"
+              >
+                {isBatchSubmitting ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" /> En cours&hellip;
+                  </>
+                ) : (
+                  <>
+                    <ArrowUpFromLine className="size-4" />
+                    Valider la sortie ({cart.length} produit
+                    {cart.length > 1 ? "s" : ""})
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </DrawerContent>
       </Drawer>
 
