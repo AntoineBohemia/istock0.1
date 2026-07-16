@@ -8,6 +8,7 @@ import {
   removeMember,
   inviteUserToOrganization,
   cancelInvitation,
+  resendInvitation,
   createOrganization,
   updateOrganization,
   deleteOrganization,
@@ -19,15 +20,8 @@ import {
 export function useCreateOrganization() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      name,
-      slug,
-      logoUrl,
-    }: {
-      name: string;
-      slug: string;
-      logoUrl?: string;
-    }) => createOrganization(name, slug, logoUrl),
+    mutationFn: ({ name, slug, logoUrl }: { name: string; slug: string; logoUrl?: string }) =>
+      createOrganization(name, slug, logoUrl),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.organizations.list() });
     },
@@ -49,9 +43,7 @@ export function useUpdateOrganization() {
       await qc.cancelQueries({ queryKey: key });
       const previous = qc.getQueryData(key);
       qc.setQueryData(key, (old: Organization[] | undefined) =>
-        old
-          ? old.map((org) => (org.id === id ? { ...org, ...data } : org))
-          : old
+        old ? old.map((org) => (org.id === id ? { ...org, ...data } : org)) : old
       );
       return { previous, key };
     },
@@ -120,20 +112,13 @@ export function useUpdateMemberRole() {
 export function useRemoveMember() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      organizationId,
-      userId,
-    }: {
-      organizationId: string;
-      userId: string;
-    }) => removeMember(organizationId, userId),
+    mutationFn: ({ organizationId, userId }: { organizationId: string; userId: string }) =>
+      removeMember(organizationId, userId),
     onMutate: async ({ organizationId, userId }) => {
       const key = queryKeys.organizations.members(organizationId);
       await qc.cancelQueries({ queryKey: key });
       const previous = qc.getQueryData(key);
-      qc.setQueryData(key, (old: any[]) =>
-        old ? old.filter((m) => m.user_id !== userId) : old
-      );
+      qc.setQueryData(key, (old: any[]) => (old ? old.filter((m) => m.user_id !== userId) : old));
       return { previous, key };
     },
     onError: (_err, _vars, context) => {
@@ -182,13 +167,8 @@ export function useLeaveOrganization() {
 export function useTransferOwnership() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      organizationId,
-      newOwnerId,
-    }: {
-      organizationId: string;
-      newOwnerId: string;
-    }) => transferOwnership(organizationId, newOwnerId),
+    mutationFn: ({ organizationId, newOwnerId }: { organizationId: string; newOwnerId: string }) =>
+      transferOwnership(organizationId, newOwnerId),
     onSettled: (_data, _err, { organizationId }) => {
       qc.invalidateQueries({ queryKey: queryKeys.organizations.list() });
       qc.invalidateQueries({
@@ -212,9 +192,7 @@ export function useCancelInvitation() {
       const key = queryKeys.organizations.invitations(organizationId);
       await qc.cancelQueries({ queryKey: key });
       const previous = qc.getQueryData(key);
-      qc.setQueryData(key, (old: any[]) =>
-        old ? old.filter((i) => i.id !== invitationId) : old
-      );
+      qc.setQueryData(key, (old: any[]) => (old ? old.filter((i) => i.id !== invitationId) : old));
       return { previous, key };
     },
     onError: (_err, _vars, context) => {
@@ -222,6 +200,24 @@ export function useCancelInvitation() {
         qc.setQueryData(context.key, context.previous);
       }
     },
+    onSettled: (_data, _err, { organizationId }) => {
+      qc.invalidateQueries({
+        queryKey: queryKeys.organizations.invitations(organizationId),
+      });
+    },
+  });
+}
+
+export function useResendInvitation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      invitationId,
+      organizationId,
+    }: {
+      invitationId: string;
+      organizationId: string;
+    }) => resendInvitation(invitationId, organizationId),
     onSettled: (_data, _err, { organizationId }) => {
       qc.invalidateQueries({
         queryKey: queryKeys.organizations.invitations(organizationId),

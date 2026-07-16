@@ -17,6 +17,7 @@ import {
   removeMember,
   getPendingInvitations,
   cancelInvitation,
+  resendInvitation,
   getInvitationByToken,
   createOrganization,
   updateOrganization,
@@ -545,6 +546,31 @@ describe("cancelInvitation", () => {
   });
 });
 
+// ─── resendInvitation ────────────────────────────────────────────────
+describe("resendInvitation", () => {
+  it("updates token and expiry, returns emailSent status", async () => {
+    mockClient.auth.getUser = vi.fn().mockResolvedValue({
+      data: { user: { id: "user-1", email: "admin@test.com" } },
+      error: null,
+    });
+    mockClient._setResults([
+      { data: { email: "invitee@test.com", role: "member" }, error: null },
+      { data: { name: "My Org" }, error: null },
+    ]);
+
+    const result = await resendInvitation("inv-1", "org-1");
+
+    expect(mockClient.update).toHaveBeenCalled();
+    expect(result).toHaveProperty("emailSent");
+  });
+
+  it("throws on update error", async () => {
+    mockClient._setResult({ data: null, error: { message: "Update failed" } });
+
+    await expect(resendInvitation("inv-1", "org-1")).rejects.toThrow("Update failed");
+  });
+});
+
 // ─── getInvitationByToken (RPC-based) ────────────────────────────────
 describe("getInvitationByToken", () => {
   it("returns invitation details when valid", async () => {
@@ -580,12 +606,30 @@ describe("getInvitationByToken", () => {
     expect(result).toBeNull();
   });
 
-  it("returns null when data is not valid", async () => {
-    mockClient._setResult({ data: { valid: false }, error: null });
+  it("returns data with reason when not valid (already_accepted)", async () => {
+    mockClient._setResult({
+      data: { valid: false, reason: "already_accepted" },
+      error: null,
+    });
+
+    const result = await getInvitationByToken("accepted-token");
+
+    expect(result).not.toBeNull();
+    expect(result!.valid).toBe(false);
+    expect(result!.reason).toBe("already_accepted");
+  });
+
+  it("returns data with reason when expired", async () => {
+    mockClient._setResult({
+      data: { valid: false, reason: "expired" },
+      error: null,
+    });
 
     const result = await getInvitationByToken("expired-token");
 
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(result!.valid).toBe(false);
+    expect(result!.reason).toBe("expired");
   });
 });
 

@@ -29,12 +29,6 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   });
 }
 
-interface ProductOrgStock {
-  organization_id: string;
-  stock_current: number;
-  organization?: { name: string } | null;
-}
-
 async function getProduct(id: string) {
   const supabase = await createClient();
   const { data: product, error } = await supabase
@@ -46,7 +40,7 @@ async function getProduct(id: string) {
     .single();
 
   if (error || !product) return null;
-  return product as typeof product & { product_organization_stock?: ProductOrgStock[] };
+  return product;
 }
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {

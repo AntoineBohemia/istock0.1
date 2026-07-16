@@ -17,6 +17,7 @@ import {
   Clock,
   X,
   Eye,
+  Send,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -69,6 +70,7 @@ import {
   useRemoveMember,
   useInviteUser,
   useCancelInvitation,
+  useResendInvitation,
   useTransferOwnership,
 } from "@/hooks/mutations";
 
@@ -98,6 +100,7 @@ export default function MembersPage() {
   const removeMemberMutation = useRemoveMember();
   const inviteUserMutation = useInviteUser();
   const cancelInvitationMutation = useCancelInvitation();
+  const resendInvitationMutation = useResendInvitation();
   const transferOwnershipMutation = useTransferOwnership();
 
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
@@ -222,6 +225,26 @@ export default function MembersPage() {
         onSuccess: () => toast.success("Invitation annulée"),
         onError: (error) => {
           toast.error(error instanceof Error ? error.message : "Erreur lors de l'annulation");
+        },
+      }
+    );
+  };
+
+  const handleResendInvitation = (invitationId: string) => {
+    if (!currentOrganization) return;
+
+    resendInvitationMutation.mutate(
+      { invitationId, organizationId: currentOrganization.id },
+      {
+        onSuccess: (result) => {
+          if (result.emailSent) {
+            toast.success("Invitation renvoyée par email !");
+          } else {
+            toast.warning("Invitation renouvelée mais l'email n'a pas pu être envoyé.");
+          }
+        },
+        onError: (error) => {
+          toast.error(error instanceof Error ? error.message : "Erreur lors du renvoi");
         },
       }
     );
@@ -500,6 +523,16 @@ export default function MembersPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          onClick={() => handleResendInvitation(invitation.id)}
+                          title="Renvoyer l'invitation"
+                          disabled={resendInvitationMutation.isPending}
+                        >
+                          <Send className="size-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"

@@ -359,6 +359,65 @@ export async function cancelInvitation(invitationId: string): Promise<void> {
 }
 
 /**
+ * Renvoie une invitation : reset token + expiration + re-envoie l'email
+ */
+export async function resendInvitation(
+  invitationId: string,
+  organizationId: string
+): Promise<{ emailSent: boolean }> {
+  const supabase = createClient();
+
+  const newToken = crypto.randomUUID();
+  const newExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: invitation, error } = await supabase
+    .from("organization_invitations")
+    .update({ token: newToken, expires_at: newExpiry })
+    .eq("id", invitationId)
+    .select("email, role")
+    .single();
+
+  if (error) {
+    throw new Error(`Erreur lors du renvoi: ${error.message}`);
+  }
+
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("name")
+    .eq("id", organizationId)
+    .single();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const inviterName =
+    user?.user_metadata?.full_name || user?.user_metadata?.first_name || user?.email || "Quelqu'un";
+
+  let emailSent = false;
+  try {
+    const { data: emailResult, error: emailError } = await supabase.functions.invoke(
+      "send-invitation-email",
+      {
+        body: {
+          email: invitation.email,
+          token: newToken,
+          organization_name: org?.name || "Organisation",
+          role: invitation.role,
+          invited_by_name: inviterName,
+        },
+      }
+    );
+    if (!emailError) {
+      emailSent = emailResult?.success === true && !emailResult?.skipped;
+    }
+  } catch {
+    // best-effort
+  }
+
+  return { emailSent };
+}
+
+/**
  * Récupère les détails d'une invitation par token via RPC sécurisé
  */
 export interface InvitationDetails {
