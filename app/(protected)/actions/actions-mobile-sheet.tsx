@@ -24,7 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ui/status-pill";
-import { HeroNumber } from "@/components/ui/hero-number";
+
 import {
   Drawer,
   DrawerContent,
@@ -215,9 +215,6 @@ export default function ActionsMobileSheet() {
   );
   const techFullName = selectedTech ? `${selectedTech.first_name} ${selectedTech.last_name}` : "";
   const cartTotalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-
-  const stockScore = product ? calculateStockScore(product.stock_current, product.stock_min) : 0;
-  const stockStatus = product ? getStockBadgeVariant(stockScore) : "standard";
 
   const submitLabel = useMemo(() => {
     if (!actionMode) return "";
@@ -499,7 +496,7 @@ export default function ActionsMobileSheet() {
         { onSuccess, onError }
       );
     }
-  }, [product, orgId, quantity, actionMode, isSubmitting, createEntry, createExit]);
+  }, [product, orgId, quantity, actionMode, isSubmitting, createEntry, createExit, unitPrice]);
 
   // ─── Submit batch (exit_technician) ───────────────────
   const handleBatchSubmit = useCallback(async () => {
@@ -1383,10 +1380,12 @@ export default function ActionsMobileSheet() {
         open={batchScanOpen}
         onClose={() => {
           setBatchScanOpen(false);
-          // Reopen drawer on cart step if items were scanned
+          // Wait for scanner to fully unmount, then reopen drawer on cart
           if (cart.length > 0) {
-            setDrawerStep("cart");
-            setDrawerOpen(true);
+            setTimeout(() => {
+              setDrawerStep("cart");
+              setDrawerOpen(true);
+            }, 150);
           }
         }}
         onScan={handleBatchScan}
@@ -1395,11 +1394,7 @@ export default function ActionsMobileSheet() {
         bottomContent={
           cart.length > 0 ? (
             <button
-              onClick={() => {
-                setBatchScanOpen(false);
-                setDrawerStep("cart");
-                setDrawerOpen(true);
-              }}
+              onClick={() => setBatchScanOpen(false)}
               className="w-full flex items-center justify-center gap-2 rounded-xl bg-white text-foreground py-3 font-semibold text-[15px] active:scale-[0.97] transition-all"
             >
               <Package className="size-4" />

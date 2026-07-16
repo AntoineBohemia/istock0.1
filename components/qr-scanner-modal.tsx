@@ -15,7 +15,7 @@ interface QrScannerModalProps {
   continuous?: boolean;
   /** Label shown in top bar (defaults to "Scanner un QR") */
   title?: string;
-  /** Content shown at the bottom (e.g. cart count) */
+  /** Content shown at the bottom */
   bottomContent?: React.ReactNode;
 }
 
@@ -154,7 +154,22 @@ export default function QrScannerModal({
     };
   }, [open, stopScanner]);
 
+  // Track if close was already handled (to avoid double-firing onClose)
+  const closedByHandleClose = useRef(false);
+
+  // When open transitions to false externally (not via X button), fire onClose
+  const prevOpenRef = useRef(open);
+  useEffect(() => {
+    if (prevOpenRef.current && !open && !closedByHandleClose.current) {
+      stopScanner();
+      onCloseRef.current();
+    }
+    if (open) closedByHandleClose.current = false;
+    prevOpenRef.current = open;
+  }, [open, stopScanner]);
+
   const handleClose = () => {
+    closedByHandleClose.current = true;
     stopScanner();
     onClose();
   };
