@@ -11,6 +11,7 @@ AS $$
 DECLARE
   v_invitation RECORD;
   v_masked_email TEXT;
+  v_user_exists BOOLEAN;
 BEGIN
   SELECT
     i.id, i.email, i.role, i.expires_at, i.accepted_at, i.created_at,
@@ -32,6 +33,11 @@ BEGIN
     RETURN jsonb_build_object('valid', false, 'reason', 'expired');
   END IF;
 
+  -- Check if a user account exists for this email
+  SELECT EXISTS (
+    SELECT 1 FROM auth.users WHERE lower(email) = lower(v_invitation.email)
+  ) INTO v_user_exists;
+
   v_masked_email := substring(v_invitation.email from 1 for 1)
     || '***'
     || substring(v_invitation.email from position('@' in v_invitation.email) - 1 for 1)
@@ -44,7 +50,8 @@ BEGIN
     'role', v_invitation.role,
     'expires_at', v_invitation.expires_at,
     'organization_name', v_invitation.organization_name,
-    'organization_logo_url', v_invitation.organization_logo_url
+    'organization_logo_url', v_invitation.organization_logo_url,
+    'user_exists', v_user_exists
   );
 END;
 $$;

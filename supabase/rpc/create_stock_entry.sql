@@ -38,7 +38,15 @@ BEGIN
   RETURNING id, product_id, quantity, movement_type, technician_id, organization_id, created_at, supplier_id, unit_price
   INTO v_movement;
 
-  -- Increment stock (price is never updated here — use product edit for that)
+  -- Increment per-org stock
+  INSERT INTO product_organization_stock (product_id, organization_id, stock_current)
+  VALUES (p_product_id, p_organization_id, p_quantity)
+  ON CONFLICT (product_id, organization_id)
+  DO UPDATE SET
+    stock_current = product_organization_stock.stock_current + p_quantity,
+    updated_at = NOW();
+
+  -- Increment global stock cache
   UPDATE products
   SET stock_current = stock_current + p_quantity,
       updated_at = NOW()

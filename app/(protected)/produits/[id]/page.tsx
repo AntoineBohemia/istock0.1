@@ -33,7 +33,9 @@ async function getProduct(id: string) {
   const supabase = await createClient();
   const { data: product, error } = await supabase
     .from("products")
-    .select("*, category:categories(*), supplier:suppliers(*)")
+    .select(
+      "*, category:categories(*), supplier:suppliers(*), product_organization_stock(organization_id, stock_current, organization:organizations(name))"
+    )
     .eq("id", id)
     .single();
 
@@ -102,6 +104,24 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               <div className="mt-2">
                 <StatusPill status={stockBadgeVariant} />
               </div>
+              {/* Per-org breakdown */}
+              {product.product_organization_stock &&
+                product.product_organization_stock.length > 1 && (
+                  <div className="flex items-center gap-3 mt-3">
+                    {product.product_organization_stock
+                      .filter((pos: any) => pos.stock_current > 0)
+                      .sort((a: any, b: any) => b.stock_current - a.stock_current)
+                      .map((pos: any) => (
+                        <span
+                          key={pos.organization_id}
+                          className="text-xs text-muted-foreground tabular-nums"
+                        >
+                          <span className="font-medium text-foreground">{pos.stock_current}</span>{" "}
+                          {pos.organization?.name ?? "—"}
+                        </span>
+                      ))}
+                  </div>
+                )}
             </div>
             <StockActions productId={id} />
           </div>

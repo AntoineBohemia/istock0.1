@@ -1,30 +1,9 @@
 -- ============================================================================
--- get_health_score(p_organization_id UUID) → JSONB
--- ============================================================================
--- Single RPC powering the dashboard header: score + penalties + trend + KPIs.
---
--- Return shape:
--- {
---   score        : 0-100,
---   label        : "Sous contrôle" | "Quelques points d'attention" | "Situation dégradée" | "Action urgente requise",
---   color        : "green" | "orange" | "red",
---   penalties    : [{ type, points, count, details }],
---   trend        : { previous_score: int|null, direction: "up"|"down"|"stable" },
---   kpi          : { total_stock, total_value, entries_month, exits_month, entries_prev_month, exits_prev_month }
--- }
---
--- Penalty rules (budget = 100):
---   1. product_out_of_stock   : stock=0, non-archived                     → -15/product, cap 60
---   2. product_below_min      : 0 < stock ≤ stock_min                     → -4/product,  cap 20
---   3. tech_never_restocked   : TEMPORAIREMENT DÉSACTIVÉ                  → -8/tech,     cap 40
---   4. tech_late_restock      : TEMPORAIREMENT DÉSACTIVÉ                  → -5/tech,     cap 20
---   5. exits_exceed_entries   : exits_30d > entries_30d × 1.3             → -10 fixed
---   6. no_recent_entries      : 0 entries in last 14 days                 → -5 fixed
---
--- Previous-month score: penalties re-evaluated with retro-calculated stocks
--- (same method as getGlobalStockEvolution: stock_end_prev = stock_now + exits_this_month - entries_this_month).
+-- Phase 3: Update read RPCs to include per-org stock breakdown
+-- Additive changes — existing fields unchanged, new stock_by_org field added
 -- ============================================================================
 
+-- 1. get_health_score — add stock_by_org to KPI
 CREATE OR REPLACE FUNCTION get_health_score(
   p_organization_id UUID
 )
@@ -33,7 +12,6 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  -- Current score
   v_score        INTEGER := 100;
   v_penalties    JSONB   := '[]'::JSONB;
   v_count        INTEGER;
@@ -41,7 +19,6 @@ DECLARE
   v_label        TEXT;
   v_color        TEXT;
 
-  -- KPI accumulators
   v_total_stock       BIGINT;
   v_total_value       NUMERIC;
   v_entries_month     BIGINT;
@@ -50,32 +27,26 @@ DECLARE
   v_exits_prev        BIGINT;
   v_stock_by_org      JSONB;
 
-  -- Previous-month score
   v_prev_score        INTEGER := 100;
-  v_prev_stock_arr    RECORD;
 
-  -- Shared dates
   v_month_start       TIMESTAMPTZ := date_trunc('month', CURRENT_DATE);
   v_prev_month_start  TIMESTAMPTZ := date_trunc('month', CURRENT_DATE - INTERVAL '1 month');
 
-  -- Movement helpers
   v_entries_30d       NUMERIC;
   v_exits_30d         NUMERIC;
   v_has_recent_entry  BOOLEAN;
 
-  -- Prev-month movement helpers
   v_prev_entries_30d  NUMERIC;
   v_prev_exits_30d    NUMERIC;
   v_prev_has_entry    BOOLEAN;
 
-  -- Trend
   v_direction         TEXT;
 BEGIN
   -- ══════════════════════════════════════════════════════════════════════
-  -- KPIs  (replaces separate get_dashboard_stats call)
+  -- KPIs
   -- ══════════════════════════════════════════════════════════════════════
 
-  -- Current stock & value (non-archived products only)
+  -- Current stock & value (global, from products table)
   SELECT
     COALESCE(SUM(stock_current), 0),
     COALESCE(SUM(stock_current * COALESCE(price, 0)), 0)
@@ -165,56 +136,7 @@ BEGIN
 
   -- ══════════════════════════════════════════════════════════════════════
   -- TEMPORAIREMENT DÉSACTIVÉ : Penalty 3 & 4 (techniciens restock)
-  -- Les pénalités techniciens sont désactivées le temps de stabiliser
-  -- la feature. Réactiver quand prêt.
   -- ══════════════════════════════════════════════════════════════════════
-
-  -- Penalty 3: tech_never_restocked (-8/tech, cap 40)
-  -- SELECT COUNT(*) INTO v_count
-  -- FROM technicians t
-  -- WHERE t.organization_id = p_organization_id
-  --   AND t.archived_at IS NULL
-  --   AND NOT EXISTS (
-  --     SELECT 1 FROM technician_inventory_history h
-  --     WHERE h.technician_id = t.id
-  --   );
-  --
-  -- IF v_count > 0 THEN
-  --   v_points := LEAST(v_count * 8, 40);
-  --   v_score  := v_score - v_points;
-  --   v_penalties := v_penalties || jsonb_build_array(jsonb_build_object(
-  --     'type',    'tech_never_restocked',
-  --     'points',  v_points,
-  --     'count',   v_count,
-  --     'details', v_count || ' technicien(s) jamais restocké(s)'
-  --   ));
-  -- END IF;
-
-  -- Penalty 4: tech_late_restock (-5/tech, cap 20)
-  -- SELECT COUNT(*) INTO v_count
-  -- FROM technicians t
-  -- WHERE t.organization_id = p_organization_id
-  --   AND t.archived_at IS NULL
-  --   AND EXISTS (
-  --     SELECT 1 FROM technician_inventory_history h
-  --     WHERE h.technician_id = t.id
-  --   )
-  --   AND (
-  --     SELECT MAX(h.created_at)
-  --     FROM technician_inventory_history h
-  --     WHERE h.technician_id = t.id
-  --   ) < NOW() - INTERVAL '7 days';
-  --
-  -- IF v_count > 0 THEN
-  --   v_points := LEAST(v_count * 5, 20);
-  --   v_score  := v_score - v_points;
-  --   v_penalties := v_penalties || jsonb_build_array(jsonb_build_object(
-  --     'type',    'tech_late_restock',
-  --     'points',  v_points,
-  --     'count',   v_count,
-  --     'details', v_count || ' technicien(s) non restocké(s) depuis 7+ jours'
-  --   ));
-  -- END IF;
 
   -- ══════════════════════════════════════════════════════════════════════
   -- Penalty 5: exits_exceed_entries — exits_30d > entries_30d × 1.3 (-10)
@@ -257,7 +179,6 @@ BEGIN
     ));
   END IF;
 
-  -- Clamp
   v_score := GREATEST(0, v_score);
 
   -- ══════════════════════════════════════════════════════════════════════
@@ -274,12 +195,8 @@ BEGIN
   END IF;
 
   -- ══════════════════════════════════════════════════════════════════════
-  -- PREVIOUS-MONTH SCORE  (retro-calculated, same penalty logic)
-  -- Retro-stock: stock_prev_month_end = stock_current + exits_this_month - entries_this_month
-  -- (per-product, so we can check out-of-stock / below-min accurately)
+  -- PREVIOUS-MONTH SCORE
   -- ══════════════════════════════════════════════════════════════════════
-
-  -- Penalty 1 prev: out of stock last month end
   WITH retro AS (
     SELECT
       p.id,
@@ -308,10 +225,9 @@ BEGIN
   SELECT
     COUNT(*) FILTER (WHERE prev_stock <= 0),
     COUNT(*) FILTER (WHERE prev_stock > 0 AND stock_min > 0 AND prev_stock <= stock_min)
-  INTO v_count, v_points  -- reuse v_points as second counter temporarily
+  INTO v_count, v_points
   FROM retro;
 
-  -- Apply prev penalties for stock
   IF v_count > 0 THEN
     v_prev_score := v_prev_score - LEAST(v_count * 15, 60);
   END IF;
@@ -319,44 +235,6 @@ BEGIN
     v_prev_score := v_prev_score - LEAST(v_points * 4, 20);
   END IF;
 
-  -- TEMPORAIREMENT DÉSACTIVÉ : Penalty 3 & 4 prev (techniciens restock)
-  -- Penalty 3 prev: techs never restocked as of prev month end
-  -- SELECT COUNT(*) INTO v_count
-  -- FROM technicians t
-  -- WHERE t.organization_id = p_organization_id
-  --   AND t.archived_at IS NULL
-  --   AND NOT EXISTS (
-  --     SELECT 1 FROM technician_inventory_history h
-  --     WHERE h.technician_id = t.id
-  --       AND h.created_at < v_month_start
-  --   );
-  --
-  -- IF v_count > 0 THEN
-  --   v_prev_score := v_prev_score - LEAST(v_count * 8, 40);
-  -- END IF;
-
-  -- Penalty 4 prev: techs with last restock > 7d as of prev month end
-  -- SELECT COUNT(*) INTO v_count
-  -- FROM technicians t
-  -- WHERE t.organization_id = p_organization_id
-  --   AND t.archived_at IS NULL
-  --   AND EXISTS (
-  --     SELECT 1 FROM technician_inventory_history h
-  --     WHERE h.technician_id = t.id
-  --       AND h.created_at < v_month_start
-  --   )
-  --   AND (
-  --     SELECT MAX(h.created_at)
-  --     FROM technician_inventory_history h
-  --     WHERE h.technician_id = t.id
-  --       AND h.created_at < v_month_start
-  --   ) < v_month_start - INTERVAL '7 days';
-  --
-  -- IF v_count > 0 THEN
-  --   v_prev_score := v_prev_score - LEAST(v_count * 5, 20);
-  -- END IF;
-
-  -- Penalty 5 prev: exits > entries 30d window ending at prev month end
   SELECT
     COALESCE(SUM(quantity) FILTER (WHERE movement_type = 'entry'), 0),
     COALESCE(SUM(quantity) FILTER (WHERE movement_type != 'entry'), 0)
@@ -370,7 +248,6 @@ BEGIN
     v_prev_score := v_prev_score - 10;
   END IF;
 
-  -- Penalty 6 prev: no entries in 14d window ending at prev month end
   SELECT EXISTS (
     SELECT 1 FROM stock_movements
     WHERE organization_id = p_organization_id
@@ -385,7 +262,6 @@ BEGIN
 
   v_prev_score := GREATEST(0, v_prev_score);
 
-  -- Trend direction
   IF v_score > v_prev_score THEN
     v_direction := 'up';
   ELSIF v_score < v_prev_score THEN
@@ -416,5 +292,100 @@ BEGIN
       'exits_prev_month',  v_exits_prev
     )
   );
+END;
+$$;
+
+
+-- 2. get_dashboard_stats — add stockByOrg breakdown
+CREATE OR REPLACE FUNCTION get_dashboard_stats(
+  p_organization_id UUID DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_result JSONB;
+  v_stock_by_org JSONB;
+BEGIN
+  -- Per-org stock breakdown
+  SELECT COALESCE(jsonb_agg(row_data ORDER BY row_data->>'org_name'), '[]'::JSONB)
+  INTO v_stock_by_org
+  FROM (
+    SELECT jsonb_build_object(
+      'org_id', pos.organization_id,
+      'org_name', o.name,
+      'stock', SUM(pos.stock_current),
+      'value', SUM(pos.stock_current * COALESCE(p.price, 0))
+    ) AS row_data
+    FROM product_organization_stock pos
+    JOIN products p ON p.id = pos.product_id
+    JOIN organizations o ON o.id = pos.organization_id
+    WHERE (p_organization_id IS NULL OR p.organization_id = p_organization_id)
+      AND p.archived_at IS NULL
+    GROUP BY pos.organization_id, o.name
+  ) sub;
+
+  WITH product_stats AS (
+    SELECT
+      COALESCE(SUM(stock_current), 0) AS total_stock,
+      COALESCE(SUM(stock_current * COALESCE(price, 0)), 0) AS total_value,
+      COUNT(*) AS total_products,
+      COUNT(*) FILTER (
+        WHERE COALESCE(stock_current, 0) <= COALESCE(stock_min, 0)
+      ) AS low_stock_count
+    FROM products
+    WHERE (p_organization_id IS NULL OR organization_id = p_organization_id)
+      AND archived_at IS NULL
+  ),
+  movement_stats AS (
+    SELECT
+      COALESCE(SUM(quantity) FILTER (WHERE movement_type = 'entry'), 0) AS monthly_entries,
+      COALESCE(SUM(quantity) FILTER (WHERE movement_type != 'entry'), 0) AS monthly_exits
+    FROM stock_movements
+    WHERE (p_organization_id IS NULL OR organization_id = p_organization_id)
+      AND created_at >= date_trunc('month', CURRENT_DATE)
+  ),
+  prev_movement_stats AS (
+    SELECT
+      COALESCE(SUM(quantity) FILTER (WHERE movement_type = 'entry'), 0) AS prev_monthly_entries,
+      COALESCE(SUM(quantity) FILTER (WHERE movement_type != 'entry'), 0) AS prev_monthly_exits
+    FROM stock_movements
+    WHERE (p_organization_id IS NULL OR organization_id = p_organization_id)
+      AND created_at >= date_trunc('month', CURRENT_DATE - INTERVAL '1 month')
+      AND created_at < date_trunc('month', CURRENT_DATE)
+  ),
+  prev_stock AS (
+    SELECT
+      COALESCE(SUM(stock_current), 0)
+        + COALESCE((SELECT SUM(quantity) FILTER (WHERE movement_type != 'entry') FROM stock_movements
+            WHERE (p_organization_id IS NULL OR organization_id = p_organization_id)
+              AND created_at >= date_trunc('month', CURRENT_DATE)), 0)
+        - COALESCE((SELECT SUM(quantity) FILTER (WHERE movement_type = 'entry') FROM stock_movements
+            WHERE (p_organization_id IS NULL OR organization_id = p_organization_id)
+              AND created_at >= date_trunc('month', CURRENT_DATE)), 0)
+      AS prev_month_stock,
+      COALESCE(SUM(stock_current * COALESCE(price, 0)), 0) AS current_value
+    FROM products
+    WHERE (p_organization_id IS NULL OR organization_id = p_organization_id)
+      AND archived_at IS NULL
+  )
+  SELECT jsonb_build_object(
+    'totalStock', ps.total_stock,
+    'totalValue', ps.total_value,
+    'totalProducts', ps.total_products,
+    'lowStockCount', ps.low_stock_count,
+    'stockByOrg', v_stock_by_org,
+    'monthlyEntries', ms.monthly_entries,
+    'monthlyExits', ms.monthly_exits,
+    'prevMonthEntries', pms.prev_monthly_entries,
+    'prevMonthExits', pms.prev_monthly_exits,
+    'prevMonthStock', pvs.prev_month_stock,
+    'prevMonthValue', ROUND(pvs.prev_month_stock::NUMERIC / NULLIF(ps.total_stock, 0) * ps.total_value)
+  )
+  INTO v_result
+  FROM product_stats ps, movement_stats ms, prev_movement_stats pms, prev_stock pvs;
+
+  RETURN v_result;
 END;
 $$;

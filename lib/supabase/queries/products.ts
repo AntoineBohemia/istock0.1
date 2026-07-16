@@ -21,9 +21,16 @@ export interface Product {
   archived_at: string | null;
 }
 
+export interface ProductOrgStock {
+  organization_id: string;
+  stock_current: number;
+  organization?: { name: string } | null;
+}
+
 export interface ProductWithRelations extends Product {
   category?: Category | null;
   supplier?: Supplier | null;
+  product_organization_stock?: ProductOrgStock[];
 }
 
 export interface ProductFilters {
@@ -78,7 +85,11 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
   const { organizationId, search, categoryId, minPrice, maxPrice, stockStatus } = filters;
 
   // Construire la requête de base
-  let query = supabase.from("products").select("*, category:categories(*), supplier:suppliers(*)");
+  let query = supabase
+    .from("products")
+    .select(
+      "*, category:categories(*), supplier:suppliers(*), product_organization_stock(organization_id, stock_current, organization:organizations(name))"
+    );
 
   // Exclure les produits archivés et outillage (page séparée)
   query = query.is("archived_at", null).eq("product_type", "consumable");
@@ -139,7 +150,9 @@ export async function getProduct(id: string): Promise<ProductWithRelations | nul
 
   const { data, error } = await supabase
     .from("products")
-    .select("*, category:categories(*), supplier:suppliers(*)")
+    .select(
+      "*, category:categories(*), supplier:suppliers(*), product_organization_stock(organization_id, stock_current, organization:organizations(name))"
+    )
     .eq("id", id)
     .single();
 

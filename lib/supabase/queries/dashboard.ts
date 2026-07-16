@@ -23,6 +23,7 @@ export interface DashboardStats {
   monthlyExits: number;
   totalProducts: number;
   lowStockCount: number;
+  stockByOrg?: OrgStockBreakdown[];
   prevMonthEntries?: number;
   prevMonthExits?: number;
   prevMonthStock?: number;
@@ -36,9 +37,17 @@ export interface HealthScorePenalty {
   details: string;
 }
 
+export interface OrgStockBreakdown {
+  org_id: string;
+  org_name: string;
+  stock: number;
+  value: number;
+}
+
 export interface HealthScoreKPI {
   total_stock: number;
   total_value: number;
+  stock_by_org: OrgStockBreakdown[];
   entries_month: number;
   exits_month: number;
   entries_prev_month: number;

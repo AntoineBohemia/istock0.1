@@ -12,7 +12,6 @@ DECLARE
   v_product RECORD;
   v_existing RECORD;
   v_previous_items_count INT;
-  v_snapshot JSONB;
   v_snapshot_items JSONB := '[]'::JSONB;
   v_total_quantity INT := 0;
   v_org_id UUID;
@@ -69,7 +68,7 @@ BEGIN
     jsonb_build_object('items', v_snapshot_items, 'total_items', v_total_quantity)
   );
 
-  -- 3. Pour chaque item : vérifier stock, upsert inventaire, créer mouvement, décrémenter stock
+  -- 3. Pour chaque item : vérifier stock, upsert inventaire, créer mouvements, décrémenter stock
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
   LOOP
     -- Vérifier le stock avec FOR UPDATE (anti race condition)
@@ -104,27 +103,18 @@ BEGIN
       VALUES (p_technician_id, (v_item->>'product_id')::UUID, (v_item->>'quantity')::INT, v_org_id);
     END IF;
 
-    -- Créer les mouvements de sortie en puisant société par société :
-    -- toujours dans la société qui a le moins de stock d'abord (égalité : nom alphabétique),
-    -- jusqu'à 0, puis dans la suivante. Une portion puisée = un mouvement tagué avec sa société.
-    -- Le stock par société est dérivé des mouvements (entrées − sorties), il n'est stocké nulle part.
+    -- Allocation par société : puiser dans la société avec le moins de stock d'abord
+    -- Lecture directe de product_organization_stock (plus de dérivation depuis les mouvements)
     v_remaining := (v_item->>'quantity')::INT;
 
     FOR v_alloc IN
-      SELECT
-        sm.organization_id AS org_id,
-        SUM(CASE WHEN sm.movement_type = 'entry' THEN sm.quantity ELSE 0 END)
-          - SUM(CASE WHEN sm.movement_type IN ('exit_technician', 'exit_anonymous', 'exit_loss')
-                     THEN sm.quantity ELSE 0 END) AS stock
-      FROM stock_movements sm
-      JOIN organizations o ON o.id = sm.organization_id
-      WHERE sm.product_id = (v_item->>'product_id')::UUID
-        AND sm.organization_id IS NOT NULL
-      GROUP BY sm.organization_id, o.name
-      HAVING SUM(CASE WHEN sm.movement_type = 'entry' THEN sm.quantity ELSE 0 END)
-               - SUM(CASE WHEN sm.movement_type IN ('exit_technician', 'exit_anonymous', 'exit_loss')
-                          THEN sm.quantity ELSE 0 END) > 0
-      ORDER BY stock ASC, o.name ASC
+      SELECT pos.organization_id AS org_id, pos.stock_current AS stock
+      FROM product_organization_stock pos
+      JOIN organizations o ON o.id = pos.organization_id
+      WHERE pos.product_id = (v_item->>'product_id')::UUID
+        AND pos.stock_current > 0
+      ORDER BY pos.stock_current ASC, o.name ASC
+      FOR UPDATE OF pos
     LOOP
       EXIT WHEN v_remaining <= 0;
 
@@ -139,18 +129,22 @@ BEGIN
         p_technician_id
       );
 
+      -- Décrémenter le stock per-org
+      UPDATE product_organization_stock
+      SET stock_current = stock_current - v_take, updated_at = NOW()
+      WHERE product_id = (v_item->>'product_id')::UUID
+        AND organization_id = v_alloc.org_id;
+
       v_remaining := v_remaining - v_take;
       v_movements_count := v_movements_count + 1;
     END LOOP;
 
-    -- Filet de sécurité : le stock global ayant déjà été validé, l'allocation par
-    -- société couvre toujours la quantité ; on lève une exception si ce n'était pas le cas.
     IF v_remaining > 0 THEN
       RAISE EXCEPTION 'Allocation par société incomplète pour "%": restant %',
         v_product.name, v_remaining;
     END IF;
 
-    -- Décrémenter le stock global du produit (total, toutes sociétés confondues)
+    -- Décrémenter le stock global du produit
     UPDATE products
     SET stock_current = stock_current - (v_item->>'quantity')::INT,
         updated_at = NOW()

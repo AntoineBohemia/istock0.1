@@ -14,6 +14,10 @@ DECLARE
   v_total_quantity INT := 0;
   v_org_id UUID;
   v_inv RECORD;
+  v_remaining INT;
+  v_take INT;
+  v_alloc RECORD;
+  v_movements_count INT := 0;
 BEGIN
   -- Récupérer l'organization_id via le technicien
   SELECT organization_id INTO v_org_id
@@ -52,7 +56,7 @@ BEGIN
   DELETE FROM technician_inventory
   WHERE technician_id = p_technician_id;
 
-  -- 3. Insérer les nouveaux items + créer mouvements + décrémenter stock
+  -- 3. Insérer les nouveaux items + allocation par société + décrémenter stock
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
   LOOP
     -- Vérifier le stock avec FOR UPDATE (anti race condition)
@@ -75,17 +79,47 @@ BEGIN
     INSERT INTO technician_inventory (technician_id, product_id, quantity)
     VALUES (p_technician_id, (v_item->>'product_id')::UUID, (v_item->>'quantity')::INT);
 
-    -- Créer le mouvement de stock avec organization_id
-    INSERT INTO stock_movements (organization_id, product_id, quantity, movement_type, technician_id)
-    VALUES (
-      v_org_id,
-      (v_item->>'product_id')::UUID,
-      (v_item->>'quantity')::INT,
-      'exit_technician',
-      p_technician_id
-    );
+    -- Allocation par société : puiser dans la société avec le moins de stock d'abord
+    v_remaining := (v_item->>'quantity')::INT;
 
-    -- Décrémenter le stock du produit
+    FOR v_alloc IN
+      SELECT pos.organization_id AS org_id, pos.stock_current AS stock
+      FROM product_organization_stock pos
+      JOIN organizations o ON o.id = pos.organization_id
+      WHERE pos.product_id = (v_item->>'product_id')::UUID
+        AND pos.stock_current > 0
+      ORDER BY pos.stock_current ASC, o.name ASC
+      FOR UPDATE OF pos
+    LOOP
+      EXIT WHEN v_remaining <= 0;
+
+      v_take := LEAST(v_remaining, v_alloc.stock);
+
+      INSERT INTO stock_movements (organization_id, product_id, quantity, movement_type, technician_id)
+      VALUES (
+        v_alloc.org_id,
+        (v_item->>'product_id')::UUID,
+        v_take,
+        'exit_technician',
+        p_technician_id
+      );
+
+      -- Décrémenter le stock per-org
+      UPDATE product_organization_stock
+      SET stock_current = stock_current - v_take, updated_at = NOW()
+      WHERE product_id = (v_item->>'product_id')::UUID
+        AND organization_id = v_alloc.org_id;
+
+      v_remaining := v_remaining - v_take;
+      v_movements_count := v_movements_count + 1;
+    END LOOP;
+
+    IF v_remaining > 0 THEN
+      RAISE EXCEPTION 'Allocation par société incomplète pour "%": restant %',
+        v_product.name, v_remaining;
+    END IF;
+
+    -- Décrémenter le stock global du produit
     UPDATE products
     SET stock_current = stock_current - (v_item->>'quantity')::INT,
         updated_at = NOW()
@@ -95,7 +129,8 @@ BEGIN
   RETURN jsonb_build_object(
     'success', true,
     'items_count', jsonb_array_length(p_items),
-    'previous_items_count', v_previous_items_count
+    'previous_items_count', v_previous_items_count,
+    'movements_count', v_movements_count
   );
 END;
 $$;

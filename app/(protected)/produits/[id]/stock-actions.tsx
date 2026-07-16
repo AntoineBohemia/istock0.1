@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StockEntryModal from "@/components/stock-entry-modal";
@@ -11,8 +12,15 @@ interface StockActionsProps {
 }
 
 export default function StockActions({ productId }: StockActionsProps) {
+  const router = useRouter();
   const [entryOpen, setEntryOpen] = useState(false);
   const [exitOpen, setExitOpen] = useState(false);
+
+  const handleClose = () => {
+    setEntryOpen(false);
+    setExitOpen(false);
+    router.refresh();
+  };
 
   return (
     <>
@@ -27,8 +35,8 @@ export default function StockActions({ productId }: StockActionsProps) {
         </Button>
       </div>
 
-      <StockEntryModal open={entryOpen} onClose={() => setEntryOpen(false)} productId={productId} />
-      <StockExitModal open={exitOpen} onClose={() => setExitOpen(false)} productId={productId} />
+      <StockEntryModal open={entryOpen} onClose={handleClose} productId={productId} />
+      <StockExitModal open={exitOpen} onClose={handleClose} productId={productId} />
     </>
   );
 }

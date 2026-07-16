@@ -52,15 +52,11 @@ export async function getUserOrganizations(): Promise<Organization[]> {
     .order("created_at", { ascending: true });
 
   if (error) {
-    throw new Error(
-      `Erreur lors de la récupération des organisations: ${error.message}`
-    );
+    throw new Error(`Erreur lors de la récupération des organisations: ${error.message}`);
   }
 
   return (data || []).map((item) => {
-    const org = Array.isArray(item.organization)
-      ? item.organization[0]
-      : item.organization;
+    const org = Array.isArray(item.organization) ? item.organization[0] : item.organization;
     return {
       id: org?.id || "",
       name: org?.name || "",
@@ -103,9 +99,7 @@ export async function getDefaultOrganization(): Promise<Organization | null> {
     return orgs[0] || null;
   }
 
-  const org = Array.isArray(data.organization)
-    ? data.organization[0]
-    : data.organization;
+  const org = Array.isArray(data.organization) ? data.organization[0] : data.organization;
 
   return {
     id: org?.id || "",
@@ -119,9 +113,7 @@ export async function getDefaultOrganization(): Promise<Organization | null> {
 /**
  * Définit l'organisation par défaut de l'utilisateur
  */
-export async function setDefaultOrganization(
-  organizationId: string
-): Promise<void> {
+export async function setDefaultOrganization(organizationId: string): Promise<void> {
   const supabase = createClient();
 
   const {
@@ -133,10 +125,7 @@ export async function setDefaultOrganization(
   }
 
   // Retirer le flag is_default de toutes les organisations
-  await supabase
-    .from("user_organizations")
-    .update({ is_default: false })
-    .eq("user_id", user.id);
+  await supabase.from("user_organizations").update({ is_default: false }).eq("user_id", user.id);
 
   // Définir la nouvelle organisation par défaut
   const { error } = await supabase
@@ -146,9 +135,7 @@ export async function setDefaultOrganization(
     .eq("organization_id", organizationId);
 
   if (error) {
-    throw new Error(
-      `Erreur lors de la définition de l'organisation par défaut: ${error.message}`
-    );
+    throw new Error(`Erreur lors de la définition de l'organisation par défaut: ${error.message}`);
   }
 }
 
@@ -169,9 +156,7 @@ export async function getOrganizationMembers(
     .order("joined_at", { ascending: true });
 
   if (error) {
-    throw new Error(
-      `Erreur lors de la récupération des membres: ${error.message}`
-    );
+    throw new Error(`Erreur lors de la récupération des membres: ${error.message}`);
   }
 
   return (data || []) as OrganizationMember[];
@@ -194,19 +179,14 @@ export async function updateMemberRole(
     .eq("user_id", userId);
 
   if (error) {
-    throw new Error(
-      `Erreur lors de la mise à jour du rôle: ${error.message}`
-    );
+    throw new Error(`Erreur lors de la mise à jour du rôle: ${error.message}`);
   }
 }
 
 /**
  * Retire un membre d'une organisation
  */
-export async function removeMember(
-  organizationId: string,
-  userId: string
-): Promise<void> {
+export async function removeMember(organizationId: string, userId: string): Promise<void> {
   const supabase = createClient();
 
   const { error } = await supabase
@@ -223,11 +203,16 @@ export async function removeMember(
 /**
  * Invite un utilisateur à rejoindre une organisation
  */
+export interface InviteResult {
+  invitation: OrganizationInvitation;
+  emailSent: boolean;
+}
+
 export async function inviteUserToOrganization(
   organizationId: string,
   email: string,
   role: "admin" | "member" | "guest" = "member"
-): Promise<OrganizationInvitation> {
+): Promise<InviteResult> {
   const supabase = createClient();
 
   const {
@@ -260,27 +245,34 @@ export async function inviteUserToOrganization(
     .single();
 
   const inviterName =
-    user?.user_metadata?.full_name ||
-    user?.user_metadata?.first_name ||
-    user?.email ||
-    "Quelqu'un";
+    user?.user_metadata?.full_name || user?.user_metadata?.first_name || user?.email || "Quelqu'un";
 
-  // Envoyer l'email via Edge Function (best-effort, ne bloque pas l'invitation)
+  // Envoyer l'email via Edge Function
+  let emailSent = false;
   try {
-    await supabase.functions.invoke("send-invitation-email", {
-      body: {
-        email: email.toLowerCase(),
-        token: data.token,
-        organization_name: org?.name || "Organisation",
-        role,
-        invited_by_name: inviterName,
-      },
-    });
+    const { data: emailResult, error: emailError } = await supabase.functions.invoke(
+      "send-invitation-email",
+      {
+        body: {
+          email: email.toLowerCase(),
+          token: data.token,
+          organization_name: org?.name || "Organisation",
+          role,
+          invited_by_name: inviterName,
+        },
+      }
+    );
+
+    if (emailError) {
+      console.error("Erreur envoi email invitation:", emailError);
+    } else {
+      emailSent = emailResult?.success === true && !emailResult?.skipped;
+    }
   } catch (emailError) {
     console.error("Erreur envoi email invitation:", emailError);
   }
 
-  return data;
+  return { invitation: data, emailSent };
 }
 
 /**
@@ -300,9 +292,7 @@ export async function getPendingInvitations(
     .order("created_at", { ascending: false });
 
   if (error) {
-    throw new Error(
-      `Erreur lors de la récupération des invitations: ${error.message}`
-    );
+    throw new Error(`Erreur lors de la récupération des invitations: ${error.message}`);
   }
 
   return data || [];
@@ -325,7 +315,13 @@ export async function acceptInvitation(token: string): Promise<{
     throw new Error("Erreur lors de l'acceptation de l'invitation");
   }
 
-  const result = data as { success: boolean; error?: string; expected_email?: string; organization?: { id: string; name: string; slug: string; logo_url: string | null }; role?: string };
+  const result = data as {
+    success: boolean;
+    error?: string;
+    expected_email?: string;
+    organization?: { id: string; name: string; slug: string; logo_url: string | null };
+    role?: string;
+  };
 
   if (!result.success) {
     const messages: Record<string, string> = {
@@ -355,15 +351,10 @@ export async function acceptInvitation(token: string): Promise<{
 export async function cancelInvitation(invitationId: string): Promise<void> {
   const supabase = createClient();
 
-  const { error } = await supabase
-    .from("organization_invitations")
-    .delete()
-    .eq("id", invitationId);
+  const { error } = await supabase.from("organization_invitations").delete().eq("id", invitationId);
 
   if (error) {
-    throw new Error(
-      `Erreur lors de l'annulation de l'invitation: ${error.message}`
-    );
+    throw new Error(`Erreur lors de l'annulation de l'invitation: ${error.message}`);
   }
 }
 
@@ -396,10 +387,7 @@ export async function getInvitationByToken(token: string) {
 /**
  * Upload un logo d'organisation dans le storage Supabase
  */
-export async function uploadOrganizationLogo(
-  file: File,
-  orgSlug: string
-): Promise<string> {
+export async function uploadOrganizationLogo(file: File, orgSlug: string): Promise<string> {
   const supabase = createClient();
   const fileExt = file.name.split(".").pop();
   const fileName = `${orgSlug}-${Date.now()}.${fileExt}`;
@@ -412,9 +400,7 @@ export async function uploadOrganizationLogo(
     throw new Error(`Erreur lors de l'upload du logo: ${error.message}`);
   }
 
-  const { data: urlData } = supabase.storage
-    .from("organization-logos")
-    .getPublicUrl(fileName);
+  const { data: urlData } = supabase.storage.from("organization-logos").getPublicUrl(fileName);
 
   return urlData.publicUrl;
 }
@@ -442,7 +428,12 @@ export async function createOrganization(
     throw new Error(`Erreur lors de la création: ${error.message}`);
   }
 
-  const result = data as unknown as { id: string; name: string; slug: string; logo_url: string | null };
+  const result = data as unknown as {
+    id: string;
+    name: string;
+    slug: string;
+    logo_url: string | null;
+  };
 
   return {
     id: result.id,
@@ -507,10 +498,7 @@ export async function deleteOrganization(organizationId: string): Promise<void> 
   }
 
   // Supprimer l'organisation (les cascades supprimeront les données liées)
-  const { error } = await supabase
-    .from("organizations")
-    .delete()
-    .eq("id", organizationId);
+  const { error } = await supabase.from("organizations").delete().eq("id", organizationId);
 
   if (error) {
     throw new Error(`Erreur lors de la suppression: ${error.message}`);
@@ -520,9 +508,7 @@ export async function deleteOrganization(organizationId: string): Promise<void> 
 /**
  * Récupère toutes les organisations (pour l'admin)
  */
-export async function getAllOrganizations(): Promise<
-  (Organization & { memberCount: number })[]
-> {
+export async function getAllOrganizations(): Promise<(Organization & { memberCount: number })[]> {
   const supabase = createClient();
 
   const { data, error } = await supabase
@@ -570,9 +556,7 @@ export async function getMyPendingInvitations() {
 /**
  * Quitter une organisation via RPC sécurisé
  */
-export async function leaveOrganization(
-  organizationId: string
-): Promise<{ action: string }> {
+export async function leaveOrganization(organizationId: string): Promise<{ action: string }> {
   const supabase = createClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase.rpc as any)("leave_organization", {
@@ -588,8 +572,7 @@ export async function leaveOrganization(
   if (!result.success) {
     const messages: Record<string, string> = {
       not_member: "Vous n'êtes pas membre de cette organisation",
-      owner_must_transfer:
-        "Vous devez transférer la propriété avant de quitter",
+      owner_must_transfer: "Vous devez transférer la propriété avant de quitter",
     };
     throw new Error(messages[result.error || ""] || result.message || "Erreur inconnue");
   }
@@ -600,10 +583,7 @@ export async function leaveOrganization(
 /**
  * Transférer la propriété d'une organisation via RPC sécurisé
  */
-export async function transferOwnership(
-  organizationId: string,
-  newOwnerId: string
-): Promise<void> {
+export async function transferOwnership(organizationId: string, newOwnerId: string): Promise<void> {
   const supabase = createClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase.rpc as any)("transfer_ownership", {

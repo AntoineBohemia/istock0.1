@@ -143,9 +143,12 @@ export default function MembersPage() {
   // Get current user ID
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setCurrentUserId(user?.id || null);
-    }).catch(() => {});
+    supabase.auth
+      .getUser()
+      .then(({ data: { user } }) => {
+        setCurrentUserId(user?.id || null);
+      })
+      .catch(() => {});
   }, []);
 
   const handleInvite = () => {
@@ -158,12 +161,22 @@ export default function MembersPage() {
         role: inviteRole,
       },
       {
-        onSuccess: (data) => {
-          const link = `${window.location.origin}/invite/${data.token}`;
+        onSuccess: (result) => {
+          const link = `${window.location.origin}/invite/${result.invitation.token}`;
           navigator.clipboard.writeText(link);
-          toast.success(`Invitation créée ! Lien copié dans le presse-papier.`, {
-            duration: 5000,
-          });
+          if (result.emailSent) {
+            toast.success(
+              `Invitation envoyée par email ! Lien aussi copié dans le presse-papier.`,
+              {
+                duration: 5000,
+              }
+            );
+          } else {
+            toast.warning(
+              `Invitation créée mais l'email n'a pas pu être envoyé. Le lien a été copié dans le presse-papier — partagez-le manuellement.`,
+              { duration: 8000 }
+            );
+          }
           setIsInviteDialogOpen(false);
           setInviteEmail("");
           setInviteRole("member");

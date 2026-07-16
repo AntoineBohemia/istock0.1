@@ -41,6 +41,7 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
   const createEntry = useCreateStockEntry();
   const isMultiOrg = (userOrgs?.length ?? 0) > 1;
   const [priceEditing, setPriceEditing] = useState(false);
+  const [priceOverridden, setPriceOverridden] = useState(false);
 
   const form = useForm<EntryValues>({
     resolver: zodResolver(EntrySchema),
@@ -62,6 +63,7 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
   useEffect(() => {
     if (open) {
       setPriceEditing(false);
+      setPriceOverridden(false);
       form.reset({
         organization_id: isMultiOrg ? "" : (userOrgs?.[0]?.id ?? ""),
         product_id: productId || "",
@@ -71,10 +73,13 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
     }
   }, [open]);
 
+  const defaultPrice = selectedProduct?.price ?? null;
+
   useEffect(() => {
     if (selectedProduct?.price != null) {
       form.setValue("unit_price", selectedProduct.price.toString());
       setPriceEditing(false);
+      setPriceOverridden(false);
     }
   }, [selectedProduct?.id, open]);
 
@@ -124,7 +129,7 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
                           type="button"
                           onClick={() => field.onChange(org.id)}
                           className={cn(
-                            "flex items-center gap-2.5 rounded-lg border bg-white dark:bg-card px-3 py-2.5 text-sm font-medium transition-all",
+                            "flex items-center gap-2.5 rounded-lg border bg-white dark:bg-card px-3 py-2.5 text-sm font-medium transition-all cursor-pointer",
                             field.value === org.id
                               ? "border-foreground text-foreground"
                               : "border-border text-muted-foreground hover:border-foreground/30"
@@ -152,19 +157,36 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
               render={({ field }) => (
                 <FormItem className="border-t px-5 py-3">
                   <FormControl>
-                    <select
-                      value={field.value}
-                      onChange={(e) => field.onChange(e.target.value)}
-                      disabled={!!productId}
-                      className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 shadow-xs outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
-                    >
-                      <option value="">Sélectionner un produit…</option>
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} ({p.stock_current ?? 0} en stock)
-                        </option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <select
+                        value={field.value}
+                        onChange={(e) => field.onChange(e.target.value)}
+                        disabled={!!productId}
+                        className={cn(
+                          "appearance-none border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 pr-8 py-1.5 shadow-xs outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]",
+                          !!productId && "opacity-50 cursor-not-allowed"
+                        )}
+                      >
+                        <option value="">Sélectionner un produit…</option>
+                        {products.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} ({p.stock_current ?? 0} en stock)
+                          </option>
+                        ))}
+                      </select>
+                      <svg
+                        className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -216,30 +238,72 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Prix HT</span>
                     <div className="flex items-center gap-2">
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="—"
-                          className={cn(
-                            "w-24 h-8 text-right text-sm border-0 bg-transparent focus-visible:ring-0 pr-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
-                            !priceEditing && "text-muted-foreground"
+                      {priceEditing ? (
+                        <>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="—"
+                              autoFocus
+                              className="w-24 h-8 text-right text-sm bg-white dark:bg-card rounded-md border border-input shadow-xs focus-visible:ring-0 focus-visible:border-foreground/30 pr-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              {...field}
+                            />
+                          </FormControl>
+                          <span className="text-sm text-muted-foreground">€</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPriceEditing(false);
+                              const currentVal = parseFloat(field.value || "0");
+                              if (defaultPrice != null && currentVal !== defaultPrice) {
+                                setPriceOverridden(true);
+                              } else {
+                                setPriceOverridden(false);
+                              }
+                            }}
+                            className="text-xs font-medium text-primary hover:underline ml-1 cursor-pointer"
+                          >
+                            OK
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <span
+                            className={cn(
+                              "text-sm tabular-nums",
+                              priceOverridden
+                                ? "text-foreground font-medium"
+                                : "text-muted-foreground"
+                            )}
+                          >
+                            {unitPrice > 0
+                              ? unitPrice.toLocaleString("fr-FR", { minimumFractionDigits: 2 })
+                              : "—"}
+                          </span>
+                          <span className="text-sm text-muted-foreground">€</span>
+                          {priceOverridden && defaultPrice != null && (
+                            <span className="text-xs text-muted-foreground line-through tabular-nums">
+                              {defaultPrice.toLocaleString("fr-FR", { minimumFractionDigits: 2 })}
+                            </span>
                           )}
-                          disabled={!priceEditing}
-                          {...field}
-                        />
-                      </FormControl>
-                      <span className="text-sm text-muted-foreground">€</span>
-                      <button
-                        type="button"
-                        onClick={() => setPriceEditing(!priceEditing)}
-                        className="text-xs text-primary hover:underline ml-1"
-                      >
-                        {priceEditing ? "OK" : "Modifier"}
-                      </button>
+                          <button
+                            type="button"
+                            onClick={() => setPriceEditing(true)}
+                            className="text-xs text-primary hover:underline ml-1 cursor-pointer"
+                          >
+                            {priceOverridden ? "Réajuster" : "Ajuster pour cette entrée"}
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
-                  {total > 0 && (
+                  {priceOverridden && !priceEditing && (
+                    <p className="text-right text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+                      Prix ajusté pour cette entrée uniquement
+                    </p>
+                  )}
+                  {total > 0 && quantity > 1 && (
                     <p className="text-right text-xs text-muted-foreground tabular-nums mt-1">
                       {quantity} × {unitPrice.toLocaleString("fr-FR", { minimumFractionDigits: 2 })}{" "}
                       € ={" "}

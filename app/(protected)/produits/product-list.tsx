@@ -25,7 +25,7 @@ import StockExitModal from "@/components/stock-exit-modal";
 import { ProductWithRelations } from "@/lib/supabase/queries/products";
 import { calculateStockScore, getStockScoreColor, getStockBadgeVariant } from "@/lib/utils/stock";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
-import { useProducts, useCategories } from "@/hooks/queries";
+import { useProducts, useCategories, useOrganizations } from "@/hooks/queries";
 import ProductIconDisplay from "@/components/product-icon-display";
 import { TableColumnToggle } from "@/components/table-column-toggle";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
@@ -105,6 +105,7 @@ export default function ProductList() {
   const [filters, setFilters] = useQueryStates({
     search: parseAsString.withDefault(""),
     category: parseAsString.withDefault(""),
+    org: parseAsString.withDefault(""),
   });
 
   // Stock movement modal state
@@ -113,8 +114,10 @@ export default function ProductList() {
 
   const searchQuery = filters.search;
   const categoryFilter = filters.category;
+  const orgFilter = filters.org;
   const setSearchQuery = (value: string) => setFilters({ search: value });
   const setCategoryFilter = (value: string) => setFilters({ category: value });
+  const setOrgFilter = (value: string) => setFilters({ org: value });
 
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -127,6 +130,8 @@ export default function ProductList() {
   }, [searchQuery]);
 
   const { data: categories = [] } = useCategories(currentOrganization?.id);
+  const { data: userOrgs } = useOrganizations();
+  const isMultiOrg = (userOrgs?.length ?? 0) > 1;
 
   const { data: productsResult, isLoading } = useProducts({
     organizationId: currentOrganization?.id,
@@ -170,26 +175,59 @@ export default function ProductList() {
       ),
       cell: ({ row }) => {
         const product = row.original;
-        const score = calculateStockScore(product.stock_current, product.stock_min);
+        const orgStocks =
+          product.product_organization_stock?.filter((pos) => pos.stock_current > 0) ?? [];
+        const hasMultiOrg = orgStocks.length > 1;
+
+        // If org filter is active, show that org's stock
+        const displayStock = orgFilter
+          ? (product.product_organization_stock?.find((pos) => pos.organization_id === orgFilter)
+              ?.stock_current ?? 0)
+          : (product.stock_current ?? 0);
+
+        const score = calculateStockScore(displayStock, product.stock_min);
         return (
-          <span
-            className={cn("font-heading font-bold tabular-nums text-xl", getStockScoreColor(score))}
-          >
-            {product.stock_current ?? 0}
-          </span>
+          <div className="text-center">
+            <span
+              className={cn(
+                "font-heading font-bold tabular-nums text-xl",
+                getStockScoreColor(score)
+              )}
+            >
+              {displayStock}
+            </span>
+            {hasMultiOrg && !orgFilter && (
+              <p className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
+                {orgStocks
+                  .sort((a, b) => b.stock_current - a.stock_current)
+                  .map((pos) => `${pos.organization?.name ?? "?"}: ${pos.stock_current}`)
+                  .join(" · ")}
+              </p>
+            )}
+          </div>
         );
       },
       meta: { align: "center", label: "Stock" },
     },
     {
       id: "status",
-      accessorFn: (row) => calculateStockScore(row.stock_current, row.stock_min),
+      accessorFn: (row) => {
+        const stock = orgFilter
+          ? (row.product_organization_stock?.find((pos) => pos.organization_id === orgFilter)
+              ?.stock_current ?? 0)
+          : (row.stock_current ?? 0);
+        return calculateStockScore(stock, row.stock_min);
+      },
       header: ({ column }) => (
         <SortHeader label="Statut" column={column} className="justify-end w-full" />
       ),
       cell: ({ row }) => {
         const product = row.original;
-        const score = calculateStockScore(product.stock_current, product.stock_min);
+        const stock = orgFilter
+          ? (product.product_organization_stock?.find((pos) => pos.organization_id === orgFilter)
+              ?.stock_current ?? 0)
+          : (product.stock_current ?? 0);
+        const score = calculateStockScore(stock, product.stock_min);
         const status = getStockBadgeVariant(score);
         return <StatusPill status={status} />;
       },
@@ -314,27 +352,36 @@ export default function ProductList() {
           <TableColumnToggle table={table} />
         </div>
 
-        {categories.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onClick={() => setCategoryFilter("")}
-              className={cn(
-                "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                !categoryFilter
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
-              )}
-            >
-              Tout
-            </button>
+        {/* Filters: org + categories on one line */}
+        {(isMultiOrg || categories.length > 0) && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {isMultiOrg && (
+              <>
+                {userOrgs?.map((org) => (
+                  <button
+                    key={org.id}
+                    type="button"
+                    onClick={() => setOrgFilter(orgFilter === org.id ? "" : org.id)}
+                    className={cn(
+                      "rounded-full px-3 py-1 text-xs font-medium transition-colors cursor-pointer",
+                      orgFilter === org.id
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
+                    )}
+                  >
+                    {org.name}
+                  </button>
+                ))}
+                {categories.length > 0 && <div className="w-px h-4 bg-border mx-1" />}
+              </>
+            )}
             {categories.map((cat) => (
               <button
                 key={cat.id}
                 type="button"
                 onClick={() => setCategoryFilter(categoryFilter === cat.id ? "" : cat.id)}
                 className={cn(
-                  "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                  "rounded-full px-3 py-1 text-xs font-medium transition-colors cursor-pointer",
                   categoryFilter === cat.id
                     ? "bg-primary text-primary-foreground"
                     : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
