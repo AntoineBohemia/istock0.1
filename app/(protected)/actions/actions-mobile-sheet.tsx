@@ -539,8 +539,9 @@ export default function ActionsMobileSheet() {
           ...prev,
         ]);
         successCount++;
-      } catch {
-        toast.error(`Erreur pour ${item.product.name}`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Erreur inconnue";
+        toast.error(`${item.product.name} : ${msg}`);
       }
     }
 
