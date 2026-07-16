@@ -17,7 +17,6 @@ export interface EquipmentAssignment {
     price: number | null;
     stock_current: number | null;
     stock_min: number | null;
-    category?: { id: string; name: string } | null;
   };
   technician?: {
     id: string;
@@ -38,14 +37,12 @@ export interface EquipmentProduct {
   price: number | null;
   stock_current: number | null;
   stock_min: number | null;
-  category_id: string | null;
   supplier_id: string | null;
   organization_id: string | null;
   created_at: string | null;
   updated_at: string | null;
   archived_at: string | null;
   product_type: "equipment";
-  category?: { id: string; name: string } | null;
   supplier?: { id: string; name: string } | null;
   assignments: EquipmentAssignment[];
   total_assigned: number;
@@ -54,7 +51,6 @@ export interface EquipmentProduct {
 export interface EquipmentFilters {
   organizationId?: string;
   search?: string;
-  categoryId?: string;
 }
 
 /**
@@ -64,14 +60,13 @@ export async function getEquipmentProducts(
   filters: EquipmentFilters = {}
 ): Promise<EquipmentProduct[]> {
   const supabase = createClient();
-  const { organizationId, search, categoryId } = filters;
+  const { organizationId, search } = filters;
 
   let query = supabase
     .from("products")
     .select(
       `
       *,
-      category:categories(id, name),
       supplier:suppliers(id, name)
     `
     )
@@ -84,9 +79,6 @@ export async function getEquipmentProducts(
   }
   if (search) {
     query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%`);
-  }
-  if (categoryId) {
-    query = query.eq("category_id", categoryId);
   }
 
   const { data: products, error } = await query;
@@ -128,7 +120,6 @@ export async function getEquipmentProducts(
     const prodAssignments = assignmentsByProduct.get(p.id) || [];
     return {
       ...p,
-      category: Array.isArray(p.category) ? p.category[0] : p.category,
       supplier: Array.isArray(p.supplier) ? p.supplier[0] : p.supplier,
       assignments: prodAssignments,
       total_assigned: prodAssignments.reduce((sum, a) => sum + a.quantity, 0),
@@ -147,7 +138,6 @@ export async function getEquipmentProduct(id: string): Promise<EquipmentProduct 
     .select(
       `
       *,
-      category:categories(id, name),
       supplier:suppliers(id, name)
     `
     )
@@ -177,7 +167,6 @@ export async function getEquipmentProduct(id: string): Promise<EquipmentProduct 
 
   return {
     ...product,
-    category: Array.isArray(product.category) ? product.category[0] : product.category,
     supplier: Array.isArray(product.supplier) ? product.supplier[0] : product.supplier,
     assignments: normalizedAssignments,
     total_assigned: normalizedAssignments.reduce((sum, a) => sum + a.quantity, 0),
@@ -187,9 +176,7 @@ export async function getEquipmentProduct(id: string): Promise<EquipmentProduct 
 /**
  * Get equipment assigned to a specific technician
  */
-export async function getTechnicianEquipment(
-  technicianId: string
-): Promise<EquipmentAssignment[]> {
+export async function getTechnicianEquipment(technicianId: string): Promise<EquipmentAssignment[]> {
   const supabase = createClient();
 
   const { data, error } = await supabase
@@ -197,9 +184,7 @@ export async function getTechnicianEquipment(
     .select(
       `
       *,
-      product:products(id, name, sku, icon_name, icon_color, image_url, price, stock_current, stock_min,
-        category:categories(id, name)
-      )
+      product:products(id, name, sku, icon_name, icon_color, image_url, price, stock_current, stock_min)
     `
     )
     .eq("technician_id", technicianId)

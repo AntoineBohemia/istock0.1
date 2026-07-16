@@ -1,20 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
 import { useOrganizationStore } from "@/lib/stores/organization-store";
-import { useCategories } from "@/hooks/queries";
 import { useCreateProduct } from "@/hooks/mutations";
 import { generateSKU } from "@/lib/supabase/queries/products";
 
@@ -23,29 +17,23 @@ interface CreateEquipmentDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export default function CreateEquipmentDialog({
-  open,
-  onOpenChange,
-}: CreateEquipmentDialogProps) {
+export default function CreateEquipmentDialog({ open, onOpenChange }: CreateEquipmentDialogProps) {
   const { currentOrganization } = useOrganizationStore();
-  const { data: categories = [] } = useCategories(currentOrganization?.id);
   const createMutation = useCreateProduct();
 
+  const [prevOpen, setPrevOpen] = useState(open);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [categoryId, setCategoryId] = useState("");
   const [stockCurrent, setStockCurrent] = useState(1);
   const [price, setPrice] = useState("");
 
-  useEffect(() => {
-    if (open) {
-      setName("");
-      setDescription("");
-      setCategoryId("");
-      setStockCurrent(1);
-      setPrice("");
-    }
-  }, [open]);
+  if (open && !prevOpen) {
+    setName("");
+    setDescription("");
+    setStockCurrent(1);
+    setPrice("");
+  }
+  if (open !== prevOpen) setPrevOpen(open);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,7 +45,7 @@ export default function CreateEquipmentDialog({
         name: name.trim(),
         sku: generateSKU(name),
         description: description.trim() || null,
-        category_id: categoryId || null,
+        category_id: null,
         stock_current: stockCurrent,
         stock_min: 0,
         price: price ? parseFloat(price) : null,
@@ -85,9 +73,7 @@ export default function CreateEquipmentDialog({
         <form onSubmit={handleSubmit}>
           <div className="px-5 py-3 border-t space-y-3">
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Nom *
-              </label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Nom *</label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -108,22 +94,6 @@ export default function CreateEquipmentDialog({
                 placeholder="Optionnelle"
                 className="bg-white dark:bg-card"
               />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Catégorie
-              </label>
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 shadow-xs outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
-              >
-                <option value="">Sans catégorie</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
             </div>
 
             <div className="grid grid-cols-2 gap-3">

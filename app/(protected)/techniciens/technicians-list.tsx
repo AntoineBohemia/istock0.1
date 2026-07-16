@@ -223,12 +223,17 @@ export default function TechniciansList() {
         const count = row.original.equipment_count ?? 0;
         if (count === 0) return <span className="text-muted-foreground/40">{"\u2014"}</span>;
         return (
-          <div className="relative inline-flex items-center justify-center">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-foreground/[0.04] border border-foreground/[0.06]">
-              <Wrench className="size-3.5 text-foreground/50" />
+          <div className="flex flex-col items-center gap-0.5">
+            <div className="relative inline-flex items-center justify-center">
+              <div className="flex size-8 items-center justify-center rounded-lg bg-foreground/[0.04] border border-foreground/[0.06]">
+                <Wrench className="size-3.5 text-foreground/50" />
+              </div>
+              <span className="absolute -top-1 -right-1.5 flex size-4 items-center justify-center rounded-full bg-foreground text-background text-[9px] font-bold tabular-nums leading-none">
+                {count}
+              </span>
             </div>
-            <span className="absolute -top-1 -right-1.5 flex size-4 items-center justify-center rounded-full bg-foreground text-background text-[9px] font-bold tabular-nums leading-none">
-              {count}
+            <span className="text-[10px] text-muted-foreground tabular-nums">
+              {count} outil{count > 1 ? "s" : ""}
             </span>
           </div>
         );

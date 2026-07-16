@@ -2,17 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQueryStates, parseAsString } from "nuqs";
-import {
-  ColumnDef,
-  SortingState,
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import { ArrowUpDown, Search, Wrench, UserPlus, Timer } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Search, Wrench, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 
 import { Button } from "@/components/ui/button";
@@ -24,322 +14,102 @@ import { HeroNumber } from "@/components/ui/hero-number";
 import { EquipmentProduct } from "@/lib/supabase/queries/equipment";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useEquipmentProducts } from "@/hooks/queries";
-import { useCategories } from "@/hooks/queries";
 import ProductIconDisplay from "@/components/product-icon-display";
-import { TableColumnToggle } from "@/components/table-column-toggle";
-import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { cn } from "@/lib/utils";
 
-import AssignEquipmentModal from "./assign-equipment-modal";
 import CreateEquipmentDialog from "./create-equipment-dialog";
-
-// ── Animated table row ──
-const MotionTr = motion.create("tr");
-
-function AnimatedRow({
-  children,
-  index,
-  reducedMotion,
-  onClick,
-}: {
-  children: React.ReactNode;
-  index: number;
-  reducedMotion: boolean | null;
-  onClick?: () => void;
-}) {
-  return (
-    <MotionTr
-      layout={!reducedMotion}
-      initial={reducedMotion ? false : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={reducedMotion ? undefined : { opacity: 0, y: -8 }}
-      transition={{
-        type: "spring",
-        bounce: 0,
-        duration: 0.35,
-        delay: reducedMotion ? 0 : index * 0.03,
-      }}
-      className="group border-b last:border-b-0 transition-colors hover:bg-muted/60 cursor-pointer"
-      onClick={onClick}
-    >
-      {children}
-    </MotionTr>
-  );
-}
-
-function SortHeader({
-  label,
-  column,
-  className,
-}: {
-  label: string;
-  column: { toggleSorting: (asc: boolean) => void; getIsSorted: () => false | "asc" | "desc" };
-  className?: string;
-}) {
-  const sorted = column.getIsSorted();
-  return (
-    <button
-      type="button"
-      onClick={() => column.toggleSorting(sorted === "asc")}
-      className={cn(
-        "inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/50 hover:text-foreground transition-colors select-none",
-        className
-      )}
-    >
-      {label}
-      <ArrowUpDown
-        className={cn(
-          "size-3 transition-colors",
-          sorted ? "text-foreground" : "text-foreground/25"
-        )}
-      />
-    </button>
-  );
-}
-
-// ── Distribution bar ──
-function DistributionBar({ assigned, total }: { assigned: number; total: number }) {
-  if (total === 0) return null;
-  const pct = Math.round((assigned / total) * 100);
-  const isFull = assigned === total;
-  return (
-    <div className="flex items-center gap-2 min-w-[120px]">
-      <div className="flex-1 h-1.5 rounded-full bg-foreground/[0.06] overflow-hidden">
-        <div
-          className={cn(
-            "h-full rounded-full transition-all",
-            isFull ? "bg-attention" : "bg-foreground/30"
-          )}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <span className="text-xs tabular-nums text-muted-foreground whitespace-nowrap">
-        {assigned}/{total}
-      </span>
-    </div>
-  );
-}
+import EditEquipmentDialog from "./edit-equipment-dialog";
+import EquipmentManageModal from "./equipment-manage-modal";
 
 const fmtPrice = (n: number) =>
   n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
+// ── Alert detection — surfaces CD8 on main view ──
+
+type AlertLevel = "none" | "warning" | "danger";
+
+function getCardAlert(product: EquipmentProduct): AlertLevel {
+  let worst: AlertLevel = "none";
+  for (const a of product.assignments) {
+    const days = Math.floor((Date.now() - new Date(a.assigned_at).getTime()) / 86_400_000);
+    if (days >= 365) return "danger";
+    if (days >= 180) worst = "warning";
+  }
+  return worst;
+}
+
+const alertDotClass: Record<AlertLevel, string> = {
+  none: "",
+  warning: "bg-attention",
+  danger: "bg-destructive",
+};
+
+// ── Sorting ──
+
+type SortKey = "name" | "available" | "value" | "alerts";
+
+function sortEquipment(items: EquipmentProduct[], sortBy: SortKey): EquipmentProduct[] {
+  return [...items].sort((a, b) => {
+    switch (sortBy) {
+      case "name":
+        return a.name.localeCompare(b.name, "fr");
+      case "available":
+        return (b.stock_current ?? 0) - (a.stock_current ?? 0);
+      case "value": {
+        const aVal = (a.price ?? 0) * ((a.stock_current ?? 0) + a.total_assigned);
+        const bVal = (b.price ?? 0) * ((b.stock_current ?? 0) + b.total_assigned);
+        return bVal - aVal;
+      }
+      case "alerts": {
+        const order: Record<AlertLevel, number> = { danger: 0, warning: 1, none: 2 };
+        return order[getCardAlert(a)] - order[getCardAlert(b)];
+      }
+    }
+  });
+}
+
 export default function EquipmentList() {
-  const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
 
-  const [{ search, category }, setQueryStates] = useQueryStates({
+  const [{ search }, setQueryStates] = useQueryStates({
     search: parseAsString.withDefault(""),
-    category: parseAsString.withDefault(""),
   });
 
   const { data: equipment = [], isLoading } = useEquipmentProducts({
     organizationId: currentOrganization?.id,
     search: search || undefined,
-    categoryId: category || undefined,
   });
 
-  const { data: categoriesResult } = useCategories(currentOrganization?.id);
-  const categories = categoriesResult || [];
-
-  const [sorting, setSorting] = useState<SortingState>([{ id: "name", desc: false }]);
-  const [assignProductId, setAssignProductId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortKey>("name");
+  const [manageProduct, setManageProduct] = useState<EquipmentProduct | null>(null);
+  const [editProduct, setEditProduct] = useState<EquipmentProduct | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
-  // ── Summary stats ──
+  const sorted = useMemo(() => sortEquipment(equipment, sortBy), [equipment, sortBy]);
+
+  // ── Fleet stats ──
   const stats = useMemo(() => {
-    let totalStock = 0;
-    let totalAssigned = 0;
+    let totalUnits = 0;
     let totalValue = 0;
+    let alertCount = 0;
     for (const e of equipment) {
-      const stock = e.stock_current ?? 0;
-      totalStock += stock + e.total_assigned;
-      totalAssigned += e.total_assigned;
-      totalValue += (e.price ?? 0) * (stock + e.total_assigned);
+      totalUnits += (e.stock_current ?? 0) + e.total_assigned;
+      totalValue += (e.price ?? 0) * ((e.stock_current ?? 0) + e.total_assigned);
+      if (getCardAlert(e) !== "none") alertCount++;
     }
-    return { totalStock, totalAssigned, totalValue };
+    return { totalUnits, totalValue, alertCount };
   }, [equipment]);
-
-  const [columnVisibility, setColumnVisibility] = useColumnVisibility("outillage");
-
-  const columns: ColumnDef<EquipmentProduct>[] = [
-    {
-      accessorKey: "name",
-      enableHiding: false,
-      header: ({ column }) => <SortHeader label="Outil" column={column} />,
-      cell: ({ row }) => {
-        const p = row.original;
-        return (
-          <div className="flex items-center gap-3">
-            <ProductIconDisplay
-              iconName={p.icon_name}
-              iconColor={p.icon_color}
-              imageUrl={p.image_url}
-              size="sm"
-            />
-            <div className="min-w-0">
-              <p className="font-semibold text-[15px] leading-tight truncate">{p.name}</p>
-              <p className="text-xs text-muted-foreground tabular-nums">{p.sku}</p>
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      id: "category",
-      meta: { label: "Catégorie" },
-      accessorFn: (row) => row.category?.name || "",
-      header: ({ column }) => <SortHeader label="Catégorie" column={column} />,
-      cell: ({ row }) => (
-        <span className="text-[15px]">{row.original.category?.name || "\u2014"}</span>
-      ),
-    },
-    {
-      id: "distribution",
-      meta: { label: "Répartition" },
-      accessorFn: (row) => row.total_assigned,
-      header: ({ column }) => <SortHeader label="Répartition" column={column} />,
-      cell: ({ row }) => {
-        const p = row.original;
-        const total = (p.stock_current ?? 0) + p.total_assigned;
-        return <DistributionBar assigned={p.total_assigned} total={total} />;
-      },
-    },
-    {
-      accessorKey: "stock_current",
-      header: ({ column }) => (
-        <SortHeader label="Disponible" column={column} className="justify-center w-full" />
-      ),
-      cell: ({ row }) => {
-        const stock = row.original.stock_current ?? 0;
-        return (
-          <span
-            className={cn(
-              "font-heading font-bold tabular-nums text-xl",
-              stock === 0 ? "text-muted-foreground/40" : "text-foreground"
-            )}
-          >
-            {stock}
-          </span>
-        );
-      },
-      meta: { align: "center", label: "Disponible" },
-    },
-    {
-      id: "assigned_to",
-      meta: { label: "Équipé par" },
-      accessorFn: (row) => row.assignments?.length ?? 0,
-      header: ({ column }) => <SortHeader label="Équipé par" column={column} />,
-      cell: ({ row }) => {
-        const assignments = row.original.assignments;
-        if (assignments.length === 0) {
-          return <span className="text-muted-foreground/50 text-sm">Non assigné</span>;
-        }
-        const shown = assignments.slice(0, 3);
-        const remaining = assignments.length - shown.length;
-        return (
-          <div className="flex items-center -space-x-1.5">
-            {shown.map((a) => {
-              const tech = a.technician;
-              if (!tech) return null;
-              const initials = `${tech.first_name.charAt(0)}${tech.last_name.charAt(0)}`;
-              return (
-                <Avatar
-                  key={a.id}
-                  className="size-7 border-2 border-card"
-                  title={`${tech.first_name} ${tech.last_name} (x${a.quantity})`}
-                >
-                  {tech.photo_url && <AvatarImage src={tech.photo_url} />}
-                  <AvatarFallback className="text-[9px] font-semibold">{initials}</AvatarFallback>
-                </Avatar>
-              );
-            })}
-            {remaining > 0 && (
-              <div className="flex size-7 items-center justify-center rounded-full border-2 border-card bg-muted text-[10px] font-semibold">
-                +{remaining}
-              </div>
-            )}
-          </div>
-        );
-      },
-    },
-    {
-      id: "actions",
-      enableSorting: false,
-      enableHiding: false,
-      header: () => null,
-      cell: ({ row }) => (
-        <div className="flex justify-end">
-          <Button
-            size="sm"
-            className="h-7 px-2.5 text-xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              setAssignProductId(row.original.id);
-            }}
-          >
-            <UserPlus className="size-3.5" />
-            Assigner
-          </Button>
-        </div>
-      ),
-      meta: { align: "right" },
-    },
-  ];
-
-  const table = useReactTable({
-    data: equipment,
-    columns,
-    onSortingChange: setSorting,
-    onColumnVisibilityChange: setColumnVisibility,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    state: { sorting, columnVisibility },
-  });
 
   if (isLoading || isOrgLoading) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-4">
+        <Skeleton className="h-12 w-full rounded-xl" />
         <Skeleton className="h-9 w-full rounded-md" />
-        <div className="rounded-xl border bg-card overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b">
-                {[...Array(6)].map((_, i) => (
-                  <th key={i} className="h-11 px-5 text-left">
-                    <Skeleton className="h-3 w-20" />
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[...Array(5)].map((_, i) => (
-                <tr key={i} className="border-b last:border-b-0">
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-3">
-                      <Skeleton className="size-8 rounded-lg" />
-                      <Skeleton className="h-4 w-28" />
-                    </div>
-                  </td>
-                  <td className="px-5 py-4">
-                    <Skeleton className="h-4 w-20" />
-                  </td>
-                  <td className="px-5 py-4">
-                    <Skeleton className="h-1.5 w-24 rounded-full" />
-                  </td>
-                  <td className="px-5 py-4 text-center">
-                    <Skeleton className="h-5 w-8 mx-auto" />
-                  </td>
-                  <td className="px-5 py-4">
-                    <Skeleton className="h-7 w-16" />
-                  </td>
-                  <td className="px-5 py-4">
-                    <Skeleton className="h-7 w-20 ml-auto" />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[...Array(6)].map((_, i) => (
+            <Skeleton key={i} className="h-32 rounded-xl" />
+          ))}
         </div>
       </div>
     );
@@ -348,29 +118,29 @@ export default function EquipmentList() {
   const totalCount = equipment.length;
 
   return (
-    <div className="space-y-3">
-      {/* ── Summary strip ── */}
+    <div className="space-y-4">
+      {/* ── Fleet strip — one line, essentials only ── */}
       {totalCount > 0 && (
-        <div className="flex items-center gap-5 rounded-xl border bg-card px-5 py-3">
+        <div className="rounded-xl border bg-card px-5 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Wrench className="size-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Parc outillage</span>
+            <span className="text-sm">
+              <span className="font-semibold">{stats.totalUnits}</span> unites
+              {stats.totalValue > 0 && (
+                <span className="text-muted-foreground"> · {fmtPrice(stats.totalValue)}</span>
+              )}
+            </span>
           </div>
-          <div className="flex items-center gap-4 ml-auto text-sm">
-            <div className="text-muted-foreground">
-              <span className="font-heading font-bold text-foreground tabular-nums">
-                {stats.totalAssigned}
-              </span>
-              /{stats.totalStock} assignés
-            </div>
-            {stats.totalValue > 0 && (
-              <div className="text-muted-foreground tabular-nums">{fmtPrice(stats.totalValue)}</div>
-            )}
-          </div>
+          {stats.alertCount > 0 && (
+            <span className="flex items-center gap-1.5 text-xs text-attention font-medium">
+              <AlertTriangle className="size-3.5" />
+              {stats.alertCount} alerte{stats.alertCount > 1 ? "s" : ""}
+            </span>
+          )}
         </div>
       )}
 
-      {/* Search + category chips */}
+      {/* ── Search + filters + sort ── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -382,42 +152,20 @@ export default function EquipmentList() {
           />
         </div>
 
-        {categories.length > 0 && (
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setQueryStates({ category: null })}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none",
-                !category
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
-              )}
-            >
-              Tous
-            </button>
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => setQueryStates({ category: category === cat.id ? null : cat.id })}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none",
-                  category === cat.id
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                )}
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <TableColumnToggle table={table} className="sm:ml-auto" />
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as SortKey)}
+          className="border-input bg-white dark:bg-card text-xs flex h-8 rounded-md border px-2 py-1 shadow-xs outline-none focus:border-foreground/30 sm:ml-auto shrink-0"
+        >
+          <option value="name">Tri : Nom</option>
+          <option value="available">Tri : Disponible</option>
+          <option value="value">Tri : Valeur</option>
+          <option value="alerts">Tri : Alertes</option>
+        </select>
       </div>
 
-      {totalCount === 0 && !search && !category ? (
+      {/* ── Cards ── */}
+      {totalCount === 0 && !search ? (
         <div className="rounded-xl border bg-card overflow-hidden">
           <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
             <div className="flex size-16 items-center justify-center rounded-2xl bg-muted mb-4">
@@ -425,7 +173,7 @@ export default function EquipmentList() {
             </div>
             <h3 className="text-lg font-semibold">Aucun outillage</h3>
             <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-              Ajoutez vos outils et équipements pour suivre leur assignation aux techniciens.
+              Ajoutez vos outils et equipements pour suivre leur assignation aux techniciens.
             </p>
             <Button className="mt-5" onClick={() => setCreateOpen(true)}>
               <Wrench className="mr-2 size-4" />
@@ -433,89 +181,137 @@ export default function EquipmentList() {
             </Button>
           </div>
         </div>
+      ) : totalCount === 0 ? (
+        <div className="rounded-xl border bg-card">
+          <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+            <p className="text-muted-foreground text-sm">
+              Aucun outil ne correspond a cette recherche.
+            </p>
+          </div>
+        </div>
       ) : (
-        <div className="rounded-xl border bg-card overflow-hidden">
-          <table className="w-full">
-            <thead>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id} className="border-b">
-                  {headerGroup.headers.map((header) => {
-                    const align = (header.column.columnDef.meta as { align?: string })?.align;
-                    return (
-                      <th
-                        key={header.id}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <AnimatePresence mode="popLayout" initial={false}>
+            {sorted.map((item, index) => {
+              const stock = item.stock_current ?? 0;
+              const total = stock + item.total_assigned;
+              const itemValue = (item.price ?? 0) * total;
+              const alert = getCardAlert(item);
+              const shown = item.assignments.slice(0, 4);
+              const remaining = item.assignments.length - shown.length;
+
+              return (
+                <motion.div
+                  key={item.id}
+                  layout={!prefersReducedMotion}
+                  initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={prefersReducedMotion ? undefined : { opacity: 0, y: -8 }}
+                  transition={{
+                    type: "spring",
+                    bounce: 0,
+                    duration: 0.35,
+                    delay: prefersReducedMotion ? 0 : index * 0.04,
+                  }}
+                  className="rounded-xl border bg-card p-4 space-y-3 cursor-pointer transition-colors hover:bg-muted/30 hover:border-foreground/10 active:scale-[0.98]"
+                  onClick={() => setManageProduct(item)}
+                >
+                  {/* Header: icon + name + alert dot */}
+                  <div className="flex items-start gap-3">
+                    <ProductIconDisplay
+                      iconName={item.icon_name}
+                      iconColor={item.icon_color}
+                      imageUrl={item.image_url}
+                      size="md"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-[15px] leading-tight truncate">
+                        {item.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                        {stock} en stock · {item.total_assigned} assigne
+                        {item.total_assigned > 1 ? "s" : ""}
+                      </p>
+                    </div>
+                    {alert !== "none" && (
+                      <span
                         className={cn(
-                          "h-11 px-5 font-medium whitespace-nowrap",
-                          align === "right" && "text-right",
-                          align === "center" && "text-center",
-                          !align && "text-left"
+                          "size-2.5 rounded-full shrink-0 mt-1.5",
+                          alertDotClass[alert]
                         )}
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(header.column.columnDef.header, header.getContext())}
-                      </th>
-                    );
-                  })}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              <AnimatePresence mode="popLayout" initial={false}>
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row, index) => (
-                    <AnimatedRow
-                      key={row.original.id}
-                      index={index}
-                      reducedMotion={prefersReducedMotion}
-                      onClick={() => router.push(`/outillage/${row.original.id}`)}
-                    >
-                      {row.getVisibleCells().map((cell) => {
-                        const align = (cell.column.columnDef.meta as { align?: string })?.align;
-                        return (
-                          <td
-                            key={cell.id}
-                            className={cn(
-                              "px-5 py-4 whitespace-nowrap",
-                              align === "right" && "text-right",
-                              align === "center" && "text-center"
-                            )}
-                          >
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </td>
-                        );
-                      })}
-                    </AnimatedRow>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={columns.length} className="h-32 text-center">
-                      <div className="text-muted-foreground">
-                        Aucun outil ne correspond à cette recherche.
+                        title={alert === "danger" ? "Assignation > 1 an" : "Assignation > 6 mois"}
+                      />
+                    )}
+                  </div>
+
+                  {/* Footer: avatars + value */}
+                  <div className="flex items-center justify-between">
+                    {shown.length > 0 ? (
+                      <div className="flex items-center -space-x-1.5">
+                        {shown.map((a) => {
+                          const tech = a.technician;
+                          if (!tech) return null;
+                          const initials = `${tech.first_name.charAt(0)}${tech.last_name.charAt(0)}`;
+                          return (
+                            <Avatar
+                              key={a.id}
+                              className="size-6 border-2 border-card"
+                              title={`${tech.first_name} ${tech.last_name} (x${a.quantity})`}
+                            >
+                              {tech.photo_url && <AvatarImage src={tech.photo_url} />}
+                              <AvatarFallback className="text-[8px] font-semibold">
+                                {initials}
+                              </AvatarFallback>
+                            </Avatar>
+                          );
+                        })}
+                        {remaining > 0 && (
+                          <div className="flex size-6 items-center justify-center rounded-full border-2 border-card bg-muted text-[9px] font-semibold">
+                            +{remaining}
+                          </div>
+                        )}
                       </div>
-                    </td>
-                  </tr>
-                )}
-              </AnimatePresence>
-            </tbody>
-          </table>
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground/50">Non assigne</span>
+                    )}
+                    {itemValue > 0 && (
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {fmtPrice(itemValue)}
+                      </span>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
       )}
 
+      {/* ── Footer ── */}
       {totalCount > 0 && (
         <div className="px-1">
           <p className="text-muted-foreground text-sm">
-            <HeroNumber value={totalCount} className="text-sm" /> outil
-            {totalCount > 1 ? "s" : ""}
+            <HeroNumber value={totalCount} className="text-sm" /> type
+            {totalCount > 1 ? "s" : ""} d'outils
           </p>
         </div>
       )}
 
-      {assignProductId && (
-        <AssignEquipmentModal
-          productId={assignProductId}
-          open={!!assignProductId}
-          onOpenChange={(open) => !open && setAssignProductId(null)}
+      {/* ── Modals ── */}
+      {manageProduct && (
+        <EquipmentManageModal
+          product={manageProduct}
+          open={!!manageProduct}
+          onOpenChange={(open) => !open && setManageProduct(null)}
+          onEdit={() => setEditProduct(manageProduct)}
+        />
+      )}
+
+      {editProduct && (
+        <EditEquipmentDialog
+          product={editProduct}
+          open={!!editProduct}
+          onOpenChange={(open) => !open && setEditProduct(null)}
         />
       )}
 
