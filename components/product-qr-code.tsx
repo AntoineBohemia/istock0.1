@@ -5,13 +5,7 @@ import { QRCodeCanvas } from "qrcode.react";
 import { Download, Printer } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface ProductQRCodeProps {
   productId: string;
@@ -19,14 +13,10 @@ interface ProductQRCodeProps {
   productSku: string | null;
 }
 
-export default function ProductQRCode({
-  productId,
-  productName,
-  productSku,
-}: ProductQRCodeProps) {
+export default function ProductQRCode({ productId, productName, productSku }: ProductQRCodeProps) {
   const qrRef = useRef<HTMLDivElement>(null);
 
-  const qrValue = `https://istock-app.space/stock?product=${productId}`;
+  const qrValue = `https://istock-app.space/actions?product=${productId}`;
 
   const handleDownload = () => {
     const canvas = qrRef.current?.querySelector("canvas");
@@ -127,31 +117,17 @@ export default function ProductQRCode({
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base">QR Code Produit</CardTitle>
-        <CardDescription>
-          Scannez pour gérer le stock rapidement
-        </CardDescription>
+        <CardDescription>Scannez pour gérer le stock rapidement</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex flex-col items-center gap-4">
-          <div
-            ref={qrRef}
-            className="rounded-lg border bg-white p-3"
-          >
-            <QRCodeCanvas
-              value={qrValue}
-              size={120}
-              level="M"
-              marginSize={0}
-            />
+          <div ref={qrRef} className="rounded-lg border bg-white p-3">
+            <QRCodeCanvas value={qrValue} size={120} level="M" marginSize={0} />
           </div>
 
           <div className="text-center">
             <p className="text-sm font-medium">{productName}</p>
-            {productSku && (
-              <p className="text-xs text-muted-foreground font-mono">
-                {productSku}
-              </p>
-            )}
+            {productSku && <p className="text-xs text-muted-foreground font-mono">{productSku}</p>}
           </div>
 
           <div className="flex gap-2">

@@ -25,7 +25,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ui/status-pill";
 import { HeroNumber } from "@/components/ui/hero-number";
-import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProducts, useTechnicians, useStockMovements } from "@/hooks/queries";
@@ -149,6 +155,8 @@ export default function ActionsMobileSheet() {
 
   // ─── QR Scanner ────────────────────────────────────────
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [scannedProduct, setScannedProduct] = useState<ConsoleProduct | null>(null);
+  const [scanActionSheetOpen, setScanActionSheetOpen] = useState(false);
 
   // ─── Session journal ────────────────────────────────────
   const [session, setSession] = useState<SessionEntry[]>([]);
@@ -160,6 +168,10 @@ export default function ActionsMobileSheet() {
     organizationId: orgId,
     search: debouncedSearch || undefined,
   });
+  // Full product list (no search filter) — used for QR scan lookup
+  const { data: allProductsResult } = useProducts({ organizationId: orgId });
+  const allProducts = useMemo(() => allProductsResult?.products ?? [], [allProductsResult]);
+
   const { data: techniciansData = [] } = useTechnicians(orgId);
   const searchResults = useMemo(() => productsResult?.products ?? [], [productsResult]);
 
@@ -248,31 +260,56 @@ export default function ActionsMobileSheet() {
     (productId: string) => {
       setScannerOpen(false);
       navigator.vibrate?.(10);
-      // Find the scanned product in loaded data
-      const found = searchResults.find((p) => p.id === productId);
+      // Find the scanned product in FULL list (not search-filtered)
+      const found = allProducts.find((p) => p.id === productId);
       if (found) {
-        // Auto-open the entry drawer with this product selected
-        setActionMode("entry");
-        setSearchQuery("");
-        setCart([]);
-        setTechnicianId("");
-        setProduct({
+        setScannedProduct({
           id: found.id,
           name: found.name,
           sku: found.sku,
           stock_current: found.stock_current ?? 0,
           stock_min: found.stock_min,
         });
+        setScanActionSheetOpen(true);
+      } else {
+        toast.error("Produit non reconnu dans cette organisation");
+      }
+    },
+    [allProducts]
+  );
+
+  // ─── Scan action sheet choices ─────────────────────
+  const handleScanAction = useCallback(
+    (mode: ActionMode) => {
+      if (!scannedProduct) return;
+      setScanActionSheetOpen(false);
+
+      if (mode === "exit_technician") {
+        // Open technician selection with this product pre-queued
+        setActionMode("exit_technician");
+        setSearchQuery("");
+        setProduct(null);
+        setCart([{ product: scannedProduct, quantity: 1 }]);
+        setTechnicianId("");
+        setDrawerStep("technicians");
+        setDrawerOpen(true);
+      } else {
+        // Entry or exit_anonymous — go straight to detail
+        setActionMode(mode);
+        setSearchQuery("");
+        setCart([]);
+        setTechnicianId("");
+        setProduct(scannedProduct);
         setQuantity(1);
         setDrawerStep("detail");
         setDrawerOpen(true);
         setTimeout(() => quantityInputRef.current?.focus(), 200);
-      } else {
-        // Product not in current org or not loaded — open entry drawer and search
-        toast.error("Produit non trouve dans cette organisation");
       }
+
+      // Clear scanned product after a delay (let sheet close animation finish)
+      setTimeout(() => setScannedProduct(null), 300);
     },
-    [searchResults]
+    [scannedProduct]
   );
 
   // ─── Select product (entry / exit_anonymous) ──────────
@@ -527,7 +564,7 @@ export default function ActionsMobileSheet() {
     [orgId, revertingIds, createEntry, createExit]
   );
 
-  // ─── Welcome toast (invited redirect) ─────────────────
+  // ─── URL params (invited redirect + QR deep link) ────
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("invited") === "true") {
@@ -535,6 +572,35 @@ export default function ActionsMobileSheet() {
       window.history.replaceState({}, "", "/actions");
     }
   }, []);
+
+  // Handle ?product= deep link (native QR scan from camera app)
+  const deepLinkHandled = useRef(false);
+  useEffect(() => {
+    if (deepLinkHandled.current || allProducts.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const productId = params.get("product");
+    if (!productId) return;
+
+    deepLinkHandled.current = true;
+    window.history.replaceState({}, "", "/actions");
+
+    const found = allProducts.find((p) => p.id === productId);
+    if (found) {
+      // Schedule after render to avoid setState-in-effect lint error
+      queueMicrotask(() => {
+        setScannedProduct({
+          id: found.id,
+          name: found.name,
+          sku: found.sku,
+          stock_current: found.stock_current ?? 0,
+          stock_min: found.stock_min,
+        });
+        setScanActionSheetOpen(true);
+      });
+    } else {
+      queueMicrotask(() => toast.error("Produit non reconnu dans cette organisation"));
+    }
+  }, [allProducts]);
 
   // ─── Drawer title (for accessibility) ─────────────────
   const drawerTitle = useMemo(() => {
@@ -1155,6 +1221,84 @@ export default function ActionsMobileSheet() {
         onClose={() => setScannerOpen(false)}
         onScan={handleScanResult}
       />
+
+      {/* ── Scan Action Sheet (choose action after scan) ── */}
+      <Drawer open={scanActionSheetOpen} onOpenChange={setScanActionSheetOpen}>
+        <DrawerContent className="pb-[env(safe-area-inset-bottom)]">
+          <DrawerHeader className="pb-2">
+            <DrawerTitle className="sr-only">Action pour {scannedProduct?.name}</DrawerTitle>
+            <DrawerDescription className="sr-only">
+              Choisissez une action pour ce produit
+            </DrawerDescription>
+          </DrawerHeader>
+
+          {scannedProduct && (
+            <>
+              {/* Product info */}
+              <div className="flex items-center gap-3 mx-4 mb-4 rounded-xl border bg-muted/50 p-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold truncate">{scannedProduct.name}</p>
+                  {scannedProduct.sku && (
+                    <p className="text-xs text-muted-foreground font-mono">{scannedProduct.sku}</p>
+                  )}
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="font-heading font-bold tabular-nums">
+                    {scannedProduct.stock_current}
+                  </p>
+                  <StatusPill
+                    status={getStockBadgeVariant(
+                      calculateStockScore(scannedProduct.stock_current, scannedProduct.stock_min)
+                    )}
+                  />
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex flex-col gap-2 mx-4 mb-4">
+                <button
+                  onClick={() => handleScanAction("entry")}
+                  className="w-full flex items-center gap-3 rounded-xl border p-4 min-h-[56px] active:scale-[0.98] transition-all hover:bg-muted/40"
+                >
+                  <div className="size-9 rounded-full bg-standard-bg flex items-center justify-center shrink-0">
+                    <ArrowDownToLine className="size-5 text-standard" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-sm">Entrer en stock</p>
+                    <p className="text-xs text-muted-foreground">Ajouter au stock</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleScanAction("exit_anonymous")}
+                  className="w-full flex items-center gap-3 rounded-xl border p-4 min-h-[56px] active:scale-[0.98] transition-all hover:bg-muted/40"
+                >
+                  <div className="size-9 rounded-full bg-critique-bg flex items-center justify-center shrink-0">
+                    <ArrowUpFromLine className="size-5 text-critique" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-sm">Sortie autre</p>
+                    <p className="text-xs text-muted-foreground">Retirer du stock</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleScanAction("exit_technician")}
+                  className="w-full flex items-center gap-3 rounded-xl border p-4 min-h-[56px] active:scale-[0.98] transition-all hover:bg-muted/40"
+                >
+                  <div className="size-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <HardHat className="size-5 text-primary" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-sm">Sortie technicien</p>
+                    <p className="text-xs text-muted-foreground">Attribuer a un technicien</p>
+                  </div>
+                </button>
+              </div>
+            </>
+          )}
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }

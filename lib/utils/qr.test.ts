@@ -13,17 +13,26 @@ describe("parseProductQr", () => {
     );
   });
 
-  // ─── New URL pattern ───────────────────────────────────────────────
-  it("parses new URL format (https)", () => {
+  // ─── URL pattern (stock — legacy) ──────────────────────────────────
+  it("parses stock URL format (https)", () => {
     expect(parseProductQr("https://istock-app.space/stock?product=abc-123")).toBe("abc-123");
   });
 
-  it("parses new URL format (http)", () => {
+  it("parses stock URL format (http)", () => {
     expect(parseProductQr("http://istock-app.space/stock?product=abc-123")).toBe("abc-123");
   });
 
+  // ─── URL pattern (actions — new) ──────────────────────────────────
+  it("parses actions URL format (https)", () => {
+    expect(parseProductQr("https://istock-app.space/actions?product=abc-123")).toBe("abc-123");
+  });
+
+  it("parses actions URL format (http)", () => {
+    expect(parseProductQr("http://istock-app.space/actions?product=abc-123")).toBe("abc-123");
+  });
+
   it("parses URL with additional query params after product", () => {
-    expect(parseProductQr("https://istock-app.space/stock?product=abc-123&foo=bar")).toBe(
+    expect(parseProductQr("https://istock-app.space/actions?product=abc-123&foo=bar")).toBe(
       "abc-123"
     );
   });
@@ -46,6 +55,6 @@ describe("parseProductQr", () => {
   });
 
   it("returns null for URL without product param", () => {
-    expect(parseProductQr("https://istock-app.space/stock")).toBeNull();
+    expect(parseProductQr("https://istock-app.space/actions")).toBeNull();
   });
 });
