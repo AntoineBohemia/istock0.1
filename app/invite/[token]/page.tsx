@@ -19,7 +19,15 @@ import { Badge } from "@/components/ui/badge";
 import { getInvitationByToken, acceptInvitation } from "@/lib/supabase/queries/organizations";
 import { createClient } from "@/lib/supabase/client";
 
-type InvitationStatus = "loading" | "valid" | "accepting" | "accepted" | "invalid" | "error";
+type InvitationStatus =
+  | "loading"
+  | "valid"
+  | "accepting"
+  | "accepted"
+  | "already_accepted"
+  | "expired"
+  | "invalid"
+  | "error";
 
 interface InvitationData {
   email: string;
@@ -61,8 +69,14 @@ export default function AcceptInvitationPage() {
           return;
         }
 
-        if (new Date(invitationData.expires_at ?? Date.now()) < new Date()) {
-          setStatus("invalid");
+        if (!invitationData.valid) {
+          if (invitationData.reason === "already_accepted") {
+            setStatus("already_accepted");
+          } else if (invitationData.reason === "expired") {
+            setStatus("expired");
+          } else {
+            setStatus("invalid");
+          }
           return;
         }
 
@@ -88,12 +102,13 @@ export default function AcceptInvitationPage() {
             setStatus("accepted");
             toast.success(`Bienvenue dans ${result.organization.name} !`);
           } catch (error) {
-            // already_member is not an error — treat as success
-            if (error instanceof Error && error.message.includes("déjà membre")) {
+            const msg = error instanceof Error ? error.message : "";
+            // already_member or already_accepted (race with callback) — treat as success
+            if (msg.includes("déjà membre") || msg.includes("déjà été acceptée")) {
               setStatus("accepted");
               toast.success(`Vous êtes déjà membre de ${inv.organizationName}`);
             } else {
-              toast.error(error instanceof Error ? error.message : "Erreur lors de l'acceptation");
+              toast.error(msg || "Erreur lors de l'acceptation");
               setStatus("valid");
             }
           }
@@ -142,7 +157,57 @@ export default function AcceptInvitationPage() {
     );
   }
 
-  // ── Invalid ──
+  // ── Already accepted ──
+  if (status === "already_accepted") {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
+              <CheckCircle className="size-8 text-green-600 dark:text-green-400" />
+            </div>
+            <CardTitle>Invitation déjà acceptée</CardTitle>
+            <CardDescription>
+              Cette invitation a déjà été utilisée. Connectez-vous pour accéder à
+              l&apos;organisation.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter className="justify-center">
+            <Button asChild>
+              <Link href="/actions">Accéder à l&apos;application</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  // ── Expired ──
+  if (status === "expired") {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-destructive/10">
+              <XCircle className="size-8 text-destructive" />
+            </div>
+            <CardTitle>Invitation expirée</CardTitle>
+            <CardDescription>
+              Cette invitation a expiré. Demandez à l&apos;administrateur de vous renvoyer une
+              invitation.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter className="justify-center">
+            <Button asChild>
+              <Link href="/login">Retour à la connexion</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  // ── Invalid (not found) ──
   if (status === "invalid") {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
@@ -152,7 +217,7 @@ export default function AcceptInvitationPage() {
               <XCircle className="size-8 text-destructive" />
             </div>
             <CardTitle>Invitation invalide</CardTitle>
-            <CardDescription>Cette invitation n&apos;existe pas ou a expiré.</CardDescription>
+            <CardDescription>Cette invitation n&apos;existe pas.</CardDescription>
           </CardHeader>
           <CardFooter className="justify-center">
             <Button asChild>

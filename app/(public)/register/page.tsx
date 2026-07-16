@@ -169,7 +169,7 @@ export default function Page() {
                           id="email"
                           type="email"
                           placeholder="contact@exemple.com"
-                          disabled={isLoading}
+                          disabled={isLoading || !!prefillEmail}
                         />
                       </FormControl>
                       <FormMessage />

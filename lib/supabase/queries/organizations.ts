@@ -361,27 +361,30 @@ export async function cancelInvitation(invitationId: string): Promise<void> {
 /**
  * Récupère les détails d'une invitation par token via RPC sécurisé
  */
-export async function getInvitationByToken(token: string) {
+export interface InvitationDetails {
+  valid: boolean;
+  reason?: string;
+  email: string;
+  masked_email: string;
+  role: string;
+  expires_at: string;
+  organization_name: string;
+  organization_logo_url: string | null;
+  user_exists: boolean;
+}
+
+export async function getInvitationByToken(token: string): Promise<InvitationDetails | null> {
   const supabase = createClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase.rpc as any)("get_invitation_details", {
     p_token: token,
   });
 
-  if (error || !data || !data.valid) {
+  if (error || !data) {
     return null;
   }
 
-  return data as {
-    valid: boolean;
-    email: string;
-    masked_email: string;
-    role: string;
-    expires_at: string;
-    organization_name: string;
-    organization_logo_url: string | null;
-    user_exists: boolean;
-  };
+  return data as InvitationDetails;
 }
 
 /**
