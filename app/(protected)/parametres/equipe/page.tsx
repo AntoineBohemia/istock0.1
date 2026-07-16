@@ -554,7 +554,7 @@ export default function MembersPage() {
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value as "admin" | "member" | "guest")}
                 disabled={isSubmitting}
-                className="h-9 w-fit rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="member">Membre</option>
                 <option value="admin">Administrateur</option>
