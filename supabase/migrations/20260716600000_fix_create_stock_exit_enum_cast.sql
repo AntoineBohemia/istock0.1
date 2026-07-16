@@ -1,3 +1,7 @@
+-- Fix: cast p_type TEXT to stock_movement_type enum in INSERT
+-- Without this cast, Postgres rejects the insert with:
+-- "column movement_type is of type stock_movement_type but expression is of type text"
+
 CREATE OR REPLACE FUNCTION create_stock_exit(
   p_organization_id UUID,
   p_product_id UUID,
@@ -20,7 +24,7 @@ DECLARE
   v_has_first BOOLEAN := FALSE;
 BEGIN
   IF p_quantity <= 0 THEN
-    RAISE EXCEPTION 'La quantité doit être positive';
+    RAISE EXCEPTION 'La quantite doit etre positive';
   END IF;
 
   IF p_type NOT IN ('exit_technician', 'exit_anonymous') THEN
@@ -28,10 +32,9 @@ BEGIN
   END IF;
 
   IF p_type = 'exit_technician' AND p_technician_id IS NULL THEN
-    RAISE EXCEPTION 'Un technicien doit être sélectionné pour ce type de sortie';
+    RAISE EXCEPTION 'Un technicien doit etre selectionne pour ce type de sortie';
   END IF;
 
-  -- Lock the product row to prevent race conditions
   SELECT id, name, stock_current
   INTO v_product
   FROM products
@@ -39,15 +42,14 @@ BEGIN
   FOR UPDATE;
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'Produit non trouvé: %', p_product_id;
+    RAISE EXCEPTION 'Produit non trouve: %', p_product_id;
   END IF;
 
   IF v_product.stock_current < p_quantity THEN
-    RAISE EXCEPTION 'Stock insuffisant pour "%". Disponible: %, demandé: %',
+    RAISE EXCEPTION 'Stock insuffisant pour "%". Disponible: %, demande: %',
       v_product.name, v_product.stock_current, p_quantity;
   END IF;
 
-  -- Allocate from orgs with least stock first
   v_remaining := p_quantity;
 
   FOR v_alloc IN
@@ -62,7 +64,6 @@ BEGIN
 
     v_take := LEAST(v_remaining, v_alloc.stock);
 
-    -- Create one movement per org allocation
     INSERT INTO stock_movements (organization_id, product_id, quantity, movement_type, technician_id)
     VALUES (
       v_alloc.org_id,
@@ -74,13 +75,11 @@ BEGIN
     RETURNING id, product_id, quantity, movement_type, technician_id, organization_id, created_at
     INTO v_movement;
 
-    -- Keep first movement for return value
     IF NOT v_has_first THEN
       v_first_movement := v_movement;
       v_has_first := TRUE;
     END IF;
 
-    -- Decrement per-org stock
     UPDATE product_organization_stock
     SET stock_current = stock_current - v_take, updated_at = NOW()
     WHERE product_id = p_product_id AND organization_id = v_alloc.org_id;
@@ -89,17 +88,15 @@ BEGIN
   END LOOP;
 
   IF v_remaining > 0 THEN
-    RAISE EXCEPTION 'Allocation par société incomplète pour "%": restant %',
+    RAISE EXCEPTION 'Allocation par societe incomplete pour "%": restant %',
       v_product.name, v_remaining;
   END IF;
 
-  -- Decrement global stock cache
   UPDATE products
   SET stock_current = stock_current - p_quantity,
       updated_at = NOW()
   WHERE id = p_product_id;
 
-  -- If exit to technician, upsert technician inventory
   IF p_type = 'exit_technician' AND p_technician_id IS NOT NULL THEN
     SELECT id, quantity
     INTO v_existing
