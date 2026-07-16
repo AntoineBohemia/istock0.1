@@ -127,7 +127,7 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
     throw new Error(`Erreur lors de la récupération des produits: ${error.message}`);
   }
 
-  let products = (data as ProductWithRelations[]) || [];
+  let products = (data as unknown as ProductWithRelations[]) || [];
 
   // Apply stock status filter client-side (column-to-column comparison)
   if (stockStatus && stockStatus !== "all") {
@@ -163,7 +163,7 @@ export async function getProduct(id: string): Promise<ProductWithRelations | nul
     throw new Error(`Erreur lors de la récupération du produit: ${error.message}`);
   }
 
-  return data as ProductWithRelations;
+  return data as unknown as ProductWithRelations;
 }
 
 /**
