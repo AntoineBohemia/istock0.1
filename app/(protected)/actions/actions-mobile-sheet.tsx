@@ -1157,25 +1157,32 @@ export default function ActionsMobileSheet() {
                     </div>
                   )}
 
-                  {/* Total (entry mode, qty > 1, price set) */}
-                  {actionMode === "entry" &&
-                    quantity > 1 &&
-                    unitPrice &&
-                    parseFloat(unitPrice) > 0 && (
-                      <p className="text-right text-xs text-muted-foreground tabular-nums px-1">
-                        {quantity} {"\u00D7"}{" "}
-                        {parseFloat(unitPrice).toLocaleString("fr-FR", {
-                          minimumFractionDigits: 2,
-                        })}{" "}
-                        {"\u20AC"} ={" "}
-                        <span className="font-medium text-foreground">
-                          {(quantity * parseFloat(unitPrice)).toLocaleString("fr-FR", {
+                  {/* Total (entry mode — always rendered to avoid layout shift) */}
+                  {actionMode === "entry" && (
+                    <p
+                      className={cn(
+                        "text-right text-xs tabular-nums px-1 h-4",
+                        quantity > 1 && unitPrice && parseFloat(unitPrice) > 0
+                          ? "text-muted-foreground"
+                          : "invisible"
+                      )}
+                    >
+                      {quantity} {"\u00D7"}{" "}
+                      {(unitPrice ? parseFloat(unitPrice) : 0).toLocaleString("fr-FR", {
+                        minimumFractionDigits: 2,
+                      })}{" "}
+                      {"\u20AC"} ={" "}
+                      <span className="font-medium text-foreground">
+                        {(quantity * (unitPrice ? parseFloat(unitPrice) : 0)).toLocaleString(
+                          "fr-FR",
+                          {
                             minimumFractionDigits: 2,
-                          })}{" "}
-                          {"\u20AC"}
-                        </span>
-                      </p>
-                    )}
+                          }
+                        )}{" "}
+                        {"\u20AC"}
+                      </span>
+                    </p>
+                  )}
                 </motion.div>
               )}
 
