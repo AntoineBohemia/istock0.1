@@ -51,6 +51,7 @@ interface ConsoleProduct {
   sku: string | null;
   stock_current: number;
   stock_min: number | null;
+  price: number | null;
 }
 
 interface CartItem {
@@ -147,6 +148,7 @@ export default function ActionsMobileSheet() {
   // ─── Single product ─────────────────────────────────────
   const [product, setProduct] = useState<ConsoleProduct | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
+  const [unitPrice, setUnitPrice] = useState<string>("");
   const quantityInputRef = useRef<HTMLInputElement>(null);
 
   // ─── Technician (exit_technician) ───────────────────────
@@ -229,6 +231,7 @@ export default function ActionsMobileSheet() {
     setSearchQuery("");
     setProduct(null);
     setQuantity(1);
+    setUnitPrice("");
     setCart([]);
     setTechnicianId("");
 
@@ -250,6 +253,7 @@ export default function ActionsMobileSheet() {
       setSearchQuery("");
       setProduct(null);
       setQuantity(1);
+      setUnitPrice("");
       setCart([]);
       setTechnicianId("");
     }, 300);
@@ -269,6 +273,7 @@ export default function ActionsMobileSheet() {
           sku: found.sku,
           stock_current: found.stock_current ?? 0,
           stock_min: found.stock_min,
+          price: found.price ?? null,
         });
         setScanActionSheetOpen(true);
       } else {
@@ -301,6 +306,7 @@ export default function ActionsMobileSheet() {
         setTechnicianId("");
         setProduct(scannedProduct);
         setQuantity(1);
+        setUnitPrice(scannedProduct.price != null ? scannedProduct.price.toString() : "");
         setDrawerStep("detail");
         setDrawerOpen(true);
         setTimeout(() => quantityInputRef.current?.focus(), 200);
@@ -317,6 +323,7 @@ export default function ActionsMobileSheet() {
     navigator.vibrate?.(10);
     setProduct(p);
     setQuantity(1);
+    setUnitPrice(p.price != null ? p.price.toString() : "");
     setSearchQuery("");
     setDrawerStep("detail");
     setTimeout(() => quantityInputRef.current?.focus(), 100);
@@ -381,6 +388,7 @@ export default function ActionsMobileSheet() {
     if (drawerStep === "detail") {
       setProduct(null);
       setQuantity(1);
+      setUnitPrice("");
       setDrawerStep("products");
       setSearchQuery("");
       setTimeout(() => searchInputRef.current?.focus(), 100);
@@ -437,8 +445,14 @@ export default function ActionsMobileSheet() {
     };
 
     if (isEntry) {
+      const parsedPrice = unitPrice ? parseFloat(unitPrice) : undefined;
       createEntry.mutate(
-        { organizationId: orgId, productId: product.id, quantity },
+        {
+          organizationId: orgId,
+          productId: product.id,
+          quantity,
+          unitPrice: parsedPrice || undefined,
+        },
         { onSuccess, onError }
       );
     } else {
@@ -594,6 +608,7 @@ export default function ActionsMobileSheet() {
           sku: found.sku,
           stock_current: found.stock_current ?? 0,
           stock_min: found.stock_min,
+          price: found.price ?? null,
         });
         setScanActionSheetOpen(true);
       });
@@ -633,7 +648,7 @@ export default function ActionsMobileSheet() {
             <button
               key={mode}
               onClick={() => openDrawer(mode)}
-              className="flex items-center gap-2.5 rounded-xl border bg-background px-3.5 py-3 active:scale-[0.97] transition-all"
+              className="flex items-center gap-2.5 rounded-xl border bg-white dark:bg-card px-3.5 py-3 active:scale-[0.97] transition-all"
             >
               <Icon className={cn("shrink-0 size-[18px]", color)} />
               <span className="font-medium text-[13px] text-left leading-tight">{label}</span>
@@ -951,6 +966,7 @@ export default function ActionsMobileSheet() {
                           sku: p.sku,
                           stock_current: p.stock_current ?? 0,
                           stock_min: p.stock_min,
+                          price: p.price ?? null,
                         };
                         return (
                           <li key={p.id}>
@@ -1168,6 +1184,45 @@ export default function ActionsMobileSheet() {
                       <Plus className="size-5" />
                     </button>
                   </div>
+
+                  {/* Unit price (entry mode only) */}
+                  {actionMode === "entry" && (
+                    <div className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3">
+                      <span className="text-[13px] text-muted-foreground">Prix HT</span>
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min={0}
+                          placeholder="\u2014"
+                          value={unitPrice}
+                          onChange={(e) => setUnitPrice(e.target.value)}
+                          className="w-20 h-8 text-right text-sm rounded-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                        <span className="text-[13px] text-muted-foreground">{"\u20AC"}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Total (entry mode, qty > 1, price set) */}
+                  {actionMode === "entry" &&
+                    quantity > 1 &&
+                    unitPrice &&
+                    parseFloat(unitPrice) > 0 && (
+                      <p className="text-right text-xs text-muted-foreground tabular-nums px-1">
+                        {quantity} {"\u00D7"}{" "}
+                        {parseFloat(unitPrice).toLocaleString("fr-FR", {
+                          minimumFractionDigits: 2,
+                        })}{" "}
+                        {"\u20AC"} ={" "}
+                        <span className="font-medium text-foreground">
+                          {(quantity * parseFloat(unitPrice)).toLocaleString("fr-FR", {
+                            minimumFractionDigits: 2,
+                          })}{" "}
+                          {"\u20AC"}
+                        </span>
+                      </p>
+                    )}
 
                   {/* Submit button */}
                   <Button
