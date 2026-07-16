@@ -1383,9 +1383,10 @@ export default function ActionsMobileSheet() {
         open={batchScanOpen}
         onClose={() => {
           setBatchScanOpen(false);
-          // Go to cart if items were scanned
+          // Reopen drawer on cart step if items were scanned
           if (cart.length > 0) {
             setDrawerStep("cart");
+            setDrawerOpen(true);
           }
         }}
         onScan={handleBatchScan}
@@ -1397,6 +1398,7 @@ export default function ActionsMobileSheet() {
               onClick={() => {
                 setBatchScanOpen(false);
                 setDrawerStep("cart");
+                setDrawerOpen(true);
               }}
               className="w-full flex items-center justify-center gap-2 rounded-xl bg-white text-foreground py-3 font-semibold text-[15px] active:scale-[0.97] transition-all"
             >
