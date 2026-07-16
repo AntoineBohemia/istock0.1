@@ -1256,9 +1256,9 @@ export default function ActionsMobileSheet() {
                         </div>
                         <button
                           onClick={() => removeFromCart(item.product.id)}
-                          className="text-muted-foreground active:text-destructive transition-colors min-h-[44px] flex items-center justify-center"
+                          className="size-9 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center active:bg-destructive/20 transition-colors"
                         >
-                          <Trash2 className="size-4" />
+                          <Trash2 className="size-3.5" />
                         </button>
                       </li>
                     ))}
