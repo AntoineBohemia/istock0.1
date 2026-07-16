@@ -26,13 +26,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import Icon from "../icon";
 import IstockLogo from "@/components/layout/istock-logo";
 import { useIsTablet } from "@/hooks/use-mobile";
@@ -50,6 +43,7 @@ export default function Sidebar() {
   const [user, setUser] = useState<{ name: string; email: string; avatar: string | null } | null>(
     null
   );
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   useEffect(() => {
     if (isMobile) setOpenMobile(false);
@@ -169,53 +163,62 @@ export default function Sidebar() {
           </SidebarMenu>
         )}
         {user && (
-          <div className="border-t pt-2 mt-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-sidebar-accent cursor-pointer outline-none"
-                >
-                  <Avatar className="size-6 shrink-0">
-                    {user.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
-                    <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
-                  </Avatar>
-                  <div className="grid text-left leading-tight group-data-[collapsible=icon]:hidden">
-                    <span className="truncate text-sm font-medium">{user.name}</span>
-                    <span className="truncate text-[11px] text-muted-foreground">{user.email}</span>
-                  </div>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent side="top" align="start" className="w-56">
-                <DropdownMenuItem
-                  onClick={() => router.push("/parametres/equipe")}
-                  className="cursor-pointer"
-                >
-                  <Users className="size-4" />
-                  Équipe
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => router.push("/parametres/organisations")}
-                  className="cursor-pointer"
-                >
-                  <Building2 className="size-4" />
-                  Organisations
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={async () => {
-                    const supabase = createClient();
-                    await supabase.auth.signOut();
-                    router.push("/login");
-                    router.refresh();
-                  }}
-                  className="cursor-pointer text-destructive focus:text-destructive"
-                >
-                  <LogOut className="size-4" />
-                  Se déconnecter
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <div className="relative border-t pt-2 mt-2">
+            <button
+              type="button"
+              onClick={() => setUserMenuOpen((v) => !v)}
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-sidebar-accent cursor-pointer outline-none"
+            >
+              <Avatar className="size-6 shrink-0">
+                {user.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
+                <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
+              </Avatar>
+              <div className="grid text-left leading-tight group-data-[collapsible=icon]:hidden">
+                <span className="truncate text-sm font-medium">{user.name}</span>
+                <span className="truncate text-[11px] text-muted-foreground">{user.email}</span>
+              </div>
+            </button>
+            {userMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
+                <div className="absolute bottom-full left-0 mb-1 w-56 rounded-md border bg-popover p-1 shadow-md z-50">
+                  <button
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      router.push("/parametres/equipe");
+                    }}
+                    className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent cursor-pointer text-left"
+                  >
+                    <Users className="size-4 text-muted-foreground" />
+                    Équipe
+                  </button>
+                  <button
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      router.push("/parametres/organisations");
+                    }}
+                    className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent cursor-pointer text-left"
+                  >
+                    <Building2 className="size-4 text-muted-foreground" />
+                    Organisations
+                  </button>
+                  <div className="my-1 h-px bg-border" />
+                  <button
+                    onClick={async () => {
+                      setUserMenuOpen(false);
+                      const supabase = createClient();
+                      await supabase.auth.signOut();
+                      router.push("/login");
+                      router.refresh();
+                    }}
+                    className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent cursor-pointer text-left text-destructive"
+                  >
+                    <LogOut className="size-4" />
+                    Se déconnecter
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </SidebarFooter>
