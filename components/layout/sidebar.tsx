@@ -26,7 +26,13 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import Icon from "../icon";
 import IstockLogo from "@/components/layout/istock-logo";
 import { useIsTablet } from "@/hooks/use-mobile";
@@ -164,11 +170,11 @@ export default function Sidebar() {
         )}
         {user && (
           <div className="border-t pt-2 mt-2">
-            <Popover>
-              <PopoverTrigger asChild>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-sidebar-accent cursor-pointer"
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-sidebar-accent cursor-pointer outline-none"
                 >
                   <Avatar className="size-6 shrink-0">
                     {user.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
@@ -179,39 +185,37 @@ export default function Sidebar() {
                     <span className="truncate text-[11px] text-muted-foreground">{user.email}</span>
                   </div>
                 </button>
-              </PopoverTrigger>
-              <PopoverContent side="top" align="start" className="w-56 p-1">
-                <div className="flex flex-col">
-                  <button
-                    onClick={() => router.push("/parametres/equipe")}
-                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer text-left"
-                  >
-                    <Users className="size-4 text-muted-foreground" />
-                    Équipe
-                  </button>
-                  <button
-                    onClick={() => router.push("/parametres/organisations")}
-                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer text-left"
-                  >
-                    <Building2 className="size-4 text-muted-foreground" />
-                    Organisations
-                  </button>
-                  <div className="my-1 h-px bg-border" />
-                  <button
-                    onClick={async () => {
-                      const supabase = createClient();
-                      await supabase.auth.signOut();
-                      router.push("/login");
-                      router.refresh();
-                    }}
-                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer text-left text-destructive"
-                  >
-                    <LogOut className="size-4" />
-                    Se déconnecter
-                  </button>
-                </div>
-              </PopoverContent>
-            </Popover>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="top" align="start" className="w-56">
+                <DropdownMenuItem
+                  onClick={() => router.push("/parametres/equipe")}
+                  className="cursor-pointer"
+                >
+                  <Users className="size-4" />
+                  Équipe
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => router.push("/parametres/organisations")}
+                  className="cursor-pointer"
+                >
+                  <Building2 className="size-4" />
+                  Organisations
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={async () => {
+                    const supabase = createClient();
+                    await supabase.auth.signOut();
+                    router.push("/login");
+                    router.refresh();
+                  }}
+                  className="cursor-pointer text-destructive focus:text-destructive"
+                >
+                  <LogOut className="size-4" />
+                  Se déconnecter
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )}
       </SidebarFooter>
