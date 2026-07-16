@@ -4,14 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { X, Camera, AlertCircle } from "lucide-react";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { parseProductQr } from "@/lib/utils/qr";
 import { getRearCameraId } from "@/lib/utils/camera";
 
@@ -21,11 +13,7 @@ interface QrScannerModalProps {
   onScan: (productId: string) => void;
 }
 
-export default function QrScannerModal({
-  open,
-  onClose,
-  onScan,
-}: QrScannerModalProps) {
+export default function QrScannerModal({ open, onClose, onScan }: QrScannerModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -34,8 +22,10 @@ export default function QrScannerModal({
   // Stable refs for callbacks to avoid stale closures in scanner
   const onScanRef = useRef(onScan);
   const onCloseRef = useRef(onClose);
-  onScanRef.current = onScan;
-  onCloseRef.current = onClose;
+  useEffect(() => {
+    onScanRef.current = onScan;
+    onCloseRef.current = onClose;
+  });
 
   const stopScanner = useCallback(async () => {
     if (scannerRef.current) {
@@ -55,10 +45,12 @@ export default function QrScannerModal({
     if (!open) return;
 
     let mounted = true;
-    setError(null);
-    setIsStarting(true);
 
     const startScanner = async () => {
+      if (mounted) {
+        setError(null);
+        setIsStarting(true);
+      }
       try {
         // Wait for DOM to be ready
         await new Promise((resolve) => setTimeout(resolve, 100));
@@ -85,21 +77,17 @@ export default function QrScannerModal({
             setError(`Format QR invalide.\nReçu: ${decodedText}`);
           }
         };
-        const onFailure = () => {/* no QR in frame - ignore */};
+        const onFailure = () => {
+          /* no QR in frame - ignore */
+        };
 
         // Try to get rear camera by deviceId (most reliable on iPhone)
         const rearId = await getRearCameraId();
 
         if (rearId) {
-          await scanner.start(
-            { deviceId: { exact: rearId } },
-            scanConfig, onSuccess, onFailure
-          );
+          await scanner.start({ deviceId: { exact: rearId } }, scanConfig, onSuccess, onFailure);
         } else {
-          await scanner.start(
-            { facingMode: "environment" },
-            scanConfig, onSuccess, onFailure
-          );
+          await scanner.start({ facingMode: "environment" }, scanConfig, onSuccess, onFailure);
         }
 
         if (mounted) {
@@ -111,10 +99,7 @@ export default function QrScannerModal({
         setIsStarting(false);
 
         if (err instanceof Error) {
-          if (
-            err.message.includes("Permission") ||
-            err.message.includes("NotAllowedError")
-          ) {
+          if (err.message.includes("Permission") || err.message.includes("NotAllowedError")) {
             setError(
               "Accès à la caméra refusé. Veuillez autoriser l'accès à la caméra dans les paramètres de votre navigateur."
             );
@@ -142,60 +127,56 @@ export default function QrScannerModal({
     onClose();
   };
 
+  if (!open) return null;
+
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
-      <DialogContent className="max-w-lg sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Camera className="size-5" />
-            Scanner un QR Code
-          </DialogTitle>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute right-4 top-4"
-            onClick={handleClose}
-          >
-            <X className="size-4" />
-            <span className="sr-only">Fermer</span>
-          </Button>
-        </DialogHeader>
+    <div className="fixed inset-0 z-[100] bg-black flex flex-col">
+      {/* ── Top bar ── */}
+      <div className="relative z-10 flex items-center justify-between px-4 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-3">
+        <h2 className="text-white font-semibold text-base flex items-center gap-2">
+          <Camera className="size-5" />
+          Scanner un QR
+        </h2>
+        <button
+          onClick={handleClose}
+          className="text-white/80 active:text-white min-h-[44px] min-w-[44px] flex items-center justify-center"
+        >
+          <X className="size-6" />
+        </button>
+      </div>
 
-        <div className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="size-4" />
-              <AlertDescription className="whitespace-pre-wrap">
-                {error}
-              </AlertDescription>
-            </Alert>
-          )}
+      {/* ── Camera feed ── */}
+      <div ref={containerRef} className="flex-1 relative overflow-hidden">
+        <div id="qr-reader" className="w-full h-full" style={{ minHeight: "300px" }} />
 
-          <div
-            ref={containerRef}
-            className="relative overflow-hidden rounded-lg bg-black"
-          >
-            <div
-              id="qr-reader"
-              className="w-full"
-              style={{ minHeight: "300px" }}
-            />
-
-            {isStarting && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                <div className="text-center text-white">
-                  <Camera className="mx-auto size-8 animate-pulse" />
-                  <p className="mt-2 text-sm">Démarrage de la caméra...</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <p className="text-center text-sm text-muted-foreground">
-            Placez le QR code du produit dans le cadre
-          </p>
+        {/* Viewfinder overlay */}
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+          <div className="size-64 rounded-3xl border-2 border-white/40 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]" />
         </div>
-      </DialogContent>
-    </Dialog>
+
+        {isStarting && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+            <div className="text-center text-white">
+              <Camera className="mx-auto size-10 animate-pulse" />
+              <p className="mt-3 text-sm font-medium">Demarrage de la camera...</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Bottom info ── */}
+      <div className="relative z-10 px-6 pt-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-center">
+        {error ? (
+          <div className="rounded-xl bg-destructive/20 border border-destructive/30 px-4 py-3">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="size-4 text-destructive shrink-0 mt-0.5" />
+              <p className="text-sm text-destructive text-left whitespace-pre-wrap">{error}</p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-white/60 text-sm">Placez le QR code du produit dans le cadre</p>
+        )}
+      </div>
+    </div>
   );
 }

@@ -29,6 +29,9 @@ import { useProducts, useTechnicians, useStockMovements } from "@/hooks/queries"
 import { useCreateStockEntry, useCreateStockExit } from "@/hooks/mutations";
 import { calculateStockScore, getStockBadgeVariant } from "@/lib/utils/stock";
 import { cn } from "@/lib/utils";
+import dynamic from "next/dynamic";
+
+const ActionsMobileSheet = dynamic(() => import("./actions-mobile-sheet"), { ssr: false });
 
 const MOVEMENT_LABELS: Record<string, string> = {
   entry: "Entrée",
@@ -145,7 +148,7 @@ export default function GlobalPage() {
     search: step === "product" ? searchQuery || undefined : undefined,
   });
   const { data: techniciansData = [] } = useTechnicians(orgId);
-  const searchResults = productsResult?.products ?? [];
+  const searchResults = useMemo(() => productsResult?.products ?? [], [productsResult]);
 
   // Sort products by criticality (most critical first)
   const sortedProducts = useMemo(() => {
@@ -706,120 +709,6 @@ export default function GlobalPage() {
     );
   };
 
-  const renderSessionHistory = (compact?: boolean) => (
-    <div className={cn("space-y-2", compact && "mt-2")}>
-      <h3 className="font-heading text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1">
-        Historique du jour
-      </h3>
-      {session.length === 0 && olderMovements.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-4">
-          {isLoadingToday ? (
-            <Loader2 className="size-4 animate-spin inline" />
-          ) : (
-            "Aucun mouvement aujourd'hui."
-          )}
-        </p>
-      ) : (
-        <ul className="space-y-1.5">
-          <AnimatePresence initial={false}>
-            {session.map((entry) => {
-              const isEntry = entry.movementType === "entry";
-              const reverting = revertingIds.has(entry.localId);
-              return (
-                <motion.li
-                  key={entry.localId}
-                  initial={prefersReducedMotion ? false : { opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={prefersReducedMotion ? undefined : { opacity: 0, height: 0 }}
-                  transition={{ type: "spring", bounce: 0.05, duration: 0.25 }}
-                  className={cn(
-                    "rounded-xl border-l-2 px-3 py-2.5",
-                    isEntry
-                      ? "border-l-standard bg-standard-bg/30"
-                      : "border-l-critique bg-critique-bg/30"
-                  )}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span
-                      className={cn(
-                        "font-heading font-bold tabular-nums text-sm shrink-0",
-                        isEntry ? "text-standard" : "text-critique"
-                      )}
-                    >
-                      {isEntry ? "+" : "−"}
-                      {entry.quantity}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-medium truncate">{entry.productName}</p>
-                      <p className="text-[11px] text-muted-foreground truncate">
-                        {MOVEMENT_LABELS[entry.movementType]}
-                        {entry.technicianName && ` → ${entry.technicianName}`}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handleRevert(entry)}
-                      disabled={reverting}
-                      className="text-[11px] text-muted-foreground active:text-foreground shrink-0 disabled:opacity-30"
-                    >
-                      {reverting ? "…" : "annuler"}
-                    </button>
-                  </div>
-                </motion.li>
-              );
-            })}
-          </AnimatePresence>
-          {olderMovements.map((m) => {
-            const isEntry = m.movement_type === "entry";
-            const time = m.created_at
-              ? new Date(m.created_at).toLocaleTimeString("fr-FR", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "";
-            const techName = m.technician
-              ? `${m.technician.first_name} ${m.technician.last_name}`
-              : undefined;
-            return (
-              <li
-                key={m.id}
-                className={cn(
-                  "rounded-xl border-l-2 px-3 py-2.5",
-                  isEntry
-                    ? "border-l-standard/50 bg-standard-bg/20"
-                    : "border-l-critique/50 bg-critique-bg/20"
-                )}
-              >
-                <div className="flex items-center gap-2.5">
-                  <span
-                    className={cn(
-                      "font-heading font-bold tabular-nums text-sm shrink-0",
-                      isEntry ? "text-standard" : "text-critique"
-                    )}
-                  >
-                    {isEntry ? "+" : "−"}
-                    {m.quantity}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-medium truncate">{m.product?.name ?? "—"}</p>
-                    <p className="text-[11px] text-muted-foreground truncate">
-                      {MOVEMENT_LABELS[m.movement_type] ?? m.movement_type}
-                      {techName && ` → ${techName}`}
-                    </p>
-                  </div>
-                  {time && (
-                    <span className="text-[10px] font-heading tabular-nums text-muted-foreground shrink-0">
-                      {time}
-                    </span>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
-  );
-
   const renderDesktopHistory = () => (
     <div className="rounded-lg border bg-card p-4 flex flex-col gap-3 min-h-0">
       <div className="flex items-center justify-between shrink-0">
@@ -980,181 +869,8 @@ export default function GlobalPage() {
   return (
     <>
       {/* ═══════ MOBILE ═══════ */}
-      <div className="md:hidden flex flex-col gap-4 pb-6">
-        {/* Back button */}
-        {step !== "action" && renderBackButton("mb-0")}
-
-        {/* Step 1: Choose action */}
-        {step === "action" && <div className="space-y-4">{renderActionCards(true)}</div>}
-
-        {/* Step 2: Choose technician */}
-        {step === "technician" && (
-          <div className="space-y-3">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-              Sélectionner un technicien
-            </p>
-            {techniciansData.length > 5 && renderSearchInput()}
-            {filteredTechnicians.length > 0 ? (
-              <div className="grid grid-cols-2 gap-2">
-                {filteredTechnicians.map((t) => renderTechnicianCard(t, true))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-6">
-                {searchQuery ? "Aucun technicien trouvé." : "Aucun technicien."}
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Step 3: Product grid */}
-        {step === "product" && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  {stepLabel}
-                </p>
-                {technicianId && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1 text-sm font-medium">
-                      {techFullName}
-                      <button
-                        onClick={clearTechnician}
-                        className="hover:bg-primary/20 rounded-full p-0.5 -mr-1"
-                      >
-                        <X className="size-3" />
-                      </button>
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-            {renderSearchInput()}
-            {isSearching && searchQuery ? (
-              <div className="py-8 text-center">
-                <Loader2 className="size-5 animate-spin text-muted-foreground mx-auto" />
-              </div>
-            ) : sortedProducts.length > 0 ? (
-              <div className="grid grid-cols-3 gap-2">
-                {sortedProducts.map((p) => renderProductCard(p, true))}
-              </div>
-            ) : (
-              <div className="py-8 text-center">
-                <Package className="size-10 text-muted-foreground opacity-20 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  {searchQuery ? "Aucun produit trouvé." : "Aucun produit."}
-                </p>
-              </div>
-            )}
-            {renderCart(true)}
-          </div>
-        )}
-
-        {/* Step 4: Product detail (single mode) */}
-        {step === "detail" && product && (
-          <div className="rounded-xl border bg-card p-4 space-y-4 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">
-                  {stepLabel}
-                </p>
-                <h2 className="font-heading text-lg font-semibold leading-tight truncate">
-                  {product.name}
-                </h2>
-                {product.sku && (
-                  <p className="text-xs text-muted-foreground font-mono mt-0.5">{product.sku}</p>
-                )}
-              </div>
-              <button
-                onClick={() => {
-                  setProduct(null);
-                  setQuantity(1);
-                }}
-                className="text-muted-foreground active:text-foreground shrink-0 mt-0.5"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <span className="font-heading font-bold text-3xl tabular-nums">
-                <HeroNumber value={product.stock_current} />
-              </span>
-              <StatusPill status={stockStatus} />
-            </div>
-
-            {/* Mode pills */}
-            <div className="flex gap-1.5">
-              {[
-                { mode: "entry" as const, label: "Entrée", icon: ArrowDownToLine },
-                { mode: "exit_anonymous" as const, label: "Sortie", icon: ArrowUpFromLine },
-              ].map(({ mode, label, icon: ModeIcon }) => (
-                <button
-                  key={mode}
-                  onClick={() => setActionMode(mode)}
-                  className={cn(
-                    "flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-colors",
-                    actionMode === mode
-                      ? mode === "entry"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-foreground"
-                      : "bg-muted/40 text-muted-foreground active:bg-muted"
-                  )}
-                >
-                  <ModeIcon className="size-3.5" />
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {/* Quantity + submit */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                className="size-12 rounded-xl border flex items-center justify-center active:bg-muted shrink-0"
-              >
-                <Minus className="size-5" />
-              </button>
-              <Input
-                ref={quantityInputRef}
-                type="number"
-                min={1}
-                max={actionMode !== "entry" ? product.stock_current : undefined}
-                value={quantity}
-                onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    navigator.vibrate?.(15);
-                    handleSubmit();
-                  }
-                }}
-                className="flex-1 h-12 text-xl font-heading font-bold tabular-nums text-center bg-white dark:bg-card rounded-xl"
-              />
-              <button
-                onClick={() => setQuantity((q) => q + 1)}
-                className="size-12 rounded-xl border flex items-center justify-center active:bg-muted shrink-0"
-              >
-                <Plus className="size-5" />
-              </button>
-            </div>
-
-            <Button
-              className="w-full h-12 text-base"
-              onClick={() => {
-                navigator.vibrate?.(15);
-                handleSubmit();
-              }}
-              disabled={isSubmitting}
-              variant={actionMode === "entry" ? "default" : "outline"}
-            >
-              {isSubmitting ? "En cours…" : submitLabel}
-            </Button>
-          </div>
-        )}
-
-        {/* Mobile history */}
-        {renderSessionHistory(true)}
+      <div className="md:hidden">
+        <ActionsMobileSheet />
       </div>
 
       {/* ═══════ DESKTOP ═══════ */}
