@@ -57,13 +57,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -557,35 +550,16 @@ export default function MembersPage() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="role">Rôle</Label>
-              <Select
+              <select
                 value={inviteRole}
-                onValueChange={(value) => setInviteRole(value as "admin" | "member" | "guest")}
+                onChange={(e) => setInviteRole(e.target.value as "admin" | "member" | "guest")}
                 disabled={isSubmitting}
+                className="h-9 w-fit rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="member">
-                    <div className="flex items-center gap-2">
-                      <User className="size-4" />
-                      Membre
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="admin">
-                    <div className="flex items-center gap-2">
-                      <Shield className="size-4" />
-                      Administrateur
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="guest">
-                    <div className="flex items-center gap-2">
-                      <Eye className="size-4" />
-                      Invité
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+                <option value="member">Membre</option>
+                <option value="admin">Administrateur</option>
+                <option value="guest">Invité</option>
+              </select>
               <p className="text-xs text-muted-foreground">
                 {inviteRole === "guest"
                   ? "Accès restreint : peut voir Techniciens, Stock, Flux de stock et faire des restocks/sorties. Pas d'accès au Dashboard ni aux paramètres."
