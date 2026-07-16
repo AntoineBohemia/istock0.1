@@ -11,13 +11,32 @@ interface QrScannerModalProps {
   open: boolean;
   onClose: () => void;
   onScan: (productId: string) => void;
+  /** When true, scanner stays open after each scan (batch mode) */
+  continuous?: boolean;
+  /** Label shown in top bar (defaults to "Scanner un QR") */
+  title?: string;
+  /** Content shown at the bottom (e.g. cart count) */
+  bottomContent?: React.ReactNode;
 }
 
-export default function QrScannerModal({ open, onClose, onScan }: QrScannerModalProps) {
+export default function QrScannerModal({
+  open,
+  onClose,
+  onScan,
+  continuous = false,
+  title,
+  bottomContent,
+}: QrScannerModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
+  const [scanFlash, setScanFlash] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const lastScanTime = useRef(0);
+  const continuousRef = useRef(continuous);
+  useEffect(() => {
+    continuousRef.current = continuous;
+  });
 
   // Stable refs for callbacks to avoid stale closures in scanner
   const onScanRef = useRef(onScan);
@@ -69,12 +88,25 @@ export default function QrScannerModal({ open, onClose, onScan }: QrScannerModal
         };
         const onSuccess = (decodedText: string) => {
           const productId = parseProductQr(decodedText);
-          if (productId) {
+          if (!productId) {
+            setError(`Format QR invalide.\nReçu: ${decodedText}`);
+            return;
+          }
+
+          if (continuousRef.current) {
+            // Continuous mode: cooldown 2s between scans, don't close
+            const now = Date.now();
+            if (now - lastScanTime.current < 2000) return;
+            lastScanTime.current = now;
+            navigator.vibrate?.(15);
+            setScanFlash(true);
+            setTimeout(() => setScanFlash(false), 300);
+            onScanRef.current(productId);
+          } else {
+            // Single mode: scan once and close
             stopScanner();
             onScanRef.current(productId);
             onCloseRef.current();
-          } else {
-            setError(`Format QR invalide.\nReçu: ${decodedText}`);
           }
         };
         const onFailure = () => {
@@ -135,7 +167,7 @@ export default function QrScannerModal({ open, onClose, onScan }: QrScannerModal
       <div className="relative z-10 flex items-center justify-between px-4 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-3">
         <h2 className="text-white font-semibold text-base flex items-center gap-2">
           <Camera className="size-5" />
-          Scanner un QR
+          {title || "Scanner un QR"}
         </h2>
         <button
           onClick={handleClose}
@@ -151,8 +183,15 @@ export default function QrScannerModal({ open, onClose, onScan }: QrScannerModal
 
         {/* Viewfinder overlay */}
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-          <div className="size-64 rounded-3xl border-2 border-white/40 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]" />
+          <div
+            className={`size-64 rounded-3xl border-2 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] transition-colors duration-200 ${scanFlash ? "border-green-400" : "border-white/40"}`}
+          />
         </div>
+
+        {/* Green flash on successful scan (continuous mode) */}
+        {scanFlash && (
+          <div className="absolute inset-0 bg-green-500/10 pointer-events-none animate-pulse" />
+        )}
 
         {isStarting && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/60">
@@ -165,7 +204,7 @@ export default function QrScannerModal({ open, onClose, onScan }: QrScannerModal
       </div>
 
       {/* ── Bottom info ── */}
-      <div className="relative z-10 px-6 pt-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-center">
+      <div className="relative z-10 px-6 pt-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] space-y-3">
         {error ? (
           <div className="rounded-xl bg-destructive/20 border border-destructive/30 px-4 py-3">
             <div className="flex items-start gap-2">
@@ -174,8 +213,11 @@ export default function QrScannerModal({ open, onClose, onScan }: QrScannerModal
             </div>
           </div>
         ) : (
-          <p className="text-white/60 text-sm">Placez le QR code du produit dans le cadre</p>
+          <p className="text-white/60 text-sm text-center">
+            Placez le QR code du produit dans le cadre
+          </p>
         )}
+        {bottomContent}
       </div>
     </div>
   );

@@ -157,6 +157,7 @@ export default function ActionsMobileSheet() {
 
   // ─── QR Scanner ────────────────────────────────────────
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [batchScanOpen, setBatchScanOpen] = useState(false);
   const [scannedProduct, setScannedProduct] = useState<ConsoleProduct | null>(null);
   const [scanActionSheetOpen, setScanActionSheetOpen] = useState(false);
 
@@ -316,6 +317,39 @@ export default function ActionsMobileSheet() {
       setTimeout(() => setScannedProduct(null), 300);
     },
     [scannedProduct]
+  );
+
+  // ─── Batch scan handler (tech mode — continuous) ───
+  const handleBatchScan = useCallback(
+    (productId: string) => {
+      const found = allProducts.find((p) => p.id === productId);
+      if (!found) {
+        toast.error("Produit non reconnu");
+        return;
+      }
+      const consoleP: ConsoleProduct = {
+        id: found.id,
+        name: found.name,
+        sku: found.sku,
+        stock_current: found.stock_current ?? 0,
+        stock_min: found.stock_min,
+        price: found.price ?? null,
+      };
+      // Add to cart or increment qty
+      setCart((prev) => {
+        const existing = prev.find((item) => item.product.id === consoleP.id);
+        if (existing) {
+          return prev.map((item) =>
+            item.product.id === consoleP.id
+              ? { ...item, quantity: Math.min(item.quantity + 1, item.product.stock_current) }
+              : item
+          );
+        }
+        return [...prev, { product: consoleP, quantity: 1 }];
+      });
+      toast.success(found.name, { description: "Ajout\u00e9 au panier" });
+    },
+    [allProducts]
   );
 
   // ─── Select product (entry / exit_anonymous) ──────────
@@ -845,9 +879,9 @@ export default function ActionsMobileSheet() {
               </button>
             </div>
 
-            {/* Technician chip (exit_technician mode, products step) */}
+            {/* Technician chip + scan button (exit_technician mode, products step) */}
             {actionMode === "exit_technician" && drawerStep === "products" && technicianId && (
-              <div className="mt-1">
+              <div className="mt-1 flex items-center justify-between">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1 text-sm font-medium">
                   {techFullName}
                   <button
@@ -857,6 +891,13 @@ export default function ActionsMobileSheet() {
                     <X className="size-3" />
                   </button>
                 </span>
+                <button
+                  onClick={() => setBatchScanOpen(true)}
+                  className="flex items-center gap-1.5 rounded-lg bg-foreground text-background px-3 py-2 text-xs font-medium active:scale-[0.97] transition-all"
+                >
+                  <ScanLine className="size-3.5" />
+                  Scanner
+                </button>
               </div>
             )}
 
@@ -1329,11 +1370,40 @@ export default function ActionsMobileSheet() {
         </DrawerContent>
       </Drawer>
 
-      {/* ── QR Scanner Modal ── */}
+      {/* ── QR Scanner Modal (single) ── */}
       <QrScannerModal
         open={scannerOpen}
         onClose={() => setScannerOpen(false)}
         onScan={handleScanResult}
+      />
+
+      {/* ── QR Scanner Modal (batch — tech mode) ── */}
+      <QrScannerModal
+        open={batchScanOpen}
+        onClose={() => {
+          setBatchScanOpen(false);
+          // Go to cart if items were scanned
+          if (cart.length > 0) {
+            setDrawerStep("cart");
+          }
+        }}
+        onScan={handleBatchScan}
+        continuous
+        title={`Scanner pour ${techFullName}`}
+        bottomContent={
+          cart.length > 0 ? (
+            <button
+              onClick={() => {
+                setBatchScanOpen(false);
+                setDrawerStep("cart");
+              }}
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-white text-foreground py-3 font-semibold text-[15px] active:scale-[0.97] transition-all"
+            >
+              <Package className="size-4" />
+              Voir le panier ({cart.length} produit{cart.length > 1 ? "s" : ""})
+            </button>
+          ) : undefined
+        }
       />
 
       {/* ── Scan Action Sheet (choose action after scan) ── */}
