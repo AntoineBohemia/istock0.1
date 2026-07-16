@@ -165,8 +165,12 @@ export default function Sidebar() {
         {user && (
           <div className="border-t pt-2 mt-2">
             <Popover>
-              <PopoverTrigger>
-                <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-sidebar-accent cursor-pointer">
+              <PopoverTrigger asChild>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-sidebar-accent cursor-pointer"
+                >
                   <Avatar className="size-6 shrink-0">
                     {user.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
                     <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
@@ -175,7 +179,7 @@ export default function Sidebar() {
                     <span className="truncate text-sm font-medium">{user.name}</span>
                     <span className="truncate text-[11px] text-muted-foreground">{user.email}</span>
                   </div>
-                </button>
+                </div>
               </PopoverTrigger>
               <PopoverContent side="top" align="start" className="w-56 p-1">
                 <div className="flex flex-col">
