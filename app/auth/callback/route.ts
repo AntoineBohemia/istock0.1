@@ -26,8 +26,6 @@ export async function GET(request: Request) {
               );
             } catch {
               // The `setAll` method was called from a Server Component.
-              // This can be ignored if you have middleware refreshing
-              // user sessions.
             }
           },
         },
@@ -37,11 +35,22 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      // Redirect to global - OrganizationProvider will handle onboarding redirect
+      // If returning from invite flow, auto-accept server-side
+      const inviteMatch = next.match(/^\/invite\/(.+)$/);
+      if (inviteMatch) {
+        const token = inviteMatch[1];
+        try {
+          await supabase.rpc("accept_invitation_secure", { p_token: token });
+          // Redirect straight to app — invitation accepted
+          return NextResponse.redirect(`${origin}/actions?invited=true`);
+        } catch {
+          // If auto-accept fails, fall through to the invite page
+        }
+      }
+
       return NextResponse.redirect(`${origin}${next}`);
     }
   }
 
-  // Return the user to an error page with instructions
   return NextResponse.redirect(`${origin}/login?error=auth_callback_error`);
 }

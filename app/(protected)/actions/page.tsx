@@ -97,6 +97,15 @@ export default function GlobalPage() {
   const prefersReducedMotion = useReducedMotion();
   const orgId = useOrganizationStore((s) => s.currentOrganization?.id);
 
+  // Show welcome toast if redirected from invite acceptance
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("invited") === "true") {
+      toast.success("Bienvenue ! Votre invitation a été acceptée.");
+      window.history.replaceState({}, "", "/actions");
+    }
+  }, []);
+
   // Mode
   const [actionMode, setActionMode] = useState<ActionMode | null>(null);
   const [technicianId, setTechnicianId] = useState("");

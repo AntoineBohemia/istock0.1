@@ -31,6 +31,8 @@ export default function Page() {
   const rawReturnUrl = searchParams.get("returnUrl") || "";
   const returnUrl =
     rawReturnUrl.startsWith("/") && !rawReturnUrl.startsWith("//") ? rawReturnUrl : "";
+  const inviteOrgName = searchParams.get("orgName") || "";
+  const inviteOrgRole = searchParams.get("orgRole") || "";
 
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -108,6 +110,14 @@ export default function Page() {
           <CardTitle className="text-2xl">Créer un compte</CardTitle>
         </CardHeader>
         <CardContent>
+          {inviteOrgName && (
+            <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 p-3">
+              <p className="text-sm text-center">
+                Vous rejoignez <strong>{inviteOrgName}</strong> en tant que{" "}
+                <strong>{inviteOrgRole}</strong>
+              </p>
+            </div>
+          )}
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
               <div className="grid gap-4">

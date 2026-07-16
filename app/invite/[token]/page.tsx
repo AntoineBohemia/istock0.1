@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, CheckCircle, XCircle, Building2, Mail } from "lucide-react";
@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { getInvitationByToken, acceptInvitation } from "@/lib/supabase/queries/organizations";
 import { createClient } from "@/lib/supabase/client";
 
-type InvitationStatus = "loading" | "valid" | "invalid" | "accepted" | "error";
+type InvitationStatus = "loading" | "valid" | "accepting" | "accepted" | "invalid" | "error";
 
 interface InvitationData {
   email: string;
@@ -29,6 +29,9 @@ interface InvitationData {
   userExists: boolean;
 }
 
+const roleLabel = (role: string) =>
+  role === "admin" ? "Administrateur" : role === "guest" ? "Invité" : "Membre";
+
 export default function AcceptInvitationPage() {
   const params = useParams();
   const router = useRouter();
@@ -36,14 +39,13 @@ export default function AcceptInvitationPage() {
 
   const [status, setStatus] = useState<InvitationStatus>("loading");
   const [invitation, setInvitation] = useState<InvitationData | null>(null);
-  const [isAccepting, setIsAccepting] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const autoAcceptAttempted = useRef(false);
 
   useEffect(() => {
-    async function checkInvitation() {
+    async function checkAndAutoAccept() {
       try {
-        // Check if user is logged in
         const supabase = createClient();
         const {
           data: { user },
@@ -52,7 +54,6 @@ export default function AcceptInvitationPage() {
         setIsLoggedIn(!!user);
         setUserEmail(user?.email || null);
 
-        // Fetch invitation details
         const invitationData = await getInvitationByToken(token);
 
         if (!invitationData) {
@@ -60,19 +61,45 @@ export default function AcceptInvitationPage() {
           return;
         }
 
-        // Check if expired
         if (new Date(invitationData.expires_at ?? Date.now()) < new Date()) {
           setStatus("invalid");
           return;
         }
 
-        setInvitation({
+        const inv: InvitationData = {
           email: invitationData.email,
           role: invitationData.role ?? "",
           organizationName: invitationData.organization_name,
           expiresAt: invitationData.expires_at ?? "",
           userExists: invitationData.user_exists ?? false,
-        });
+        };
+        setInvitation(inv);
+
+        // Auto-accept: logged in + email matches → accept immediately
+        if (
+          user &&
+          user.email?.toLowerCase() === inv.email.toLowerCase() &&
+          !autoAcceptAttempted.current
+        ) {
+          autoAcceptAttempted.current = true;
+          setStatus("accepting");
+          try {
+            const result = await acceptInvitation(token);
+            setStatus("accepted");
+            toast.success(`Bienvenue dans ${result.organization.name} !`);
+          } catch (error) {
+            // already_member is not an error — treat as success
+            if (error instanceof Error && error.message.includes("déjà membre")) {
+              setStatus("accepted");
+              toast.success(`Vous êtes déjà membre de ${inv.organizationName}`);
+            } else {
+              toast.error(error instanceof Error ? error.message : "Erreur lors de l'acceptation");
+              setStatus("valid");
+            }
+          }
+          return;
+        }
+
         setStatus("valid");
       } catch {
         setStatus("error");
@@ -80,51 +107,42 @@ export default function AcceptInvitationPage() {
     }
 
     if (token) {
-      checkInvitation();
+      checkAndAutoAccept();
     }
   }, [token]);
 
-  // Redirect after invitation is accepted
+  // Redirect after accepted
   useEffect(() => {
     if (status !== "accepted") return;
     const timeoutId = setTimeout(() => router.push("/actions"), 2000);
     return () => clearTimeout(timeoutId);
   }, [status, router]);
 
-  const handleAccept = async () => {
-    if (!token) return;
-
-    setIsAccepting(true);
-    try {
-      const result = await acceptInvitation(token);
-      setStatus("accepted");
-      toast.success(`Bienvenue dans ${result.organization.name} !`);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Erreur lors de l'acceptation de l'invitation"
-      );
-      setIsAccepting(false);
-    }
-  };
-
-  const handleLoginRedirect = () => {
-    // Redirect to login with return URL
+  const handleLogoutAndSwitch = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
     router.push(`/login?redirectTo=/invite/${token}`);
   };
 
-  if (status === "loading") {
+  // ── Loading / Accepting ──
+  if (status === "loading" || status === "accepting") {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Loader2 className="size-8 animate-spin text-muted-foreground" />
-            <p className="mt-4 text-muted-foreground">Vérification de l'invitation...</p>
+            <p className="mt-4 text-muted-foreground">
+              {status === "accepting"
+                ? "Acceptation en cours..."
+                : "Vérification de l'invitation..."}
+            </p>
           </CardContent>
         </Card>
       </div>
     );
   }
 
+  // ── Invalid ──
   if (status === "invalid") {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
@@ -134,7 +152,7 @@ export default function AcceptInvitationPage() {
               <XCircle className="size-8 text-destructive" />
             </div>
             <CardTitle>Invitation invalide</CardTitle>
-            <CardDescription>Cette invitation n'existe pas ou a expiré.</CardDescription>
+            <CardDescription>Cette invitation n&apos;existe pas ou a expiré.</CardDescription>
           </CardHeader>
           <CardFooter className="justify-center">
             <Button asChild>
@@ -146,6 +164,7 @@ export default function AcceptInvitationPage() {
     );
   }
 
+  // ── Error ──
   if (status === "error") {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
@@ -156,7 +175,7 @@ export default function AcceptInvitationPage() {
             </div>
             <CardTitle>Une erreur est survenue</CardTitle>
             <CardDescription>
-              Impossible de charger l'invitation. Veuillez réessayer.
+              Impossible de charger l&apos;invitation. Veuillez réessayer.
             </CardDescription>
           </CardHeader>
           <CardFooter className="justify-center">
@@ -167,6 +186,7 @@ export default function AcceptInvitationPage() {
     );
   }
 
+  // ── Accepted ──
   if (status === "accepted") {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
@@ -188,7 +208,7 @@ export default function AcceptInvitationPage() {
     );
   }
 
-  // status === "valid"
+  // ── Valid — show single action ──
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -196,8 +216,10 @@ export default function AcceptInvitationPage() {
           <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-primary/10">
             <Building2 className="size-8 text-primary" />
           </div>
-          <CardTitle>Rejoindre l'organisation</CardTitle>
-          <CardDescription>Vous avez été invité à rejoindre une organisation</CardDescription>
+          <CardTitle>Rejoindre {invitation?.organizationName}</CardTitle>
+          <CardDescription>
+            Vous êtes invité en tant que {roleLabel(invitation?.role ?? "member")}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {invitation && (
@@ -208,86 +230,42 @@ export default function AcceptInvitationPage() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Rôle</span>
-                <Badge variant="secondary">
-                  {invitation.role === "admin"
-                    ? "Administrateur"
-                    : invitation.role === "guest"
-                      ? "Invité"
-                      : "Membre"}
-                </Badge>
+                <Badge variant="secondary">{roleLabel(invitation.role)}</Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Invité pour</span>
+                <span className="text-sm text-muted-foreground">Email requis</span>
                 <div className="flex items-center gap-1">
                   <Mail className="size-3 text-muted-foreground" />
                   <span className="text-sm">{invitation.email}</span>
                 </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Expire le</span>
-                <span className="text-sm">
-                  {new Date(invitation.expiresAt).toLocaleDateString("fr-FR")}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {isLoggedIn === false && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-900/20 p-4">
-              <p className="text-sm text-amber-800 dark:text-amber-200">
-                {invitation?.userExists ? (
-                  <>
-                    Vous devez vous connecter avec l'adresse <strong>{invitation?.email}</strong>{" "}
-                    pour accepter cette invitation.
-                  </>
-                ) : (
-                  <>
-                    Vous devez créer un compte avec l'adresse <strong>{invitation?.email}</strong>{" "}
-                    pour accepter cette invitation.
-                  </>
-                )}
-              </p>
-            </div>
-          )}
-
-          {isLoggedIn && userEmail !== invitation?.email && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-900/20 p-4">
-              <p className="text-sm text-amber-800 dark:text-amber-200">
-                Vous êtes connecté avec <strong>{userEmail}</strong>, mais cette invitation est
-                destinée à <strong>{invitation?.email}</strong>.
-              </p>
             </div>
           )}
         </CardContent>
-        <CardFooter className="flex flex-col gap-2">
+        <CardFooter>
           {isLoggedIn === false ? (
-            <>
-              {invitation?.userExists ? (
-                <Button onClick={handleLoginRedirect} className="w-full">
-                  Se connecter
-                </Button>
-              ) : (
-                <Button asChild className="w-full">
-                  <Link href={`/register?email=${invitation?.email}&returnUrl=/invite/${token}`}>
-                    Créer un compte
-                  </Link>
-                </Button>
-              )}
-            </>
-          ) : (
-            <>
+            // Not logged in → single CTA
+            invitation?.userExists ? (
               <Button
-                onClick={handleAccept}
-                disabled={isAccepting || userEmail !== invitation?.email}
+                onClick={() => router.push(`/login?redirectTo=/invite/${token}`)}
                 className="w-full"
               >
-                {isAccepting && <Loader2 className="mr-2 size-4 animate-spin" />}
-                Accepter l'invitation
+                Se connecter avec {invitation.email}
               </Button>
-              <Button variant="outline" asChild className="w-full">
-                <Link href="/actions">Annuler</Link>
+            ) : (
+              <Button asChild className="w-full">
+                <Link
+                  href={`/register?email=${encodeURIComponent(invitation?.email ?? "")}&returnUrl=/invite/${token}&orgName=${encodeURIComponent(invitation?.organizationName ?? "")}&orgRole=${encodeURIComponent(roleLabel(invitation?.role ?? "member"))}`}
+                >
+                  Créer un compte pour continuer
+                </Link>
               </Button>
-            </>
+            )
+          ) : (
+            // Logged in but wrong email → single action
+            <Button onClick={handleLogoutAndSwitch} className="w-full">
+              Se connecter avec {invitation?.email}
+            </Button>
           )}
         </CardFooter>
       </Card>
