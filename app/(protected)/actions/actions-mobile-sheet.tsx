@@ -1126,27 +1126,49 @@ export default function ActionsMobileSheet() {
                   transition={{ duration: 0.2 }}
                   className="space-y-5 pt-1"
                 >
-                  {/* Product header + stock */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <h2 className="font-heading text-[17px] font-semibold leading-tight">
-                        {product.name}
-                      </h2>
-                      {product.sku && (
-                        <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                          {product.sku}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-right shrink-0">
-                      <span className="font-heading font-bold text-2xl tabular-nums">
-                        <HeroNumber value={product.stock_current} />
-                      </span>
-                      <div className="mt-0.5">
-                        <StatusPill status={stockStatus} />
+                  {/* Product header + live stock preview */}
+                  {(() => {
+                    const isEntry = actionMode === "entry";
+                    const previewStock = isEntry
+                      ? product.stock_current + quantity
+                      : Math.max(0, product.stock_current - quantity);
+                    const previewScore = calculateStockScore(previewStock, product.stock_min);
+                    const previewStatus = getStockBadgeVariant(previewScore);
+                    return (
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <h2 className="font-heading text-[17px] font-semibold leading-tight">
+                            {product.name}
+                          </h2>
+                          {product.sku && (
+                            <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                              {product.sku}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="text-sm text-muted-foreground tabular-nums">
+                              {product.stock_current}
+                            </span>
+                            <span className="text-muted-foreground">{"\u2192"}</span>
+                            <span
+                              className={cn(
+                                "font-heading font-bold text-2xl tabular-nums",
+                                previewStatus === "critique" && "text-critique",
+                                previewStatus === "attention" && "text-attention"
+                              )}
+                            >
+                              {previewStock}
+                            </span>
+                          </div>
+                          <div className="mt-0.5">
+                            <StatusPill status={previewStatus} />
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    );
+                  })()}
 
                   {/* Quantity stepper */}
                   <div className="flex items-center gap-2">
@@ -1163,7 +1185,10 @@ export default function ActionsMobileSheet() {
                       min={1}
                       max={actionMode !== "entry" ? product.stock_current : undefined}
                       value={quantity}
-                      onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                      onChange={(e) => {
+                        const max = actionMode !== "entry" ? product.stock_current : Infinity;
+                        setQuantity(Math.max(1, Math.min(parseInt(e.target.value) || 1, max)));
+                      }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           e.preventDefault();
@@ -1236,7 +1261,7 @@ export default function ActionsMobileSheet() {
                       quantity < 1 ||
                       (actionMode !== "entry" && quantity > product.stock_current)
                     }
-                    variant={actionMode === "entry" ? "default" : "outline"}
+                    variant="default"
                   >
                     {isSubmitting ? (
                       <>
