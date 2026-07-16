@@ -844,7 +844,7 @@ export default function ActionsMobileSheet() {
       <Drawer
         open={drawerOpen}
         onOpenChange={(open) => {
-          if (!open) closeDrawer();
+          if (!open && !batchScanOpen) closeDrawer();
         }}
       >
         <DrawerContent className="max-h-[92vh] flex flex-col">
