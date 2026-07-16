@@ -8,8 +8,8 @@ import {
   isRoleAllowed,
   SETTINGS_ALLOWED_ROLES,
 } from "@/lib/routes-config";
-import { Settings } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { Settings, LogOut, Users, Building2 } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { motion } from "motion/react";
 
@@ -26,6 +26,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import Icon from "../icon";
 import IstockLogo from "@/components/layout/istock-logo";
 import { useIsTablet } from "@/hooks/use-mobile";
@@ -33,6 +34,7 @@ import { createClient } from "@/lib/supabase/client";
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { setOpen, setOpenMobile, isMobile } = useSidebar();
   const isTablet = useIsTablet();
 
@@ -53,21 +55,24 @@ export default function Sidebar() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user: authUser } }) => {
-      if (authUser) {
-        setUser({
-          name:
-            authUser.user_metadata?.full_name ||
-            authUser.user_metadata?.name ||
-            authUser.email?.split("@")[0] ||
-            "",
-          email: authUser.email || "",
-          avatar: authUser.user_metadata?.avatar_url || null,
-        });
-      }
-    }).catch(() => {
-      // Network error during HMR or cold start — ignore silently
-    });
+    supabase.auth
+      .getUser()
+      .then(({ data: { user: authUser } }) => {
+        if (authUser) {
+          setUser({
+            name:
+              authUser.user_metadata?.full_name ||
+              authUser.user_metadata?.name ||
+              authUser.email?.split("@")[0] ||
+              "",
+            email: authUser.email || "",
+            avatar: authUser.user_metadata?.avatar_url || null,
+          });
+        }
+      })
+      .catch(() => {
+        // Network error during HMR or cold start — ignore silently
+      });
   }, []);
 
   const showSettings = isRoleAllowed(currentOrganization?.role, SETTINGS_ALLOWED_ROLES);
@@ -161,18 +166,56 @@ export default function Sidebar() {
           <div className="border-t pt-2 mt-2">
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton tooltip={user.name || "Utilisateur"} asChild>
-                  <Link href="/parametres">
-                    <Avatar className="size-6 shrink-0">
-                      {user.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
-                      <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
-                    </Avatar>
-                    <div className="grid text-left leading-tight group-data-[collapsible=icon]:hidden">
-                      <span className="truncate text-sm font-medium">{user.name}</span>
-                      <span className="truncate text-[11px] text-muted-foreground">{user.email}</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <SidebarMenuButton
+                      tooltip={user.name || "Utilisateur"}
+                      className="cursor-pointer"
+                    >
+                      <Avatar className="size-6 shrink-0">
+                        {user.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
+                        <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
+                      </Avatar>
+                      <div className="grid text-left leading-tight group-data-[collapsible=icon]:hidden">
+                        <span className="truncate text-sm font-medium">{user.name}</span>
+                        <span className="truncate text-[11px] text-muted-foreground">
+                          {user.email}
+                        </span>
+                      </div>
+                    </SidebarMenuButton>
+                  </PopoverTrigger>
+                  <PopoverContent side="top" align="start" className="w-56 p-1">
+                    <div className="flex flex-col">
+                      <button
+                        onClick={() => router.push("/parametres/equipe")}
+                        className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer text-left"
+                      >
+                        <Users className="size-4 text-muted-foreground" />
+                        Équipe
+                      </button>
+                      <button
+                        onClick={() => router.push("/parametres/organisations")}
+                        className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer text-left"
+                      >
+                        <Building2 className="size-4 text-muted-foreground" />
+                        Organisations
+                      </button>
+                      <div className="my-1 h-px bg-border" />
+                      <button
+                        onClick={async () => {
+                          const supabase = createClient();
+                          await supabase.auth.signOut();
+                          router.push("/login");
+                          router.refresh();
+                        }}
+                        className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer text-left text-destructive"
+                      >
+                        <LogOut className="size-4" />
+                        Se déconnecter
+                      </button>
                     </div>
-                  </Link>
-                </SidebarMenuButton>
+                  </PopoverContent>
+                </Popover>
               </SidebarMenuItem>
             </SidebarMenu>
           </div>
