@@ -882,18 +882,18 @@ export default function ActionsMobileSheet() {
             {/* Technician chip + scan button (exit_technician mode, products step) */}
             {actionMode === "exit_technician" && drawerStep === "products" && technicianId && (
               <div className="mt-1 flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1 text-sm font-medium">
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2.5 py-0.5 text-xs font-medium">
                   {techFullName}
                   <button
                     onClick={clearTechnician}
-                    className="hover:bg-primary/20 rounded-full p-0.5 -mr-1 min-h-[44px] min-w-[28px] flex items-center justify-center"
+                    className="hover:bg-primary/20 rounded-full p-0.5 -mr-0.5 min-h-[28px] min-w-[28px] flex items-center justify-center"
                   >
                     <X className="size-3" />
                   </button>
                 </span>
                 <button
                   onClick={() => setBatchScanOpen(true)}
-                  className="flex items-center gap-1.5 rounded-lg bg-foreground text-background px-3 py-2 text-xs font-medium active:scale-[0.97] transition-all"
+                  className="flex items-center gap-1.5 rounded-lg bg-foreground text-background px-3.5 py-2 text-xs font-medium active:scale-[0.97] transition-all"
                 >
                   <ScanLine className="size-3.5" />
                   Scanner
