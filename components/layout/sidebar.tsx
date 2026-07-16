@@ -164,60 +164,51 @@ export default function Sidebar() {
         )}
         {user && (
           <div className="border-t pt-2 mt-2">
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <SidebarMenuButton
-                      tooltip={user.name || "Utilisateur"}
-                      className="cursor-pointer"
-                    >
-                      <Avatar className="size-6 shrink-0">
-                        {user.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
-                        <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
-                      </Avatar>
-                      <div className="grid text-left leading-tight group-data-[collapsible=icon]:hidden">
-                        <span className="truncate text-sm font-medium">{user.name}</span>
-                        <span className="truncate text-[11px] text-muted-foreground">
-                          {user.email}
-                        </span>
-                      </div>
-                    </SidebarMenuButton>
-                  </PopoverTrigger>
-                  <PopoverContent side="top" align="start" className="w-56 p-1">
-                    <div className="flex flex-col">
-                      <button
-                        onClick={() => router.push("/parametres/equipe")}
-                        className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer text-left"
-                      >
-                        <Users className="size-4 text-muted-foreground" />
-                        Équipe
-                      </button>
-                      <button
-                        onClick={() => router.push("/parametres/organisations")}
-                        className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer text-left"
-                      >
-                        <Building2 className="size-4 text-muted-foreground" />
-                        Organisations
-                      </button>
-                      <div className="my-1 h-px bg-border" />
-                      <button
-                        onClick={async () => {
-                          const supabase = createClient();
-                          await supabase.auth.signOut();
-                          router.push("/login");
-                          router.refresh();
-                        }}
-                        className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer text-left text-destructive"
-                      >
-                        <LogOut className="size-4" />
-                        Se déconnecter
-                      </button>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </SidebarMenuItem>
-            </SidebarMenu>
+            <Popover>
+              <PopoverTrigger>
+                <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-sidebar-accent cursor-pointer">
+                  <Avatar className="size-6 shrink-0">
+                    {user.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
+                    <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
+                  </Avatar>
+                  <div className="grid text-left leading-tight group-data-[collapsible=icon]:hidden">
+                    <span className="truncate text-sm font-medium">{user.name}</span>
+                    <span className="truncate text-[11px] text-muted-foreground">{user.email}</span>
+                  </div>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent side="top" align="start" className="w-56 p-1">
+                <div className="flex flex-col">
+                  <button
+                    onClick={() => router.push("/parametres/equipe")}
+                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer text-left"
+                  >
+                    <Users className="size-4 text-muted-foreground" />
+                    Équipe
+                  </button>
+                  <button
+                    onClick={() => router.push("/parametres/organisations")}
+                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer text-left"
+                  >
+                    <Building2 className="size-4 text-muted-foreground" />
+                    Organisations
+                  </button>
+                  <div className="my-1 h-px bg-border" />
+                  <button
+                    onClick={async () => {
+                      const supabase = createClient();
+                      await supabase.auth.signOut();
+                      router.push("/login");
+                      router.refresh();
+                    }}
+                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer text-left text-destructive"
+                  >
+                    <LogOut className="size-4" />
+                    Se déconnecter
+                  </button>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         )}
       </SidebarFooter>
