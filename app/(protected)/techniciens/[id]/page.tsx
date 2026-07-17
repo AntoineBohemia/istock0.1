@@ -1,7 +1,7 @@
 import { generateMeta } from "@/lib/utils";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Edit3Icon, CalendarClock, Package, Wrench } from "lucide-react";
+import { ArrowLeft, CalendarClock, Package, Wrench } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -11,6 +11,7 @@ import TechnicianInventory from "./technician-inventory";
 import TechnicianHistory from "./technician-history";
 import TechnicianEquipment from "./technician-equipment";
 import ArchiveTechnicianButton from "./archive-technician-button";
+import EditTechnicianButton from "./edit-technician-button";
 import TechnicianRestockButton from "./restock-button";
 import YearSelector from "./year-selector";
 
@@ -222,12 +223,7 @@ export default async function TechnicianDetailPage({
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button variant="outline-contrast" asChild>
-              <Link href={`/techniciens/${id}/modifier`}>
-                <Edit3Icon className="size-4" />
-                Modifier
-              </Link>
-            </Button>
+            <EditTechnicianButton technician={technician} />
             <TechnicianRestockButton technicianId={id} />
             <ArchiveTechnicianButton technicianId={id} technicianName={fullName} />
           </div>

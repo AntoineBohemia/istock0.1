@@ -1,5 +1,5 @@
 import { generateMeta } from "@/lib/utils";
-import { Edit3Icon, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { calculateStockScore, getStockBadgeVariant, getStockScoreColor } from "@/lib/utils/stock";
 import dynamic from "next/dynamic";
 import ArchiveProductButton from "./archive-product-button";
+import EditProductButton from "./edit-product-button";
 import ProductIconDisplay from "@/components/product-icon-display";
 import StockActions from "./stock-actions";
 import RecentMovements from "./recent-movements";
@@ -76,12 +77,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline-contrast" asChild>
-            <Link href={`/produits/${id}/modifier`}>
-              <Edit3Icon className="size-4" />
-              Modifier
-            </Link>
-          </Button>
+          <EditProductButton product={product as any} />
           <ArchiveProductButton productId={id} productName={product.name} />
         </div>
       </div>
