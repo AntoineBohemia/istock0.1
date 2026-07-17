@@ -80,11 +80,15 @@ export type UpdateTechnicianData = Partial<CreateTechnicianData>;
  * Récupère la liste des techniciens avec leur nombre d'items en inventaire
  * Utilise une RPC pour tout faire en une seule requête SQL (JOIN + aggregation)
  */
-export async function getTechnicians(organizationId?: string): Promise<TechnicianWithInventory[]> {
+export async function getTechnicians(
+  organizationId?: string,
+  year?: number
+): Promise<TechnicianWithInventory[]> {
   const supabase = createClient();
 
   const { data, error } = await supabase.rpc("get_technicians_with_stats", {
     p_organization_id: organizationId,
+    p_year: year,
   });
 
   if (error) {
@@ -542,9 +546,7 @@ export async function uploadTechnicianPhoto(file: File, technicianId: string): P
     throw new Error(`Erreur lors de l'upload: ${uploadError.message}`);
   }
 
-  const { data: urlData } = supabase.storage
-    .from("technician-photos")
-    .getPublicUrl(path);
+  const { data: urlData } = supabase.storage.from("technician-photos").getPublicUrl(path);
 
   return urlData.publicUrl;
 }

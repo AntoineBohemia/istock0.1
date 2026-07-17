@@ -1,44 +1,25 @@
 "use client";
 
 import React from "react";
-import {
-  Building2,
-  Check,
-  Clock,
-  Loader2,
-  Mail,
-  X,
-} from "lucide-react";
+import { Building2, Check, Clock, Loader2, Mail } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  getMyPendingInvitations,
-  acceptInvitation,
-} from "@/lib/supabase/queries/organizations";
+import { getMyPendingInvitations, acceptInvitation } from "@/lib/supabase/queries/organizations";
 import { queryKeys } from "@/lib/query-keys";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { getUserOrganizations } from "@/lib/supabase/queries/organizations";
 
 export default function MyInvitationsPage() {
   const queryClient = useQueryClient();
-  const { setOrganizations, setCurrentOrganization, currentOrganization } =
-    useOrganizationStore();
+  const { setOrganizations, setCurrentOrganization, currentOrganization } = useOrganizationStore();
 
-  const {
-    data: invitations = [],
-    isLoading,
-  } = useQuery({
+  const { data: invitations = [], isLoading } = useQuery({
     queryKey: queryKeys.organizations.myInvitations(),
     queryFn: getMyPendingInvitations,
   });
@@ -65,10 +46,21 @@ export default function MyInvitationsPage() {
     },
   });
 
+  const [now] = React.useState(() => Date.now());
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      <div className="space-y-4 py-6">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-4 w-72" />
+        <div className="space-y-3 mt-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-4">
+              <Skeleton className="h-10 flex-1 rounded-lg" />
+              <Skeleton className="h-8 w-20 rounded-md" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -76,9 +68,7 @@ export default function MyInvitationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">
-          Mes invitations
-        </h2>
+        <h2 className="text-2xl font-bold tracking-tight">Mes invitations</h2>
         <p className="text-muted-foreground">
           Invitations en attente pour rejoindre des organisations
         </p>
@@ -88,9 +78,7 @@ export default function MyInvitationsPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Mail className="size-12 text-muted-foreground/50 mb-4" />
-            <p className="text-muted-foreground text-sm">
-              Aucune invitation en attente
-            </p>
+            <p className="text-muted-foreground text-sm">Aucune invitation en attente</p>
           </CardContent>
         </Card>
       ) : (
@@ -101,13 +89,9 @@ export default function MyInvitationsPage() {
               : invitation.organization;
             const orgName = org?.name || "Organisation";
             const orgLogo = org?.logo_url || null;
-            const expiresAt = invitation.expires_at
-              ? new Date(invitation.expires_at)
-              : null;
+            const expiresAt = invitation.expires_at ? new Date(invitation.expires_at) : null;
             const daysLeft = expiresAt
-              ? Math.ceil(
-                  (expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-                )
+              ? Math.ceil((expiresAt.getTime() - now) / (1000 * 60 * 60 * 24))
               : null;
 
             return (
@@ -122,14 +106,10 @@ export default function MyInvitationsPage() {
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <CardTitle className="text-base">
-                          {orgName}
-                        </CardTitle>
+                        <CardTitle className="text-base">{orgName}</CardTitle>
                         <CardDescription className="flex items-center gap-2">
                           <Badge variant="secondary" className="text-xs">
-                            {invitation.role === "admin"
-                              ? "Administrateur"
-                              : "Membre"}
+                            {invitation.role === "admin" ? "Administrateur" : "Membre"}
                           </Badge>
                           {daysLeft !== null && (
                             <span className="flex items-center gap-1 text-xs">

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
-import { History, ImageIcon, Package } from "lucide-react";
+import { History, ImageIcon } from "lucide-react";
 import { SearchInput } from "@/components/search-input";
 
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
@@ -150,16 +150,17 @@ export default function TechnicianHistory({ movements, year }: TechnicianHistory
                 <div className="flex items-center gap-3">
                   <span className="font-medium text-sm">
                     {session.date.toLocaleDateString("fr-FR", {
-                      weekday: "short",
+                      weekday: "long",
                       day: "numeric",
-                      month: "short",
-                      year: "numeric",
+                      month: "long",
                     })}
-                    {" · "}
-                    {session.date.toLocaleTimeString("fr-FR", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    <span className="text-muted-foreground font-normal">
+                      {" · "}
+                      {session.date.toLocaleTimeString("fr-FR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">

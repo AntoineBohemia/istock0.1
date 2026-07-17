@@ -12,10 +12,10 @@ import {
   getTechnicianYearlyTotals,
 } from "@/lib/supabase/queries/technicians";
 
-export function useTechnicians(orgId?: string) {
+export function useTechnicians(orgId?: string, year?: number) {
   return useQuery({
-    queryKey: queryKeys.technicians.list(orgId),
-    queryFn: () => getTechnicians(orgId),
+    queryKey: queryKeys.technicians.list(orgId, year),
+    queryFn: () => getTechnicians(orgId, year),
     enabled: !!orgId,
   });
 }

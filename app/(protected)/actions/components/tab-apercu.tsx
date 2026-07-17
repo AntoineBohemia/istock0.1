@@ -11,7 +11,7 @@ import {
   Bar,
   BarChart,
 } from "recharts";
-import { Loader2, Package, Folder, X } from "lucide-react";
+import { Package, Folder, X } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -41,6 +41,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { calculateStockScore } from "@/lib/utils/stock";
 import {
@@ -328,8 +329,22 @@ export function TabApercu() {
   // ─── Loading ──────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="flex h-[300px] items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      <div className="space-y-6">
+        {/* Filter bar skeleton */}
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-4 w-40" />
+          <div className="flex gap-2">
+            <Skeleton className="h-8 w-[140px] rounded-md" />
+            <Skeleton className="h-8 w-[160px] rounded-md" />
+          </div>
+        </div>
+        {/* Score chart skeleton */}
+        <Skeleton className="h-[200px] lg:h-[250px] w-full rounded-md" />
+        {/* Flow bar chart skeleton */}
+        <div>
+          <Skeleton className="h-4 w-28 mb-3" />
+          <Skeleton className="h-[120px] lg:h-[150px] w-full rounded-md" />
+        </div>
       </div>
     );
   }
@@ -462,8 +477,8 @@ export function TabApercu() {
       {/* Score chart with loading overlay */}
       <div className="relative">
         {isLoadingProducts && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80">
-            <Loader2 className="size-8 animate-spin text-muted-foreground" />
+          <div className="absolute inset-0 z-10 bg-background/80 rounded-md">
+            <Skeleton className="h-full w-full rounded-md" />
           </div>
         )}
 

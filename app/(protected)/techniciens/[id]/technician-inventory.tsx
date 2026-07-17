@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Package, ImageIcon, Search, ArrowUpDown, Users, ChevronDown, X } from "lucide-react";
-import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+
 import { Input } from "@/components/ui/input";
 import { SearchInput } from "@/components/search-input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -12,8 +12,6 @@ import { cn } from "@/lib/utils";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useTechnicians } from "@/hooks/queries";
 import { useTechnicianYearlyTotals } from "@/hooks/queries/use-technicians";
-
-const MotionTr = motion.create("tr");
 
 interface ProductTotal {
   product_id: string;
@@ -143,13 +141,10 @@ export default function TechnicianInventory({
   const [sortKey, setSortKey] = useState<SortKey>("quantity");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [compared, setCompared] = useState<ComparedTechnician[]>([]);
-  const prefersReducedMotion = useReducedMotion();
 
   const toggleCompare = (tech: ComparedTechnician) => {
     setCompared((prev) =>
-      prev.find((c) => c.id === tech.id)
-        ? prev.filter((c) => c.id !== tech.id)
-        : [...prev, tech]
+      prev.find((c) => c.id === tech.id) ? prev.filter((c) => c.id !== tech.id) : [...prev, tech]
     );
   };
 
@@ -182,7 +177,7 @@ export default function TechnicianInventory({
   }, [totals, search, sortKey, sortDir]);
 
   const grandTotal = filtered.reduce((sum, item) => sum + item.total_quantity, 0);
-  const productIds = filtered.map((f) => f.product_id);
+  const _productIds = filtered.map((f) => f.product_id);
   const isComparing = compared.length > 0;
 
   if (totals.length === 0) {
@@ -212,11 +207,7 @@ export default function TechnicianInventory({
           className="bg-white dark:bg-card"
           wrapperClassName="flex-1"
         />
-        <CompareSelector
-          technicianId={technicianId}
-          compared={compared}
-          onToggle={toggleCompare}
-        />
+        <CompareSelector technicianId={technicianId} compared={compared} onToggle={toggleCompare} />
       </div>
 
       {/* Compared chips */}
@@ -263,7 +254,7 @@ export default function TechnicianInventory({
                   />
                 </button>
               </th>
-              <th className="h-11 px-3 text-center min-w-[80px]">
+              <th className="h-11 px-5 text-left min-w-[80px]">
                 <button
                   type="button"
                   onClick={() => toggleSort("quantity")}
@@ -285,34 +276,35 @@ export default function TechnicianInventory({
                 <ComparedColumnHeader key={c.id} tech={c} />
               ))}
               {isComparing && (
-                <th className="h-11 px-3 text-center min-w-[60px]">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">Δ</span>
+                <th className="h-11 px-5 text-left min-w-[60px]">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
+                    Δ
+                  </span>
                 </th>
               )}
             </tr>
           </thead>
           <tbody>
-            <AnimatePresence mode="popLayout" initial={false}>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={2 + compared.length + (isComparing ? 1 : 0)} className="h-32 text-center text-muted-foreground">
-                    Aucun produit trouvé.
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((item, index) => (
-                  <ComparisonRow
-                    key={item.product_id}
-                    item={item}
-                    index={index}
-                    compared={compared}
-                    year={year}
-                    isComparing={isComparing}
-                    prefersReducedMotion={prefersReducedMotion}
-                  />
-                ))
-              )}
-            </AnimatePresence>
+            {filtered.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={2 + compared.length + (isComparing ? 1 : 0)}
+                  className="h-32 text-center text-muted-foreground"
+                >
+                  Aucun produit trouvé.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((item) => (
+                <ComparisonRow
+                  key={item.product_id}
+                  item={item}
+                  compared={compared}
+                  year={year}
+                  isComparing={isComparing}
+                />
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -320,13 +312,9 @@ export default function TechnicianInventory({
   );
 }
 
-function ComparedColumnHeader({
-  tech,
-}: {
-  tech: ComparedTechnician;
-}) {
+function ComparedColumnHeader({ tech }: { tech: ComparedTechnician }) {
   return (
-    <th className="h-11 px-3 text-center min-w-[80px]">
+    <th className="h-11 px-5 text-left min-w-[80px]">
       <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
         {tech.name}
       </span>
@@ -336,38 +324,19 @@ function ComparedColumnHeader({
 
 function ComparisonRow({
   item,
-  index,
   compared,
   year,
   isComparing,
-  prefersReducedMotion,
 }: {
   item: ProductTotal;
-  index: number;
   compared: ComparedTechnician[];
   year: number;
   isComparing: boolean;
-  prefersReducedMotion: boolean | null;
 }) {
   return (
-    <MotionTr
-      layout={!prefersReducedMotion}
-      initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={prefersReducedMotion ? undefined : { opacity: 0, y: -8 }}
-      transition={{
-        type: "spring",
-        bounce: 0,
-        duration: 0.35,
-        delay: prefersReducedMotion ? 0 : index * 0.03,
-      }}
-      className="border-b last:border-b-0 transition-colors hover:bg-muted/40"
-    >
+    <tr className="border-b last:border-b-0 transition-colors hover:bg-muted/40">
       <td className="px-5 py-4">
-        <Link
-          href={`/produits/${item.product_id}`}
-          className="flex items-center gap-3 group/link"
-        >
+        <Link href={`/produits/${item.product_id}`} className="flex items-center gap-3 group/link">
           <figure className="flex size-10 items-center justify-center rounded-lg border bg-white dark:bg-card shrink-0 overflow-hidden">
             {item.product_image_url ? (
               <Image
@@ -386,28 +355,36 @@ function ComparisonRow({
               {item.product_name}
             </p>
             {item.product_sku && (
-              <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                {item.product_sku}
-              </p>
+              <p className="text-xs text-muted-foreground font-mono mt-0.5">{item.product_sku}</p>
             )}
           </div>
         </Link>
       </td>
-      <td className="px-3 py-4 text-center">
-        <span className={cn(
-          "font-heading font-bold tabular-nums",
-          isComparing ? "text-lg" : "text-xl"
-        )}>
+      <td className="px-5 py-4">
+        <span
+          className={cn("font-heading font-bold tabular-nums", isComparing ? "text-lg" : "text-xl")}
+        >
           {item.total_quantity}
         </span>
       </td>
       {compared.map((c) => (
-        <ComparedCell key={c.id} techId={c.id} year={year} productId={item.product_id} primaryQty={item.total_quantity} />
+        <ComparedCell
+          key={c.id}
+          techId={c.id}
+          year={year}
+          productId={item.product_id}
+          primaryQty={item.total_quantity}
+        />
       ))}
       {isComparing && (
-        <DeltaCell comparedTechIds={compared.map((c) => c.id)} year={year} productId={item.product_id} primaryQty={item.total_quantity} />
+        <DeltaCell
+          comparedTechIds={compared.map((c) => c.id)}
+          year={year}
+          productId={item.product_id}
+          primaryQty={item.total_quantity}
+        />
       )}
-    </MotionTr>
+    </tr>
   );
 }
 
@@ -431,7 +408,7 @@ function ComparedCell({
 
   if (isLoading) {
     return (
-      <td className="px-3 py-4 text-center">
+      <td className="px-5 py-4">
         <span className="text-muted-foreground/30 text-sm">—</span>
       </td>
     );
@@ -440,7 +417,7 @@ function ComparedCell({
   return (
     <td
       className={cn(
-        "px-3 py-4 text-center",
+        "px-5 py-4",
         qty > 0 && qty > primaryQty && "bg-green-50 dark:bg-green-950/20",
         qty > 0 && qty < primaryQty && "bg-red-50 dark:bg-red-950/20"
       )}
@@ -481,20 +458,22 @@ function DeltaCell({
   const { data: data3 } = useTechnicianYearlyTotals(comparedTechIds[3] ?? comparedTechIds[0], year);
 
   const allData = [data0, data1, data2, data3].slice(0, comparedTechIds.length);
-  const otherQties = allData.map((d) => d?.find((t) => t.product_id === productId)?.total_quantity ?? 0);
+  const otherQties = allData.map(
+    (d) => d?.find((t) => t.product_id === productId)?.total_quantity ?? 0
+  );
   const avg = otherQties.reduce((s, v) => s + v, 0) / otherQties.length;
   const delta = Math.round(primaryQty - avg);
 
   if (delta === 0) {
     return (
-      <td className="px-3 py-4 text-center">
+      <td className="px-5 py-4">
         <span className="text-muted-foreground/30 text-xs">=</span>
       </td>
     );
   }
 
   return (
-    <td className="px-3 py-4 text-center">
+    <td className="px-5 py-4">
       <span
         className={cn(
           "tabular-nums text-xs font-semibold rounded-full px-2 py-0.5",
@@ -503,7 +482,8 @@ function DeltaCell({
             : "text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-950/30"
         )}
       >
-        {delta > 0 ? "+" : ""}{delta}
+        {delta > 0 ? "+" : ""}
+        {delta}
       </span>
     </td>
   );

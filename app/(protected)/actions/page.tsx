@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { toast } from "@/lib/toast";
-import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import {
   Search,
   ArrowDownToLine,
@@ -20,6 +19,7 @@ import {
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import { StatusPill } from "@/components/ui/status-pill";
 import { HeroNumber } from "@/components/ui/hero-number";
@@ -97,7 +97,6 @@ interface SessionEntry {
 
 // ─── Composant principal ────────────────────────────────────
 export default function GlobalPage() {
-  const prefersReducedMotion = useReducedMotion();
   const orgId = useOrganizationStore((s) => s.currentOrganization?.id);
 
   // Show welcome toast if redirected from invite acceptance
@@ -725,7 +724,17 @@ export default function GlobalPage() {
       {session.length === 0 && olderMovements.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
           {isLoadingToday ? (
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            <div className="w-full space-y-2 px-1">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5">
+                  <Skeleton className="h-4 w-8 shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-3.5 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
             <p className="text-sm text-muted-foreground text-center">
               Aucun mouvement
@@ -736,59 +745,49 @@ export default function GlobalPage() {
         </div>
       ) : (
         <ul className="flex-1 overflow-y-auto space-y-1.5 min-h-0">
-          <AnimatePresence initial={false}>
-            {session.map((entry) => {
-              const isEntry = entry.movementType === "entry";
-              const reverting = revertingIds.has(entry.localId);
-              return (
-                <motion.li
-                  key={entry.localId}
-                  initial={prefersReducedMotion ? false : { opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={
-                    prefersReducedMotion
-                      ? undefined
-                      : { opacity: 0, height: 0, marginBottom: 0, overflow: "hidden" }
-                  }
-                  transition={{ type: "spring", bounce: 0.05, duration: 0.25 }}
-                  className={cn(
-                    "group rounded-lg border-l-2 px-3 py-2.5 transition-colors hover:bg-muted/30",
-                    isEntry
-                      ? "border-l-standard bg-standard-bg/30"
-                      : "border-l-critique bg-critique-bg/30"
-                  )}
-                >
-                  <div className="flex items-start gap-2.5">
-                    <span
-                      className={cn(
-                        "font-heading font-bold tabular-nums text-sm mt-0.5 shrink-0",
-                        isEntry ? "text-standard" : "text-critique"
-                      )}
-                    >
-                      {isEntry ? "+" : "−"}
-                      {entry.quantity}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-medium truncate leading-tight">
-                        {entry.productName}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-                        {MOVEMENT_LABELS[entry.movementType]}
-                        {entry.technicianName && ` → ${entry.technicianName}`}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handleRevert(entry)}
-                      disabled={reverting}
-                      className="text-[11px] text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5 disabled:opacity-30"
-                    >
-                      {reverting ? "…" : "annuler"}
-                    </button>
+          {session.map((entry) => {
+            const isEntry = entry.movementType === "entry";
+            const reverting = revertingIds.has(entry.localId);
+            return (
+              <li
+                key={entry.localId}
+                className={cn(
+                  "group rounded-lg border-l-2 px-3 py-2.5 transition-colors hover:bg-muted/30",
+                  isEntry
+                    ? "border-l-standard bg-standard-bg/30"
+                    : "border-l-critique bg-critique-bg/30"
+                )}
+              >
+                <div className="flex items-start gap-2.5">
+                  <span
+                    className={cn(
+                      "font-heading font-bold tabular-nums text-sm mt-0.5 shrink-0",
+                      isEntry ? "text-standard" : "text-critique"
+                    )}
+                  >
+                    {isEntry ? "+" : "−"}
+                    {entry.quantity}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-medium truncate leading-tight">
+                      {entry.productName}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                      {MOVEMENT_LABELS[entry.movementType]}
+                      {entry.technicianName && ` → ${entry.technicianName}`}
+                    </p>
                   </div>
-                </motion.li>
-              );
-            })}
-          </AnimatePresence>
+                  <button
+                    onClick={() => handleRevert(entry)}
+                    disabled={reverting}
+                    className="text-[11px] text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5 disabled:opacity-30"
+                  >
+                    {reverting ? "…" : "annuler"}
+                  </button>
+                </div>
+              </li>
+            );
+          })}
 
           {olderMovements.length > 0 && session.length > 0 && (
             <li className="pt-2 pb-1">
@@ -944,8 +943,10 @@ export default function GlobalPage() {
                 {renderSearchInput(true)}
 
                 {isSearching && searchQuery ? (
-                  <div className="py-12 text-center">
-                    <Loader2 className="size-5 animate-spin text-muted-foreground mx-auto" />
+                  <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 py-2">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <Skeleton key={i} className="aspect-square rounded-xl" />
+                    ))}
                   </div>
                 ) : sortedProducts.length > 0 ? (
                   <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">

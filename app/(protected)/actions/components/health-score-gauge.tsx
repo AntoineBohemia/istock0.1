@@ -2,13 +2,8 @@
 
 import { Label, PolarGrid, PolarRadiusAxis, RadialBar, RadialBarChart } from "recharts";
 import { ChartConfig, ChartContainer } from "@/components/ui/chart";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Loader2 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { HealthScore } from "@/lib/supabase/queries/dashboard";
 
 interface HealthScoreGaugeProps {
@@ -26,13 +21,20 @@ const ZONE_COLORS: Record<string, string> = {
 export function HealthScoreGauge({ data, isLoading, compact }: HealthScoreGaugeProps) {
   if (isLoading || !data) {
     return (
-      <div className={`flex items-center justify-center ${compact ? "h-[80px] w-[80px]" : "h-[120px] w-[120px]"}`}>
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      <div className="flex flex-col items-center gap-1">
+        <Skeleton
+          className="rounded-full"
+          style={{
+            height: compact ? 80 : 120,
+            width: compact ? 80 : 120,
+          }}
+        />
+        {!compact && <Skeleton className="h-3 w-20 mt-1" />}
       </div>
     );
   }
 
-  const { score, label, color, penalties, trend } = data;
+  const { score, label, color, penalties, trend: _trend } = data;
   const fillColor = ZONE_COLORS[color] || ZONE_COLORS.green;
   // endAngle: 0 score = 90 (start), 100 score = 90 - 360 = -270
   const endAngle = 90 - (score / 100) * 360;
@@ -50,7 +52,11 @@ export function HealthScoreGauge({ data, isLoading, compact }: HealthScoreGaugeP
 
   const gauge = (
     <div className="flex flex-col items-center gap-1">
-      <ChartContainer config={chartConfig} className={`aspect-square`} style={{ height: size, width: size }}>
+      <ChartContainer
+        config={chartConfig}
+        className={`aspect-square`}
+        style={{ height: size, width: size }}
+      >
         <RadialBarChart
           data={chartData}
           startAngle={90}

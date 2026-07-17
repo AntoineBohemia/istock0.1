@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { Loader2, Minus, Plus, X } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/lib/toast";
 
 import { Button } from "@/components/ui/button";
@@ -136,8 +137,22 @@ export default function RestockDialog({
         </DialogHeader>
 
         {isLoading ? (
-          <div className="flex h-40 items-center justify-center">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <div className="px-5 py-3 space-y-4">
+            {/* Select skeleton */}
+            <Skeleton className="h-9 w-full rounded-md" />
+            {/* Product list skeletons */}
+            <div className="space-y-3 pt-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="size-8 rounded-md shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-3.5 w-3/4" />
+                    <Skeleton className="h-3 w-1/3" />
+                  </div>
+                  <Skeleton className="h-7 w-20 rounded-md" />
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <>

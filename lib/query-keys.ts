@@ -36,7 +36,8 @@ export const queryKeys = {
 
   technicians: {
     all: ["technicians"] as const,
-    list: (orgId?: string) => [...queryKeys.technicians.all, "list", orgId] as const,
+    list: (orgId?: string, year?: number) =>
+      [...queryKeys.technicians.all, "list", orgId, year] as const,
     detail: (id: string) => [...queryKeys.technicians.all, "detail", id] as const,
     stats: (orgId: string) => [...queryKeys.technicians.all, "stats", orgId] as const,
     inventory: (techId: string) => [...queryKeys.technicians.all, "inventory", techId] as const,

@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useYearlyEntryValues } from "@/hooks/queries/use-stock-movements";
 import { HeroNumber } from "@/components/ui/hero-number";
@@ -21,10 +21,8 @@ export default function ProductStats() {
         {[...Array(3)].map((_, i) => (
           <Card key={i}>
             <CardHeader>
-              <CardDescription>Chargement...</CardDescription>
-              <div className="flex items-center justify-center h-8">
-                <Loader2 className="size-5 animate-spin text-muted-foreground" />
-              </div>
+              <Skeleton className="h-4 w-36" />
+              <Skeleton className="h-8 w-24 mt-1" />
             </CardHeader>
           </Card>
         ))}
@@ -68,9 +66,7 @@ export default function ProductStats() {
       {organizations.length > 1 && (
         <Card>
           <CardHeader>
-            <CardDescription>
-              Cumul entrées {currentYear}
-            </CardDescription>
+            <CardDescription>Cumul entrées {currentYear}</CardDescription>
             <CardTitle className="text-2xl lg:text-3xl">
               <HeroNumber value={yearlyData.cumul} format={formatCurrency} />
             </CardTitle>
@@ -81,9 +77,7 @@ export default function ProductStats() {
       {/* Global stock value */}
       <Card>
         <CardHeader>
-          <CardDescription>
-            Valeur du stock global
-          </CardDescription>
+          <CardDescription>Valeur du stock global</CardDescription>
           <CardTitle className="text-2xl lg:text-3xl">
             <HeroNumber value={yearlyData.globalStockValue} format={formatCurrency} />
           </CardTitle>

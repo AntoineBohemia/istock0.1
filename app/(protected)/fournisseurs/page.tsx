@@ -2,13 +2,14 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Loader2, Truck, Globe, Mail, Plus } from "lucide-react";
+import { Truck, Globe, Mail, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/search-input";
 import { StatusPill } from "@/components/ui/status-pill";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import ProductIconDisplay from "@/components/product-icon-display";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useSuppliersWithProducts } from "@/hooks/queries/use-suppliers";
 import { calculateStockScore, getStockBadgeVariant } from "@/lib/utils/stock";
@@ -62,8 +63,29 @@ export default function FournisseursPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-9 w-52 rounded-md" />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="rounded-xl border bg-card p-4 flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="space-y-2 min-w-0 flex-1">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-44" />
+                </div>
+                <Skeleton className="h-4 w-16" />
+              </div>
+              <div className="flex gap-1.5">
+                {[...Array(4)].map((_, j) => (
+                  <Skeleton key={j} className="size-8 rounded-lg" />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

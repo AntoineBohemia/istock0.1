@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Loader2, Package, ScanLine } from "lucide-react";
-import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+import { Package, ScanLine } from "lucide-react";
 
 import { SearchInput } from "@/components/search-input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -38,7 +37,6 @@ export default function MobileTechniciansList() {
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
   const { data: technicians = [], isLoading } = useTechnicians(currentOrganization?.id);
   const openForTechnician = useScanDrawerStore((s) => s.openForTechnician);
-  const prefersReducedMotion = useReducedMotion();
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
@@ -91,68 +89,53 @@ export default function MobileTechniciansList() {
         <p className="py-8 text-center text-sm text-muted-foreground">Aucun technicien trouvé</p>
       ) : (
         <div className="space-y-2">
-          <AnimatePresence mode="popLayout" initial={false}>
-            {filtered.map((tech, index) => {
-              const days = daysSince(tech.last_restock_at);
-              const status = restockStatus(days);
-              return (
-                <motion.div
-                  key={tech.id}
-                  layout={!prefersReducedMotion}
-                  initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={prefersReducedMotion ? undefined : { opacity: 0, y: -8 }}
-                  transition={{
-                    type: "spring",
-                    bounce: 0,
-                    duration: 0.35,
-                    delay: prefersReducedMotion ? 0 : index * 0.03,
-                  }}
-                  className="rounded-xl border bg-card p-3"
-                >
-                  <div className="flex items-center gap-3">
-                    {/* Avatar + Info */}
-                    <Link
-                      href={`/users/${tech.id}`}
-                      className="flex flex-1 items-center gap-3 min-w-0"
-                    >
-                      <Avatar className="size-9 shrink-0">
-                        <AvatarFallback className="text-xs font-semibold">
-                          {tech.first_name.charAt(0)}
-                          {tech.last_name.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold">
-                          {tech.first_name} {tech.last_name}
-                        </p>
-                        <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Package className="size-3" />
-                            <span className="font-heading tabular-nums font-bold">
-                              {tech.year_units_total}
-                            </span>
+          {filtered.map((tech) => {
+            const days = daysSince(tech.last_restock_at);
+            const status = restockStatus(days);
+            return (
+              <div key={tech.id} className="rounded-xl border bg-card p-3">
+                <div className="flex items-center gap-3">
+                  {/* Avatar + Info */}
+                  <Link
+                    href={`/techniciens/${tech.id}`}
+                    className="flex flex-1 items-center gap-3 min-w-0"
+                  >
+                    <Avatar className="size-9 shrink-0">
+                      <AvatarFallback className="text-xs font-semibold">
+                        {tech.first_name.charAt(0)}
+                        {tech.last_name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">
+                        {tech.first_name} {tech.last_name}
+                      </p>
+                      <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Package className="size-3" />
+                          <span className="font-heading tabular-nums font-bold">
+                            {tech.year_units_total}
                           </span>
-                          <StatusPill status={status} label={restockLabel(days)} />
-                        </div>
+                        </span>
+                        <StatusPill status={status} label={restockLabel(days)} />
                       </div>
-                    </Link>
+                    </div>
+                  </Link>
 
-                    {/* Restock button */}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="shrink-0"
-                      onClick={() => openForTechnician(tech.id)}
-                    >
-                      <ScanLine className="mr-1.5 size-3.5" />
-                      Réappro
-                    </Button>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
+                  {/* Restock button */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0"
+                    onClick={() => openForTechnician(tech.id)}
+                  >
+                    <ScanLine className="mr-1.5 size-3.5" />
+                    Réappro
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

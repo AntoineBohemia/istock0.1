@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Pencil, Plus } from "lucide-react";
 import Link from "next/link";
 import { toast } from "@/lib/toast";
-import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -62,7 +61,6 @@ export default function EquipmentManageModal({
   onOpenChange,
   onEdit,
 }: EquipmentManageModalProps) {
-  const prefersReducedMotion = useReducedMotion();
   const { currentOrganization } = useOrganizationStore();
   const { data: technicians = [] } = useTechnicians(currentOrganization?.id);
   // Live data — re-fetched after each assign/unassign via query invalidation
@@ -204,134 +202,112 @@ export default function EquipmentManageModal({
           )}
 
           <div className="divide-y">
-            <AnimatePresence mode="popLayout" initial={false}>
-              {holders.map((a) => {
-                const tech = a.technician!;
-                const initials =
-                  `${tech.first_name.charAt(0)}${tech.last_name.charAt(0)}`.toUpperCase();
-                const fullName = `${tech.first_name} ${tech.last_name}`;
+            {holders.map((a) => {
+              const tech = a.technician!;
+              const initials =
+                `${tech.first_name.charAt(0)}${tech.last_name.charAt(0)}`.toUpperCase();
+              const fullName = `${tech.first_name} ${tech.last_name}`;
 
-                const durationColor =
-                  a.tier === "old" ? "text-destructive" :
-                  a.tier === "aging" ? "text-attention" :
-                  "text-muted-foreground";
+              const durationColor =
+                a.tier === "old"
+                  ? "text-destructive"
+                  : a.tier === "aging"
+                    ? "text-attention"
+                    : "text-muted-foreground";
 
-                return (
-                  <motion.div
-                    key={a.id}
-                    layout={!prefersReducedMotion}
-                    initial={prefersReducedMotion ? false : { opacity: 0, x: -8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={prefersReducedMotion ? undefined : { opacity: 0, x: 8, height: 0 }}
-                    transition={{ type: "spring", bounce: 0, duration: 0.3 }}
-                    className="flex items-center gap-2.5 py-2.5"
+              return (
+                <div key={a.id} className="flex items-center gap-2.5 py-2.5">
+                  <Avatar className="size-7 shrink-0 bg-foreground/[0.08]">
+                    {tech.photo_url && <AvatarImage src={tech.photo_url} />}
+                    <AvatarFallback className="text-[9px] font-semibold bg-foreground/[0.08] text-foreground/70">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <Link
+                    href={`/techniciens/${tech.id}`}
+                    className="text-sm font-medium hover:underline truncate flex-1 min-w-0"
                   >
-                    <Avatar className="size-7 shrink-0 bg-foreground/[0.08]">
-                      {tech.photo_url && <AvatarImage src={tech.photo_url} />}
-                      <AvatarFallback className="text-[9px] font-semibold bg-foreground/[0.08] text-foreground/70">
-                        {initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <Link
-                      href={`/techniciens/${tech.id}`}
-                      className="text-sm font-medium hover:underline truncate flex-1 min-w-0"
-                    >
-                      {fullName}
-                    </Link>
-                    {a.quantity > 1 && (
-                      <span className="text-[10px] font-bold tabular-nums bg-foreground/[0.06] px-1.5 py-0.5 rounded shrink-0">
-                        x{a.quantity}
-                      </span>
-                    )}
-                    <span className={cn("text-[11px] tabular-nums shrink-0", durationColor)}>
-                      {formatDuration(a.days)}
+                    {fullName}
+                  </Link>
+                  {a.quantity > 1 && (
+                    <span className="text-[10px] font-bold tabular-nums bg-foreground/[0.06] px-1.5 py-0.5 rounded shrink-0">
+                      x{a.quantity}
                     </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 px-2.5 text-xs shrink-0 text-destructive border-destructive/30 hover:bg-destructive/10 hover:border-destructive/50"
-                      onClick={() => handleUnassign(tech.id, fullName)}
-                      disabled={unassignMutation.isPending}
-                    >
-                      Recuperer
-                    </Button>
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
+                  )}
+                  <span className={cn("text-[11px] tabular-nums shrink-0", durationColor)}>
+                    {formatDuration(a.days)}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2.5 text-xs shrink-0 text-destructive border-destructive/30 hover:bg-destructive/10 hover:border-destructive/50"
+                    onClick={() => handleUnassign(tech.id, fullName)}
+                    disabled={unassignMutation.isPending}
+                  >
+                    Recuperer
+                  </Button>
+                </div>
+              );
+            })}
 
             {/* ── "+" add holder — inline at end of list ── */}
-            {stock > 0 && activeTechs.length > 0 && (
-              <AnimatePresence mode="wait">
-                {showAssignPicker ? (
-                  <motion.div
-                    key="picker"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="rounded-lg border border-dashed border-foreground/[0.12] p-3 mt-3 space-y-2">
-                      <select
-                        value={assigningTech}
-                        onChange={(e) => setAssigningTech(e.target.value)}
-                        autoFocus
-                        className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
+            {stock > 0 &&
+              activeTechs.length > 0 &&
+              (showAssignPicker ? (
+                <div key="picker" className="overflow-hidden">
+                  <div className="rounded-lg border border-dashed border-foreground/[0.12] p-3 mt-3 space-y-2">
+                    <select
+                      value={assigningTech}
+                      onChange={(e) => setAssigningTech(e.target.value)}
+                      autoFocus
+                      className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
+                    >
+                      <option value="">Choisir un technicien...</option>
+                      {activeTechs.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.first_name} {t.last_name}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 flex-1 text-xs"
+                        onClick={() => {
+                          setShowAssignPicker(false);
+                          setAssigningTech("");
+                        }}
                       >
-                        <option value="">Choisir un technicien...</option>
-                        {activeTechs.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.first_name} {t.last_name}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 flex-1 text-xs"
-                          onClick={() => {
-                            setShowAssignPicker(false);
-                            setAssigningTech("");
-                          }}
-                        >
-                          Annuler
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="h-8 flex-1 text-xs"
-                          onClick={() => {
-                            handleAssign();
-                            setShowAssignPicker(false);
-                          }}
-                          disabled={!assigningTech || assignMutation.isPending}
-                        >
-                          Assigner
-                        </Button>
-                      </div>
+                        Annuler
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-8 flex-1 text-xs"
+                        onClick={() => {
+                          handleAssign();
+                          setShowAssignPicker(false);
+                        }}
+                        disabled={!assigningTech || assignMutation.isPending}
+                      >
+                        Assigner
+                      </Button>
                     </div>
-                  </motion.div>
-                ) : (
-                  <motion.button
-                    key="add-btn"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    type="button"
-                    onClick={() => setShowAssignPicker(true)}
-                    className="w-full flex items-center gap-3 rounded-lg border border-dashed border-foreground/[0.10] p-3 mt-3 hover:border-foreground/20 hover:bg-muted/20 transition-colors cursor-pointer"
-                  >
-                    <div className="flex size-8 items-center justify-center rounded-full bg-foreground/[0.04]">
-                      <Plus className="size-4 text-muted-foreground/40" />
-                    </div>
-                    <span className="text-sm text-muted-foreground/50">
-                      Assigner a un technicien
-                    </span>
-                  </motion.button>
-                )}
-              </AnimatePresence>
-            )}
+                  </div>
+                </div>
+              ) : (
+                <button
+                  key="add-btn"
+                  type="button"
+                  onClick={() => setShowAssignPicker(true)}
+                  className="w-full flex items-center gap-3 rounded-lg border border-dashed border-foreground/[0.10] p-3 mt-3 hover:border-foreground/20 hover:bg-muted/20 transition-colors cursor-pointer"
+                >
+                  <div className="flex size-8 items-center justify-center rounded-full bg-foreground/[0.04]">
+                    <Plus className="size-4 text-muted-foreground/40" />
+                  </div>
+                  <span className="text-sm text-muted-foreground/50">Assigner a un technicien</span>
+                </button>
+              ))}
 
             {stock === 0 && holders.length > 0 && (
               <p className="text-[11px] text-attention text-center py-2 font-medium">

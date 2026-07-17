@@ -27,41 +27,47 @@ export const page_routes: PageRoutesType[] = [
         href: "/actions",
         icon: "LayoutDashboard",
       },
+    ],
+  },
+  {
+    title: "Inventaire",
+    allowedRoles: ["owner", "admin"],
+    items: [
       {
         title: "Produits",
         href: "/produits",
         icon: "Package",
-        allowedRoles: ["owner", "admin"],
       },
       {
         title: "Outillage",
         href: "/outillage",
         icon: "Wrench",
-        allowedRoles: ["owner", "admin"],
       },
       {
         title: "Fournisseurs",
         href: "/fournisseurs",
         icon: "Truck",
-        allowedRoles: ["owner", "admin"],
-      },
-      {
-        title: "Achats",
-        href: "/achats",
-        icon: "ShoppingCart",
-        allowedRoles: ["owner", "admin"],
       },
       {
         title: "Techniciens",
         href: "/techniciens",
         icon: "HardHat",
-        allowedRoles: ["owner", "admin"],
       },
+    ],
+  },
+  {
+    title: "Activité",
+    allowedRoles: ["owner", "admin"],
+    items: [
       {
         title: "Mouvements",
         href: "/mouvements",
         icon: "ArrowLeftRight",
-        allowedRoles: ["owner", "admin"],
+      },
+      {
+        title: "Achats",
+        href: "/achats",
+        icon: "ShoppingCart",
       },
     ],
   },

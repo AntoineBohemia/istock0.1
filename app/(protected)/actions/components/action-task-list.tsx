@@ -12,10 +12,10 @@ import {
   ChevronDown,
   ChevronUp,
   X,
-  Loader2,
 } from "lucide-react";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
@@ -180,21 +180,26 @@ export function ActionTaskList({ embedded = false }: { embedded?: boolean }) {
   const remaining = tasks.length - INITIAL_COUNT;
 
   if (isLoading) {
+    const skeletonItems = (
+      <div className="space-y-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 py-2 pl-3">
+            <Skeleton className="size-8 rounded-full shrink-0" />
+            <Skeleton className="h-4 flex-1" />
+          </div>
+        ))}
+      </div>
+    );
+
     if (embedded) {
-      return (
-        <div className="flex h-32 items-center justify-center">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
-        </div>
-      );
+      return skeletonItems;
     }
     return (
       <Card>
         <CardHeader className="pb-3 lg:pb-6">
           <CardTitle className="text-base lg:text-lg">À faire</CardTitle>
         </CardHeader>
-        <CardContent className="flex h-32 lg:h-48 items-center justify-center">
-          <Loader2 className="size-6 lg:size-8 animate-spin text-muted-foreground" />
-        </CardContent>
+        <CardContent>{skeletonItems}</CardContent>
       </Card>
     );
   }

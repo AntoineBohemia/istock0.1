@@ -2,7 +2,7 @@
 
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useTechniciansStats } from "@/hooks/queries";
 
@@ -16,10 +16,8 @@ export default function TechnicianStats() {
         {[...Array(4)].map((_, i) => (
           <Card key={i}>
             <CardHeader>
-              <CardDescription>Chargement...</CardDescription>
-              <div className="flex items-center justify-center h-8">
-                <Loader2 className="size-5 animate-spin text-muted-foreground" />
-              </div>
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-8 w-16 mt-1" />
             </CardHeader>
           </Card>
         ))}

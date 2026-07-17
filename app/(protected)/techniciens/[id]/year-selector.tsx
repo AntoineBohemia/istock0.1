@@ -25,9 +25,9 @@ export default function YearSelector({
 
   const navigate = (y: number) => {
     if (y === currentYear) {
-      router.push(`/users/${technicianId}`);
+      router.push(`/techniciens/${technicianId}`);
     } else {
-      router.push(`/users/${technicianId}?year=${y}`);
+      router.push(`/techniciens/${technicianId}?year=${y}`);
     }
   };
 

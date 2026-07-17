@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Wrench, UserMinus, Clock, icons } from "lucide-react";
 import { toast } from "@/lib/toast";
-import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+
 import Image from "next/image";
 
 import { Button } from "@/components/ui/button";
@@ -156,7 +156,6 @@ export default function TechnicianEquipment({
   technicianId,
   technicianName,
 }: TechnicianEquipmentProps) {
-  const prefersReducedMotion = useReducedMotion();
   const { currentOrganization } = useOrganizationStore();
   const { data: equipment = [], isLoading } = useTechnicianEquipment(technicianId);
   const { data: availableEquipment = [] } = useAvailableEquipment(currentOrganization?.id);
@@ -283,84 +282,69 @@ export default function TechnicianEquipment({
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <AnimatePresence mode="popLayout" initial={false}>
-            {filtered.map((assignment, index) => {
-              const product = assignment.product;
-              if (!product) return null;
-              const days = daysSince(assignment.assigned_at);
-              const tier = getAgeTier(days);
-              const itemValue = (product.price ?? 0) * assignment.quantity;
-              const tierLabel = ageTierLabel[tier];
+          {filtered.map((assignment) => {
+            const product = assignment.product;
+            if (!product) return null;
+            const days = daysSince(assignment.assigned_at);
+            const tier = getAgeTier(days);
+            const itemValue = (product.price ?? 0) * assignment.quantity;
+            const tierLabel = ageTierLabel[tier];
 
-              return (
-                <motion.div
-                  key={assignment.id}
-                  layout={!prefersReducedMotion}
-                  initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.96 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={prefersReducedMotion ? undefined : { opacity: 0, scale: 0.96 }}
-                  transition={{
-                    type: "spring",
-                    bounce: 0,
-                    duration: 0.35,
-                    delay: prefersReducedMotion ? 0 : index * 0.04,
-                  }}
-                  className="rounded-xl border bg-card p-4 space-y-3"
-                >
-                  {/* Top: icon + info + action */}
-                  <div className="flex items-start gap-3">
-                    <EquipmentIcon
-                      iconName={product.icon_name}
-                      iconColor={product.icon_color}
-                      imageUrl={product.image_url}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold leading-tight truncate">{product.name}</p>
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        {assignment.quantity > 1 && (
-                          <span className="inline-flex items-center rounded-md bg-foreground/[0.06] px-1.5 py-0.5 text-[11px] font-bold tabular-nums">
-                            x{assignment.quantity}
-                          </span>
-                        )}
-                        {itemValue > 0 && (
-                          <span className="text-[11px] text-muted-foreground tabular-nums">
-                            {fmtPrice(itemValue)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    {/* Always visible — Hodent: recognition > recall */}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-8 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                      onClick={() => handleUnassign(product.id, product.name)}
-                      disabled={unassignMutation.isPending}
-                      title="Recuperer"
-                    >
-                      <UserMinus className="size-4" />
-                    </Button>
-                  </div>
-
-                  {/* Age bar — pre-attentive cue (color before text) */}
-                  <div className="space-y-1">
-                    <AgeBar days={days} />
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                        <Clock className="size-2.5" />
-                        {formatDuration(days)}
-                      </span>
-                      {tierLabel && (
-                        <span className={cn("text-[10px] font-medium", ageTierLabelColor[tier])}>
-                          {tierLabel}
+            return (
+              <div key={assignment.id} className="rounded-xl border bg-card p-4 space-y-3">
+                {/* Top: icon + info + action */}
+                <div className="flex items-start gap-3">
+                  <EquipmentIcon
+                    iconName={product.icon_name}
+                    iconColor={product.icon_color}
+                    imageUrl={product.image_url}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold leading-tight truncate">{product.name}</p>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      {assignment.quantity > 1 && (
+                        <span className="inline-flex items-center rounded-md bg-foreground/[0.06] px-1.5 py-0.5 text-[11px] font-bold tabular-nums">
+                          x{assignment.quantity}
+                        </span>
+                      )}
+                      {itemValue > 0 && (
+                        <span className="text-[11px] text-muted-foreground tabular-nums">
+                          {fmtPrice(itemValue)}
                         </span>
                       )}
                     </div>
                   </div>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
+                  {/* Always visible — Hodent: recognition > recall */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    onClick={() => handleUnassign(product.id, product.name)}
+                    disabled={unassignMutation.isPending}
+                    title="Recuperer"
+                  >
+                    <UserMinus className="size-4" />
+                  </Button>
+                </div>
+
+                {/* Age bar — pre-attentive cue (color before text) */}
+                <div className="space-y-1">
+                  <AgeBar days={days} />
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <Clock className="size-2.5" />
+                      {formatDuration(days)}
+                    </span>
+                    {tierLabel && (
+                      <span className={cn("text-[10px] font-medium", ageTierLabelColor[tier])}>
+                        {tierLabel}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 

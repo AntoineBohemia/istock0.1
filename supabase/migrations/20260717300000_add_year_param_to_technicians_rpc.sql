@@ -1,3 +1,4 @@
+-- Add p_year parameter to get_technicians_with_stats so the frontend can query any year
 CREATE OR REPLACE FUNCTION get_technicians_with_stats(
   p_organization_id UUID DEFAULT NULL,
   p_year INT DEFAULT NULL

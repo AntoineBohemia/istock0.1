@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Loader2, TrendingUp } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
   format,
@@ -13,13 +13,7 @@ import {
 } from "date-fns";
 import { fr } from "date-fns/locale";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -41,6 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useTechnicianEvolution } from "@/hooks/queries";
 import type { TechnicianEvolutionMovement } from "@/lib/supabase/queries/technicians";
 
@@ -94,13 +89,8 @@ function buildChartData(
         .filter((m) => {
           const mDate = new Date(m.created_at);
           const mPeriod =
-            granularity === "week"
-              ? startOfWeek(mDate, { weekStartsOn: 1 })
-              : startOfMonth(mDate);
-          return (
-            m.product_id === productId &&
-            mPeriod.getTime() === periodStart.getTime()
-          );
+            granularity === "week" ? startOfWeek(mDate, { weekStartsOn: 1 }) : startOfMonth(mDate);
+          return m.product_id === productId && mPeriod.getTime() === periodStart.getTime();
         })
         .reduce((sum, m) => sum + m.quantity, 0);
       row[productName] = qty;
@@ -143,12 +133,8 @@ function buildSummaryData(
 
     const mDate = new Date(m.created_at);
     const mPeriod =
-      granularity === "week"
-        ? startOfWeek(mDate, { weekStartsOn: 1 })
-        : startOfMonth(mDate);
-    const periodIndex = periods.findIndex(
-      (p) => p.getTime() === mPeriod.getTime()
-    );
+      granularity === "week" ? startOfWeek(mDate, { weekStartsOn: 1 }) : startOfMonth(mDate);
+    const periodIndex = periods.findIndex((p) => p.getTime() === mPeriod.getTime());
     if (periodIndex >= 0) entry.activePeriods.add(periodIndex);
   }
 
@@ -160,22 +146,18 @@ function buildSummaryData(
       total: entry.total,
       activePeriods: entry.activePeriods.size,
       totalPeriods,
-      average: entry.activePeriods.size > 0
-        ? Math.round((entry.total / entry.activePeriods.size) * 10) / 10
-        : 0,
+      average:
+        entry.activePeriods.size > 0
+          ? Math.round((entry.total / entry.activePeriods.size) * 10) / 10
+          : 0,
     }));
 }
 
-export default function TechnicianEvolution({
-  technicianId,
-}: TechnicianEvolutionProps) {
+export default function TechnicianEvolution({ technicianId }: TechnicianEvolutionProps) {
   const [months, setMonths] = useState(3);
   const [granularity, setGranularity] = useState<Granularity>("week");
 
-  const { data: movements = [], isLoading } = useTechnicianEvolution(
-    technicianId,
-    months
-  );
+  const { data: movements = [], isLoading } = useTechnicianEvolution(technicianId, months);
 
   const { chartData, products } = useMemo(
     () => buildChartData(movements, months, granularity),
@@ -200,11 +182,47 @@ export default function TechnicianEvolution({
 
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="flex h-64 items-center justify-center">
-          <Loader2 className="size-8 animate-spin text-muted-foreground" />
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        {/* Chart skeleton */}
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-48" />
+                <Skeleton className="h-4 w-64" />
+              </div>
+              <div className="flex gap-2">
+                <Skeleton className="h-9 w-[120px] rounded-md" />
+                <Skeleton className="h-9 w-[120px] rounded-md" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-end gap-2 h-[200px]">
+              {[45, 72, 38, 85, 55, 65, 42, 78].map((h, i) => (
+                <Skeleton key={i} className="flex-1 rounded-sm" style={{ height: `${h}%` }} />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+        {/* Summary table skeleton */}
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-4 w-56" />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4">
+                <Skeleton className="h-4 flex-1" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-16" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -216,16 +234,12 @@ export default function TechnicianEvolution({
             <div>
               <CardTitle>Evolution des attributions</CardTitle>
               <CardDescription>
-                Quantités attribuées par{" "}
-                {granularity === "week" ? "semaine" : "mois"} sur les{" "}
+                Quantités attribuées par {granularity === "week" ? "semaine" : "mois"} sur les{" "}
                 {months} dernier{months > 1 ? "s" : ""} mois
               </CardDescription>
             </div>
             <div className="flex gap-2">
-              <Select
-                value={String(months)}
-                onValueChange={(v) => setMonths(Number(v))}
-              >
+              <Select value={String(months)} onValueChange={(v) => setMonths(Number(v))}>
                 <SelectTrigger className="w-[120px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -235,10 +249,7 @@ export default function TechnicianEvolution({
                   <SelectItem value="6">6 mois</SelectItem>
                 </SelectContent>
               </Select>
-              <Select
-                value={granularity}
-                onValueChange={(v) => setGranularity(v as Granularity)}
-              >
+              <Select value={granularity} onValueChange={(v) => setGranularity(v as Granularity)}>
                 <SelectTrigger className="w-[120px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -254,28 +265,19 @@ export default function TechnicianEvolution({
           {movements.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <TrendingUp className="size-12 text-muted-foreground/50" />
-              <p className="mt-4 text-muted-foreground">
-                Aucun mouvement sur cette période.
-              </p>
+              <p className="mt-4 text-muted-foreground">Aucun mouvement sur cette période.</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Les attributions apparaîtront ici lorsque des produits seront
-                envoyés à ce technicien.
+                Les attributions apparaîtront ici lorsque des produits seront envoyés à ce
+                technicien.
               </p>
             </div>
           ) : (
             <ChartContainer config={chartConfig}>
               <BarChart accessibilityLayer data={chartData}>
                 <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="period"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                />
+                <XAxis dataKey="period" tickLine={false} axisLine={false} tickMargin={8} />
                 <YAxis tickLine={false} axisLine={false} tickMargin={8} />
-                <ChartTooltip
-                  content={<ChartTooltipContent />}
-                />
+                <ChartTooltip content={<ChartTooltipContent />} />
                 {products.map(([, name], i) => (
                   <Bar
                     key={name}
@@ -294,22 +296,16 @@ export default function TechnicianEvolution({
         <Card>
           <CardHeader>
             <CardTitle>Récapitulatif</CardTitle>
-            <CardDescription>
-              Détail par produit sur la période sélectionnée
-            </CardDescription>
+            <CardDescription>Détail par produit sur la période sélectionnée</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Produit</TableHead>
-                  <TableHead className="text-right">Total attribué</TableHead>
-                  <TableHead className="text-right">
-                    {granularity === "week" ? "Semaines" : "Mois"} actives
-                  </TableHead>
-                  <TableHead className="text-right">
-                    Moy. / {granularity === "week" ? "semaine" : "mois"}
-                  </TableHead>
+                  <TableHead>Total attribué</TableHead>
+                  <TableHead>{granularity === "week" ? "Semaines" : "Mois"} actives</TableHead>
+                  <TableHead>Moy. / {granularity === "week" ? "semaine" : "mois"}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -319,19 +315,15 @@ export default function TechnicianEvolution({
                       <div>
                         <p className="font-medium">{row.name}</p>
                         {row.sku && (
-                          <p className="text-xs text-muted-foreground font-mono">
-                            {row.sku}
-                          </p>
+                          <p className="text-xs text-muted-foreground font-mono">{row.sku}</p>
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {row.total}
-                    </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="font-medium">{row.total}</TableCell>
+                    <TableCell>
                       {row.activePeriods} / {row.totalPeriods}
                     </TableCell>
-                    <TableCell className="text-right">{row.average}</TableCell>
+                    <TableCell>{row.average}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

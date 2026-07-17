@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, ImageIcon, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/lib/toast";
 
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -206,216 +206,232 @@ export default function CreateMovementDialog({
         </DialogHeader>
 
         {isLoading ? (
-          <div className="flex h-40 items-center justify-center">
-            <Loader2 className="size-8 animate-spin text-muted-foreground" />
+          <div className="px-6 py-4 space-y-5">
+            {/* Direction toggle skeleton */}
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <div className="flex gap-2">
+                <Skeleton className="h-9 w-24 rounded-md" />
+                <Skeleton className="h-9 w-24 rounded-md" />
+              </div>
+            </div>
+            {/* Product select skeleton */}
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-9 w-full rounded-md" />
+            </div>
+            {/* Quantity skeleton */}
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-9 w-full rounded-md" />
+            </div>
           </div>
         ) : (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
               <div className="flex-1 overflow-y-auto px-6 space-y-4">
-              {/* Direction Toggle */}
-              <FormField
-                control={form.control}
-                name="direction"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Type de mouvement</FormLabel>
-                    <FormControl>
-                      <ToggleGroup
-                        value={field.value ? [field.value] : []}
-                        onValueChange={(value) => {
-                          if (value[0]) field.onChange(value[0]);
-                        }}
-                        className="justify-start"
-                      >
-                        <ToggleGroupItem
-                          value="entry"
-                          className="data-pressed:bg-green-100 data-pressed:text-green-700"
-                        >
-                          <ArrowDownToLine className="mr-2 size-4" />
-                          Entrée
-                        </ToggleGroupItem>
-                        <ToggleGroupItem
-                          value="exit"
-                          className="data-pressed:bg-red-100 data-pressed:text-red-700"
-                        >
-                          <ArrowUpFromLine className="mr-2 size-4" />
-                          Sortie
-                        </ToggleGroupItem>
-                      </ToggleGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Supplier (only for entries) */}
-              {direction === "entry" && suppliers.length > 0 && (
+                {/* Direction Toggle */}
                 <FormField
                   control={form.control}
-                  name="supplier_id"
+                  name="direction"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Société / Fournisseur</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Sélectionner une société" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {suppliers.map((sup) => (
-                            <SelectItem key={sup.id} value={sup.id}>
-                              {sup.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              {/* Exit Type (only for exits) */}
-              {direction === "exit" && (
-                <FormField
-                  control={form.control}
-                  name="exit_type"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Type de sortie</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Sélectionner le type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="exit_technician">Sortie technicien</SelectItem>
-                          <SelectItem value="exit_anonymous">Erreur stock</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              {/* Technician Select (only for exit_technician) */}
-              {direction === "exit" && exitType === "exit_technician" && (
-                <FormField
-                  control={form.control}
-                  name="technician_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Technicien *</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Sélectionner un technicien" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {technicians.map((tech) => (
-                            <SelectItem key={tech.id} value={tech.id}>
-                              {tech.first_name} {tech.last_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              {/* Product Select */}
-              <FormField
-                control={form.control}
-                name="product_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Produit *</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormLabel>Type de mouvement</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sélectionner un produit" />
-                        </SelectTrigger>
+                        <ToggleGroup
+                          value={field.value ? [field.value] : []}
+                          onValueChange={(value) => {
+                            if (value[0]) field.onChange(value[0]);
+                          }}
+                          className="justify-start"
+                        >
+                          <ToggleGroupItem
+                            value="entry"
+                            className="data-pressed:bg-green-100 data-pressed:text-green-700"
+                          >
+                            <ArrowDownToLine className="mr-2 size-4" />
+                            Entrée
+                          </ToggleGroupItem>
+                          <ToggleGroupItem
+                            value="exit"
+                            className="data-pressed:bg-red-100 data-pressed:text-red-700"
+                          >
+                            <ArrowUpFromLine className="mr-2 size-4" />
+                            Sortie
+                          </ToggleGroupItem>
+                        </ToggleGroup>
                       </FormControl>
-                      <SelectContent>
-                        {products.map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            <div className="flex items-center gap-2">
-                              <span>{product.name}</span>
-                              <Badge variant="outline" className="ml-2">
-                                Stock: {product.stock_current}
-                              </Badge>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              {/* Selected Product Preview */}
-              {selectedProduct && (
-                <div className="flex items-center gap-3 rounded-lg border bg-muted/50 p-3">
-                  <figure className="flex size-12 items-center justify-center rounded-lg border bg-background">
-                    {selectedProduct.image_url ? (
-                      <Image
-                        src={selectedProduct.image_url}
-                        width={48}
-                        height={48}
-                        alt={selectedProduct.name}
-                        className="size-full rounded-lg object-cover"
-                      />
-                    ) : (
-                      <ImageIcon className="size-6 text-muted-foreground" />
+                {/* Supplier (only for entries) */}
+                {direction === "entry" && suppliers.length > 0 && (
+                  <FormField
+                    control={form.control}
+                    name="supplier_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Société / Fournisseur</FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Sélectionner une société" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {suppliers.map((sup) => (
+                              <SelectItem key={sup.id} value={sup.id}>
+                                {sup.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
                     )}
-                  </figure>
-                  <div className="flex-1">
-                    <p className="font-medium">{selectedProduct.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Stock actuel: {selectedProduct.stock_current}
-                    </p>
+                  />
+                )}
+
+                {/* Exit Type (only for exits) */}
+                {direction === "exit" && (
+                  <FormField
+                    control={form.control}
+                    name="exit_type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Type de sortie</FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Sélectionner le type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="exit_technician">Sortie technicien</SelectItem>
+                            <SelectItem value="exit_anonymous">Erreur stock</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                {/* Technician Select (only for exit_technician) */}
+                {direction === "exit" && exitType === "exit_technician" && (
+                  <FormField
+                    control={form.control}
+                    name="technician_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Technicien *</FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Sélectionner un technicien" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {technicians.map((tech) => (
+                              <SelectItem key={tech.id} value={tech.id}>
+                                {tech.first_name} {tech.last_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                {/* Product Select */}
+                <FormField
+                  control={form.control}
+                  name="product_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Produit *</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Sélectionner un produit" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {products.map((product) => (
+                            <SelectItem key={product.id} value={product.id}>
+                              <div className="flex items-center gap-2">
+                                <span>{product.name}</span>
+                                <Badge variant="outline" className="ml-2">
+                                  Stock: {product.stock_current}
+                                </Badge>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Selected Product Preview */}
+                {selectedProduct && (
+                  <div className="flex items-center gap-3 rounded-lg border bg-muted/50 p-3">
+                    <figure className="flex size-12 items-center justify-center rounded-lg border bg-background">
+                      {selectedProduct.image_url ? (
+                        <Image
+                          src={selectedProduct.image_url}
+                          width={48}
+                          height={48}
+                          alt={selectedProduct.name}
+                          className="size-full rounded-lg object-cover"
+                        />
+                      ) : (
+                        <ImageIcon className="size-6 text-muted-foreground" />
+                      )}
+                    </figure>
+                    <div className="flex-1">
+                      <p className="font-medium">{selectedProduct.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Stock actuel: {selectedProduct.stock_current}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
-
-              {/* Quantity */}
-              <FormField
-                control={form.control}
-                name="quantity"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Quantité *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={
-                          direction === "exit" && selectedProduct
-                            ? (selectedProduct.stock_current ?? 0)
-                            : undefined
-                        }
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                      />
-                    </FormControl>
-                    {direction === "exit" && selectedProduct && (
-                      <FormDescription>
-                        Maximum disponible: {selectedProduct.stock_current}
-                      </FormDescription>
-                    )}
-                    <FormMessage />
-                  </FormItem>
                 )}
-              />
 
+                {/* Quantity */}
+                <FormField
+                  control={form.control}
+                  name="quantity"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Quantité *</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={
+                            direction === "exit" && selectedProduct
+                              ? (selectedProduct.stock_current ?? 0)
+                              : undefined
+                          }
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                        />
+                      </FormControl>
+                      {direction === "exit" && selectedProduct && (
+                        <FormDescription>
+                          Maximum disponible: {selectedProduct.stock_current}
+                        </FormDescription>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
               <div className="flex items-center justify-end gap-2 px-6 py-4 border-t shrink-0">
                 <Button

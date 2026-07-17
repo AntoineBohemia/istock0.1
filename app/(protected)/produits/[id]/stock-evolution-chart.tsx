@@ -1,23 +1,18 @@
 "use client";
 
-import { Loader2, TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useProductMovementStats } from "@/hooks/queries";
 
 interface StockEvolutionChartProps {
@@ -35,9 +30,7 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export default function StockEvolutionChart({
-  productId,
-}: StockEvolutionChartProps) {
+export default function StockEvolutionChart({ productId }: StockEvolutionChartProps) {
   const { data = [], isLoading } = useProductMovementStats(productId, 3);
 
   const totalEntries = data.reduce((sum, d) => sum + d.entries, 0);
@@ -53,8 +46,20 @@ export default function StockEvolutionChart({
   if (isLoading) {
     return (
       <Card>
-        <CardContent className="flex h-64 items-center justify-center">
-          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        <CardHeader>
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-4 w-56 mt-1" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-48 w-full rounded-lg" />
+          <div className="mt-4 grid grid-cols-3 gap-4 border-t pt-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="flex flex-col items-center gap-1">
+                <Skeleton className="h-3 w-14" />
+                <Skeleton className="h-6 w-10" />
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
     );
@@ -68,9 +73,7 @@ export default function StockEvolutionChart({
           <CardDescription>Derniers 3 mois</CardDescription>
         </CardHeader>
         <CardContent className="flex h-48 items-center justify-center">
-          <p className="text-muted-foreground">
-            Aucun mouvement de stock enregistré
-          </p>
+          <p className="text-muted-foreground">Aucun mouvement de stock enregistré</p>
         </CardContent>
       </Card>
     );
@@ -80,9 +83,7 @@ export default function StockEvolutionChart({
     <Card>
       <CardHeader>
         <CardTitle>Evolution du stock</CardTitle>
-        <CardDescription>
-          Entrées et sorties des 3 derniers mois
-        </CardDescription>
+        <CardDescription>Entrées et sorties des 3 derniers mois</CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig}>
@@ -95,17 +96,9 @@ export default function StockEvolutionChart({
             }}
           >
             <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="dateFormatted"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-            />
+            <XAxis dataKey="dateFormatted" tickLine={false} axisLine={false} tickMargin={8} />
             <YAxis tickLine={false} axisLine={false} tickMargin={8} />
-            <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent indicator="dot" />}
-            />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
             <Area
               dataKey="entries"
               type="monotone"
@@ -135,7 +128,9 @@ export default function StockEvolutionChart({
           </div>
           <div className="text-center">
             <p className="text-sm text-muted-foreground">Sorties</p>
-            <p className="text-lg font-semibold font-heading tabular-nums text-critique">-{totalExits}</p>
+            <p className="text-lg font-semibold font-heading tabular-nums text-critique">
+              -{totalExits}
+            </p>
           </div>
           <div className="text-center">
             <p className="text-sm text-muted-foreground">Balance</p>

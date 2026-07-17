@@ -3,12 +3,13 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Globe, Loader2, Mail, Package, Pencil, Truck } from "lucide-react";
+import { ChevronLeft, Globe, Mail, Package, Pencil, Truck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ui/status-pill";
 import { useSupplier } from "@/hooks/queries/use-suppliers";
 import { calculateStockScore, getStockBadgeVariant } from "@/lib/utils/stock";
+import { Skeleton } from "@/components/ui/skeleton";
 import EditSupplierModal from "@/components/edit-supplier-modal";
 
 export default function SupplierDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -19,8 +20,31 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
 
   if (isLoading) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      <div className="space-y-6">
+        {/* Back button skeleton */}
+        <Skeleton className="h-4 w-16" />
+        {/* Hero skeleton */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-56" />
+            <Skeleton className="h-4 w-40" />
+          </div>
+          <Skeleton className="h-9 w-24 rounded-md" />
+        </div>
+        {/* Product count skeleton */}
+        <Skeleton className="h-4 w-28" />
+        {/* Product list skeleton */}
+        <div className="rounded-xl border bg-card divide-y">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="flex items-center justify-between px-4 py-3">
+              <Skeleton className="h-4 w-36" />
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-4 w-8" />
+                <Skeleton className="h-5 w-16 rounded-full" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

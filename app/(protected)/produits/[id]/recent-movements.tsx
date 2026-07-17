@@ -63,9 +63,9 @@ export default function RecentMovements({ productId }: RecentMovementsProps) {
                 <th className="px-5 py-2 text-left font-medium">Qté</th>
                 <th className="px-3 py-2 text-left font-medium">Type</th>
                 <th className="px-3 py-2 text-left font-medium">Détail</th>
-                <th className="px-3 py-2 text-right font-medium">Prix/u</th>
-                <th className="px-3 py-2 text-right font-medium">Total</th>
-                <th className="px-5 py-2 text-right font-medium">Date</th>
+                <th className="px-3 py-2 text-left font-medium">Prix/u</th>
+                <th className="px-3 py-2 text-left font-medium">Total</th>
+                <th className="px-5 py-2 text-left font-medium">Date</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -115,17 +115,17 @@ export default function RecentMovements({ productId }: RecentMovementsProps) {
                     </td>
 
                     {/* Unit price */}
-                    <td className="px-3 py-3 whitespace-nowrap text-right tabular-nums text-muted-foreground">
+                    <td className="px-3 py-3 whitespace-nowrap tabular-nums text-muted-foreground">
                       {unitPrice != null ? fmtPrice(unitPrice) : "—"}
                     </td>
 
                     {/* Total */}
-                    <td className="px-3 py-3 whitespace-nowrap text-right tabular-nums font-medium">
+                    <td className="px-3 py-3 whitespace-nowrap tabular-nums font-medium">
                       {totalValue != null ? fmtPrice(totalValue) : "—"}
                     </td>
 
                     {/* Date */}
-                    <td className="px-5 py-3 whitespace-nowrap text-right text-xs text-muted-foreground tabular-nums">
+                    <td className="px-5 py-3 whitespace-nowrap text-xs text-muted-foreground tabular-nums">
                       {m.created_at ? formatRelativeTime(m.created_at) : ""}
                     </td>
                   </tr>

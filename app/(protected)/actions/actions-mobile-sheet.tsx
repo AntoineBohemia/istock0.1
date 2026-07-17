@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { toast } from "@/lib/toast";
-import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import {
   Search,
   ArrowDownToLine,
@@ -23,6 +22,7 @@ import {
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 
 import {
@@ -123,7 +123,6 @@ function useTodayString() {
 // Main Component
 // ═════════════════════════════════════════════════════════════
 export default function ActionsMobileSheet() {
-  const prefersReducedMotion = useReducedMotion();
   const orgId = useOrganizationStore((s) => s.currentOrganization?.id);
 
   // ─── Today (recalculates every 60s) ─────────────────────
@@ -701,7 +700,17 @@ export default function ActionsMobileSheet() {
           {session.length === 0 && olderMovements.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-center">
               {isLoadingToday ? (
-                <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                <div className="w-full space-y-2 px-1">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5">
+                      <Skeleton className="h-4 w-8 shrink-0" />
+                      <div className="flex-1 space-y-1.5">
+                        <Skeleton className="h-3.5 w-3/4" />
+                        <Skeleton className="h-3 w-1/2" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <>
                   <Clock className="size-10 text-muted-foreground/20 mb-2" />
@@ -712,60 +721,54 @@ export default function ActionsMobileSheet() {
           ) : (
             <ul className="space-y-1.5">
               {/* Session entries (current session, with undo) */}
-              <AnimatePresence initial={false}>
-                {session.map((entry) => {
-                  const isEntry = entry.movementType === "entry";
-                  const reverting = revertingIds.has(entry.localId);
-                  const time = new Date(entry.createdAt).toLocaleTimeString("fr-FR", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  });
-                  return (
-                    <motion.li
-                      key={entry.localId}
-                      initial={prefersReducedMotion ? false : { opacity: 0, y: -8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={prefersReducedMotion ? undefined : { opacity: 0, height: 0 }}
-                      transition={{ type: "spring", bounce: 0.05, duration: 0.25 }}
-                      className={cn(
-                        "rounded-xl border-l-2 px-3 py-2.5",
-                        isEntry
-                          ? "border-l-standard bg-standard-bg/30"
-                          : "border-l-critique bg-critique-bg/30"
-                      )}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <span
-                          className={cn(
-                            "font-heading font-bold tabular-nums text-sm shrink-0",
-                            isEntry ? "text-standard" : "text-critique"
-                          )}
-                        >
-                          {isEntry ? "+" : "-"}
-                          {entry.quantity}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-medium truncate">{entry.productName}</p>
-                          <p className="text-[11px] text-muted-foreground truncate">
-                            {MOVEMENT_LABELS[entry.movementType]}
-                            {entry.technicianName && ` \u2192 ${entry.technicianName}`}
-                          </p>
-                        </div>
-                        <span className="text-[10px] font-heading tabular-nums text-muted-foreground shrink-0">
-                          {time}
-                        </span>
-                        <button
-                          onClick={() => handleRevert(entry)}
-                          disabled={reverting}
-                          className="text-[11px] text-muted-foreground active:text-foreground shrink-0 disabled:opacity-30 min-h-[44px] flex items-center px-1"
-                        >
-                          {reverting ? "\u2026" : "annuler"}
-                        </button>
+              {session.map((entry) => {
+                const isEntry = entry.movementType === "entry";
+                const reverting = revertingIds.has(entry.localId);
+                const time = new Date(entry.createdAt).toLocaleTimeString("fr-FR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
+                return (
+                  <li
+                    key={entry.localId}
+                    className={cn(
+                      "rounded-xl border-l-2 px-3 py-2.5",
+                      isEntry
+                        ? "border-l-standard bg-standard-bg/30"
+                        : "border-l-critique bg-critique-bg/30"
+                    )}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span
+                        className={cn(
+                          "font-heading font-bold tabular-nums text-sm shrink-0",
+                          isEntry ? "text-standard" : "text-critique"
+                        )}
+                      >
+                        {isEntry ? "+" : "-"}
+                        {entry.quantity}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-medium truncate">{entry.productName}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {MOVEMENT_LABELS[entry.movementType]}
+                          {entry.technicianName && ` \u2192 ${entry.technicianName}`}
+                        </p>
                       </div>
-                    </motion.li>
-                  );
-                })}
-              </AnimatePresence>
+                      <span className="text-[10px] font-heading tabular-nums text-muted-foreground shrink-0">
+                        {time}
+                      </span>
+                      <button
+                        onClick={() => handleRevert(entry)}
+                        disabled={reverting}
+                        className="text-[11px] text-muted-foreground active:text-foreground shrink-0 disabled:opacity-30 min-h-[44px] flex items-center px-1"
+                      >
+                        {reverting ? "\u2026" : "annuler"}
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
 
               {/* Separator if both session + older exist */}
               {olderMovements.length > 0 && session.length > 0 && (
@@ -940,371 +943,348 @@ export default function ActionsMobileSheet() {
 
           {/* ── Drawer body (scrollable) ── */}
           <div className="flex-1 overflow-y-auto min-h-0 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-            <AnimatePresence mode="wait" initial={false}>
-              {/* ═══ TECHNICIAN LIST (exit_technician, step 1) ═══ */}
-              {drawerStep === "technicians" && (
-                <motion.div
-                  key="technicians"
-                  initial={prefersReducedMotion ? false : { opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={prefersReducedMotion ? undefined : { opacity: 0, x: -20 }}
-                  transition={{ duration: 0.2 }}
-                  className="space-y-2 pt-1"
-                >
-                  {filteredTechnicians.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-2">
-                      {filteredTechnicians.map((t) => (
-                        <button
-                          key={t.id}
-                          onClick={() => selectTechnician(t.id)}
-                          className={cn(
-                            "flex items-center gap-2.5 rounded-xl border bg-card transition-all active:scale-[0.97]",
-                            "hover:border-primary/40",
-                            "p-3 min-h-[56px]"
-                          )}
-                        >
-                          <div className="size-9 rounded-full bg-muted flex items-center justify-center font-semibold shrink-0 text-xs">
-                            {t.first_name[0]}
-                            {t.last_name[0]}
-                          </div>
-                          <span className="text-sm font-medium text-left leading-tight">
-                            {t.first_name} {t.last_name}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-12 text-center">
-                      <PackagePlus className="size-10 text-muted-foreground/20 mb-2" />
-                      <p className="text-sm text-muted-foreground">
-                        {debouncedSearch ? "Aucun technicien trouve." : "Aucun technicien."}
-                      </p>
-                    </div>
-                  )}
-                </motion.div>
-              )}
-
-              {/* ═══ PRODUCT LIST ═══ */}
-              {drawerStep === "products" && (
-                <motion.div
-                  key="products"
-                  initial={prefersReducedMotion ? false : { opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={prefersReducedMotion ? undefined : { opacity: 0, x: 20 }}
-                  transition={{ duration: 0.2 }}
-                  className="space-y-2 pt-1"
-                >
-                  {isSearching && debouncedSearch ? (
-                    <div className="py-12 text-center">
-                      <Loader2 className="size-5 animate-spin text-muted-foreground mx-auto" />
-                    </div>
-                  ) : sortedProducts.length > 0 ? (
-                    <ul className="space-y-1">
-                      {sortedProducts.map((p) => {
-                        const score = calculateStockScore(p.stock_current ?? 0, p.stock_min);
-                        const status = getStockBadgeVariant(score);
-                        const inCart = cart.some((item) => item.product.id === p.id);
-                        const consoleP: ConsoleProduct = {
-                          id: p.id,
-                          name: p.name,
-                          sku: p.sku,
-                          stock_current: p.stock_current ?? 0,
-                          stock_min: p.stock_min,
-                          price: p.price ?? null,
-                        };
-                        return (
-                          <li key={p.id}>
-                            <button
-                              onClick={() =>
-                                actionMode === "exit_technician"
-                                  ? toggleProductInCart(consoleP)
-                                  : selectProductSingle(consoleP)
-                              }
-                              className={cn(
-                                "w-full flex items-center gap-3 rounded-xl px-3 py-3 transition-all active:scale-[0.98] min-h-[56px]",
-                                "hover:bg-muted/60",
-                                inCart && "bg-primary/5 ring-1 ring-primary/30",
-                                !inCart && status === "critique" && "bg-critique-bg/20",
-                                !inCart && status === "attention" && "bg-attention-bg/20"
-                              )}
-                            >
-                              {/* In-cart checkmark */}
-                              {actionMode === "exit_technician" && (
-                                <div
-                                  className={cn(
-                                    "size-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
-                                    inCart
-                                      ? "bg-primary border-primary"
-                                      : "border-muted-foreground/30"
-                                  )}
-                                >
-                                  {inCart && <Check className="size-3.5 text-primary-foreground" />}
-                                </div>
-                              )}
-
-                              {/* Product info */}
-                              <div className="flex-1 min-w-0 text-left">
-                                <p className="text-sm font-medium leading-tight truncate">
-                                  {p.name}
-                                </p>
-                                {p.sku && (
-                                  <p className="text-[11px] text-muted-foreground font-mono truncate">
-                                    {p.sku}
-                                  </p>
-                                )}
-                              </div>
-
-                              {/* Stock + pill */}
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span
-                                  className={cn(
-                                    "font-heading font-bold tabular-nums text-base",
-                                    status === "critique" && "text-critique",
-                                    status === "attention" && "text-attention"
-                                  )}
-                                >
-                                  {p.stock_current ?? 0}
-                                </span>
-                                <StatusPill status={status} />
-                              </div>
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-12 text-center">
-                      <Package className="size-10 text-muted-foreground/20 mb-2" />
-                      <p className="text-sm text-muted-foreground">
-                        {debouncedSearch ? "Aucun produit trouve." : "Aucun produit."}
-                      </p>
-                    </div>
-                  )}
-                </motion.div>
-              )}
-
-              {/* ═══ PRODUCT DETAIL (entry / exit_anonymous) ═══ */}
-              {drawerStep === "detail" && product && (
-                <motion.div
-                  key="detail"
-                  initial={prefersReducedMotion ? false : { opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={prefersReducedMotion ? undefined : { opacity: 0, x: 20 }}
-                  transition={{ duration: 0.2 }}
-                  className="space-y-5 pt-1"
-                >
-                  {/* Product header + live stock preview */}
-                  {(() => {
-                    const isEntry = actionMode === "entry";
-                    const previewStock = isEntry
-                      ? product.stock_current + quantity
-                      : Math.max(0, product.stock_current - quantity);
-                    const previewScore = calculateStockScore(previewStock, product.stock_min);
-                    const previewStatus = getStockBadgeVariant(previewScore);
-                    return (
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <h2 className="font-heading text-[17px] font-semibold leading-tight">
-                            {product.name}
-                          </h2>
-                          {product.sku && (
-                            <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                              {product.sku}
-                            </p>
-                          )}
-                        </div>
-                        <div className="text-right shrink-0">
-                          <div className="flex items-baseline gap-1.5">
-                            <span className="text-sm text-muted-foreground tabular-nums">
-                              {product.stock_current}
-                            </span>
-                            <span className="text-muted-foreground">{"\u2192"}</span>
-                            <span
-                              className={cn(
-                                "font-heading font-bold text-2xl tabular-nums",
-                                previewStatus === "critique" && "text-critique",
-                                previewStatus === "attention" && "text-attention"
-                              )}
-                            >
-                              {previewStock}
-                            </span>
-                          </div>
-                          <div className="mt-0.5">
-                            <StatusPill status={previewStatus} />
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Quantity stepper */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                      disabled={quantity <= 1}
-                      className="size-12 rounded-xl bg-muted/60 flex items-center justify-center active:bg-muted shrink-0 disabled:opacity-30 min-h-[44px]"
-                    >
-                      <Minus className="size-5" />
-                    </button>
-                    <Input
-                      ref={quantityInputRef}
-                      type="number"
-                      min={1}
-                      max={actionMode !== "entry" ? product.stock_current : undefined}
-                      value={quantity}
-                      onChange={(e) => {
-                        const max = actionMode !== "entry" ? product.stock_current : Infinity;
-                        setQuantity(Math.max(1, Math.min(parseInt(e.target.value) || 1, max)));
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          navigator.vibrate?.(10);
-                          handleSubmit();
-                        }
-                      }}
-                      className="flex-1 h-12 text-2xl font-heading font-bold tabular-nums text-center rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    <button
-                      onClick={() => {
-                        const max = actionMode !== "entry" ? product.stock_current : Infinity;
-                        setQuantity((q) => Math.min(q + 1, max));
-                      }}
-                      disabled={actionMode !== "entry" && quantity >= product.stock_current}
-                      className="size-12 rounded-xl bg-muted/60 flex items-center justify-center active:bg-muted shrink-0 disabled:opacity-30 min-h-[44px]"
-                    >
-                      <Plus className="size-5" />
-                    </button>
-                  </div>
-
-                  {/* Unit price (entry mode only) */}
-                  {actionMode === "entry" && (
-                    <div className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3">
-                      <span className="text-[13px] text-muted-foreground">Prix HT</span>
-                      <div className="flex items-center gap-1.5">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min={0}
-                          placeholder="\u2014"
-                          value={unitPrice}
-                          onChange={(e) => setUnitPrice(e.target.value)}
-                          className="w-20 h-8 text-right text-sm rounded-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                        <span className="text-[13px] text-muted-foreground">{"\u20AC"}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Total (entry mode — always rendered to avoid layout shift) */}
-                  {actionMode === "entry" && (
-                    <p
-                      className={cn(
-                        "text-right text-xs tabular-nums px-1 h-4",
-                        quantity > 1 && unitPrice && parseFloat(unitPrice) > 0
-                          ? "text-muted-foreground"
-                          : "invisible"
-                      )}
-                    >
-                      {quantity} {"\u00D7"}{" "}
-                      {(unitPrice ? parseFloat(unitPrice) : 0).toLocaleString("fr-FR", {
-                        minimumFractionDigits: 2,
-                      })}{" "}
-                      {"\u20AC"} ={" "}
-                      <span className="font-medium text-foreground">
-                        {(quantity * (unitPrice ? parseFloat(unitPrice) : 0)).toLocaleString(
-                          "fr-FR",
-                          {
-                            minimumFractionDigits: 2,
-                          }
-                        )}{" "}
-                        {"\u20AC"}
-                      </span>
-                    </p>
-                  )}
-                </motion.div>
-              )}
-
-              {/* ═══ CART REVIEW (exit_technician, step 3) ═══ */}
-              {drawerStep === "cart" && (
-                <motion.div
-                  key="cart"
-                  initial={prefersReducedMotion ? false : { opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={prefersReducedMotion ? undefined : { opacity: 0, x: 20 }}
-                  transition={{ duration: 0.2 }}
-                  className="space-y-4 pt-1"
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      {cart.length} produit{cart.length > 1 ? "s" : ""} &middot; {cartTotalItems}{" "}
-                      unit{"\u00E9"}s
-                    </p>
-                    <button
-                      onClick={() => {
-                        setDrawerStep("products");
-                        setSearchQuery("");
-                        setTimeout(() => searchInputRef.current?.focus(), 100);
-                      }}
-                      className="text-xs text-primary font-medium"
-                    >
-                      + Ajouter
-                    </button>
-                  </div>
-
-                  <ul className="space-y-1">
-                    {cart.map((item) => (
-                      <li
-                        key={item.product.id}
-                        className="flex items-center gap-3 rounded-xl bg-muted/30 px-3 py-3"
+            {/* ═══ TECHNICIAN LIST (exit_technician, step 1) ═══ */}
+            {drawerStep === "technicians" && (
+              <div className="space-y-2 pt-1">
+                {filteredTechnicians.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    {filteredTechnicians.map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => selectTechnician(t.id)}
+                        className={cn(
+                          "flex items-center gap-2.5 rounded-xl border bg-card transition-all active:scale-[0.97]",
+                          "hover:border-primary/40",
+                          "p-3 min-h-[56px]"
+                        )}
                       >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[14px] font-medium truncate">{item.product.name}</p>
-                          <p className="text-[11px] text-muted-foreground">
-                            dispo {item.product.stock_current}
-                          </p>
+                        <div className="size-9 rounded-full bg-muted flex items-center justify-center font-semibold shrink-0 text-xs">
+                          {t.first_name[0]}
+                          {t.last_name[0]}
                         </div>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => updateCartQty(item.product.id, -1)}
-                            disabled={item.quantity <= 1}
-                            className="size-10 rounded-xl bg-muted/60 flex items-center justify-center active:bg-muted disabled:opacity-30 min-h-[44px]"
-                          >
-                            <Minus className="size-4" />
-                          </button>
-                          <input
-                            type="number"
-                            min={1}
-                            max={item.product.stock_current}
-                            value={item.quantity}
-                            onChange={(e) =>
-                              setCartQty(
-                                item.product.id,
-                                Math.min(parseInt(e.target.value) || 1, item.product.stock_current)
-                              )
-                            }
-                            className="w-10 text-center font-heading font-bold tabular-nums text-base bg-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          />
-                          <button
-                            onClick={() => updateCartQty(item.product.id, 1)}
-                            disabled={item.quantity >= item.product.stock_current}
-                            className="size-10 rounded-xl bg-muted/60 flex items-center justify-center active:bg-muted disabled:opacity-30 min-h-[44px]"
-                          >
-                            <Plus className="size-4" />
-                          </button>
-                        </div>
-                        <button
-                          onClick={() => removeFromCart(item.product.id)}
-                          className="size-9 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center active:bg-destructive/20 transition-colors"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
-                      </li>
+                        <span className="text-sm font-medium text-left leading-tight">
+                          {t.first_name} {t.last_name}
+                        </span>
+                      </button>
                     ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <PackagePlus className="size-10 text-muted-foreground/20 mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      {debouncedSearch ? "Aucun technicien trouve." : "Aucun technicien."}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ═══ PRODUCT LIST ═══ */}
+            {drawerStep === "products" && (
+              <div className="space-y-2 pt-1">
+                {isSearching && debouncedSearch ? (
+                  <div className="space-y-1 py-2">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="flex items-center gap-3 rounded-xl p-3">
+                        <Skeleton className="size-10 rounded-lg shrink-0" />
+                        <div className="flex-1 space-y-1.5">
+                          <Skeleton className="h-3.5 w-3/4" />
+                          <Skeleton className="h-3 w-1/3" />
+                        </div>
+                        <Skeleton className="h-5 w-12 rounded-full" />
+                      </div>
+                    ))}
+                  </div>
+                ) : sortedProducts.length > 0 ? (
+                  <ul className="space-y-1">
+                    {sortedProducts.map((p) => {
+                      const score = calculateStockScore(p.stock_current ?? 0, p.stock_min);
+                      const status = getStockBadgeVariant(score);
+                      const inCart = cart.some((item) => item.product.id === p.id);
+                      const consoleP: ConsoleProduct = {
+                        id: p.id,
+                        name: p.name,
+                        sku: p.sku,
+                        stock_current: p.stock_current ?? 0,
+                        stock_min: p.stock_min,
+                        price: p.price ?? null,
+                      };
+                      return (
+                        <li key={p.id}>
+                          <button
+                            onClick={() =>
+                              actionMode === "exit_technician"
+                                ? toggleProductInCart(consoleP)
+                                : selectProductSingle(consoleP)
+                            }
+                            className={cn(
+                              "w-full flex items-center gap-3 rounded-xl px-3 py-3 transition-all active:scale-[0.98] min-h-[56px]",
+                              "hover:bg-muted/60",
+                              inCart && "bg-primary/5 ring-1 ring-primary/30",
+                              !inCart && status === "critique" && "bg-critique-bg/20",
+                              !inCart && status === "attention" && "bg-attention-bg/20"
+                            )}
+                          >
+                            {/* In-cart checkmark */}
+                            {actionMode === "exit_technician" && (
+                              <div
+                                className={cn(
+                                  "size-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
+                                  inCart
+                                    ? "bg-primary border-primary"
+                                    : "border-muted-foreground/30"
+                                )}
+                              >
+                                {inCart && <Check className="size-3.5 text-primary-foreground" />}
+                              </div>
+                            )}
+
+                            {/* Product info */}
+                            <div className="flex-1 min-w-0 text-left">
+                              <p className="text-sm font-medium leading-tight truncate">{p.name}</p>
+                              {p.sku && (
+                                <p className="text-[11px] text-muted-foreground font-mono truncate">
+                                  {p.sku}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Stock + pill */}
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span
+                                className={cn(
+                                  "font-heading font-bold tabular-nums text-base",
+                                  status === "critique" && "text-critique",
+                                  status === "attention" && "text-attention"
+                                )}
+                              >
+                                {p.stock_current ?? 0}
+                              </span>
+                              <StatusPill status={status} />
+                            </div>
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <Package className="size-10 text-muted-foreground/20 mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      {debouncedSearch ? "Aucun produit trouve." : "Aucun produit."}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ═══ PRODUCT DETAIL (entry / exit_anonymous) ═══ */}
+            {drawerStep === "detail" && product && (
+              <div className="space-y-5 pt-1">
+                {/* Product header + live stock preview */}
+                {(() => {
+                  const isEntry = actionMode === "entry";
+                  const previewStock = isEntry
+                    ? product.stock_current + quantity
+                    : Math.max(0, product.stock_current - quantity);
+                  const previewScore = calculateStockScore(previewStock, product.stock_min);
+                  const previewStatus = getStockBadgeVariant(previewScore);
+                  return (
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <h2 className="font-heading text-[17px] font-semibold leading-tight">
+                          {product.name}
+                        </h2>
+                        {product.sku && (
+                          <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                            {product.sku}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-sm text-muted-foreground tabular-nums">
+                            {product.stock_current}
+                          </span>
+                          <span className="text-muted-foreground">{"\u2192"}</span>
+                          <span
+                            className={cn(
+                              "font-heading font-bold text-2xl tabular-nums",
+                              previewStatus === "critique" && "text-critique",
+                              previewStatus === "attention" && "text-attention"
+                            )}
+                          >
+                            {previewStock}
+                          </span>
+                        </div>
+                        <div className="mt-0.5">
+                          <StatusPill status={previewStatus} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Quantity stepper */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                    disabled={quantity <= 1}
+                    className="size-12 rounded-xl bg-muted/60 flex items-center justify-center active:bg-muted shrink-0 disabled:opacity-30 min-h-[44px]"
+                  >
+                    <Minus className="size-5" />
+                  </button>
+                  <Input
+                    ref={quantityInputRef}
+                    type="number"
+                    min={1}
+                    max={actionMode !== "entry" ? product.stock_current : undefined}
+                    value={quantity}
+                    onChange={(e) => {
+                      const max = actionMode !== "entry" ? product.stock_current : Infinity;
+                      setQuantity(Math.max(1, Math.min(parseInt(e.target.value) || 1, max)));
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        navigator.vibrate?.(10);
+                        handleSubmit();
+                      }
+                    }}
+                    className="flex-1 h-12 text-2xl font-heading font-bold tabular-nums text-center rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <button
+                    onClick={() => {
+                      const max = actionMode !== "entry" ? product.stock_current : Infinity;
+                      setQuantity((q) => Math.min(q + 1, max));
+                    }}
+                    disabled={actionMode !== "entry" && quantity >= product.stock_current}
+                    className="size-12 rounded-xl bg-muted/60 flex items-center justify-center active:bg-muted shrink-0 disabled:opacity-30 min-h-[44px]"
+                  >
+                    <Plus className="size-5" />
+                  </button>
+                </div>
+
+                {/* Unit price (entry mode only) */}
+                {actionMode === "entry" && (
+                  <div className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3">
+                    <span className="text-[13px] text-muted-foreground">Prix HT</span>
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        placeholder="\u2014"
+                        value={unitPrice}
+                        onChange={(e) => setUnitPrice(e.target.value)}
+                        className="w-20 h-8 text-right text-sm rounded-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <span className="text-[13px] text-muted-foreground">{"\u20AC"}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Total (entry mode — always rendered to avoid layout shift) */}
+                {actionMode === "entry" && (
+                  <p
+                    className={cn(
+                      "text-right text-xs tabular-nums px-1 h-4",
+                      quantity > 1 && unitPrice && parseFloat(unitPrice) > 0
+                        ? "text-muted-foreground"
+                        : "invisible"
+                    )}
+                  >
+                    {quantity} {"\u00D7"}{" "}
+                    {(unitPrice ? parseFloat(unitPrice) : 0).toLocaleString("fr-FR", {
+                      minimumFractionDigits: 2,
+                    })}{" "}
+                    {"\u20AC"} ={" "}
+                    <span className="font-medium text-foreground">
+                      {(quantity * (unitPrice ? parseFloat(unitPrice) : 0)).toLocaleString(
+                        "fr-FR",
+                        {
+                          minimumFractionDigits: 2,
+                        }
+                      )}{" "}
+                      {"\u20AC"}
+                    </span>
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* ═══ CART REVIEW (exit_technician, step 3) ═══ */}
+            {drawerStep === "cart" && (
+              <div className="space-y-4 pt-1">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    {cart.length} produit{cart.length > 1 ? "s" : ""} &middot; {cartTotalItems} unit
+                    {"\u00E9"}s
+                  </p>
+                  <button
+                    onClick={() => {
+                      setDrawerStep("products");
+                      setSearchQuery("");
+                      setTimeout(() => searchInputRef.current?.focus(), 100);
+                    }}
+                    className="text-xs text-primary font-medium"
+                  >
+                    + Ajouter
+                  </button>
+                </div>
+
+                <ul className="space-y-1">
+                  {cart.map((item) => (
+                    <li
+                      key={item.product.id}
+                      className="flex items-center gap-3 rounded-xl bg-muted/30 px-3 py-3"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-medium truncate">{item.product.name}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          dispo {item.product.stock_current}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => updateCartQty(item.product.id, -1)}
+                          disabled={item.quantity <= 1}
+                          className="size-10 rounded-xl bg-muted/60 flex items-center justify-center active:bg-muted disabled:opacity-30 min-h-[44px]"
+                        >
+                          <Minus className="size-4" />
+                        </button>
+                        <input
+                          type="number"
+                          min={1}
+                          max={item.product.stock_current}
+                          value={item.quantity}
+                          onChange={(e) =>
+                            setCartQty(
+                              item.product.id,
+                              Math.min(parseInt(e.target.value) || 1, item.product.stock_current)
+                            )
+                          }
+                          className="w-10 text-center font-heading font-bold tabular-nums text-base bg-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                        <button
+                          onClick={() => updateCartQty(item.product.id, 1)}
+                          disabled={item.quantity >= item.product.stock_current}
+                          className="size-10 rounded-xl bg-muted/60 flex items-center justify-center active:bg-muted disabled:opacity-30 min-h-[44px]"
+                        >
+                          <Plus className="size-4" />
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => removeFromCart(item.product.id)}
+                        className="size-9 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center active:bg-destructive/20 transition-colors"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
           {/* ── Sticky bottom button (detail + cart steps) ── */}

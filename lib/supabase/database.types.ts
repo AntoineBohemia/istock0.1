@@ -785,7 +785,7 @@ export type Database = {
       };
       get_invitation_details: { Args: { p_token: string }; Returns: Json };
       get_technicians_with_stats: {
-        Args: { p_organization_id?: string };
+        Args: { p_organization_id?: string; p_year?: number };
         Returns: Json;
       };
       get_user_organization_ids:

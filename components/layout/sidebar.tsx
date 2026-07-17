@@ -76,14 +76,14 @@ export default function Sidebar() {
   const allItems = filterRoutesByRole(page_routes, currentOrganization?.role).flatMap(
     (r) => r.items
   );
-  const activeHref = allItems.find(
+  const _activeHref = allItems.find(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
   )?.href;
 
   return (
     <SidebarContainer collapsible="icon" variant="floating" className="bg-background">
       {/* ── Branding ── */}
-      <SidebarHeader className="pt-2 pb-2 transition-all group-data-[collapsible=icon]:pt-2">
+      <SidebarHeader className="pt-4 pb-2 transition-all group-data-[collapsible=icon]:pt-4">
         <div className="px-2 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
           <IstockLogo className="h-5 group-data-[collapsible=icon]:hidden" />
           <img
