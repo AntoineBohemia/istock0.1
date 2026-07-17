@@ -1198,8 +1198,8 @@ export default function ActionsMobileSheet() {
 
                 {/* Entry-only fields: price, invoice ref, date */}
                 {actionMode === "entry" && (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
+                  <div className="space-y-3">
+                    <div className="relative">
                       <Input
                         type="number"
                         step="0.01"
@@ -1207,9 +1207,11 @@ export default function ActionsMobileSheet() {
                         placeholder="Prix HT"
                         value={unitPrice}
                         onChange={(e) => setUnitPrice(e.target.value)}
-                        className="flex-1 h-11 text-[15px] rounded-xl bg-white dark:bg-card [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="w-full h-11 text-[15px] rounded-xl bg-white dark:bg-card pr-8 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
-                      <span className="text-sm text-muted-foreground shrink-0">{"\u20AC"}</span>
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
+                        {"\u20AC"}
+                      </span>
                     </div>
                     <Input
                       type="text"

@@ -160,9 +160,14 @@ export default function TechniciansList() {
                 {tech.last_name.charAt(0)}
               </AvatarFallback>
             </Avatar>
-            <span className="font-semibold text-[15px] leading-tight">
-              {tech.first_name} {tech.last_name}
-            </span>
+            <div>
+              <span className="font-semibold text-[15px] leading-tight">
+                {tech.first_name} {tech.last_name}
+              </span>
+              {tech.organization_name && (
+                <p className="text-xs text-muted-foreground/60">{tech.organization_name}</p>
+              )}
+            </div>
           </div>
         );
       },
