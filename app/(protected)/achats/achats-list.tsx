@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDebouncedValue } from "@/hooks/use-debounce";
 import {
@@ -12,8 +12,6 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { ArrowUpDown, Package, ChevronDown, Building2, Check, X } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
-
 import { SearchInput } from "@/components/search-input";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,50 +24,6 @@ import ProductIconDisplay from "@/components/product-icon-display";
 import { TableColumnToggle } from "@/components/table-column-toggle";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { cn } from "@/lib/utils";
-
-// ─── Animated table row (initial mount only) ──────────────
-const MotionTr = motion.create("tr");
-
-function AnimatedRow({
-  children,
-  index,
-  reducedMotion,
-  isInitial,
-  onClick,
-}: {
-  children: React.ReactNode;
-  index: number;
-  reducedMotion: boolean | null;
-  isInitial: boolean;
-  onClick?: () => void;
-}) {
-  if (!isInitial || reducedMotion) {
-    return (
-      <tr
-        className="group border-b last:border-b-0 transition-colors hover:bg-muted/60 cursor-pointer"
-        onClick={onClick}
-      >
-        {children}
-      </tr>
-    );
-  }
-  return (
-    <MotionTr
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        type: "spring",
-        bounce: 0,
-        duration: 0.35,
-        delay: Math.min(index * 0.03, 0.3),
-      }}
-      className="group border-b last:border-b-0 transition-colors hover:bg-muted/60 cursor-pointer"
-      onClick={onClick}
-    >
-      {children}
-    </MotionTr>
-  );
-}
 
 // ─── Sort header button ────────────────────────────────────
 function SortHeader({
@@ -183,7 +137,6 @@ function OrgDetailCards({
 // ─── Main component ────────────────────────────────────────
 export default function AchatsList() {
   const router = useRouter();
-  const prefersReducedMotion = useReducedMotion();
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -200,7 +153,6 @@ export default function AchatsList() {
     else next.add(value);
     return next;
   };
-  const isInitialMount = useRef(true);
 
   const { data: userOrgs } = useOrganizations();
   const currentYear = new Date().getFullYear();
@@ -228,16 +180,6 @@ export default function AchatsList() {
     userOrgs?.forEach((o) => map.set(o.id, o.name));
     return map;
   }, [userOrgs]);
-
-  // Mark initial mount as done after first data load
-  useEffect(() => {
-    if (products.length > 0 && isInitialMount.current) {
-      const id = requestAnimationFrame(() => {
-        isInitialMount.current = false;
-      });
-      return () => cancelAnimationFrame(id);
-    }
-  }, [products.length]);
 
   // Max values for proportional micro-bars
   const { maxEntries, maxValue } = useMemo(() => {
@@ -334,9 +276,7 @@ export default function AchatsList() {
       },
       {
         accessorKey: "price",
-        header: ({ column }) => (
-          <SortHeader label="Prix HT" column={column} className="justify-end w-full" />
-        ),
+        header: ({ column }) => <SortHeader label="Prix HT" column={column} />,
         cell: ({ row }) => {
           const price = row.original.price;
           const data = entryQtyByProduct?.[row.original.id];
@@ -345,7 +285,7 @@ export default function AchatsList() {
             : 0;
 
           return (
-            <div className="flex flex-col items-end gap-0.5">
+            <div className="flex flex-col items-start gap-0.5">
               <span className="font-heading tabular-nums text-[15px] text-foreground">
                 {price
                   ? price.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })
@@ -359,7 +299,7 @@ export default function AchatsList() {
             </div>
           );
         },
-        meta: { align: "right", label: "Prix HT" },
+        meta: { label: "Prix HT" },
       },
       {
         id: "entries",
@@ -368,13 +308,7 @@ export default function AchatsList() {
           if (!data) return 0;
           return Object.values(data).reduce((sum, d) => sum + d.qty, 0);
         },
-        header: ({ column }) => (
-          <SortHeader
-            label={`Entrées ${currentYear}`}
-            column={column}
-            className="justify-center w-full"
-          />
-        ),
+        header: ({ column }) => <SortHeader label={`Entrées ${currentYear}`} column={column} />,
         cell: ({ row }) => {
           const data = entryQtyByProduct?.[row.original.id];
           const total = data ? Object.values(data).reduce((sum, d) => sum + d.qty, 0) : 0;
@@ -390,7 +324,7 @@ export default function AchatsList() {
           );
         },
         sortingFn: "basic",
-        meta: { align: "center", label: `Entrées ${currentYear}` },
+        meta: { label: `Entrées ${currentYear}` },
       },
       {
         id: "organization",
@@ -447,9 +381,7 @@ export default function AchatsList() {
             0
           );
         },
-        header: ({ column }) => (
-          <SortHeader label="Valeur achats HT" column={column} className="justify-end w-full" />
-        ),
+        header: ({ column }) => <SortHeader label="Valeur achats HT" column={column} />,
         cell: ({ row }) => {
           const data = entryQtyByProduct?.[row.original.id];
           if (!data) return <span className="text-muted-foreground">—</span>;
@@ -474,7 +406,7 @@ export default function AchatsList() {
           );
         },
         sortingFn: "basic",
-        meta: { align: "right", label: "Valeur achats HT" },
+        meta: { label: "Valeur achats HT", align: "right" },
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -503,17 +435,17 @@ export default function AchatsList() {
                 <th className="h-11 px-5 text-left">
                   <Skeleton className="h-3 w-16" />
                 </th>
-                <th className="h-11 px-5 text-right">
-                  <Skeleton className="h-3 w-12 ml-auto" />
-                </th>
-                <th className="h-11 px-5 text-center">
-                  <Skeleton className="h-3 w-16 mx-auto" />
+                <th className="h-11 px-5 text-left">
+                  <Skeleton className="h-3 w-12" />
                 </th>
                 <th className="h-11 px-5 text-left">
                   <Skeleton className="h-3 w-16" />
                 </th>
-                <th className="h-11 px-5 text-right">
-                  <Skeleton className="h-3 w-16 ml-auto" />
+                <th className="h-11 px-5 text-left">
+                  <Skeleton className="h-3 w-16" />
+                </th>
+                <th className="h-11 px-5 text-left">
+                  <Skeleton className="h-3 w-16" />
                 </th>
               </tr>
             </thead>
@@ -530,17 +462,17 @@ export default function AchatsList() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-5 py-4 text-right">
-                    <Skeleton className="h-4 w-16 ml-auto" />
+                  <td className="px-5 py-4">
+                    <Skeleton className="h-4 w-16" />
                   </td>
-                  <td className="px-5 py-4 text-center">
-                    <Skeleton className="h-5 w-8 mx-auto" />
+                  <td className="px-5 py-4">
+                    <Skeleton className="h-5 w-8" />
                   </td>
                   <td className="px-5 py-4">
                     <Skeleton className="h-4 w-16" />
                   </td>
-                  <td className="px-5 py-4 text-right">
-                    <Skeleton className="h-4 w-16 ml-auto" />
+                  <td className="px-5 py-4">
+                    <Skeleton className="h-4 w-16" />
                   </td>
                 </tr>
               ))}
@@ -664,14 +596,12 @@ export default function AchatsList() {
             {table.getRowModel().rows?.length ? (
               table
                 .getRowModel()
-                .rows.map((row, index) => {
+                .rows.map((row) => {
                   const productId = row.original.id;
                   return (
-                    <AnimatedRow
+                    <tr
                       key={productId}
-                      index={index}
-                      reducedMotion={prefersReducedMotion}
-                      isInitial={isInitialMount.current}
+                      className="group border-b last:border-b-0 transition-colors hover:bg-muted/60 cursor-pointer"
                       onClick={() => router.push(`/produits/${productId}`)}
                     >
                       {row.getVisibleCells().map((cell) => {
@@ -694,7 +624,7 @@ export default function AchatsList() {
                           </td>
                         );
                       })}
-                    </AnimatedRow>
+                    </tr>
                   );
                 })
                 .flatMap((rowEl, i) => {

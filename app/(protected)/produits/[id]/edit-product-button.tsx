@@ -1,20 +1,14 @@
-"use client";
-
-import { useState } from "react";
+import Link from "next/link";
 import { Edit3Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import EditProductModal from "@/components/edit-product-modal";
-import { ProductWithRelations } from "@/lib/supabase/queries/products";
 
-export default function EditProductButton({ product }: { product: ProductWithRelations }) {
-  const [open, setOpen] = useState(false);
+export default function EditProductButton({ productId }: { productId: string }) {
   return (
-    <>
-      <Button variant="outline-contrast" onClick={() => setOpen(true)}>
+    <Button variant="outline-contrast" asChild>
+      <Link href={`/produits/${productId}/modifier`}>
         <Edit3Icon className="size-4" />
         Modifier
-      </Button>
-      <EditProductModal product={product} open={open} onOpenChange={setOpen} />
-    </>
+      </Link>
+    </Button>
   );
 }

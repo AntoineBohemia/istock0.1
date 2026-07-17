@@ -73,6 +73,8 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
     category_id: isSubCategory ? parentCategoryId : product.category_id || "",
     sub_category_id: isSubCategory ? product.category_id || "" : "",
     supplier_id: product.supplier_id || "",
+    category_name: (product as any).category?.name || "",
+    supplier_name: (product as any).supplier?.name || "",
     image_url: product.image_url || undefined,
     icon_name: product.icon_name || null,
     icon_color: product.icon_color || null,

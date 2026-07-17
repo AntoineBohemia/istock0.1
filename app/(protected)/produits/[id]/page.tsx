@@ -66,7 +66,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         }
         actions={
           <>
-            <EditProductButton product={product as any} />
+            <EditProductButton productId={id} />
             <ArchiveProductButton productId={id} productName={product.name} />
           </>
         }
@@ -77,7 +77,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         {/* ── Left column ── */}
         <div className="space-y-5">
           {/* Stock hero */}
-          <div className="rounded-xl border bg-card px-6 py-5 flex items-end justify-between gap-4">
+          <div className="rounded-xl border bg-card px-6 py-5 flex items-end justify-between gap-4 relative">
+            <StatusPill status={stockBadgeVariant} className="absolute top-4 right-4" />
             <div>
               <span
                 className={cn(
@@ -87,9 +88,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               >
                 {product.stock_current ?? 0}
               </span>
-              <div className="mt-2">
-                <StatusPill status={stockBadgeVariant} />
-              </div>
               {/* Per-org breakdown */}
               {product.product_organization_stock &&
                 product.product_organization_stock.length > 1 && (

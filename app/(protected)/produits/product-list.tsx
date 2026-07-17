@@ -11,11 +11,19 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, ArrowDownToLine, ArrowUpFromLine, Package, Building2, Tag, Check, X, Plus } from "lucide-react";
+import {
+  ArrowUpDown,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Package,
+  Building2,
+  Tag,
+  Check,
+  X,
+  Plus,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence, useReducedMotion } from "motion/react";
-
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/search-input";
 import { QueryError } from "@/components/query-error";
@@ -34,40 +42,6 @@ import ProductIconDisplay from "@/components/product-icon-display";
 import { TableColumnToggle } from "@/components/table-column-toggle";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { cn } from "@/lib/utils";
-
-// ─── Animated table row ────────────────────────────────────
-const MotionTr = motion.create("tr");
-
-function AnimatedRow({
-  children,
-  index,
-  reducedMotion,
-  onClick,
-}: {
-  children: React.ReactNode;
-  index: number;
-  reducedMotion: boolean | null;
-  onClick?: () => void;
-}) {
-  return (
-    <MotionTr
-      layout={!reducedMotion}
-      initial={reducedMotion ? false : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={reducedMotion ? undefined : { opacity: 0, y: -8 }}
-      transition={{
-        type: "spring",
-        bounce: 0,
-        duration: 0.35,
-        delay: reducedMotion ? 0 : index * 0.03,
-      }}
-      className="group border-b last:border-b-0 transition-colors hover:bg-muted/60 cursor-pointer"
-      onClick={onClick}
-    >
-      {children}
-    </MotionTr>
-  );
-}
 
 // ─── Sort header button ────────────────────────────────────
 function SortHeader({
@@ -103,7 +77,6 @@ function SortHeader({
 // ─── Main component ────────────────────────────────────────
 export default function ProductList() {
   const router = useRouter();
-  const prefersReducedMotion = useReducedMotion();
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filters, setFilters] = useQueryStates({
@@ -135,7 +108,12 @@ export default function ProductList() {
   const { data: userOrgs } = useOrganizations();
   const isMultiOrg = (userOrgs?.length ?? 0) > 1;
 
-  const { data: productsResult, isLoading, isError, refetch } = useProducts({
+  const {
+    data: productsResult,
+    isLoading,
+    isError,
+    refetch,
+  } = useProducts({
     organizationId: currentOrganization?.id,
     search: debouncedSearch || undefined,
   });
@@ -193,9 +171,7 @@ export default function ProductList() {
     },
     {
       accessorKey: "stock_current",
-      header: ({ column }) => (
-        <SortHeader label="Stock" column={column} className="justify-center w-full" />
-      ),
+      header: ({ column }) => <SortHeader label="Stock" column={column} />,
       cell: ({ row }) => {
         const product = row.original;
         const orgStocks =
@@ -214,7 +190,7 @@ export default function ProductList() {
         const target = min * 2;
         const pct = target > 0 ? Math.min(100, (displayStock / target) * 100) : 0;
         return (
-          <div className="flex flex-col items-center gap-1 min-w-[60px]">
+          <div className="flex flex-col items-start gap-1 min-w-[60px]">
             <span
               className={cn(
                 "font-heading font-bold tabular-nums text-xl leading-none",
@@ -249,7 +225,7 @@ export default function ProductList() {
           </div>
         );
       },
-      meta: { align: "center", label: "Stock" },
+      meta: { label: "Stock" },
     },
     {
       id: "status",
@@ -263,7 +239,7 @@ export default function ProductList() {
         const score = calculateStockScore(product.stock_current, product.stock_min);
         return <StatusPill status={getStockBadgeVariant(score)} />;
       },
-      meta: { align: "center", label: "Statut" },
+      meta: { label: "Statut", align: "right" },
     },
     {
       id: "actions",
@@ -329,11 +305,11 @@ export default function ProductList() {
                 <th className="h-11 px-5 text-left">
                   <Skeleton className="h-3 w-16" />
                 </th>
-                <th className="h-11 px-5 text-center">
-                  <Skeleton className="h-3 w-10 mx-auto" />
+                <th className="h-11 px-5 text-left">
+                  <Skeleton className="h-3 w-10" />
                 </th>
-                <th className="h-11 px-5 text-right">
-                  <Skeleton className="h-3 w-12 ml-auto" />
+                <th className="h-11 px-5 text-left">
+                  <Skeleton className="h-3 w-12" />
                 </th>
                 <th className="h-11 px-5" />
               </tr>
@@ -350,11 +326,11 @@ export default function ProductList() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-5 py-4 text-center">
-                    <Skeleton className="h-5 w-8 mx-auto" />
+                  <td className="px-5 py-4">
+                    <Skeleton className="h-5 w-8" />
                   </td>
-                  <td className="px-5 py-4 text-right">
-                    <Skeleton className="h-6 w-16 rounded-full ml-auto" />
+                  <td className="px-5 py-4">
+                    <Skeleton className="h-6 w-16 rounded-full" />
                   </td>
                   <td className="px-5 py-4" />
                 </tr>
@@ -377,10 +353,7 @@ export default function ProductList() {
         <h1 className="text-2xl font-bold tracking-tight">Stock produits</h1>
         <div className="flex items-center gap-2">
           {reorderCount > 0 && (
-            <Button
-              variant="outline"
-              onClick={() => setReorderOpen(true)}
-            >
+            <Button variant="outline" onClick={() => setReorderOpen(true)}>
               A commander
               <span className="inline-flex items-center justify-center size-5 rounded-full bg-attention text-white text-[11px] font-bold font-heading leading-none">
                 {reorderCount}
@@ -424,14 +397,20 @@ export default function ProductList() {
                     <span
                       role="button"
                       className="ml-0.5 rounded-full hover:bg-white/20 p-0.5 -mr-1"
-                      onClick={(e) => { e.stopPropagation(); setFilterOrgs(new Set()); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFilterOrgs(new Set());
+                      }}
                     >
                       <X className="size-3" />
                     </span>
                   </>
                 )}
               </PopoverTrigger>
-              <PopoverContent align="start" className="w-auto min-w-[180px] p-1 rounded-xl overflow-hidden">
+              <PopoverContent
+                align="start"
+                className="w-auto min-w-[180px] p-1 rounded-xl overflow-hidden"
+              >
                 <div className="flex flex-col gap-0.5 max-h-[280px] overflow-y-auto">
                   {userOrgs?.map((org) => {
                     const selected = filterOrgs.has(org.id);
@@ -441,11 +420,18 @@ export default function ProductList() {
                         type="button"
                         className={cn(
                           "flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-lg transition-colors",
-                          selected ? "bg-primary/10 text-foreground font-medium" : "text-foreground/70 hover:bg-muted hover:text-foreground"
+                          selected
+                            ? "bg-primary/10 text-foreground font-medium"
+                            : "text-foreground/70 hover:bg-muted hover:text-foreground"
                         )}
                         onClick={() => setFilterOrgs((prev) => toggleSet(prev, org.id))}
                       >
-                        <span className={cn("size-3.5 flex items-center justify-center", !selected && "opacity-0")}>
+                        <span
+                          className={cn(
+                            "size-3.5 flex items-center justify-center",
+                            !selected && "opacity-0"
+                          )}
+                        >
                           <Check className="size-3.5" />
                         </span>
                         {org.name}
@@ -471,18 +457,26 @@ export default function ProductList() {
                 Categorie
                 {filterCategories.size > 0 && (
                   <>
-                    <span className="opacity-80 tabular-nums font-heading">{filterCategories.size}</span>
+                    <span className="opacity-80 tabular-nums font-heading">
+                      {filterCategories.size}
+                    </span>
                     <span
                       role="button"
                       className="ml-0.5 rounded-full hover:bg-white/20 p-0.5 -mr-1"
-                      onClick={(e) => { e.stopPropagation(); setFilterCategories(new Set()); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFilterCategories(new Set());
+                      }}
                     >
                       <X className="size-3" />
                     </span>
                   </>
                 )}
               </PopoverTrigger>
-              <PopoverContent align="start" className="w-auto min-w-[180px] p-1 rounded-xl overflow-hidden">
+              <PopoverContent
+                align="start"
+                className="w-auto min-w-[180px] p-1 rounded-xl overflow-hidden"
+              >
                 <div className="flex flex-col gap-0.5 max-h-[280px] overflow-y-auto">
                   {categories.map((cat) => {
                     const selected = filterCategories.has(cat.id);
@@ -492,11 +486,18 @@ export default function ProductList() {
                         type="button"
                         className={cn(
                           "flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-lg transition-colors",
-                          selected ? "bg-primary/10 text-foreground font-medium" : "text-foreground/70 hover:bg-muted hover:text-foreground"
+                          selected
+                            ? "bg-primary/10 text-foreground font-medium"
+                            : "text-foreground/70 hover:bg-muted hover:text-foreground"
                         )}
                         onClick={() => setFilterCategories((prev) => toggleSet(prev, cat.id))}
                       >
-                        <span className={cn("size-3.5 flex items-center justify-center", !selected && "opacity-0")}>
+                        <span
+                          className={cn(
+                            "size-3.5 flex items-center justify-center",
+                            !selected && "opacity-0"
+                          )}
+                        >
                           <Check className="size-3.5" />
                         </span>
                         {cat.name}
@@ -542,55 +543,52 @@ export default function ProductList() {
 
           {/* Body */}
           <tbody>
-            <AnimatePresence mode="popLayout" initial={false}>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row, index) => (
-                  <AnimatedRow
-                    key={row.original.id}
-                    index={index}
-                    reducedMotion={prefersReducedMotion}
-                    onClick={() => router.push(`/produits/${row.original.id}`)}
-                  >
-                    {row.getVisibleCells().map((cell) => {
-                      const align = (cell.column.columnDef.meta as { align?: string })?.align;
-                      return (
-                        <td
-                          key={cell.id}
-                          className={cn(
-                            "px-5 py-4 whitespace-nowrap",
-                            align === "right" && "text-right",
-                            align === "center" && "text-center"
-                          )}
-                        >
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </td>
-                      );
-                    })}
-                  </AnimatedRow>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={columns.length}>
-                    <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-                      <div className="flex size-16 items-center justify-center rounded-2xl bg-muted mb-4">
-                        <Package className="size-7 text-muted-foreground" />
-                      </div>
-                      <h3 className="text-lg font-semibold">Aucun produit</h3>
-                      <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-                        {searchQuery || filterCategories.size > 0 || filterOrgs.size > 0
-                          ? "Aucun produit ne correspond à cette recherche."
-                          : "Ajoutez vos produits pour commencer à gérer votre stock."}
-                      </p>
-                      {!searchQuery && filterCategories.size === 0 && filterOrgs.size === 0 && (
-                        <Button asChild className="mt-5">
-                          <Link href="/produits/nouveau">Ajouter un produit</Link>
-                        </Button>
-                      )}
-                    </div>
-                  </td>
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <tr
+                  key={row.original.id}
+                  className="group border-b last:border-b-0 transition-colors hover:bg-muted/60 cursor-pointer"
+                  onClick={() => router.push(`/produits/${row.original.id}`)}
+                >
+                  {row.getVisibleCells().map((cell) => {
+                    const align = (cell.column.columnDef.meta as { align?: string })?.align;
+                    return (
+                      <td
+                        key={cell.id}
+                        className={cn(
+                          "px-5 py-4 whitespace-nowrap",
+                          align === "right" && "text-right",
+                          align === "center" && "text-center"
+                        )}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    );
+                  })}
                 </tr>
-              )}
-            </AnimatePresence>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={columns.length}>
+                  <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+                    <div className="flex size-16 items-center justify-center rounded-2xl bg-muted mb-4">
+                      <Package className="size-7 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-lg font-semibold">Aucun produit</h3>
+                    <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+                      {searchQuery || filterCategories.size > 0 || filterOrgs.size > 0
+                        ? "Aucun produit ne correspond à cette recherche."
+                        : "Ajoutez vos produits pour commencer à gérer votre stock."}
+                    </p>
+                    {!searchQuery && filterCategories.size === 0 && filterOrgs.size === 0 && (
+                      <Button asChild className="mt-5">
+                        <Link href="/produits/nouveau">Ajouter un produit</Link>
+                      </Button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

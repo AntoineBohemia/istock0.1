@@ -12,9 +12,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, Loader2, Package, Plus, UserPlus } from "lucide-react";
-import { motion, AnimatePresence, useReducedMotion } from "motion/react";
-
+import { ArrowUpDown, ChevronLeft, ChevronRight, Package, Plus, UserPlus } from "lucide-react";
 import { SearchInput } from "@/components/search-input";
 import { QueryError } from "@/components/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,40 +29,6 @@ import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { cn } from "@/lib/utils";
 import RestockDialog from "./[id]/restock-dialog";
 import CreateTechnicianDialog from "./create-technician-dialog";
-
-// ─── Animated table row ────────────────────────────────────
-const MotionTr = motion.create("tr");
-
-function AnimatedRow({
-  children,
-  index,
-  reducedMotion,
-  onClick,
-}: {
-  children: React.ReactNode;
-  index: number;
-  reducedMotion: boolean | null;
-  onClick: () => void;
-}) {
-  return (
-    <MotionTr
-      layout={!reducedMotion}
-      initial={reducedMotion ? false : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={reducedMotion ? undefined : { opacity: 0, y: -8 }}
-      transition={{
-        type: "spring",
-        bounce: 0,
-        duration: 0.35,
-        delay: reducedMotion ? 0 : index * 0.03,
-      }}
-      onClick={onClick}
-      className="group border-b last:border-b-0 cursor-pointer transition-colors hover:bg-muted/50"
-    >
-      {children}
-    </MotionTr>
-  );
-}
 
 // ─── Sort header button ────────────────────────────────────
 function SortHeader({
@@ -137,9 +101,15 @@ function avatarRingClass(status: StockStatus): string {
 // ─── Main component ────────────────────────────────────────
 export default function TechniciansList() {
   const router = useRouter();
-  const prefersReducedMotion = useReducedMotion();
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
-  const { data: technicians = [], isLoading, isError, refetch } = useTechnicians(currentOrganization?.id);
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const {
+    data: technicians = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useTechnicians(currentOrganization?.id, selectedYear);
 
   const [sorting, setSorting] = useState<SortingState>([{ id: "restock", desc: true }]);
   const [{ search: searchQuery }, setFilters] = useQueryStates({
@@ -171,6 +141,7 @@ export default function TechniciansList() {
     [filteredData]
   );
 
+  const yearLabel = `Unités (${selectedYear})`;
   const columns: ColumnDef<TechnicianWithInventory>[] = [
     {
       accessorKey: "name",
@@ -220,14 +191,12 @@ export default function TechniciansList() {
     },
     {
       accessorKey: "year_units_total",
-      header: ({ column }) => (
-        <SortHeader label="Unités (année)" column={column} className="justify-center w-full" />
-      ),
+      header: ({ column }) => <SortHeader label={yearLabel} column={column} />,
       cell: ({ row }) => {
         const count = row.original.year_units_total;
         const pct = maxUnits > 0 ? (count / maxUnits) * 100 : 0;
         return (
-          <div className="flex flex-col items-center gap-1 min-w-[60px]">
+          <div className="flex flex-col items-start gap-1 min-w-[60px]">
             <span
               className={cn(
                 "font-heading font-bold tabular-nums text-xl leading-none",
@@ -247,14 +216,12 @@ export default function TechniciansList() {
           </div>
         );
       },
-      meta: { align: "center", label: "Unités (année)" },
+      meta: { label: yearLabel },
     },
     {
       id: "equipment",
       accessorFn: (row) => row.equipment_count ?? 0,
-      header: ({ column }) => (
-        <SortHeader label="Outillage" column={column} className="justify-center w-full" />
-      ),
+      header: ({ column }) => <SortHeader label="Outillage" column={column} />,
       cell: ({ row }) => {
         const count = row.original.equipment_count ?? 0;
         return (
@@ -268,7 +235,7 @@ export default function TechniciansList() {
           </span>
         );
       },
-      meta: { align: "center", label: "Outillage" },
+      meta: { label: "Outillage" },
     },
     {
       accessorKey: "city",
@@ -351,11 +318,11 @@ export default function TechniciansList() {
                 <th className="h-11 px-5 text-left">
                   <Skeleton className="h-3 w-16" />
                 </th>
-                <th className="h-11 px-5 text-center">
-                  <Skeleton className="h-3 w-16 mx-auto" />
+                <th className="h-11 px-5 text-left">
+                  <Skeleton className="h-3 w-16" />
                 </th>
-                <th className="h-11 px-5 text-right">
-                  <Skeleton className="h-3 w-14 ml-auto" />
+                <th className="h-11 px-5 text-left">
+                  <Skeleton className="h-3 w-14" />
                 </th>
               </tr>
             </thead>
@@ -374,11 +341,11 @@ export default function TechniciansList() {
                   <td className="px-5 py-4">
                     <Skeleton className="h-4 w-24" />
                   </td>
-                  <td className="px-5 py-4 text-center">
-                    <Skeleton className="h-5 w-8 mx-auto" />
+                  <td className="px-5 py-4">
+                    <Skeleton className="h-5 w-8" />
                   </td>
-                  <td className="px-5 py-4 text-right">
-                    <Skeleton className="h-6 w-16 rounded-full ml-auto" />
+                  <td className="px-5 py-4">
+                    <Skeleton className="h-6 w-16 rounded-full" />
                   </td>
                 </tr>
               ))}
@@ -390,7 +357,9 @@ export default function TechniciansList() {
   }
 
   if (isError) {
-    return <QueryError message="Impossible de charger les techniciens." onRetry={() => refetch()} />;
+    return (
+      <QueryError message="Impossible de charger les techniciens." onRetry={() => refetch()} />
+    );
   }
 
   const filteredCount = filteredData.length;
@@ -398,7 +367,7 @@ export default function TechniciansList() {
 
   return (
     <div className="space-y-3">
-      {/* Search + filter chips */}
+      {/* Search + year selector + column toggle */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <SearchInput
           value={searchQuery}
@@ -407,6 +376,29 @@ export default function TechniciansList() {
           className="bg-white dark:bg-card"
           wrapperClassName="flex-1"
         />
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            disabled={selectedYear <= currentYear - 5}
+            onClick={() => setSelectedYear((y) => y - 1)}
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+          <span className="font-heading text-lg font-bold tabular-nums min-w-[4ch] text-center">
+            {selectedYear}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            disabled={selectedYear >= currentYear}
+            onClick={() => setSelectedYear((y) => y + 1)}
+          >
+            <ChevronRight className="size-4" />
+          </Button>
+        </div>
         <TableColumnToggle table={table} />
       </div>
 
@@ -457,42 +449,39 @@ export default function TechniciansList() {
             </thead>
 
             <tbody>
-              <AnimatePresence mode="popLayout" initial={false}>
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row, index) => (
-                    <AnimatedRow
-                      key={row.original.id}
-                      index={index}
-                      reducedMotion={prefersReducedMotion}
-                      onClick={() => router.push(`/techniciens/${row.original.id}`)}
-                    >
-                      {row.getVisibleCells().map((cell) => {
-                        const align = (cell.column.columnDef.meta as { align?: string })?.align;
-                        return (
-                          <td
-                            key={cell.id}
-                            className={cn(
-                              "px-5 py-4 whitespace-nowrap",
-                              align === "right" && "text-right",
-                              align === "center" && "text-center"
-                            )}
-                          >
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </td>
-                        );
-                      })}
-                    </AnimatedRow>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={columns.length} className="h-32 text-center">
-                      <div className="text-muted-foreground">
-                        Aucun technicien ne correspond à cette recherche.
-                      </div>
-                    </td>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <tr
+                    key={row.original.id}
+                    className="group border-b last:border-b-0 cursor-pointer transition-colors hover:bg-muted/50"
+                    onClick={() => router.push(`/techniciens/${row.original.id}`)}
+                  >
+                    {row.getVisibleCells().map((cell) => {
+                      const align = (cell.column.columnDef.meta as { align?: string })?.align;
+                      return (
+                        <td
+                          key={cell.id}
+                          className={cn(
+                            "px-5 py-4 whitespace-nowrap",
+                            align === "right" && "text-right",
+                            align === "center" && "text-center"
+                          )}
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      );
+                    })}
                   </tr>
-                )}
-              </AnimatePresence>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={columns.length} className="h-32 text-center">
+                    <div className="text-muted-foreground">
+                      Aucun technicien ne correspond à cette recherche.
+                    </div>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

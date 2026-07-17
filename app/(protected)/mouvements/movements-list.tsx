@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDebouncedValue } from "@/hooks/use-debounce";
 import {
@@ -21,7 +21,6 @@ import {
   Check,
   X,
 } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
 import {
   format,
   subDays,
@@ -51,50 +50,6 @@ import ProductIconDisplay from "@/components/product-icon-display";
 import { TableColumnToggle } from "@/components/table-column-toggle";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { cn } from "@/lib/utils";
-
-// ─── Table row — animated on initial mount, plain <tr> after ──
-const MotionTr = motion.create("tr");
-
-function AnimatedRow({
-  children,
-  index,
-  reducedMotion,
-  isInitial,
-  onClick,
-}: {
-  children: React.ReactNode;
-  index: number;
-  reducedMotion: boolean | null;
-  isInitial: boolean;
-  onClick?: () => void;
-}) {
-  if (!isInitial || reducedMotion) {
-    return (
-      <tr
-        className="group border-b last:border-b-0 cursor-pointer transition-colors hover:bg-muted/50"
-        onClick={onClick}
-      >
-        {children}
-      </tr>
-    );
-  }
-  return (
-    <MotionTr
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        type: "spring",
-        bounce: 0,
-        duration: 0.35,
-        delay: Math.min(index * 0.03, 0.3),
-      }}
-      className="group border-b last:border-b-0 cursor-pointer transition-colors hover:bg-muted/50"
-      onClick={onClick}
-    >
-      {children}
-    </MotionTr>
-  );
-}
 
 // ─── Sort header button ────────────────────────────────────
 function SortHeader({
@@ -364,9 +319,11 @@ const TYPE_FILTER_OPTIONS: { value: string; label: string }[] = [
 // ─── Main component ────────────────────────────────────────
 export default function MovementsList() {
   const router = useRouter();
-  const prefersReducedMotion = useReducedMotion();
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => ({
+    from: startOfYear(new Date()),
+    to: new Date(),
+  }));
   const [orgPickerOpen, setOrgPickerOpen] = useState(false);
   const [supplierPickerOpen, setSupplierPickerOpen] = useState(false);
   const [techPickerOpen, setTechPickerOpen] = useState(false);
@@ -379,23 +336,11 @@ export default function MovementsList() {
   // Search: local state for instant input, debounced for filtering
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebouncedValue(searchInput, 300);
-  const isInitialMount = useRef(true);
 
   // Fetch all movements (no org scoping — org is just a tag on entries)
   const { data: movementsResult, isLoading, isError, refetch } = useStockMovements({});
 
   const allMovements = movementsResult?.movements || [];
-
-  // Mark initial mount as done after first data load
-  useEffect(() => {
-    if (allMovements.length > 0 && isInitialMount.current) {
-      // Defer so the first render gets the animation
-      const id = requestAnimationFrame(() => {
-        isInitialMount.current = false;
-      });
-      return () => cancelAnimationFrame(id);
-    }
-  }, [allMovements.length]);
 
   // Count per type for chip badges
   const typeCounts = useMemo(() => {
@@ -588,24 +533,23 @@ export default function MovementsList() {
       },
       {
         accessorKey: "quantity",
-        header: ({ column }) => (
-          <SortHeader label="Qté" column={column} className="justify-center w-full" />
-        ),
+        header: ({ column }) => <SortHeader label="Qté" column={column} />,
         cell: ({ row }) => {
-          const isEntry = row.original.movement_type === "entry";
+          const type = row.original.movement_type;
+          const isPositive = type === "entry" || type === "unassign_equipment";
           return (
             <span
               className={cn(
                 "font-heading font-bold tabular-nums text-xl",
-                isEntry ? "text-standard" : "text-critique"
+                isPositive ? "text-standard" : "text-critique"
               )}
             >
-              {isEntry ? "+" : "−"}
+              {isPositive ? "+" : "−"}
               {row.original.quantity}
             </span>
           );
         },
-        meta: { align: "center", label: "Qté" },
+        meta: { label: "Qté", align: "right" },
       },
       {
         id: "organization",
@@ -673,8 +617,8 @@ export default function MovementsList() {
                 <th className="h-11 px-5 text-left">
                   <Skeleton className="h-3 w-14" />
                 </th>
-                <th className="h-11 px-5 text-center">
-                  <Skeleton className="h-3 w-8 mx-auto" />
+                <th className="h-11 px-5 text-left">
+                  <Skeleton className="h-3 w-8" />
                 </th>
                 <th className="h-11 px-5 text-left">
                   <Skeleton className="h-3 w-18" />
@@ -708,8 +652,8 @@ export default function MovementsList() {
                   <td className="px-5 py-4">
                     <Skeleton className="h-4 w-20" />
                   </td>
-                  <td className="px-5 py-4 text-center">
-                    <Skeleton className="h-5 w-8 mx-auto" />
+                  <td className="px-5 py-4">
+                    <Skeleton className="h-5 w-8" />
                   </td>
                   <td className="px-5 py-4">
                     <Skeleton className="h-4 w-24" />
@@ -1044,12 +988,10 @@ export default function MovementsList() {
 
           <tbody>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row, index) => (
-                <AnimatedRow
+              table.getRowModel().rows.map((row) => (
+                <tr
                   key={row.original.id}
-                  index={index}
-                  reducedMotion={prefersReducedMotion}
-                  isInitial={isInitialMount.current}
+                  className="group border-b last:border-b-0 cursor-pointer transition-colors hover:bg-muted/50"
                   onClick={() => handleRowClick(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => {
@@ -1067,7 +1009,7 @@ export default function MovementsList() {
                       </td>
                     );
                   })}
-                </AnimatedRow>
+                </tr>
               ))
             ) : (
               <tr>
