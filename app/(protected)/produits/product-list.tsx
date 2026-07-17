@@ -183,6 +183,19 @@ export default function ProductList() {
               ?.stock_current ?? 0)
           : (product.stock_current ?? 0);
 
+        // Build complete org list (fill missing orgs with 0)
+        const allOrgStocks =
+          isMultiOrg && userOrgs
+            ? userOrgs.map((org) => {
+                const pos = orgStocks.find((s) => s.organization_id === org.id);
+                return {
+                  organization_id: org.id,
+                  stock_current: pos?.stock_current ?? 0,
+                  organization: { name: org.name },
+                };
+              })
+            : orgStocks;
+
         const score = calculateStockScore(displayStock, product.stock_min);
         const min = product.stock_min ?? 10;
         const target = min * 2;

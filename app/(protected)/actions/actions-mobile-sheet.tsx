@@ -53,6 +53,7 @@ interface ConsoleProduct {
   stock_current: number;
   stock_min: number | null;
   price: number | null;
+  supplier_id: string | null;
 }
 
 interface CartItem {
@@ -343,6 +344,7 @@ export default function ActionsMobileSheet() {
         stock_current: found.stock_current ?? 0,
         stock_min: found.stock_min,
         price: found.price ?? null,
+        supplier_id: found.supplier_id ?? null,
       };
       // Add to cart or increment qty
       setCart((prev) => {
@@ -500,6 +502,7 @@ export default function ActionsMobileSheet() {
           organizationId: orgId,
           productId: product.id,
           quantity,
+          supplierId: product.supplier_id || undefined,
           unitPrice: parsedPrice || undefined,
           invoiceReference: invoiceRef || undefined,
           entryDate:
@@ -1039,6 +1042,7 @@ export default function ActionsMobileSheet() {
                         stock_current: p.stock_current ?? 0,
                         stock_min: p.stock_min,
                         price: p.price ?? null,
+                        supplier_id: p.supplier_id ?? null,
                       };
                       return (
                         <li key={p.id}>

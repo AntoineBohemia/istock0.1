@@ -4,7 +4,16 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Minus, Plus, ArrowRight, Search, AlertTriangle } from "lucide-react";
+import {
+  Loader2,
+  Minus,
+  Plus,
+  ArrowRight,
+  Search,
+  AlertTriangle,
+  ChevronDown,
+  Check,
+} from "lucide-react";
 import { toast } from "@/lib/toast";
 
 import { Button } from "@/components/ui/button";
@@ -42,6 +51,8 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
   const [productSearch, setProductSearch] = useState("");
   const [showProductSearch, setShowProductSearch] = useState(false);
   const [productPopoverOpen, setProductPopoverOpen] = useState(false);
+  const [techPopoverOpen, setTechPopoverOpen] = useState(false);
+  const [techSearch, setTechSearch] = useState("");
 
   const form = useForm<ExitValues>({
     resolver: zodResolver(ExitSchema),
@@ -63,6 +74,7 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
   useEffect(() => {
     if (open) {
       setProductSearch("");
+      setTechSearch("");
       setShowProductSearch(!productId);
       form.reset({
         exit_type: "exit_technician",
@@ -72,6 +84,14 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
       });
     }
   }, [open]);
+
+  const filteredTechnicians = useMemo(() => {
+    if (!techSearch) return technicians;
+    const q = techSearch.toLowerCase();
+    return technicians.filter((t) => `${t.first_name} ${t.last_name}`.toLowerCase().includes(q));
+  }, [technicians, techSearch]);
+
+  const selectedTechnician = technicians.find((t) => t.id === form.watch("technician_id"));
 
   const filteredProducts = useMemo(() => {
     if (!productSearch) return products.slice(0, 6);
@@ -167,22 +187,76 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
                 name="technician_id"
                 render={({ field }) => (
                   <FormItem className="border-t px-5 py-3">
-                    <FormControl>
-                      <select
-                        value={field.value || ""}
-                        onChange={(e) => field.onChange(e.target.value)}
-                        className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
+                    <Popover open={techPopoverOpen} onOpenChange={setTechPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className={cn(
+                            "flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left transition-colors bg-white dark:bg-card",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          <span className="flex-1 text-sm truncate">
+                            {selectedTechnician
+                              ? `${selectedTechnician.first_name} ${selectedTechnician.last_name}`
+                              : "Choisir un technicien"}
+                          </span>
+                          <ChevronDown className="size-4 shrink-0 opacity-50" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        align="start"
+                        className="w-[var(--radix-popover-trigger-width)] p-0 rounded-xl overflow-hidden"
+                        sideOffset={4}
                       >
-                        <option value="" disabled>
-                          Choisir un technicien
-                        </option>
-                        {technicians.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.first_name} {t.last_name}
-                          </option>
-                        ))}
-                      </select>
-                    </FormControl>
+                        {technicians.length > 5 && (
+                          <div className="p-2 border-b">
+                            <div className="relative">
+                              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                              <Input
+                                placeholder="Rechercher..."
+                                value={techSearch}
+                                onChange={(e) => setTechSearch(e.target.value)}
+                                className="pl-8 h-8 text-sm bg-white dark:bg-card"
+                                autoFocus
+                              />
+                            </div>
+                          </div>
+                        )}
+                        <div className="max-h-48 overflow-y-auto p-1">
+                          {filteredTechnicians.length === 0 ? (
+                            <p className="py-3 text-center text-xs text-muted-foreground">
+                              Aucun technicien
+                            </p>
+                          ) : (
+                            filteredTechnicians.map((t) => (
+                              <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => {
+                                  field.onChange(t.id);
+                                  setTechPopoverOpen(false);
+                                  setTechSearch("");
+                                }}
+                                className={cn(
+                                  "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors",
+                                  t.id === field.value
+                                    ? "bg-primary/10 font-medium"
+                                    : "hover:bg-muted/60"
+                                )}
+                              >
+                                <span className="flex-1 text-sm truncate">
+                                  {t.first_name} {t.last_name}
+                                </span>
+                                {t.id === field.value && (
+                                  <Check className="size-3.5 shrink-0 text-primary" />
+                                )}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )}

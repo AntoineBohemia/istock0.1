@@ -41,11 +41,40 @@ async function getProduct(id: string) {
   return product;
 }
 
+async function getUserOrgs() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+  const { data } = await supabase
+    .from("user_organizations")
+    .select("organization:organizations(id, name)")
+    .eq("user_id", user.id);
+  return (data || []).map((d: any) => {
+    const org = Array.isArray(d.organization) ? d.organization[0] : d.organization;
+    return { id: org.id as string, name: org.name as string };
+  });
+}
+
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const product = await getProduct(id);
+  const [product, userOrgs] = await Promise.all([getProduct(id), getUserOrgs()]);
 
   if (!product) notFound();
+
+  const isMultiOrg = userOrgs.length > 1;
+  const orgStocks = product.product_organization_stock ?? [];
+  const allOrgStocks = isMultiOrg
+    ? userOrgs.map((org) => {
+        const pos = orgStocks.find((s: any) => s.organization_id === org.id);
+        return {
+          organization_id: org.id,
+          stock_current: pos?.stock_current ?? 0,
+          organization: { name: org.name },
+        };
+      })
+    : orgStocks;
 
   const stockScore = calculateStockScore(product.stock_current, product.stock_min);
   const stockBadgeVariant = getStockBadgeVariant(stockScore);
@@ -89,23 +118,21 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 {product.stock_current ?? 0}
               </span>
               {/* Per-org breakdown */}
-              {product.product_organization_stock &&
-                product.product_organization_stock.length > 1 && (
-                  <div className="flex items-center gap-3 mt-3">
-                    {product.product_organization_stock
-                      .filter((pos: any) => pos.stock_current > 0)
-                      .sort((a: any, b: any) => b.stock_current - a.stock_current)
-                      .map((pos: any) => (
-                        <span
-                          key={pos.organization_id}
-                          className="text-xs text-muted-foreground tabular-nums"
-                        >
-                          <span className="font-medium text-foreground">{pos.stock_current}</span>{" "}
-                          {pos.organization?.name ?? "—"}
-                        </span>
-                      ))}
-                  </div>
-                )}
+              {isMultiOrg && (
+                <div className="flex items-center gap-3 mt-3">
+                  {allOrgStocks
+                    .sort((a: any, b: any) => b.stock_current - a.stock_current)
+                    .map((pos: any) => (
+                      <span
+                        key={pos.organization_id}
+                        className="text-xs text-muted-foreground tabular-nums"
+                      >
+                        <span className="font-medium text-foreground">{pos.stock_current}</span>{" "}
+                        {pos.organization?.name ?? "—"}
+                      </span>
+                    ))}
+                </div>
+              )}
             </div>
             <StockActions productId={id} />
           </div>

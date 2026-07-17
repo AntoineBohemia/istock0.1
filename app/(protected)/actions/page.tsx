@@ -30,6 +30,7 @@ import { useProducts, useTechnicians, useStockMovements } from "@/hooks/queries"
 import { useCreateStockEntry, useCreateStockExit } from "@/hooks/mutations";
 import { calculateStockScore, getStockBadgeVariant } from "@/lib/utils/stock";
 import { cn } from "@/lib/utils";
+import ProductIconDisplay from "@/components/product-icon-display";
 import dynamic from "next/dynamic";
 
 const ActionsMobileSheet = dynamic(() => import("./actions-mobile-sheet"), { ssr: false });
@@ -79,6 +80,7 @@ interface ConsoleProduct {
   sku: string | null;
   stock_current: number;
   stock_min: number | null;
+  supplier_id: string | null;
 }
 
 interface CartItem {
@@ -362,6 +364,7 @@ export default function GlobalPage() {
           organizationId: orgId,
           productId: product.id,
           quantity,
+          supplierId: product.supplier_id || undefined,
           invoiceReference: invoiceRef || undefined,
           entryDate: entryDate?.toISOString(),
         },
@@ -573,10 +576,11 @@ export default function GlobalPage() {
             sku: p.sku,
             stock_current: p.stock_current ?? 0,
             stock_min: p.stock_min,
+            supplier_id: p.supplier_id ?? null,
           })
         }
         className={cn(
-          "relative aspect-square rounded-xl border bg-card p-3 flex flex-col justify-between text-left transition-all shadow-sm",
+          "relative aspect-[4/3] rounded-xl border bg-card p-3 flex flex-col justify-between text-left transition-all shadow-sm",
           "hover:border-primary/40 hover:shadow-md active:scale-[0.97]",
           inCart && "ring-2 ring-primary border-primary/30 bg-primary/5",
           !inCart && status === "critique" && "border-critique/30",
@@ -588,14 +592,22 @@ export default function GlobalPage() {
             <Check className="size-3 text-primary-foreground" />
           </div>
         )}
-        <p
-          className={cn(
-            "font-medium leading-tight line-clamp-2",
-            compact ? "text-[11px]" : "text-xs"
-          )}
-        >
-          {p.name}
-        </p>
+        <div className="flex items-start gap-2">
+          <ProductIconDisplay
+            iconName={p.icon_name}
+            iconColor={p.icon_color}
+            imageUrl={p.image_url}
+            size="sm"
+          />
+          <p
+            className={cn(
+              "font-medium leading-tight line-clamp-2 flex-1 min-w-0",
+              compact ? "text-[11px]" : "text-xs"
+            )}
+          >
+            {p.name}
+          </p>
+        </div>
         <div className="flex items-end justify-between">
           <span
             className={cn(
@@ -1052,7 +1064,7 @@ export default function GlobalPage() {
                       onChange={setEntryDate}
                       disabled={{ after: todayDate, before: ninetyDaysAgo }}
                       placeholder="Aujourd'hui"
-                      className="h-9 text-sm"
+                      className="h-9 text-sm bg-white dark:bg-card"
                     />
                   </div>
                 )}
@@ -1085,17 +1097,6 @@ export default function GlobalPage() {
                   >
                     {isSubmitting ? "En cours…" : submitLabel}
                   </Button>
-                  {actionMode === "entry" && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="h-10 text-xs"
-                      onClick={() => setActionMode("exit_anonymous")}
-                    >
-                      <ArrowUpFromLine className="size-3.5" />
-                      Sortie autre
-                    </Button>
-                  )}
                   {actionMode === "exit_anonymous" && (
                     <Button
                       variant="default"

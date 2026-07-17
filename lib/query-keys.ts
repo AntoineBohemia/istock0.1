@@ -100,4 +100,14 @@ export const queryKeys = {
     availableProducts: (orgId?: string) =>
       [...queryKeys.inventory.all, "availableProducts", orgId] as const,
   },
+
+  vehicles: {
+    all: ["vehicles"] as const,
+    lists: () => [...queryKeys.vehicles.all, "list"] as const,
+    list: (orgId?: string) => [...queryKeys.vehicles.lists(), orgId] as const,
+    details: () => [...queryKeys.vehicles.all, "detail"] as const,
+    detail: (id: string) => [...queryKeys.vehicles.details(), id] as const,
+    documents: (vehicleId: string, type?: string) =>
+      [...queryKeys.vehicles.all, "documents", vehicleId, type] as const,
+  },
 };
