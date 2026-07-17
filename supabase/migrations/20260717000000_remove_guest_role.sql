@@ -3,6 +3,10 @@
 -- Simplify to 3 roles: owner, admin, member
 -- ============================================================================
 
+-- 0. Convert existing guest users to member
+UPDATE public.user_organizations SET role = 'member' WHERE role = 'guest';
+UPDATE public.organization_invitations SET role = 'member' WHERE role = 'guest';
+
 -- 1. Update CHECK constraints to remove 'guest'
 ALTER TABLE public.user_organizations DROP CONSTRAINT IF EXISTS user_organizations_role_check;
 ALTER TABLE public.user_organizations
