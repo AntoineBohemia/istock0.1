@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Clock, Pencil, Plus } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import Link from "next/link";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 
 import { Button } from "@/components/ui/button";
@@ -31,13 +31,6 @@ function getAgeTier(days: number): AgeTier {
   if (days < 180) return "aging";
   return "old";
 }
-
-const ageBarColor: Record<AgeTier, string> = {
-  fresh: "bg-standard",
-  normal: "bg-foreground/25",
-  aging: "bg-attention",
-  old: "bg-destructive/70",
-};
 
 function formatDuration(days: number): string {
   if (days === 0) return "aujourd'hui";
@@ -210,13 +203,18 @@ export default function EquipmentManageModal({
             </p>
           )}
 
-          <div className="space-y-1">
+          <div className="divide-y">
             <AnimatePresence mode="popLayout" initial={false}>
               {holders.map((a) => {
                 const tech = a.technician!;
                 const initials =
                   `${tech.first_name.charAt(0)}${tech.last_name.charAt(0)}`.toUpperCase();
                 const fullName = `${tech.first_name} ${tech.last_name}`;
+
+                const durationColor =
+                  a.tier === "old" ? "text-destructive" :
+                  a.tier === "aging" ? "text-attention" :
+                  "text-muted-foreground";
 
                 return (
                   <motion.div
@@ -226,65 +224,37 @@ export default function EquipmentManageModal({
                     animate={{ opacity: 1, x: 0 }}
                     exit={prefersReducedMotion ? undefined : { opacity: 0, x: 8, height: 0 }}
                     transition={{ type: "spring", bounce: 0, duration: 0.3 }}
-                    className="rounded-lg bg-foreground/[0.02] p-3 space-y-2"
+                    className="flex items-center gap-2.5 py-2.5"
                   >
-                    <div className="flex items-center gap-3">
-                      <Avatar className="size-8 shrink-0">
-                        {tech.photo_url && <AvatarImage src={tech.photo_url} />}
-                        <AvatarFallback className="text-[10px] font-semibold">
-                          {initials}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <Link
-                          href={`/techniciens/${tech.id}`}
-                          className="text-sm font-medium hover:underline truncate block"
-                        >
-                          {fullName}
-                        </Link>
-                      </div>
-                      {a.quantity > 1 && (
-                        <span className="text-[11px] font-bold tabular-nums bg-foreground/[0.06] px-1.5 py-0.5 rounded shrink-0">
-                          x{a.quantity}
-                        </span>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-xs shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleUnassign(tech.id, fullName)}
-                        disabled={unassignMutation.isPending}
-                      >
-                        Recuperer
-                      </Button>
-                    </div>
-
-                    {/* Age bar */}
-                    <div className="pl-11 space-y-0.5">
-                      <div className="h-1.5 rounded-full bg-foreground/[0.05] overflow-hidden">
-                        <div
-                          className={cn(
-                            "h-full rounded-full transition-all duration-500",
-                            ageBarColor[a.tier]
-                          )}
-                          style={{ width: `${Math.max(Math.min((a.days / 365) * 100, 100), 4)}%` }}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                          <Clock className="size-2.5" />
-                          {formatDuration(a.days)}
-                        </span>
-                        {a.tier === "aging" && (
-                          <span className="text-[10px] text-attention font-medium">A verifier</span>
-                        )}
-                        {a.tier === "old" && (
-                          <span className="text-[10px] text-destructive font-medium">
-                            Depuis longtemps
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                    <Avatar className="size-7 shrink-0 bg-foreground/[0.08]">
+                      {tech.photo_url && <AvatarImage src={tech.photo_url} />}
+                      <AvatarFallback className="text-[9px] font-semibold bg-foreground/[0.08] text-foreground/70">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <Link
+                      href={`/techniciens/${tech.id}`}
+                      className="text-sm font-medium hover:underline truncate flex-1 min-w-0"
+                    >
+                      {fullName}
+                    </Link>
+                    {a.quantity > 1 && (
+                      <span className="text-[10px] font-bold tabular-nums bg-foreground/[0.06] px-1.5 py-0.5 rounded shrink-0">
+                        x{a.quantity}
+                      </span>
+                    )}
+                    <span className={cn("text-[11px] tabular-nums shrink-0", durationColor)}>
+                      {formatDuration(a.days)}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2.5 text-xs shrink-0 text-destructive border-destructive/30 hover:bg-destructive/10 hover:border-destructive/50"
+                      onClick={() => handleUnassign(tech.id, fullName)}
+                      disabled={unassignMutation.isPending}
+                    >
+                      Recuperer
+                    </Button>
                   </motion.div>
                 );
               })}
@@ -302,12 +272,12 @@ export default function EquipmentManageModal({
                     transition={{ duration: 0.2 }}
                     className="overflow-hidden"
                   >
-                    <div className="rounded-lg border border-dashed border-foreground/[0.12] p-3 space-y-2">
+                    <div className="rounded-lg border border-dashed border-foreground/[0.12] p-3 mt-3 space-y-2">
                       <select
                         value={assigningTech}
                         onChange={(e) => setAssigningTech(e.target.value)}
                         autoFocus
-                        className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 shadow-xs outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
+                        className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
                       >
                         <option value="">Choisir un technicien...</option>
                         {activeTechs.map((t) => (
@@ -350,7 +320,7 @@ export default function EquipmentManageModal({
                     exit={{ opacity: 0 }}
                     type="button"
                     onClick={() => setShowAssignPicker(true)}
-                    className="w-full flex items-center gap-3 rounded-lg border border-dashed border-foreground/[0.10] p-3 hover:border-foreground/20 hover:bg-muted/20 transition-colors cursor-pointer"
+                    className="w-full flex items-center gap-3 rounded-lg border border-dashed border-foreground/[0.10] p-3 mt-3 hover:border-foreground/20 hover:bg-muted/20 transition-colors cursor-pointer"
                   >
                     <div className="flex size-8 items-center justify-center rounded-full bg-foreground/[0.04]">
                       <Plus className="size-4 text-muted-foreground/40" />

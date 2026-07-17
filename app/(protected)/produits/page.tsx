@@ -1,6 +1,5 @@
 import { generateMeta } from "@/lib/utils";
 
-import ProductHeader from "./product-header";
 import ProductList from "./product-list";
 
 export async function generateMetadata() {
@@ -13,10 +12,5 @@ export async function generateMetadata() {
 }
 
 export default function Page() {
-  return (
-    <div className="space-y-4">
-      <ProductHeader />
-      <ProductList />
-    </div>
-  );
+  return <ProductList />;
 }

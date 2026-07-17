@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -24,14 +24,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertCircleIcon, ArrowLeft, ImageIcon, Loader2, UploadIcon, XIcon } from "lucide-react";
+import { AlertCircleIcon, ImageIcon, Loader2, UploadIcon, XIcon } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import IconPicker from "@/components/icon-picker";
 import ProductIconDisplay from "@/components/product-icon-display";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import AddNewCategory from "./add-category";
 import AddNewSupplier from "@/components/add-new-supplier";
-import Link from "next/link";
 import { Category } from "@/lib/supabase/queries/categories";
 import { Supplier } from "@/lib/supabase/queries/suppliers";
 import { uploadProductImage } from "@/lib/supabase/queries/products";
@@ -80,6 +80,7 @@ export default function AddProductForm({ mode = "create", initialData }: AddProd
   );
 
   const form = useForm<FormValues>({
+    mode: "onTouched",
     resolver: zodResolver(ProductFormSchema),
     defaultValues: {
       name: initialData?.name || "",
@@ -193,38 +194,27 @@ export default function AddProductForm({ mode = "create", initialData }: AddProd
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
         {/* ── Header — mirrors detail page ── */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" asChild type="button" className="shrink-0 -ml-2">
-                <Link
-                  href={
-                    mode === "edit" && initialData?.id ? `/produits/${initialData.id}` : "/produits"
-                  }
-                >
-                  <ArrowLeft className="size-4" />
-                </Link>
+        <PageHeader
+          backHref={mode === "edit" && initialData?.id ? `/produits/${initialData.id}` : "/produits"}
+          backLabel="Retour"
+          title={title}
+          actions={
+            <>
+              <Button
+                type="button"
+                variant="outline-contrast"
+                onClick={handleCancel}
+                disabled={isSubmitting}
+              >
+                Annuler
               </Button>
-              <div className="min-w-0">
-                <h1 className="font-heading text-2xl font-bold tracking-tight truncate">{title}</h1>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              type="button"
-              variant="outline-contrast"
-              onClick={handleCancel}
-              disabled={isSubmitting}
-            >
-              Annuler
-            </Button>
-            <Button type="submit" disabled={isSubmitting || isUploadingImage}>
-              {(isSubmitting || isUploadingImage) && <Loader2 className="size-4 animate-spin" />}
-              {mode === "edit" ? "Enregistrer" : "Créer"}
-            </Button>
-          </div>
-        </div>
+              <Button type="submit" disabled={isSubmitting || isUploadingImage}>
+                {(isSubmitting || isUploadingImage) && <Loader2 className="size-4 animate-spin" />}
+                {mode === "edit" ? "Enregistrer" : "Créer"}
+              </Button>
+            </>
+          }
+        />
 
         {/* ── Content — same grid as detail page ── */}
         <div className="grid gap-5 lg:grid-cols-[1fr_300px]">

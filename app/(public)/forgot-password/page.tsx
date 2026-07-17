@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Loader2Icon, MailIcon } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { createClient } from "@/lib/supabase/client";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -35,6 +35,7 @@ export default function Page() {
   const supabase = createClient();
 
   const form = useForm<FormValues>({
+    mode: "onTouched",
     resolver: zodResolver(formSchema),
     defaultValues: {
       email: ""

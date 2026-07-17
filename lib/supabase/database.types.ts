@@ -469,6 +469,7 @@ export type Database = {
       suppliers: {
         Row: {
           created_at: string | null;
+          email: string | null;
           id: string;
           name: string;
           organization_id: string | null;
@@ -476,6 +477,7 @@ export type Database = {
         };
         Insert: {
           created_at?: string | null;
+          email?: string | null;
           id?: string;
           name: string;
           organization_id?: string | null;
@@ -483,6 +485,7 @@ export type Database = {
         };
         Update: {
           created_at?: string | null;
+          email?: string | null;
           id?: string;
           name?: string;
           organization_id?: string | null;

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useOnboardingStore, CategoryData } from "../store";
 import { FolderTree, Loader2, Plus, X, Info, Check } from "lucide-react";
 import { createCategory } from "@/lib/supabase/queries/categories";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
 const SUGGESTED_CATEGORIES = [

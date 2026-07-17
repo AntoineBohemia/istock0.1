@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQueryStates, parseAsString } from "nuqs";
+import { useDebouncedValue } from "@/hooks/use-debounce";
 import {
   ColumnDef,
   SortingState,
@@ -10,19 +11,23 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, Search, ArrowDownToLine, ArrowUpFromLine, Package } from "lucide-react";
+import { ArrowUpDown, ArrowDownToLine, ArrowUpFromLine, Package, Building2, Tag, Check, X, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/search-input";
+import { QueryError } from "@/components/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
 import StockEntryModal from "@/components/stock-entry-modal";
 import StockExitModal from "@/components/stock-exit-modal";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import ReorderRecapModal, { computeReorderList } from "@/components/reorder-recap-modal";
 
 import { ProductWithRelations } from "@/lib/supabase/queries/products";
-import { calculateStockScore, getStockScoreColor } from "@/lib/utils/stock";
+import { calculateStockScore, getStockScoreColor, getStockBadgeVariant } from "@/lib/utils/stock";
+import { StatusPill } from "@/components/ui/status-pill";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProducts, useCategories, useOrganizations } from "@/hooks/queries";
 import ProductIconDisplay from "@/components/product-icon-display";
@@ -103,47 +108,63 @@ export default function ProductList() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filters, setFilters] = useQueryStates({
     search: parseAsString.withDefault(""),
-    category: parseAsString.withDefault(""),
-    org: parseAsString.withDefault(""),
   });
 
   // Stock movement modal state
   const [entryProductId, setEntryProductId] = useState<string | null>(null);
   const [exitProductId, setExitProductId] = useState<string | null>(null);
+  const [reorderOpen, setReorderOpen] = useState(false);
+
+  // Multi-select filters
+  const [filterCategories, setFilterCategories] = useState<Set<string>>(new Set());
+  const [filterOrgs, setFilterOrgs] = useState<Set<string>>(new Set());
 
   const searchQuery = filters.search;
-  const categoryFilter = filters.category;
-  const orgFilter = filters.org;
   const setSearchQuery = (value: string) => setFilters({ search: value });
-  const setCategoryFilter = (value: string) => setFilters({ category: value });
-  const setOrgFilter = (value: string) => setFilters({ org: value });
 
-  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const toggleSet = (prev: Set<string>, value: string) => {
+    const next = new Set(prev);
+    if (next.has(value)) next.delete(value);
+    else next.add(value);
+    return next;
+  };
 
-  useEffect(() => {
-    debounceRef.current = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-    }, 300);
-    return () => clearTimeout(debounceRef.current);
-  }, [searchQuery]);
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
 
   const { data: categories = [] } = useCategories(currentOrganization?.id);
   const { data: userOrgs } = useOrganizations();
   const isMultiOrg = (userOrgs?.length ?? 0) > 1;
 
-  const { data: productsResult, isLoading } = useProducts({
+  const { data: productsResult, isLoading, isError, refetch } = useProducts({
     organizationId: currentOrganization?.id,
     search: debouncedSearch || undefined,
-    categoryId: categoryFilter || undefined,
   });
 
-  const products = productsResult?.products || [];
+  const allProducts = productsResult?.products || [];
+
+  // Client-side multi-select filtering
+  const products = useMemo(() => {
+    let result = allProducts;
+    if (filterCategories.size > 0) {
+      result = result.filter((p) => p.category_id && filterCategories.has(p.category_id));
+    }
+    if (filterOrgs.size > 0) {
+      result = result.filter((p) =>
+        p.product_organization_stock?.some(
+          (pos) => filterOrgs.has(pos.organization_id) && pos.stock_current > 0
+        )
+      );
+    }
+    return result;
+  }, [allProducts, filterCategories, filterOrgs]);
 
   const [columnVisibility, setColumnVisibility] = useColumnVisibility("produits");
 
-  // Max stock across all products — for proportional micro-bars (Hodent: length encoding)
-  const maxStock = Math.max(1, ...products.map((p) => p.stock_current ?? 0));
+  // Reorder computation — products at or below stock_min
+  const reorderItems = useMemo(() => computeReorderList(allProducts, "all"), [allProducts]);
+  const reorderCount = reorderItems.length;
+
+  // Micro-bars are now per-product relative to their own threshold (not global max)
 
   const columns: ColumnDef<ProductWithRelations>[] = [
     {
@@ -182,13 +203,16 @@ export default function ProductList() {
         const hasMultiOrg = orgStocks.length > 1;
 
         // If org filter is active, show that org's stock
-        const displayStock = orgFilter
-          ? (product.product_organization_stock?.find((pos) => pos.organization_id === orgFilter)
+        const singleOrg = filterOrgs.size === 1 ? [...filterOrgs][0] : null;
+        const displayStock = singleOrg
+          ? (product.product_organization_stock?.find((pos) => pos.organization_id === singleOrg)
               ?.stock_current ?? 0)
           : (product.stock_current ?? 0);
 
         const score = calculateStockScore(displayStock, product.stock_min);
-        const pct = maxStock > 0 ? (displayStock / maxStock) * 100 : 0;
+        const min = product.stock_min ?? 10;
+        const target = min * 2;
+        const pct = target > 0 ? Math.min(100, (displayStock / target) * 100) : 0;
         return (
           <div className="flex flex-col items-center gap-1 min-w-[60px]">
             <span
@@ -214,7 +238,7 @@ export default function ProductList() {
                 />
               </div>
             )}
-            {hasMultiOrg && !orgFilter && (
+            {hasMultiOrg && !singleOrg && (
               <p className="text-[10px] text-muted-foreground tabular-nums">
                 {orgStocks
                   .sort((a, b) => b.stock_current - a.stock_current)
@@ -226,6 +250,20 @@ export default function ProductList() {
         );
       },
       meta: { align: "center", label: "Stock" },
+    },
+    {
+      id: "status",
+      header: () => (
+        <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
+          Statut
+        </span>
+      ),
+      cell: ({ row }) => {
+        const product = row.original;
+        const score = calculateStockScore(product.stock_current, product.stock_min);
+        return <StatusPill status={getStockBadgeVariant(score)} />;
+      },
+      meta: { align: "center", label: "Statut" },
     },
     {
       id: "actions",
@@ -328,63 +366,150 @@ export default function ProductList() {
     );
   }
 
+  if (isError) {
+    return <QueryError message="Impossible de charger les produits." onRetry={() => refetch()} />;
+  }
+
   return (
     <div className="space-y-3">
-      {/* Search + category filter */}
-      <div className="space-y-2">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">Stock produits</h1>
         <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Rechercher un produit..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-white dark:bg-card"
-            />
-          </div>
-          <TableColumnToggle table={table} />
+          {reorderCount > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => setReorderOpen(true)}
+            >
+              A commander
+              <span className="inline-flex items-center justify-center size-5 rounded-full bg-attention text-white text-[11px] font-bold font-heading leading-none">
+                {reorderCount}
+              </span>
+            </Button>
+          )}
+          <Button variant="outline-contrast" asChild>
+            <Link href="/produits/nouveau">
+              <Plus /> Ajouter un produit
+            </Link>
+          </Button>
         </div>
+      </div>
 
-        {/* Filters: org + categories on one line */}
-        {(isMultiOrg || categories.length > 0) && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            {isMultiOrg && (
-              <>
-                {userOrgs?.map((org) => (
-                  <button
-                    key={org.id}
-                    type="button"
-                    onClick={() => setOrgFilter(orgFilter === org.id ? "" : org.id)}
-                    className={cn(
-                      "rounded-full px-3 py-1 text-xs font-medium transition-colors cursor-pointer",
-                      orgFilter === org.id
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
-                    )}
-                  >
-                    {org.name}
-                  </button>
-                ))}
-                {categories.length > 0 && <div className="w-px h-4 bg-border mx-1" />}
-              </>
-            )}
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => setCategoryFilter(categoryFilter === cat.id ? "" : cat.id)}
+      {/* Search + filters on same line */}
+      <div className="flex items-center gap-2">
+        <SearchInput
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Rechercher un produit..."
+          className="bg-white dark:bg-card"
+          wrapperClassName="flex-1 min-w-0"
+        />
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          {isMultiOrg && (
+            <Popover>
+              <PopoverTrigger
                 className={cn(
-                  "rounded-full px-3 py-1 text-xs font-medium transition-colors cursor-pointer",
-                  categoryFilter === cat.id
+                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none cursor-pointer",
+                  filterOrgs.size > 0
                     ? "bg-primary text-primary-foreground"
                     : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
                 )}
               >
-                {cat.name}
-              </button>
-            ))}
-          </div>
-        )}
+                <Building2 className="size-3" />
+                Societe
+                {filterOrgs.size > 0 && (
+                  <>
+                    <span className="opacity-80 tabular-nums font-heading">{filterOrgs.size}</span>
+                    <span
+                      role="button"
+                      className="ml-0.5 rounded-full hover:bg-white/20 p-0.5 -mr-1"
+                      onClick={(e) => { e.stopPropagation(); setFilterOrgs(new Set()); }}
+                    >
+                      <X className="size-3" />
+                    </span>
+                  </>
+                )}
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-auto min-w-[180px] p-1 rounded-xl overflow-hidden">
+                <div className="flex flex-col gap-0.5 max-h-[280px] overflow-y-auto">
+                  {userOrgs?.map((org) => {
+                    const selected = filterOrgs.has(org.id);
+                    return (
+                      <button
+                        key={org.id}
+                        type="button"
+                        className={cn(
+                          "flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-lg transition-colors",
+                          selected ? "bg-primary/10 text-foreground font-medium" : "text-foreground/70 hover:bg-muted hover:text-foreground"
+                        )}
+                        onClick={() => setFilterOrgs((prev) => toggleSet(prev, org.id))}
+                      >
+                        <span className={cn("size-3.5 flex items-center justify-center", !selected && "opacity-0")}>
+                          <Check className="size-3.5" />
+                        </span>
+                        {org.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+
+          {categories.length > 0 && (
+            <Popover>
+              <PopoverTrigger
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none cursor-pointer",
+                  filterCategories.size > 0
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
+                )}
+              >
+                <Tag className="size-3" />
+                Categorie
+                {filterCategories.size > 0 && (
+                  <>
+                    <span className="opacity-80 tabular-nums font-heading">{filterCategories.size}</span>
+                    <span
+                      role="button"
+                      className="ml-0.5 rounded-full hover:bg-white/20 p-0.5 -mr-1"
+                      onClick={(e) => { e.stopPropagation(); setFilterCategories(new Set()); }}
+                    >
+                      <X className="size-3" />
+                    </span>
+                  </>
+                )}
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-auto min-w-[180px] p-1 rounded-xl overflow-hidden">
+                <div className="flex flex-col gap-0.5 max-h-[280px] overflow-y-auto">
+                  {categories.map((cat) => {
+                    const selected = filterCategories.has(cat.id);
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        className={cn(
+                          "flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-lg transition-colors",
+                          selected ? "bg-primary/10 text-foreground font-medium" : "text-foreground/70 hover:bg-muted hover:text-foreground"
+                        )}
+                        onClick={() => setFilterCategories((prev) => toggleSet(prev, cat.id))}
+                      >
+                        <span className={cn("size-3.5 flex items-center justify-center", !selected && "opacity-0")}>
+                          <Check className="size-3.5" />
+                        </span>
+                        {cat.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
+
+        <TableColumnToggle table={table} />
       </div>
 
       <div className="rounded-xl border bg-card overflow-hidden">
@@ -452,11 +577,11 @@ export default function ProductList() {
                       </div>
                       <h3 className="text-lg font-semibold">Aucun produit</h3>
                       <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-                        {searchQuery || categoryFilter
+                        {searchQuery || filterCategories.size > 0 || filterOrgs.size > 0
                           ? "Aucun produit ne correspond à cette recherche."
                           : "Ajoutez vos produits pour commencer à gérer votre stock."}
                       </p>
-                      {!searchQuery && !categoryFilter && (
+                      {!searchQuery && filterCategories.size === 0 && filterOrgs.size === 0 && (
                         <Button asChild className="mt-5">
                           <Link href="/produits/nouveau">Ajouter un produit</Link>
                         </Button>
@@ -492,6 +617,11 @@ export default function ProductList() {
         open={!!exitProductId}
         onClose={() => setExitProductId(null)}
         productId={exitProductId}
+      />
+      <ReorderRecapModal
+        open={reorderOpen}
+        onClose={() => setReorderOpen(false)}
+        products={allProducts}
       />
     </div>
   );

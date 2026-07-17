@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useOnboardingStore } from "../store";
 import { Building2, Loader2 } from "lucide-react";
 import { createOrganization } from "@/lib/supabase/queries/organizations";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 const sectors = [
   { value: "peinture", label: "Peinture", emoji: "🎨", desc: "Peintures et finitions" },

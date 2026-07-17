@@ -15,7 +15,7 @@ import { useOnboardingStore, ProductData } from "../store";
 import { Package, Loader2, Plus, X, Info, Check, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { createProduct } from "@/lib/supabase/queries/products";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 

@@ -2,7 +2,7 @@
 
 import React from "react";
 
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";

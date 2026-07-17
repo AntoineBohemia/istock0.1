@@ -15,7 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { createCategory, Category } from "@/lib/supabase/queries/categories";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 interface AddNewCategoryProps {

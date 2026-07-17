@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryStates, parseAsString } from "nuqs";
+import { useDebouncedValue } from "@/hooks/use-debounce";
 import {
   ColumnDef,
   SortingState,
@@ -10,10 +12,11 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, Loader2, Package, Plus, Search, UserPlus } from "lucide-react";
+import { ArrowUpDown, Loader2, Package, Plus, UserPlus } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/search-input";
+import { QueryError } from "@/components/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill, StockStatus } from "@/components/ui/status-pill";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -136,21 +139,16 @@ export default function TechniciansList() {
   const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
-  const { data: technicians = [], isLoading } = useTechnicians(currentOrganization?.id);
+  const { data: technicians = [], isLoading, isError, refetch } = useTechnicians(currentOrganization?.id);
 
   const [sorting, setSorting] = useState<SortingState>([{ id: "restock", desc: true }]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [{ search: searchQuery }, setFilters] = useQueryStates({
+    search: parseAsString.withDefault(""),
+  });
+  const setSearchQuery = (value: string) => setFilters({ search: value || null });
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
   const [restockTechId, setRestockTechId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  useEffect(() => {
-    debounceRef.current = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-    }, 300);
-    return () => clearTimeout(debounceRef.current);
-  }, [searchQuery]);
 
   // Filter data by search
   const filteredData = useMemo(() => {
@@ -391,6 +389,10 @@ export default function TechniciansList() {
     );
   }
 
+  if (isError) {
+    return <QueryError message="Impossible de charger les techniciens." onRetry={() => refetch()} />;
+  }
+
   const filteredCount = filteredData.length;
   const totalCount = technicians.length;
 
@@ -398,15 +400,13 @@ export default function TechniciansList() {
     <div className="space-y-3">
       {/* Search + filter chips */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher un technicien..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 bg-white dark:bg-card"
-          />
-        </div>
+        <SearchInput
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Rechercher un technicien..."
+          className="bg-white dark:bg-card"
+          wrapperClassName="flex-1"
+        />
         <TableColumnToggle table={table} />
       </div>
 

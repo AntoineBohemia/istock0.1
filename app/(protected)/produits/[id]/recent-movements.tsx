@@ -2,6 +2,7 @@
 
 import { useProductMovements } from "@/hooks/queries/use-stock-movements";
 import { MOVEMENT_TYPE_LABELS } from "@/lib/supabase/queries/stock-movements";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 interface RecentMovementsProps {
@@ -40,7 +41,18 @@ export default function RecentMovements({ productId }: RecentMovementsProps) {
       </div>
 
       {isLoading ? (
-        <div className="px-5 pb-4 text-sm text-muted-foreground">Chargement…</div>
+        <div className="divide-y">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="flex items-center gap-4 px-5 py-3">
+              <Skeleton className="h-5 w-10" />
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-3 w-24 flex-1" />
+              <Skeleton className="h-3 w-14" />
+              <Skeleton className="h-3 w-14" />
+              <Skeleton className="h-3 w-12" />
+            </div>
+          ))}
+        </div>
       ) : movements.length === 0 ? (
         <div className="px-5 pb-4 text-sm text-muted-foreground">Aucun mouvement enregistré</div>
       ) : (

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { Loader2, Minus, Plus, X } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -149,7 +149,7 @@ export default function RestockDialog({
                   if (e.target.value) handleAddProduct(e.target.value);
                 }}
                 disabled={availableProducts.length === 0}
-                className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 shadow-xs outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
+                className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
               >
                 <option value="" disabled>
                   {availableProducts.length === 0

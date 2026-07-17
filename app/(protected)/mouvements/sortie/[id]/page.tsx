@@ -88,7 +88,7 @@ export default async function OutcomeDetailPage({ params }: { params: Promise<{ 
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" asChild className="shrink-0 -ml-2">
+          <Button variant="ghost" size="icon" asChild className="shrink-0 -ml-2" aria-label="Retour aux mouvements">
             <Link href="/mouvements">
               <ArrowLeft className="size-4" />
             </Link>

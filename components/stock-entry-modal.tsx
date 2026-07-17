@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Minus, Plus } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -163,7 +163,7 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
                         onChange={(e) => field.onChange(e.target.value)}
                         disabled={!!productId}
                         className={cn(
-                          "appearance-none border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 pr-8 py-1.5 shadow-xs outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]",
+                          "appearance-none border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 pr-8 py-1.5 outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]",
                           !!productId && "opacity-50 cursor-not-allowed"
                         )}
                       >
@@ -246,7 +246,7 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
                               step="0.01"
                               placeholder="—"
                               autoFocus
-                              className="w-24 h-8 text-right text-sm bg-white dark:bg-card rounded-md border border-input shadow-xs focus-visible:ring-0 focus-visible:border-foreground/30 pr-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              className="w-24 h-8 text-right text-sm bg-white dark:bg-card rounded-md border border-input focus-visible:ring-0 focus-visible:border-foreground/30 pr-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               {...field}
                             />
                           </FormControl>

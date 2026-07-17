@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -57,6 +57,7 @@ export default function CreateTechnicianDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<FormValues>({
+    mode: "onTouched",
     resolver: zodResolver(FormSchema),
     defaultValues: {
       first_name: "",
@@ -184,7 +185,7 @@ export default function CreateTechnicianDialog({
                         <select
                           value={field.value || ""}
                           onChange={(e) => field.onChange(e.target.value)}
-                          className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 shadow-xs outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
+                          className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
                         >
                           <option value="" disabled>Organisation</option>
                           {userOrgs?.map((o) => (
@@ -219,7 +220,7 @@ export default function CreateTechnicianDialog({
                         <select
                           value={field.value || ""}
                           onChange={(e) => field.onChange(e.target.value)}
-                          className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 shadow-xs outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
+                          className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
                         >
                           <option value="">Taille vêtement</option>
                           {["XS", "S", "M", "L", "XL", "XXL", "3XL"].map((s) => (

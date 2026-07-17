@@ -183,7 +183,7 @@ export default async function TechnicianDetailPage({
       <div className="rounded-xl border bg-card p-6 space-y-5">
         {/* Identity + actions */}
         <div className="flex items-center gap-5">
-          <Button variant="ghost" size="icon" asChild className="shrink-0 -ml-2">
+          <Button variant="ghost" size="icon" asChild className="shrink-0 -ml-2" aria-label="Retour aux techniciens">
             <Link href="/techniciens">
               <ArrowLeft className="size-4" />
             </Link>

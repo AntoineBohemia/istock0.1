@@ -2,6 +2,7 @@
 
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useDebouncedValue } from "@/hooks/use-debounce";
 import {
   ColumnDef,
   SortingState,
@@ -12,7 +13,6 @@ import {
 } from "@tanstack/react-table";
 import {
   ArrowUpDown,
-  Search,
   History,
   CalendarDays,
   Building2,
@@ -40,7 +40,8 @@ import type { DateRange } from "react-day-picker";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/search-input";
+import { QueryError } from "@/components/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HeroNumber } from "@/components/ui/hero-number";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -377,20 +378,11 @@ export default function MovementsList() {
 
   // Search: local state for instant input, debounced for filtering
   const [searchInput, setSearchInput] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const debouncedSearch = useDebouncedValue(searchInput, 300);
   const isInitialMount = useRef(true);
 
-  const onSearchChange = useCallback((value: string) => {
-    setSearchInput(value);
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      startTransition(() => setDebouncedSearch(value));
-    }, 300);
-  }, []);
-
   // Fetch all movements (no org scoping — org is just a tag on entries)
-  const { data: movementsResult, isLoading } = useStockMovements({});
+  const { data: movementsResult, isLoading, isError, refetch } = useStockMovements({});
 
   const allMovements = movementsResult?.movements || [];
 
@@ -731,21 +723,23 @@ export default function MovementsList() {
     );
   }
 
+  if (isError) {
+    return <QueryError message="Impossible de charger les mouvements." onRetry={() => refetch()} />;
+  }
+
   const totalCount = allMovements.length;
 
   return (
     <div className="space-y-3">
       {/* Search + date picker + type chips */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher un mouvement..."
-            value={searchInput}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-9 bg-white dark:bg-card"
-          />
-        </div>
+        <SearchInput
+          value={searchInput}
+          onChange={setSearchInput}
+          placeholder="Rechercher un mouvement..."
+          className="bg-white dark:bg-card"
+          wrapperClassName="flex-1"
+        />
 
         <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
 

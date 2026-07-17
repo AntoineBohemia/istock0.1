@@ -14,7 +14,7 @@ import {
   Search,
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import {
   Dialog,

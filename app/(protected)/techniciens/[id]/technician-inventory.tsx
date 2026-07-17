@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Package, ImageIcon, Search, ArrowUpDown, Users, ChevronDown, X } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/search-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
@@ -204,15 +205,13 @@ export default function TechnicianInventory({
     <div className="space-y-3">
       {/* Search + Compare selector */}
       <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher un produit..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 bg-white dark:bg-card"
-          />
-        </div>
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Rechercher un produit..."
+          className="bg-white dark:bg-card"
+          wrapperClassName="flex-1"
+        />
         <CompareSelector
           technicianId={technicianId}
           compared={compared}

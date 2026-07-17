@@ -2,10 +2,10 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Loader2, Package, Search, ScanLine } from "lucide-react";
+import { Loader2, Package, ScanLine } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/search-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -79,15 +79,11 @@ export default function MobileTechniciansList() {
     <div className="space-y-3">
       {/* Search */}
       <div className="sticky top-0 z-10 -mx-4 bg-background px-4 pb-2 pt-0">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher un technicien..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Rechercher un technicien..."
+        />
       </div>
 
       {/* List */}

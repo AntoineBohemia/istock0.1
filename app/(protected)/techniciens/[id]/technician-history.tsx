@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
-import { History, ImageIcon, Package, Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { History, ImageIcon, Package } from "lucide-react";
+import { SearchInput } from "@/components/search-input";
 
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
@@ -121,15 +121,12 @@ export default function TechnicianHistory({ movements, year }: TechnicianHistory
   return (
     <div className="space-y-3">
       {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Rechercher un produit..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9 bg-white dark:bg-card"
-        />
-      </div>
+      <SearchInput
+        value={search}
+        onChange={setSearch}
+        placeholder="Rechercher un produit..."
+        className="bg-white dark:bg-card"
+      />
 
       {/* Summary */}
       <p className="text-sm text-muted-foreground tabular-nums px-1">

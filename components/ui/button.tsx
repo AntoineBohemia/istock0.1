@@ -15,7 +15,7 @@ const buttonVariants = cva(
     "active:scale-[0.97] active:duration-75",
     // focus: outline only, no box-shadow
     "outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary/70",
-    "disabled:pointer-events-none disabled:opacity-40",
+    "disabled:pointer-events-none disabled:opacity-50",
     "motion-reduce:transition-none motion-reduce:active:scale-100",
     "[&_svg]:size-[1.05rem] [&_svg]:shrink-0",
   ],

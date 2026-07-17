@@ -2,11 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useQueryStates, parseAsString } from "nuqs";
-import { Search, Wrench, AlertTriangle } from "lucide-react";
+import { Wrench, AlertTriangle, ArrowUpDown, Check } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/search-input";
+import { QueryError } from "@/components/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { HeroNumber } from "@/components/ui/hero-number";
@@ -14,6 +15,7 @@ import { HeroNumber } from "@/components/ui/hero-number";
 import { EquipmentProduct } from "@/lib/supabase/queries/equipment";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useEquipmentProducts } from "@/hooks/queries";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import ProductIconDisplay from "@/components/product-icon-display";
 import { cn } from "@/lib/utils";
 
@@ -76,7 +78,7 @@ export default function EquipmentList() {
     search: parseAsString.withDefault(""),
   });
 
-  const { data: equipment = [], isLoading } = useEquipmentProducts({
+  const { data: equipment = [], isLoading, isError, refetch } = useEquipmentProducts({
     organizationId: currentOrganization?.id,
     search: search || undefined,
   });
@@ -108,11 +110,28 @@ export default function EquipmentList() {
         <Skeleton className="h-9 w-full rounded-md" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="h-32 rounded-xl" />
+            <div key={i} className="rounded-xl border bg-card p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <Skeleton className="size-10 rounded-lg" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Skeleton className="size-6 rounded-full" />
+                <Skeleton className="size-6 rounded-full" />
+                <Skeleton className="h-3 w-16 ml-auto" />
+              </div>
+            </div>
           ))}
         </div>
       </div>
     );
+  }
+
+  if (isError) {
+    return <QueryError message="Impossible de charger l'outillage." onRetry={() => refetch()} />;
   }
 
   const totalCount = equipment.length;
@@ -142,26 +161,50 @@ export default function EquipmentList() {
 
       {/* ── Search + filters + sort ── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher un outil..."
-            value={search}
-            onChange={(e) => setQueryStates({ search: e.target.value || null })}
-            className="pl-9 bg-white dark:bg-card"
-          />
-        </div>
+        <SearchInput
+          value={search}
+          onChange={(v) => setQueryStates({ search: v || null })}
+          placeholder="Rechercher un outil..."
+          className="bg-white dark:bg-card"
+          wrapperClassName="flex-1"
+        />
 
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as SortKey)}
-          className="border-input bg-white dark:bg-card text-xs flex h-8 rounded-md border px-2 py-1 shadow-xs outline-none focus:border-foreground/30 sm:ml-auto shrink-0"
-        >
-          <option value="name">Tri : Nom</option>
-          <option value="available">Tri : Disponible</option>
-          <option value="value">Tri : Valeur</option>
-          <option value="alerts">Tri : Alertes</option>
-        </select>
+        <Popover>
+          <PopoverTrigger
+            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none cursor-pointer bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10] shrink-0"
+          >
+            <ArrowUpDown className="size-3" />
+            {{ name: "Nom", available: "Disponible", value: "Valeur", alerts: "Alertes" }[sortBy]}
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-auto min-w-[140px] p-1 rounded-xl overflow-hidden">
+            <div className="flex flex-col gap-0.5">
+              {([
+                { value: "name", label: "Nom" },
+                { value: "available", label: "Disponible" },
+                { value: "value", label: "Valeur" },
+                { value: "alerts", label: "Alertes" },
+              ] as const).map((opt) => {
+                const active = sortBy === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={cn(
+                      "flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-lg transition-colors",
+                      active ? "bg-primary/10 text-foreground font-medium" : "text-foreground/70 hover:bg-muted hover:text-foreground"
+                    )}
+                    onClick={() => setSortBy(opt.value)}
+                  >
+                    <span className={cn("size-3.5 flex items-center justify-center", !active && "opacity-0")}>
+                      <Check className="size-3.5" />
+                    </span>
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* ── Cards ── */}
@@ -184,8 +227,11 @@ export default function EquipmentList() {
       ) : totalCount === 0 ? (
         <div className="rounded-xl border bg-card">
           <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+            <div className="flex size-12 items-center justify-center rounded-2xl bg-muted mb-3">
+              <Wrench className="size-5 text-muted-foreground" />
+            </div>
             <p className="text-muted-foreground text-sm">
-              Aucun outil ne correspond a cette recherche.
+              Aucun outil ne correspond à cette recherche.
             </p>
           </div>
         </div>

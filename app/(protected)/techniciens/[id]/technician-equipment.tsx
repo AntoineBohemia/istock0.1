@@ -1,13 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Wrench, UserMinus, Search, Clock, icons } from "lucide-react";
-import { toast } from "sonner";
+import { Wrench, UserMinus, Clock, icons } from "lucide-react";
+import { toast } from "@/lib/toast";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import Image from "next/image";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/search-input";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { useTechnicianEquipment, useAvailableEquipment } from "@/hooks/queries";
@@ -213,7 +213,17 @@ export default function TechnicianEquipment({
         <Skeleton className="h-9 w-full rounded-md" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-xl" />
+            <div key={i} className="rounded-xl border bg-card p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <Skeleton className="size-9 rounded-lg" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+                <Skeleton className="h-7 w-20 rounded-[7px]" />
+              </div>
+              <Skeleton className="h-1 w-full rounded-full" />
+            </div>
           ))}
         </div>
       </div>
@@ -228,7 +238,7 @@ export default function TechnicianEquipment({
           <select
             value={assigningProduct}
             onChange={(e) => setAssigningProduct(e.target.value)}
-            className="border-input bg-white dark:bg-card text-sm flex h-9 flex-1 rounded-md border px-3 py-1.5 shadow-xs outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
+            className="border-input bg-white dark:bg-card text-sm flex h-9 flex-1 rounded-md border px-3 py-1.5 outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
           >
             <option value="">Assigner un outil…</option>
             {availableEquipment.map((p) => (
@@ -250,15 +260,12 @@ export default function TechnicianEquipment({
 
       {/* ── Search ── */}
       {equipment.length > 5 && (
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 bg-white dark:bg-card"
-          />
-        </div>
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Rechercher…"
+          className="bg-white dark:bg-card"
+        />
       )}
 
       {/* ── Equipment grid — CD4: ownership, each card = precious item ── */}
@@ -268,9 +275,9 @@ export default function TechnicianEquipment({
             <div className="flex size-14 items-center justify-center rounded-2xl bg-muted mb-3">
               <Wrench className="size-6 text-muted-foreground" />
             </div>
-            <h3 className="text-sm font-semibold">Aucun outil equipe</h3>
+            <h3 className="text-sm font-semibold">Aucun outil équipé</h3>
             <p className="text-xs text-muted-foreground mt-1 max-w-[220px]">
-              Utilisez les outils disponibles ci-dessus pour equiper {technicianName}.
+              Utilisez les outils disponibles ci-dessus pour équiper {technicianName}.
             </p>
           </div>
         </div>

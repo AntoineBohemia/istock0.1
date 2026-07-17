@@ -40,6 +40,7 @@ export default function Page() {
   const supabase = createClient();
 
   const form = useForm<RegisterFormValues>({
+    mode: "onTouched",
     resolver: zodResolver(registerSchema),
     defaultValues: {
       firstName: "",
