@@ -126,7 +126,7 @@ export async function createSupplier(
     throw new Error(`Erreur lors de la création du fournisseur: ${error.message}`);
   }
 
-  return data;
+  return data as unknown as Supplier;
 }
 
 /**
@@ -149,7 +149,7 @@ export async function updateSupplier(
     throw new Error(`Erreur lors de la mise à jour du fournisseur: ${error.message}`);
   }
 
-  return supplier;
+  return supplier as unknown as Supplier;
 }
 
 /**
