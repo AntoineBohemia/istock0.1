@@ -1,17 +1,19 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, Globe, Loader2, Mail, Package, Truck } from "lucide-react";
+import { ChevronLeft, Globe, Loader2, Mail, Package, Pencil, Truck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ui/status-pill";
 import { useSupplier } from "@/hooks/queries/use-suppliers";
 import { calculateStockScore, getStockBadgeVariant } from "@/lib/utils/stock";
+import EditSupplierModal from "@/components/edit-supplier-modal";
 
 export default function SupplierDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data: supplier, isLoading } = useSupplier(id);
+  const [editOpen, setEditOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -74,10 +76,19 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
             )}
           </div>
         </div>
-        <span className="text-sm text-muted-foreground tabular-nums font-heading shrink-0 mt-1">
-          {supplier.products.length} produit{supplier.products.length > 1 ? "s" : ""}
-        </span>
+        <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="shrink-0">
+          <Pencil className="mr-2 size-3.5" />
+          Modifier
+        </Button>
       </div>
+
+      {/* Product count */}
+      {supplier.products.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {supplier.products.length} produit{supplier.products.length > 1 ? "s" : ""} lié
+          {supplier.products.length > 1 ? "s" : ""}
+        </p>
+      )}
 
       {/* Products */}
       {supplier.products.length === 0 ? (
@@ -108,6 +119,8 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
           })}
         </div>
       )}
+
+      <EditSupplierModal supplier={supplier} open={editOpen} onOpenChange={setEditOpen} />
     </div>
   );
 }

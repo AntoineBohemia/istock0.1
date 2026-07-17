@@ -2,11 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import {
-  createSupplier,
-  updateSupplier,
-  deleteSupplier,
-} from "@/lib/supabase/queries/suppliers";
+import { createSupplier, updateSupplier, deleteSupplier } from "@/lib/supabase/queries/suppliers";
 
 export function useCreateSupplier() {
   const qc = useQueryClient();
@@ -15,11 +11,13 @@ export function useCreateSupplier() {
       organizationId,
       name,
       websiteUrl,
+      email,
     }: {
       organizationId: string;
       name: string;
       websiteUrl?: string | null;
-    }) => createSupplier(organizationId, name, websiteUrl),
+      email?: string | null;
+    }) => createSupplier(organizationId, name, websiteUrl, email),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.suppliers.all });
     },
@@ -34,7 +32,7 @@ export function useUpdateSupplier() {
       data,
     }: {
       id: string;
-      data: { name?: string; website_url?: string | null };
+      data: { name?: string; email?: string | null; website_url?: string | null };
     }) => updateSupplier(id, data),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.suppliers.all });

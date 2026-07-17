@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Loader2, Truck, Globe, Mail } from "lucide-react";
+import { Loader2, Truck, Globe, Mail, Plus } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/search-input";
 import { StatusPill } from "@/components/ui/status-pill";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -34,7 +35,7 @@ function ProductDot({ product, index }: { product: SupplierProduct; index: numbe
             />
           </div>
         </TooltipTrigger>
-        <TooltipContent side="top" className="flex items-center gap-2">
+        <TooltipContent side="top" sideOffset={8} className="flex items-center gap-2">
           <span className="text-xs font-medium">{product.name}</span>
           <span className="font-heading tabular-nums text-xs font-bold">
             {product.stock_current ?? 0}
@@ -71,7 +72,14 @@ export default function FournisseursPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Fournisseurs</h1>
-        <AddNewSupplier />
+        <AddNewSupplier
+          trigger={
+            <Button>
+              <Plus className="mr-2 size-4" />
+              Ajouter un fournisseur
+            </Button>
+          }
+        />
       </div>
 
       {suppliers.length > 3 && (
@@ -79,6 +87,7 @@ export default function FournisseursPage() {
           value={search}
           onChange={setSearch}
           placeholder="Rechercher un fournisseur..."
+          className="bg-white dark:bg-card"
         />
       )}
 
@@ -97,7 +106,14 @@ export default function FournisseursPage() {
           </p>
           {!search && (
             <div className="mt-4">
-              <AddNewSupplier />
+              <AddNewSupplier
+                trigger={
+                  <Button>
+                    <Plus className="mr-2 size-4" />
+                    Ajouter un fournisseur
+                  </Button>
+                }
+              />
             </div>
           )}
         </div>
