@@ -40,6 +40,12 @@ export const page_routes: PageRoutesType[] = [
         allowedRoles: ["owner", "admin"],
       },
       {
+        title: "Fournisseurs",
+        href: "/fournisseurs",
+        icon: "Truck",
+        allowedRoles: ["owner", "admin"],
+      },
+      {
         title: "Achats",
         href: "/achats",
         icon: "ShoppingCart",

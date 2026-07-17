@@ -28,6 +28,7 @@ describe("filterRoutesByRole — owner/admin (full access)", () => {
     expect(hrefs).toContain("/actions");
     expect(hrefs).toContain("/produits");
     expect(hrefs).toContain("/outillage");
+    expect(hrefs).toContain("/fournisseurs");
     expect(hrefs).toContain("/achats");
     expect(hrefs).toContain("/techniciens");
     expect(hrefs).toContain("/mouvements");
@@ -45,6 +46,7 @@ describe("filterRoutesByRole — member (restricted to /actions)", () => {
   it("does NOT show other routes", () => {
     expect(hrefs).not.toContain("/produits");
     expect(hrefs).not.toContain("/outillage");
+    expect(hrefs).not.toContain("/fournisseurs");
     expect(hrefs).not.toContain("/achats");
     expect(hrefs).not.toContain("/techniciens");
     expect(hrefs).not.toContain("/mouvements");

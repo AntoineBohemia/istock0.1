@@ -1,9 +1,7 @@
-import { generateMeta } from "@/lib/utils";
-import { ArrowLeft } from "lucide-react";
+import { generateMeta, cn } from "@/lib/utils";
 
-import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ui/status-pill";
-import Link from "next/link";
+import { PageHeader } from "@/components/page-header";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { calculateStockScore, getStockBadgeVariant, getStockScoreColor } from "@/lib/utils/stock";
@@ -14,7 +12,6 @@ import ProductIconDisplay from "@/components/product-icon-display";
 import StockActions from "./stock-actions";
 import RecentMovements from "./recent-movements";
 import PriceHistory from "./price-history";
-import { cn } from "@/lib/utils";
 
 const ProductQRCode = dynamic(() => import("@/components/product-qr-code"));
 
@@ -58,29 +55,22 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   return (
     <div className="space-y-5 pb-20">
       {/* ── Header ── */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" asChild className="shrink-0 -ml-2">
-              <Link href="/produits">
-                <ArrowLeft className="size-4" />
-              </Link>
-            </Button>
-            <div className="min-w-0">
-              <h1 className="font-heading text-2xl font-bold tracking-tight truncate">
-                {product.name}
-              </h1>
-              {product.sku && (
-                <p className="text-sm text-muted-foreground font-mono">{product.sku}</p>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <EditProductButton product={product as any} />
-          <ArchiveProductButton productId={id} productName={product.name} />
-        </div>
-      </div>
+      <PageHeader
+        backHref="/produits"
+        backLabel="Retour aux produits"
+        title={product.name}
+        subtitle={
+          product.sku ? (
+            <p className="text-sm text-muted-foreground font-mono">{product.sku}</p>
+          ) : undefined
+        }
+        actions={
+          <>
+            <EditProductButton product={product as any} />
+            <ArchiveProductButton productId={id} productName={product.name} />
+          </>
+        }
+      />
 
       {/* ── Content ── */}
       <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
@@ -157,20 +147,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               {product.supplier?.name && (
                 <div className="flex justify-between px-5 py-2.5">
                   <span className="text-muted-foreground">Fournisseur</span>
-                  <span className="font-medium">
-                    {product.supplier.website_url ? (
-                      <a
-                        href={product.supplier.website_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline"
-                      >
-                        {product.supplier.name}
-                      </a>
-                    ) : (
-                      product.supplier.name
-                    )}
-                  </span>
+                  <a
+                    href={`/fournisseurs/${product.supplier.id}`}
+                    className="font-medium underline underline-offset-2 decoration-muted-foreground/40 hover:decoration-foreground transition-colors"
+                  >
+                    {product.supplier.name}
+                  </a>
                 </div>
               )}
               {product.description && (

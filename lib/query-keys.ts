@@ -71,6 +71,8 @@ export const queryKeys = {
   suppliers: {
     all: ["suppliers"] as const,
     list: (orgId?: string) => [...queryKeys.suppliers.all, "list", orgId] as const,
+    withProducts: (orgId: string) => [...queryKeys.suppliers.all, "withProducts", orgId] as const,
+    detail: (id: string) => [...queryKeys.suppliers.all, "detail", id] as const,
   },
 
   organizations: {
@@ -84,13 +86,12 @@ export const queryKeys = {
   equipment: {
     all: ["equipment"] as const,
     lists: () => [...queryKeys.equipment.all, "list"] as const,
-    list: (filters: { organizationId?: string; search?: string; categoryId?: string }) => [...queryKeys.equipment.lists(), filters] as const,
+    list: (filters: { organizationId?: string; search?: string; categoryId?: string }) =>
+      [...queryKeys.equipment.lists(), filters] as const,
     details: () => [...queryKeys.equipment.all, "detail"] as const,
     detail: (id: string) => [...queryKeys.equipment.details(), id] as const,
-    byTechnician: (techId: string) =>
-      [...queryKeys.equipment.all, "byTechnician", techId] as const,
-    available: (orgId?: string) =>
-      [...queryKeys.equipment.all, "available", orgId] as const,
+    byTechnician: (techId: string) => [...queryKeys.equipment.all, "byTechnician", techId] as const,
+    available: (orgId?: string) => [...queryKeys.equipment.all, "available", orgId] as const,
   },
 
   inventory: {

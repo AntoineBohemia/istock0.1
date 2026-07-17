@@ -3,9 +3,25 @@ import { createClient } from "@/lib/supabase/client";
 export interface Supplier {
   id: string;
   name: string;
+  email: string | null;
   website_url: string | null;
   organization_id: string | null;
   created_at: string | null;
+}
+
+export interface SupplierProduct {
+  id: string;
+  name: string;
+  stock_current: number | null;
+  stock_min: number | null;
+  icon_name: string | null;
+  icon_color: string | null;
+  image_url: string | null;
+  archived_at: string | null;
+}
+
+export interface SupplierWithProducts extends Supplier {
+  products: SupplierProduct[];
 }
 
 /**
@@ -14,10 +30,7 @@ export interface Supplier {
 export async function getSuppliers(organizationId?: string): Promise<Supplier[]> {
   const supabase = createClient();
 
-  let query = supabase
-    .from("suppliers")
-    .select("*")
-    .order("name", { ascending: true });
+  let query = supabase.from("suppliers").select("*").order("name", { ascending: true });
 
   if (organizationId) {
     query = query.eq("organization_id", organizationId);
@@ -33,12 +46,64 @@ export async function getSuppliers(organizationId?: string): Promise<Supplier[]>
 }
 
 /**
+ * Récupère tous les fournisseurs avec leurs produits liés
+ */
+export async function getSuppliersWithProducts(
+  organizationId: string
+): Promise<SupplierWithProducts[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("suppliers")
+    .select(
+      "*, products:products(id, name, stock_current, stock_min, icon_name, icon_color, image_url, archived_at)"
+    )
+    .eq("organization_id", organizationId)
+    .order("name", { ascending: true });
+
+  if (error) {
+    throw new Error(`Erreur lors de la récupération des fournisseurs: ${error.message}`);
+  }
+
+  return (data ?? []).map((s) => ({
+    ...s,
+    products: (s.products ?? []).filter((p: SupplierProduct) => !p.archived_at),
+  }));
+}
+
+/**
+ * Récupère un fournisseur par ID avec ses produits
+ */
+export async function getSupplier(id: string): Promise<SupplierWithProducts | null> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("suppliers")
+    .select(
+      "*, products:products(id, name, stock_current, stock_min, icon_name, icon_color, image_url, archived_at)"
+    )
+    .eq("id", id)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") return null;
+    throw new Error(`Erreur lors de la récupération du fournisseur: ${error.message}`);
+  }
+
+  return {
+    ...data,
+    products: (data.products ?? []).filter((p: SupplierProduct) => !p.archived_at),
+  };
+}
+
+/**
  * Crée un nouveau fournisseur
  */
 export async function createSupplier(
   organizationId: string,
   name: string,
-  websiteUrl?: string | null
+  websiteUrl?: string | null,
+  email?: string | null
 ): Promise<Supplier> {
   const supabase = createClient();
 
@@ -48,6 +113,7 @@ export async function createSupplier(
       organization_id: organizationId,
       name,
       website_url: websiteUrl || null,
+      email: email || null,
     })
     .select()
     .single();
@@ -64,7 +130,7 @@ export async function createSupplier(
  */
 export async function updateSupplier(
   id: string,
-  data: { name?: string; website_url?: string | null }
+  data: { name?: string; email?: string | null; website_url?: string | null }
 ): Promise<Supplier> {
   const supabase = createClient();
 
@@ -98,10 +164,7 @@ export async function deleteSupplier(id: string): Promise<void> {
     throw new Error("Impossible de supprimer un fournisseur utilisé par des produits");
   }
 
-  const { error } = await supabase
-    .from("suppliers")
-    .delete()
-    .eq("id", id);
+  const { error } = await supabase.from("suppliers").delete().eq("id", id);
 
   if (error) {
     throw new Error(`Erreur lors de la suppression du fournisseur: ${error.message}`);
