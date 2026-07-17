@@ -1,14 +1,15 @@
 -- Add optional invoice reference to stock movements (entries only)
 ALTER TABLE stock_movements ADD COLUMN invoice_reference TEXT NULL;
 
--- Update create_stock_entry RPC to accept invoice_reference
+-- Update create_stock_entry RPC to accept invoice_reference + optional created_at override
 CREATE OR REPLACE FUNCTION create_stock_entry(
   p_organization_id UUID,
   p_product_id UUID,
   p_quantity INT,
   p_supplier_id UUID DEFAULT NULL,
   p_unit_price NUMERIC DEFAULT NULL,
-  p_invoice_reference TEXT DEFAULT NULL
+  p_invoice_reference TEXT DEFAULT NULL,
+  p_created_at TIMESTAMPTZ DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -18,10 +19,23 @@ DECLARE
   v_product RECORD;
   v_movement RECORD;
   v_price NUMERIC;
+  v_created_at TIMESTAMPTZ;
 BEGIN
   IF p_quantity <= 0 THEN
     RAISE EXCEPTION 'La quantité doit être positive';
   END IF;
+
+  -- Validate optional date override
+  IF p_created_at IS NOT NULL THEN
+    IF p_created_at > NOW() THEN
+      RAISE EXCEPTION 'La date ne peut pas être dans le futur';
+    END IF;
+    IF p_created_at < NOW() - INTERVAL '90 days' THEN
+      RAISE EXCEPTION 'La date ne peut pas remonter à plus de 90 jours';
+    END IF;
+  END IF;
+
+  v_created_at := COALESCE(p_created_at, NOW());
 
   SELECT id, name, stock_current, price
   INTO v_product
@@ -35,8 +49,8 @@ BEGIN
 
   v_price := COALESCE(p_unit_price, v_product.price);
 
-  INSERT INTO stock_movements (organization_id, product_id, quantity, movement_type, supplier_id, unit_price, invoice_reference)
-  VALUES (p_organization_id, p_product_id, p_quantity, 'entry', p_supplier_id, v_price, p_invoice_reference)
+  INSERT INTO stock_movements (organization_id, product_id, quantity, movement_type, supplier_id, unit_price, invoice_reference, created_at)
+  VALUES (p_organization_id, p_product_id, p_quantity, 'entry', p_supplier_id, v_price, p_invoice_reference, v_created_at)
   RETURNING id, product_id, quantity, movement_type, technician_id, organization_id, created_at, supplier_id, unit_price, invoice_reference
   INTO v_movement;
 

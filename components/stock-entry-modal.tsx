@@ -16,7 +16,12 @@ import { useProducts, useOrganizations } from "@/hooks/queries";
 import { useCreateStockEntry } from "@/hooks/mutations";
 
 import { Checkbox } from "@/components/ui/checkbox";
+import { DatePicker } from "@/components/ui/date-picker";
 import { cn } from "@/lib/utils";
+
+const today = new Date();
+const todayStr = today.toISOString().split("T")[0];
+const ninetyDaysAgo = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
 
 const EntrySchema = z.object({
   organization_id: z.string().min(1, "Sélectionnez une organisation"),
@@ -24,6 +29,7 @@ const EntrySchema = z.object({
   quantity: z.number().min(1, "Minimum 1"),
   unit_price: z.string().optional(),
   invoice_reference: z.string().optional(),
+  entry_date: z.string().optional(),
 });
 
 type EntryValues = z.infer<typeof EntrySchema>;
@@ -71,6 +77,7 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
         quantity: 1,
         unit_price: "",
         invoice_reference: "",
+        entry_date: "",
       });
     }
   }, [open]);
@@ -96,6 +103,7 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
         quantity: data.quantity,
         unitPrice: price,
         invoiceReference: data.invoice_reference || undefined,
+        entryDate: data.entry_date ? new Date(data.entry_date).toISOString() : undefined,
       },
       {
         onSuccess: () => {
@@ -337,6 +345,32 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
                       />
                     </FormControl>
                   </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Date d'entrée */}
+            <FormField
+              control={form.control}
+              name="entry_date"
+              render={({ field }) => (
+                <FormItem className="border-t px-5 py-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Date d'entrée</span>
+                    <DatePicker
+                      value={field.value ? new Date(field.value) : undefined}
+                      onChange={(date) => field.onChange(date?.toISOString().split("T")[0] ?? "")}
+                      disabled={{ after: today, before: ninetyDaysAgo }}
+                      placeholder="Aujourd'hui"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  {field.value && field.value !== todayStr && (
+                    <p className="text-right text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+                      Date antérieure à aujourd'hui
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}

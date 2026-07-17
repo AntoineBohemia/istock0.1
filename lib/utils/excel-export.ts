@@ -158,21 +158,10 @@ export async function exportStockAtDateExcel({
   });
   sheet.getRow(7).height = 24;
 
-  // ─── ROWS 8–9: separator ──────────────────────────────
-  sheet.getRow(8).height = 4;
-  for (let c = 1; c <= 11; c++) {
-    sheet.getCell(9, c).border = { bottom: BORDER_THIN };
-  }
-  sheet.getRow(9).height = 4;
+  // ─── ROW 8: spacer ────────────────────────────────────
+  sheet.getRow(8).height = 12;
 
-  // ─── ROW 10: spacer ───────────────────────────────────
-  sheet.getRow(10).height = 4;
-
-  // ─── ROW 11: empty (so addRow lands on 12) ────────────
-  // Rows 1-11 are manual, row 12 will be the header
-  sheet.getRow(11).height = 4;
-
-  // ─── ROW 12: Table headers ────────────────────────────
+  // ─── ROW 9: Table headers ────────────────────────────
   const stockColHeader = `Stock au ${endLabel}`;
   const headers = [
     "Produit",
@@ -188,8 +177,7 @@ export async function exportStockAtDateExcel({
     "Valeur stock HT",
   ];
 
-  // addRow places at next available row
-  const headerRow = sheet.getRow(12);
+  const headerRow = sheet.getRow(9);
   headers.forEach((h, i) => {
     headerRow.getCell(i + 1).value = h;
   });
@@ -206,7 +194,7 @@ export async function exportStockAtDateExcel({
     headerRow.getCell(col).alignment = { vertical: "middle", horizontal: "left", wrapText: true };
   });
 
-  // ─── Data rows (starting row 13) ──────────────────────
+  // ─── Data rows (starting row 10) ──────────────────────
   const statusStyles: Record<string, { fg: string; bg: string }> = {
     Critique: { fg: COLORS.critique, bg: COLORS.critiqueBg },
     Attention: { fg: COLORS.attention, bg: COLORS.attentionBg },
@@ -349,8 +337,8 @@ export async function exportStockAtDateExcel({
 
   // ─── Auto-filter ──────────────────────────────────────
   sheet.autoFilter = {
-    from: { row: 12, column: 1 },
-    to: { row: 12 + data.length, column: 11 },
+    from: { row: 9, column: 1 },
+    to: { row: 9 + data.length, column: 11 },
   };
 
   // ─── Print setup ──────────────────────────────────────

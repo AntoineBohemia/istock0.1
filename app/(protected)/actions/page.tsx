@@ -19,6 +19,7 @@ import {
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { StatusPill } from "@/components/ui/status-pill";
@@ -125,7 +126,13 @@ export default function GlobalPage() {
   // Quantité (single product mode)
   const [quantity, setQuantity] = useState<number>(1);
   const [invoiceRef, setInvoiceRef] = useState("");
+  const [entryDate, setEntryDate] = useState<Date | undefined>(undefined);
   const quantityInputRef = useRef<HTMLInputElement>(null);
+  const todayDate = useMemo(() => new Date(), []);
+  const ninetyDaysAgo = useMemo(
+    () => new Date(todayDate.getTime() - 90 * 24 * 60 * 60 * 1000),
+    [todayDate]
+  );
 
   // Journal
   const [session, setSession] = useState<SessionEntry[]>([]);
@@ -210,6 +217,7 @@ export default function GlobalPage() {
       setCart([]);
       setQuantity(1);
       setInvoiceRef("");
+      setEntryDate(undefined);
     }
   }, [step, actionMode]);
 
@@ -334,6 +342,7 @@ export default function GlobalPage() {
       toast.success(`${sign}${quantity} ${product.name} · ${stockAfter} en stock`);
       setQuantity(1);
       setInvoiceRef("");
+      setEntryDate(undefined);
 
       if (isEntry) {
         setTimeout(() => quantityInputRef.current?.focus(), 60);
@@ -354,6 +363,7 @@ export default function GlobalPage() {
           productId: product.id,
           quantity,
           invoiceReference: invoiceRef || undefined,
+          entryDate: entryDate?.toISOString(),
         },
         { onSuccess, onError }
       );
@@ -363,7 +373,17 @@ export default function GlobalPage() {
         { onSuccess, onError }
       );
     }
-  }, [product, orgId, quantity, actionMode, isSubmitting, invoiceRef, createEntry, createExit]);
+  }, [
+    product,
+    orgId,
+    quantity,
+    actionMode,
+    isSubmitting,
+    invoiceRef,
+    entryDate,
+    createEntry,
+    createExit,
+  ]);
 
   // ─── Soumission batch (mode technicien) ───────────────
   const handleBatchSubmit = useCallback(async () => {
@@ -1019,13 +1039,22 @@ export default function GlobalPage() {
                 <div className="h-px bg-border" />
 
                 {actionMode === "entry" && (
-                  <Input
-                    type="text"
-                    placeholder="Réf. facture (optionnel)"
-                    value={invoiceRef}
-                    onChange={(e) => setInvoiceRef(e.target.value)}
-                    className="text-sm bg-white dark:bg-card"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      placeholder="Réf. facture (optionnel)"
+                      value={invoiceRef}
+                      onChange={(e) => setInvoiceRef(e.target.value)}
+                      className="text-sm bg-white dark:bg-card flex-1"
+                    />
+                    <DatePicker
+                      value={entryDate}
+                      onChange={setEntryDate}
+                      disabled={{ after: todayDate, before: ninetyDaysAgo }}
+                      placeholder="Aujourd'hui"
+                      className="h-9 text-sm"
+                    />
+                  </div>
                 )}
 
                 <div className="flex gap-2 items-center">

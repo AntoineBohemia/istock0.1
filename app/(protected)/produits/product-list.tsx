@@ -229,6 +229,17 @@ export default function ProductList() {
       meta: { label: "Stock" },
     },
     {
+      id: "supplier",
+      accessorFn: (row) => row.supplier?.name ?? "",
+      header: ({ column }) => <SortHeader label="Fournisseur" column={column} />,
+      cell: ({ row }) => {
+        const supplier = row.original.supplier;
+        if (!supplier) return <span className="text-muted-foreground">—</span>;
+        return <span className="text-sm">{supplier.name}</span>;
+      },
+      meta: { label: "Fournisseur" },
+    },
+    {
       id: "status",
       header: () => (
         <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
@@ -251,6 +262,17 @@ export default function ProductList() {
         return (
           <div className="flex items-center justify-end gap-1.5">
             <Button
+              size="sm"
+              className="h-7 px-2.5 text-xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEntryProductId(product.id);
+              }}
+            >
+              <ArrowDownToLine className="size-3.5" />
+              Entrer en stock
+            </Button>
+            <Button
               variant="outline"
               size="sm"
               className="h-7 px-2.5 text-xs"
@@ -261,17 +283,6 @@ export default function ProductList() {
             >
               <ArrowUpFromLine className="size-3.5" />
               Sortie de stock
-            </Button>
-            <Button
-              size="sm"
-              className="h-7 px-2.5 text-xs"
-              onClick={(e) => {
-                e.stopPropagation();
-                setEntryProductId(product.id);
-              }}
-            >
-              <ArrowDownToLine className="size-3.5" />
-              Entrer en stock
             </Button>
           </div>
         );

@@ -11,6 +11,7 @@ interface CreateEntryParams {
   supplierId?: string;
   unitPrice?: number;
   invoiceReference?: string;
+  entryDate?: string;
 }
 
 interface CreateExitParams {
@@ -31,7 +32,8 @@ export function useCreateStockEntry() {
         params.quantity,
         params.supplierId,
         params.unitPrice,
-        params.invoiceReference
+        params.invoiceReference,
+        params.entryDate
       ),
     onMutate: async (params) => {
       // Optimistic update on product detail

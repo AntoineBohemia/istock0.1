@@ -132,7 +132,6 @@ export default function TechniciansList() {
 
   const [columnVisibility, setColumnVisibility] = useColumnVisibility("techniciens", {
     phone: false,
-    organization: false,
   });
 
   // Max units across all techs — used for proportional micro-bars
@@ -236,6 +235,16 @@ export default function TechniciansList() {
         );
       },
       meta: { label: "Outillage" },
+    },
+    {
+      accessorKey: "vehicle_plate",
+      meta: { label: "Plaque" },
+      header: ({ column }) => <SortHeader label="Plaque" column={column} />,
+      cell: ({ row }) => (
+        <span className="text-[15px] font-mono tracking-wide">
+          {row.original.vehicle_plate || "—"}
+        </span>
+      ),
     },
     {
       accessorKey: "city",

@@ -175,7 +175,8 @@ export async function createEntry(
   quantity: number,
   supplierId?: string,
   unitPrice?: number,
-  invoiceReference?: string
+  invoiceReference?: string,
+  entryDate?: string
 ): Promise<StockMovement> {
   const supabase = createClient();
 
@@ -186,6 +187,7 @@ export async function createEntry(
     p_supplier_id: supplierId || undefined,
     p_unit_price: unitPrice || undefined,
     p_invoice_reference: invoiceReference || undefined,
+    p_created_at: entryDate || undefined,
   });
 
   if (error) {

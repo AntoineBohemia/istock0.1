@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -80,12 +81,16 @@ interface Technician {
   last_name: string;
 }
 
+const today = new Date();
+const ninetyDaysAgo = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
+
 const FormSchema = z.object({
   direction: z.enum(["entry", "exit"]),
   exit_type: z.enum(["exit_technician", "exit_anonymous"]).optional(),
   technician_id: z.string().optional(),
   supplier_id: z.string().optional(),
   invoice_reference: z.string().optional(),
+  entry_date: z.string().optional(),
   quantity: z.number().min(1, "La quantité doit être au moins 1"),
 });
 
@@ -168,6 +173,7 @@ export default function QuickStockMovementModal({
       technician_id: "",
       supplier_id: matchedProduct?.supplier_id || "",
       invoice_reference: "",
+      entry_date: "",
       quantity: 1,
     });
   }, [productId, open, allProducts.length, defaultDirection]);
@@ -188,6 +194,7 @@ export default function QuickStockMovementModal({
           quantity: data.quantity,
           supplierId: data.supplier_id || undefined,
           invoiceReference: data.invoice_reference || undefined,
+          entryDate: data.entry_date ? new Date(data.entry_date).toISOString() : undefined,
         },
         {
           onSuccess: () => {
@@ -379,6 +386,32 @@ export default function QuickStockMovementModal({
                       <FormControl>
                         <Input type="text" placeholder="FA-2026-001" {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {/* Entry Date (only for entries) */}
+              {direction === "entry" && (
+                <FormField
+                  control={form.control}
+                  name="entry_date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date d'entrée</FormLabel>
+                      <DatePicker
+                        value={field.value ? new Date(field.value) : undefined}
+                        onChange={(date) => field.onChange(date?.toISOString().split("T")[0] ?? "")}
+                        disabled={{ after: today, before: ninetyDaysAgo }}
+                        placeholder="Aujourd'hui"
+                        className="w-full"
+                      />
+                      {field.value && field.value !== today.toISOString().split("T")[0] && (
+                        <FormDescription className="text-amber-600 dark:text-amber-400">
+                          Date antérieure à aujourd'hui
+                        </FormDescription>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}

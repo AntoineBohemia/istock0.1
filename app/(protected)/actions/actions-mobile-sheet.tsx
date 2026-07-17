@@ -22,6 +22,7 @@ import {
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 
@@ -148,6 +149,14 @@ export default function ActionsMobileSheet() {
   const [product, setProduct] = useState<ConsoleProduct | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
   const [unitPrice, setUnitPrice] = useState<string>("");
+  const [invoiceRef, setInvoiceRef] = useState("");
+  const todayDate = useMemo(() => new Date(), []);
+  const ninetyDaysAgo = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 90);
+    return d;
+  }, []);
+  const [entryDate, setEntryDate] = useState<Date>(todayDate);
   const quantityInputRef = useRef<HTMLInputElement>(null);
 
   // ─── Technician (exit_technician) ───────────────────────
@@ -229,6 +238,8 @@ export default function ActionsMobileSheet() {
     setProduct(null);
     setQuantity(1);
     setUnitPrice("");
+    setInvoiceRef("");
+    setEntryDate(todayDate);
     setCart([]);
     setTechnicianId("");
 
@@ -251,6 +262,8 @@ export default function ActionsMobileSheet() {
       setProduct(null);
       setQuantity(1);
       setUnitPrice("");
+      setInvoiceRef("");
+      setEntryDate(todayDate);
       setCart([]);
       setTechnicianId("");
     }, 300);
@@ -466,6 +479,8 @@ export default function ActionsMobileSheet() {
       const sign = isEntry ? "+" : "-";
       toast.success(`${sign}${quantity} ${product.name} - ${stockAfter} en stock`);
       setQuantity(1);
+      setInvoiceRef("");
+      setEntryDate(todayDate);
 
       // Return to product list (rapid-fire mode)
       setProduct(null);
@@ -486,6 +501,11 @@ export default function ActionsMobileSheet() {
           productId: product.id,
           quantity,
           unitPrice: parsedPrice || undefined,
+          invoiceReference: invoiceRef || undefined,
+          entryDate:
+            entryDate.toDateString() !== todayDate.toDateString()
+              ? entryDate.toISOString()
+              : undefined,
         },
         { onSuccess, onError }
       );
@@ -495,7 +515,18 @@ export default function ActionsMobileSheet() {
         { onSuccess, onError }
       );
     }
-  }, [product, orgId, quantity, actionMode, isSubmitting, createEntry, createExit, unitPrice]);
+  }, [
+    product,
+    orgId,
+    quantity,
+    actionMode,
+    isSubmitting,
+    createEntry,
+    createExit,
+    unitPrice,
+    invoiceRef,
+    entryDate,
+  ]);
 
   // ─── Submit batch (exit_technician) ───────────────────
   const handleBatchSubmit = useCallback(async () => {
@@ -1151,7 +1182,7 @@ export default function ActionsMobileSheet() {
                         handleSubmit();
                       }
                     }}
-                    className="flex-1 h-12 text-2xl font-heading font-bold tabular-nums text-center rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="flex-1 h-12 text-2xl font-heading font-bold tabular-nums text-center rounded-xl bg-white dark:bg-card [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   <button
                     onClick={() => {
@@ -1165,22 +1196,36 @@ export default function ActionsMobileSheet() {
                   </button>
                 </div>
 
-                {/* Unit price (entry mode only) */}
+                {/* Entry-only fields: price, invoice ref, date */}
                 {actionMode === "entry" && (
-                  <div className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3">
-                    <span className="text-[13px] text-muted-foreground">Prix HT</span>
-                    <div className="flex items-center gap-1.5">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
                       <Input
                         type="number"
                         step="0.01"
                         min={0}
-                        placeholder="\u2014"
+                        placeholder="Prix HT"
                         value={unitPrice}
                         onChange={(e) => setUnitPrice(e.target.value)}
-                        className="w-20 h-8 text-right text-sm rounded-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="flex-1 h-11 text-[15px] rounded-xl bg-white dark:bg-card [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
-                      <span className="text-[13px] text-muted-foreground">{"\u20AC"}</span>
+                      <span className="text-sm text-muted-foreground shrink-0">{"\u20AC"}</span>
                     </div>
+                    <Input
+                      type="text"
+                      placeholder="Réf. facture (optionnel)"
+                      value={invoiceRef}
+                      onChange={(e) => setInvoiceRef(e.target.value)}
+                      className="w-full h-11 text-[15px] rounded-xl bg-white dark:bg-card"
+                    />
+                    <DatePicker
+                      value={entryDate}
+                      onChange={(d) => setEntryDate(d ?? todayDate)}
+                      disabled={{ after: todayDate, before: ninetyDaysAgo }}
+                      placeholder="Date d'entrée"
+                      className="w-full h-11 text-[15px] rounded-xl bg-white dark:bg-card"
+                      popoverClassName="z-[60]"
+                    />
                   </div>
                 )}
 
