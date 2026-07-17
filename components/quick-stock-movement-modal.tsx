@@ -85,6 +85,7 @@ const FormSchema = z.object({
   exit_type: z.enum(["exit_technician", "exit_anonymous"]).optional(),
   technician_id: z.string().optional(),
   supplier_id: z.string().optional(),
+  invoice_reference: z.string().optional(),
   quantity: z.number().min(1, "La quantité doit être au moins 1"),
 });
 
@@ -166,6 +167,7 @@ export default function QuickStockMovementModal({
       exit_type: "exit_anonymous",
       technician_id: "",
       supplier_id: matchedProduct?.supplier_id || "",
+      invoice_reference: "",
       quantity: 1,
     });
   }, [productId, open, allProducts.length, defaultDirection]);
@@ -185,6 +187,7 @@ export default function QuickStockMovementModal({
           productId: product.id,
           quantity: data.quantity,
           supplierId: data.supplier_id || undefined,
+          invoiceReference: data.invoice_reference || undefined,
         },
         {
           onSuccess: () => {
@@ -359,6 +362,23 @@ export default function QuickStockMovementModal({
                           ))}
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {/* Invoice Reference (only for entries) */}
+              {direction === "entry" && (
+                <FormField
+                  control={form.control}
+                  name="invoice_reference"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Réf. facture</FormLabel>
+                      <FormControl>
+                        <Input type="text" placeholder="FA-2026-001" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

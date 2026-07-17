@@ -32,6 +32,7 @@ import StockEntryModal from "@/components/stock-entry-modal";
 import StockExitModal from "@/components/stock-exit-modal";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import ReorderRecapModal, { computeReorderList } from "@/components/reorder-recap-modal";
+import ExportStockPopover from "./export-stock-popover";
 
 import { ProductWithRelations } from "@/lib/supabase/queries/products";
 import { calculateStockScore, getStockScoreColor, getStockBadgeVariant } from "@/lib/utils/stock";
@@ -204,7 +205,7 @@ export default function ProductList() {
                 <div
                   className={cn(
                     "h-full rounded-full",
-                    score < 30
+                    score < 1
                       ? "bg-critique/40"
                       : score < 60
                         ? "bg-attention/40"
@@ -352,6 +353,11 @@ export default function ProductList() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Stock produits</h1>
         <div className="flex items-center gap-2">
+          <ExportStockPopover
+            organizationId={currentOrganization.id}
+            organizations={userOrgs}
+            isMultiOrg={isMultiOrg}
+          />
           {reorderCount > 0 && (
             <Button variant="outline" onClick={() => setReorderOpen(true)}>
               A commander

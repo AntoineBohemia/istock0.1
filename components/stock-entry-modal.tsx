@@ -23,6 +23,7 @@ const EntrySchema = z.object({
   product_id: z.string().min(1, "Sélectionnez un produit"),
   quantity: z.number().min(1, "Minimum 1"),
   unit_price: z.string().optional(),
+  invoice_reference: z.string().optional(),
 });
 
 type EntryValues = z.infer<typeof EntrySchema>;
@@ -69,6 +70,7 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
         product_id: productId || "",
         quantity: 1,
         unit_price: "",
+        invoice_reference: "",
       });
     }
   }, [open]);
@@ -93,6 +95,7 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
         productId: data.product_id,
         quantity: data.quantity,
         unitPrice: price,
+        invoiceReference: data.invoice_reference || undefined,
       },
       {
         onSuccess: () => {
@@ -312,6 +315,28 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
                       </span>
                     </p>
                   )}
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Réf. facture */}
+            <FormField
+              control={form.control}
+              name="invoice_reference"
+              render={({ field }) => (
+                <FormItem className="border-t px-5 py-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Réf. facture</span>
+                    <FormControl>
+                      <Input
+                        type="text"
+                        placeholder="FA-2026-001"
+                        className="w-40 h-8 text-right text-sm bg-white dark:bg-card rounded-md border border-input focus-visible:ring-0 focus-visible:border-foreground/30 pr-2"
+                        {...field}
+                      />
+                    </FormControl>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}

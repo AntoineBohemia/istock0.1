@@ -18,6 +18,7 @@ export interface StockMovement {
   supplier_id: string | null;
   organization_id: string | null;
   unit_price: number | null;
+  invoice_reference?: string | null;
   created_at: string | null;
   product?: {
     id: string;
@@ -173,7 +174,8 @@ export async function createEntry(
   productId: string,
   quantity: number,
   supplierId?: string,
-  unitPrice?: number
+  unitPrice?: number,
+  invoiceReference?: string
 ): Promise<StockMovement> {
   const supabase = createClient();
 
@@ -183,6 +185,7 @@ export async function createEntry(
     p_quantity: quantity,
     p_supplier_id: supplierId || undefined,
     p_unit_price: unitPrice || undefined,
+    p_invoice_reference: invoiceReference || undefined,
   });
 
   if (error) {

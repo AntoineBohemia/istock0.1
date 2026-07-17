@@ -83,7 +83,7 @@ export default function Sidebar() {
   return (
     <SidebarContainer collapsible="icon" variant="floating" className="bg-background">
       {/* ── Branding ── */}
-      <SidebarHeader className="pt-4 pb-2 transition-all group-data-[collapsible=icon]:pt-4">
+      <SidebarHeader className="pt-4 pb-5 transition-all group-data-[collapsible=icon]:pt-4">
         <div className="px-2 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
           <IstockLogo className="h-5 group-data-[collapsible=icon]:hidden" />
           <img

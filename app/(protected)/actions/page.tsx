@@ -124,6 +124,7 @@ export default function GlobalPage() {
 
   // Quantité (single product mode)
   const [quantity, setQuantity] = useState<number>(1);
+  const [invoiceRef, setInvoiceRef] = useState("");
   const quantityInputRef = useRef<HTMLInputElement>(null);
 
   // Journal
@@ -208,6 +209,7 @@ export default function GlobalPage() {
       setProduct(null);
       setCart([]);
       setQuantity(1);
+      setInvoiceRef("");
     }
   }, [step, actionMode]);
 
@@ -331,6 +333,7 @@ export default function GlobalPage() {
       const sign = isEntry ? "+" : "−";
       toast.success(`${sign}${quantity} ${product.name} · ${stockAfter} en stock`);
       setQuantity(1);
+      setInvoiceRef("");
 
       if (isEntry) {
         setTimeout(() => quantityInputRef.current?.focus(), 60);
@@ -346,7 +349,12 @@ export default function GlobalPage() {
 
     if (isEntry) {
       createEntry.mutate(
-        { organizationId: orgId, productId: product.id, quantity },
+        {
+          organizationId: orgId,
+          productId: product.id,
+          quantity,
+          invoiceReference: invoiceRef || undefined,
+        },
         { onSuccess, onError }
       );
     } else {
@@ -355,7 +363,7 @@ export default function GlobalPage() {
         { onSuccess, onError }
       );
     }
-  }, [product, orgId, quantity, actionMode, isSubmitting, createEntry, createExit]);
+  }, [product, orgId, quantity, actionMode, isSubmitting, invoiceRef, createEntry, createExit]);
 
   // ─── Soumission batch (mode technicien) ───────────────
   const handleBatchSubmit = useCallback(async () => {
@@ -1009,6 +1017,16 @@ export default function GlobalPage() {
                 </div>
 
                 <div className="h-px bg-border" />
+
+                {actionMode === "entry" && (
+                  <Input
+                    type="text"
+                    placeholder="Réf. facture (optionnel)"
+                    value={invoiceRef}
+                    onChange={(e) => setInvoiceRef(e.target.value)}
+                    className="text-sm bg-white dark:bg-card"
+                  />
+                )}
 
                 <div className="flex gap-2 items-center">
                   <Input

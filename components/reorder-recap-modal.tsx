@@ -35,16 +35,16 @@ function computeReorderList(
       const min = p.stock_min ?? STOCK_DEFAULTS.MIN;
       const target = min * 2;
       const toOrder = Math.max(0, target - current);
-      const isCritique = current === 0;
+      const isCritique = current < min;
       return { product: p, toOrder, isCritique };
     })
     .filter((item) => {
       if (item.toOrder <= 0) return false;
       const current = item.product.stock_current ?? 0;
       const min = item.product.stock_min ?? STOCK_DEFAULTS.MIN;
-      // Only include products at or below their min threshold
-      if (current > min) return false;
-      if (filter === "critique") return current === 0;
+      // Include critique (< min) and attention (<= min * 1.25)
+      if (current > Math.ceil(min * 1.25)) return false;
+      if (filter === "critique") return current < min;
       return true;
     })
     .sort((a, b) => {
@@ -304,7 +304,12 @@ export default function ReorderRecapModal({ open, onClose, products }: ReorderRe
 
   // Counts for the toggle
   const critiqueCount = useMemo(
-    () => products.filter((p) => (p.stock_current ?? 0) === 0).length,
+    () =>
+      products.filter((p) => {
+        const current = p.stock_current ?? 0;
+        const min = p.stock_min ?? STOCK_DEFAULTS.MIN;
+        return current < min;
+      }).length,
     [products]
   );
   const allCount = useMemo(
@@ -312,7 +317,7 @@ export default function ReorderRecapModal({ open, onClose, products }: ReorderRe
       products.filter((p) => {
         const current = p.stock_current ?? 0;
         const min = p.stock_min ?? STOCK_DEFAULTS.MIN;
-        return current <= min;
+        return current <= Math.ceil(min * 1.25);
       }).length,
     [products]
   );

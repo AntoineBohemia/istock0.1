@@ -8,10 +8,10 @@ export const STOCK_DEFAULTS = {
 /**
  * Calcule le score de stock d'un produit (0, 25, 75)
  *
- * Logique simplifiée à 3 niveaux :
- * - stock = 0         → 0  (critique)
- * - stock <= min      → 25 (attention)
- * - stock > min       → 75 (standard)
+ * Logique à 3 niveaux :
+ * - stock < min           → 0  (critique)
+ * - stock <= min * 1.25   → 25 (attention)
+ * - stock > min * 1.25    → 75 (standard)
  *
  * @param current - Stock actuel (null treated as 0)
  * @param min - Stock minimum / seuil d'alerte (null → STOCK_DEFAULTS.MIN)
@@ -21,8 +21,8 @@ export function calculateStockScore(current: number | null, min: number | null):
   const c = current ?? 0;
   const mn = min ?? STOCK_DEFAULTS.MIN;
 
-  if (c <= 0) return 0;
-  if (c <= mn) return 25;
+  if (c < mn) return 0;
+  if (c <= Math.ceil(mn * 1.25)) return 25;
   return 75;
 }
 
@@ -32,7 +32,7 @@ export function calculateStockScore(current: number | null, min: number | null):
  * @returns Classe CSS de couleur
  */
 export function getStockScoreColor(score: number): string {
-  if (score < 30) return "text-critique";
+  if (score < 1) return "text-critique";
   if (score < 60) return "text-attention";
   return "text-foreground";
 }
@@ -43,7 +43,7 @@ export function getStockScoreColor(score: number): string {
  * @returns Classe CSS de couleur de fond
  */
 export function getStockScoreBgColor(score: number): string {
-  if (score < 30) return "bg-critique";
+  if (score < 1) return "bg-critique";
   if (score < 60) return "bg-attention";
   return "bg-standard/70";
 }
@@ -54,7 +54,7 @@ export function getStockScoreBgColor(score: number): string {
  * @returns Statut en français
  */
 export function getStockStatus(score: number): string {
-  if (score < 30) return "Critique";
+  if (score < 1) return "Critique";
   if (score < 60) return "Attention";
   return "Standard";
 }
@@ -65,7 +65,7 @@ export function getStockStatus(score: number): string {
  * @returns Niveau de statut design system
  */
 export function getStockBadgeVariant(score: number): "critique" | "attention" | "standard" {
-  if (score < 30) return "critique";
+  if (score < 1) return "critique";
   if (score < 60) return "attention";
   return "standard";
 }

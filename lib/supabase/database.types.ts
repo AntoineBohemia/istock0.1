@@ -403,7 +403,6 @@ export type Database = {
           created_at: string | null;
           id: string;
           movement_type: Database["public"]["Enums"]["stock_movement_type"];
-          notes: string | null;
           organization_id: string | null;
           product_id: string;
           quantity: number;
@@ -415,7 +414,6 @@ export type Database = {
           created_at?: string | null;
           id?: string;
           movement_type: Database["public"]["Enums"]["stock_movement_type"];
-          notes?: string | null;
           organization_id?: string | null;
           product_id: string;
           quantity: number;
@@ -427,7 +425,6 @@ export type Database = {
           created_at?: string | null;
           id?: string;
           movement_type?: Database["public"]["Enums"]["stock_movement_type"];
-          notes?: string | null;
           organization_id?: string | null;
           product_id?: string;
           quantity?: number;
@@ -747,29 +744,16 @@ export type Database = {
         };
         Returns: Json;
       };
-      create_stock_exit:
-        | {
-            Args: {
-              p_organization_id: string;
-              p_product_id: string;
-              p_quantity: number;
-              p_technician_id?: string;
-              p_type: string;
-            };
-            Returns: Json;
-          }
-        | {
-            Args: {
-              p_notes?: string;
-              p_organization_id: string;
-              p_product_id: string;
-              p_quantity: number;
-              p_technician_id?: string;
-              p_type: string;
-            };
-            Returns: Json;
-          };
-      current_user_role_in_org: { Args: { p_org_id: string }; Returns: string };
+      create_stock_exit: {
+        Args: {
+          p_organization_id: string;
+          p_product_id: string;
+          p_quantity: number;
+          p_technician_id?: string;
+          p_type: string;
+        };
+        Returns: Json;
+      };
       get_dashboard_stats: {
         Args: { p_organization_id?: string };
         Returns: Json;
@@ -784,18 +768,36 @@ export type Database = {
         Returns: Json;
       };
       get_invitation_details: { Args: { p_token: string }; Returns: Json };
-      get_technicians_with_stats: {
-        Args: { p_organization_id?: string; p_year?: number };
-        Returns: Json;
+      get_stock_at_date: {
+        Args: {
+          p_filter_org_id?: string;
+          p_organization_id: string;
+          p_target_date: string;
+        };
+        Returns: {
+          category_name: string;
+          price_at_date: number;
+          product_id: string;
+          product_name: string;
+          product_sku: string;
+          stock_at_date: number;
+          stock_current: number;
+          stock_min: number;
+          supplier_name: string;
+        }[];
       };
+      get_technicians_with_stats:
+        | { Args: { p_organization_id?: string }; Returns: Json }
+        | {
+            Args: { p_organization_id?: string; p_year?: number };
+            Returns: Json;
+          };
       get_user_organization_ids:
         | { Args: never; Returns: string[] }
         | { Args: { p_user_id: string }; Returns: string[] };
-      is_org_admin_or_owner: {
-        Args: { p_org_id: string; p_user_id: string };
-        Returns: boolean;
-      };
-      is_org_member_non_guest: { Args: { p_org_id: string }; Returns: boolean };
+      is_org_admin_or_owner:
+        | { Args: { p_org_id: string }; Returns: boolean }
+        | { Args: { p_org_id: string; p_user_id: string }; Returns: boolean };
       is_organization_owner: { Args: { org_id: string }; Returns: boolean };
       leave_organization: { Args: { p_organization_id: string }; Returns: Json };
       restock_technician: {

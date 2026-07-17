@@ -2,7 +2,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { BackButton } from "@/components/back-button";
-import { Download01, Package, Truck01, Image01, ArrowRight } from "@untitled-ui/icons-react";
+import {
+  Download01,
+  Package,
+  Truck01,
+  Image01,
+  ArrowRight,
+  File06,
+} from "@untitled-ui/icons-react";
 import { generateMeta } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +46,10 @@ async function getMovement(id: string) {
 
   const product = Array.isArray(movement.product) ? movement.product[0] : movement.product;
 
-  return { ...movement, product };
+  return { ...movement, product } as typeof movement & {
+    product: typeof product;
+    invoice_reference: string | null;
+  };
 }
 
 export default async function EntryDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -51,7 +61,7 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
   }
 
   const entryDate = new Date(movement.created_at ?? 0);
-  const unitPrice = movement.product?.price || 0;
+  const unitPrice = movement.unit_price ?? movement.product?.price ?? 0;
   const totalValue = unitPrice * movement.quantity;
 
   return (
@@ -133,6 +143,15 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
             </span>
             <span className="font-medium">{movement.supplier?.name || "Non spécifié"}</span>
           </div>
+          {movement.invoice_reference && (
+            <div className="flex justify-between px-5 py-2.5">
+              <span className="text-muted-foreground flex items-center gap-1.5">
+                <File06 className="size-3.5" />
+                Réf. facture
+              </span>
+              <span className="font-medium">{movement.invoice_reference}</span>
+            </div>
+          )}
         </div>
       </div>
 
