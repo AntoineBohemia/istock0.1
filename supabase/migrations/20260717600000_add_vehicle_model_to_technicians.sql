@@ -1,3 +1,10 @@
+-- Add a vehicle model field to technicians, and surface it in the stats RPC
+-- so the Techniciens list can display marque + modèle + plaque.
+
+ALTER TABLE technicians ADD COLUMN IF NOT EXISTS vehicle_model TEXT;
+
+-- Recreate get_technicians_with_stats to include vehicle_model in its payload.
+-- (Same 2-arg signature — replaces in place, no new overload.)
 CREATE OR REPLACE FUNCTION get_technicians_with_stats(
   p_organization_id UUID DEFAULT NULL,
   p_year INT DEFAULT NULL

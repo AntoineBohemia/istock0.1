@@ -17,6 +17,7 @@ interface TechnicianData {
   clothing_size: string | null;
   vehicle_plate: string | null;
   vehicle_brand: string | null;
+  vehicle_model: string | null;
 }
 
 export default function EditTechnicianButton({ technician }: { technician: TechnicianData }) {

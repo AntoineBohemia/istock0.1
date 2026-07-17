@@ -602,6 +602,7 @@ export type Database = {
           supplier_id: string | null;
           tablet_ref: string | null;
           vehicle_brand: string | null;
+          vehicle_model: string | null;
           vehicle_plate: string | null;
         };
         Insert: {
@@ -619,6 +620,7 @@ export type Database = {
           supplier_id?: string | null;
           tablet_ref?: string | null;
           vehicle_brand?: string | null;
+          vehicle_model?: string | null;
           vehicle_plate?: string | null;
         };
         Update: {
@@ -636,6 +638,7 @@ export type Database = {
           supplier_id?: string | null;
           tablet_ref?: string | null;
           vehicle_brand?: string | null;
+          vehicle_model?: string | null;
           vehicle_plate?: string | null;
         };
         Relationships: [

@@ -24,6 +24,7 @@ interface TechnicianData {
   clothing_size: string | null;
   vehicle_plate: string | null;
   vehicle_brand: string | null;
+  vehicle_model: string | null;
 }
 
 interface EditTechnicianModalProps {
@@ -55,6 +56,7 @@ export default function EditTechnicianModal({
   const [clothingSize, setClothingSize] = useState(technician.clothing_size ?? "");
   const [vehiclePlate, setVehiclePlate] = useState(technician.vehicle_plate ?? "");
   const [vehicleBrand, setVehicleBrand] = useState(technician.vehicle_brand ?? "");
+  const [vehicleModel, setVehicleModel] = useState(technician.vehicle_model ?? "");
 
   if (technician.id !== prevId) {
     setPrevId(technician.id);
@@ -68,6 +70,7 @@ export default function EditTechnicianModal({
     setClothingSize(technician.clothing_size ?? "");
     setVehiclePlate(technician.vehicle_plate ?? "");
     setVehicleBrand(technician.vehicle_brand ?? "");
+    setVehicleModel(technician.vehicle_model ?? "");
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -88,6 +91,7 @@ export default function EditTechnicianModal({
           clothing_size: clothingSize || null,
           vehicle_plate: vehiclePlate.trim() || null,
           vehicle_brand: vehicleBrand.trim() || null,
+          vehicle_model: vehicleModel.trim() || null,
         },
       },
       {
@@ -210,6 +214,17 @@ export default function EditTechnicianModal({
                   value={vehicleBrand}
                   onChange={(e) => setVehicleBrand(e.target.value)}
                   placeholder="Renault"
+                  className="bg-white dark:bg-card"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                  Modèle
+                </label>
+                <Input
+                  value={vehicleModel}
+                  onChange={(e) => setVehicleModel(e.target.value)}
+                  placeholder="Kangoo"
                   className="bg-white dark:bg-card"
                 />
               </div>

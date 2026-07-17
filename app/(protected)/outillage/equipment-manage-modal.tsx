@@ -258,7 +258,7 @@ export default function EquipmentManageModal({
                     onClick={() => handleUnassign(tech.id, fullName)}
                     disabled={unassignMutation.isPending}
                   >
-                    Recuperer
+                    Retirer
                   </Button>
                 </div>
               );

@@ -16,7 +16,6 @@ import { ArrowUpDown, ChevronLeft, ChevronRight, Package, Plus, UserPlus } from 
 import { SearchInput } from "@/components/search-input";
 import { QueryError } from "@/components/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StatusPill, StockStatus } from "@/components/ui/status-pill";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { HeroNumber } from "@/components/ui/hero-number";
 import { Button } from "@/components/ui/button";
@@ -71,29 +70,11 @@ function daysSince(dateString: string | null): number | null {
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
 
-function restockStatus(days: number | null): StockStatus {
-  if (days === null) return "critique";
-  if (days > 21) return "critique";
-  if (days > 14) return "attention";
-  return "standard";
-}
-
 function restockLabel(days: number | null): string {
   if (days === null) return "Jamais";
   if (days === 0) return "Aujourd'hui";
   if (days === 1) return "Hier";
   return `il y a ${days}j`;
-}
-
-function avatarRingClass(status: StockStatus): string {
-  switch (status) {
-    case "critique":
-      return "ring-2 ring-critique/40";
-    case "attention":
-      return "ring-2 ring-attention/40";
-    case "standard":
-      return "";
-  }
 }
 
 // ─── Filter helpers ──────────────────────────────────────────
@@ -149,11 +130,9 @@ export default function TechniciansList() {
       header: ({ column }) => <SortHeader label="Technicien" column={column} />,
       cell: ({ row }) => {
         const tech = row.original;
-        const days = daysSince(tech.last_restock_at);
-        const status = restockStatus(days);
         return (
           <div className="flex items-center gap-4">
-            <Avatar className={cn("size-9", avatarRingClass(status))}>
+            <Avatar className="size-9">
               {tech.photo_url && <AvatarImage src={tech.photo_url} />}
               <AvatarFallback className="text-xs font-semibold">
                 {tech.first_name.charAt(0)}
@@ -182,13 +161,8 @@ export default function TechniciansList() {
       },
       header: ({ column }) => <SortHeader label="Réappro" column={column} />,
       cell: ({ row }) => {
-        const days = daysSince(row.original.last_restock_at);
-        const status = restockStatus(days);
-        const label = restockLabel(days);
-        if (status === "standard") {
-          return <span className="text-sm text-muted-foreground">{label}</span>;
-        }
-        return <StatusPill status={status} label={label} />;
+        const label = restockLabel(daysSince(row.original.last_restock_at));
+        return <span className="text-sm text-muted-foreground">{label}</span>;
       },
       sortingFn: "basic",
       meta: { label: "Réappro" },
@@ -242,14 +216,26 @@ export default function TechniciansList() {
       meta: { label: "Outillage" },
     },
     {
-      accessorKey: "vehicle_plate",
-      meta: { label: "Plaque" },
-      header: ({ column }) => <SortHeader label="Plaque" column={column} />,
-      cell: ({ row }) => (
-        <span className="text-[15px] font-mono tracking-wide">
-          {row.original.vehicle_plate || "—"}
-        </span>
-      ),
+      accessorKey: "vehicle_brand",
+      meta: { label: "Véhicule" },
+      header: ({ column }) => <SortHeader label="Véhicule" column={column} />,
+      cell: ({ row }) => {
+        const brand = row.original.vehicle_brand;
+        const model = row.original.vehicle_model;
+        const plate = row.original.vehicle_plate;
+        if (!brand && !model && !plate) return <span className="text-[15px]">—</span>;
+        return (
+          <div className="leading-tight">
+            <span className="text-[15px]">{brand || "—"}</span>
+            {model && <span className="block text-xs text-muted-foreground">{model}</span>}
+            {plate && (
+              <span className="block text-xs font-mono tracking-wide text-muted-foreground">
+                {plate}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "city",

@@ -49,6 +49,7 @@ const FormSchema = z.object({
   clothing_size: z.string().optional(),
   vehicle_plate: z.string().optional(),
   vehicle_brand: z.string().optional(),
+  vehicle_model: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof FormSchema>;
@@ -81,6 +82,7 @@ export default function TechnicianForm({ mode = "create", initialData }: Technic
       clothing_size: initialData?.clothing_size || "",
       vehicle_plate: initialData?.vehicle_plate || "",
       vehicle_brand: initialData?.vehicle_brand || "",
+      vehicle_model: initialData?.vehicle_model || "",
     },
   });
 
@@ -375,6 +377,19 @@ export default function TechnicianForm({ mode = "create", initialData }: Technic
                       <FormLabel>Marque</FormLabel>
                       <FormControl>
                         <Input placeholder="Renault" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="vehicle_model"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Modèle</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Kangoo" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

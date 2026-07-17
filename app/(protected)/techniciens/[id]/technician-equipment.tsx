@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Wrench, UserMinus, Clock, icons } from "lucide-react";
+import { Wrench, Clock, icons } from "lucide-react";
 import { toast } from "@/lib/toast";
 
 import Image from "next/image";
@@ -291,16 +291,15 @@ export default function TechnicianEquipment({
                       )}
                     </div>
                   </div>
-                  {/* Always visible — Hodent: recognition > recall */}
+                  {/* Text CTA — clearer than an icon */}
                   <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2.5 text-xs shrink-0 text-destructive border-destructive/30 hover:bg-destructive/10 hover:border-destructive/50"
                     onClick={() => handleUnassign(product.id, product.name)}
                     disabled={unassignMutation.isPending}
-                    title="Recuperer"
                   >
-                    <UserMinus className="size-4" />
+                    Retirer
                   </Button>
                 </div>
 

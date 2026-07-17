@@ -9,19 +9,8 @@ import { Loader2 } from "lucide-react";
 import { toast } from "@/lib/toast";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormMessage,
-} from "@/components/ui/form";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { createTechnician } from "@/lib/supabase/queries/technicians";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
@@ -38,6 +27,7 @@ const FormSchema = z.object({
   clothing_size: z.string().optional(),
   vehicle_plate: z.string().optional(),
   vehicle_brand: z.string().optional(),
+  vehicle_model: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof FormSchema>;
@@ -70,6 +60,7 @@ export default function CreateTechnicianDialog({
       clothing_size: "",
       vehicle_plate: "",
       vehicle_brand: "",
+      vehicle_model: "",
     },
   });
 
@@ -120,7 +111,11 @@ export default function CreateTechnicianDialog({
                   render={({ field }) => (
                     <FormItem>
                       <FormControl>
-                        <Input placeholder="Prénom *" className="bg-white dark:bg-card" {...field} />
+                        <Input
+                          placeholder="Prénom *"
+                          className="bg-white dark:bg-card"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -145,7 +140,12 @@ export default function CreateTechnicianDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <Input type="tel" placeholder="Téléphone" className="bg-white dark:bg-card" {...field} />
+                      <Input
+                        type="tel"
+                        placeholder="Téléphone"
+                        className="bg-white dark:bg-card"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -157,7 +157,12 @@ export default function CreateTechnicianDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <Input type="email" placeholder="Email" className="bg-white dark:bg-card" {...field} />
+                      <Input
+                        type="email"
+                        placeholder="Email"
+                        className="bg-white dark:bg-card"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -169,7 +174,11 @@ export default function CreateTechnicianDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <Input placeholder="Ville / Département" className="bg-white dark:bg-card" {...field} />
+                      <Input
+                        placeholder="Ville / Département"
+                        className="bg-white dark:bg-card"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -187,9 +196,13 @@ export default function CreateTechnicianDialog({
                           onChange={(e) => field.onChange(e.target.value)}
                           className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
                         >
-                          <option value="" disabled>Organisation</option>
+                          <option value="" disabled>
+                            Organisation
+                          </option>
                           {userOrgs?.map((o) => (
-                            <option key={o.id} value={o.id}>{o.name}</option>
+                            <option key={o.id} value={o.id}>
+                              {o.name}
+                            </option>
                           ))}
                         </select>
                       </FormControl>
@@ -205,7 +218,11 @@ export default function CreateTechnicianDialog({
                   render={({ field }) => (
                     <FormItem>
                       <FormControl>
-                        <Input placeholder="Réf. tablette" className="bg-white dark:bg-card" {...field} />
+                        <Input
+                          placeholder="Réf. tablette"
+                          className="bg-white dark:bg-card"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -224,7 +241,9 @@ export default function CreateTechnicianDialog({
                         >
                           <option value="">Taille vêtement</option>
                           {["XS", "S", "M", "L", "XL", "XXL", "3XL"].map((s) => (
-                            <option key={s} value={s}>{s}</option>
+                            <option key={s} value={s}>
+                              {s}
+                            </option>
                           ))}
                         </select>
                       </FormControl>
@@ -240,7 +259,11 @@ export default function CreateTechnicianDialog({
                   render={({ field }) => (
                     <FormItem>
                       <FormControl>
-                        <Input placeholder="Plaque (AB-123-CD)" className="bg-white dark:bg-card font-mono uppercase" {...field} />
+                        <Input
+                          placeholder="Plaque (AB-123-CD)"
+                          className="bg-white dark:bg-card font-mono uppercase"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -252,7 +275,27 @@ export default function CreateTechnicianDialog({
                   render={({ field }) => (
                     <FormItem>
                       <FormControl>
-                        <Input placeholder="Marque véhicule" className="bg-white dark:bg-card" {...field} />
+                        <Input
+                          placeholder="Marque véhicule"
+                          className="bg-white dark:bg-card"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="vehicle_model"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <Input
+                          placeholder="Modèle véhicule"
+                          className="bg-white dark:bg-card"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -262,11 +305,7 @@ export default function CreateTechnicianDialog({
             </div>
 
             <div className="px-5 pt-2 pb-5">
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full h-10 rounded-lg"
-              >
+              <Button type="submit" disabled={isSubmitting} className="w-full h-10 rounded-lg">
                 {isSubmitting && <Loader2 className="size-4 animate-spin" />}
                 Créer
               </Button>

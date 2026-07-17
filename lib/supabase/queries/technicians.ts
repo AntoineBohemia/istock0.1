@@ -13,6 +13,7 @@ export interface Technician {
   clothing_size: string | null;
   vehicle_plate: string | null;
   vehicle_brand: string | null;
+  vehicle_model: string | null;
   organization_id: string | null;
   created_at: string | null;
   archived_at: string | null;
@@ -72,6 +73,7 @@ export interface CreateTechnicianData {
   clothing_size?: string | null;
   vehicle_plate?: string | null;
   vehicle_brand?: string | null;
+  vehicle_model?: string | null;
 }
 
 export type UpdateTechnicianData = Partial<CreateTechnicianData>;
@@ -182,6 +184,7 @@ export async function createTechnician(data: CreateTechnicianData): Promise<Tech
       clothing_size: data.clothing_size || null,
       vehicle_plate: data.vehicle_plate || null,
       vehicle_brand: data.vehicle_brand || null,
+      vehicle_model: data.vehicle_model || null,
     })
     .select()
     .single();
@@ -219,6 +222,7 @@ export async function updateTechnician(
   if (data.clothing_size !== undefined) updateData.clothing_size = data.clothing_size || null;
   if (data.vehicle_plate !== undefined) updateData.vehicle_plate = data.vehicle_plate || null;
   if (data.vehicle_brand !== undefined) updateData.vehicle_brand = data.vehicle_brand || null;
+  if (data.vehicle_model !== undefined) updateData.vehicle_model = data.vehicle_model || null;
 
   let query = supabase.from("technicians").update(updateData).eq("id", id);
 
