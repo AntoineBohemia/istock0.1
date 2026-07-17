@@ -1,9 +1,8 @@
 import { generateMeta } from "@/lib/utils";
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, CalendarClock, Package, Wrench } from "lucide-react";
+import { CalendarClock, Package, Wrench } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/back-button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createClient } from "@/lib/supabase/server";
@@ -183,11 +182,7 @@ export default async function TechnicianDetailPage({
       <div className="rounded-xl border bg-card p-6 space-y-5">
         {/* Identity + actions */}
         <div className="flex items-center gap-5">
-          <Button variant="ghost" size="icon" asChild className="shrink-0 -ml-2" aria-label="Retour aux techniciens">
-            <Link href="/techniciens">
-              <ArrowLeft className="size-4" />
-            </Link>
-          </Button>
+          <BackButton label="Retour aux techniciens" className="shrink-0 -ml-2" />
           <Avatar className="size-14 shrink-0">
             {technician.photo_url && <AvatarImage src={technician.photo_url} />}
             <AvatarFallback className="text-lg font-bold">{initials}</AvatarFallback>

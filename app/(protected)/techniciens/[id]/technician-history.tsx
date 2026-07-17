@@ -150,6 +150,7 @@ export default function TechnicianHistory({ movements, year }: TechnicianHistory
                 <div className="flex items-center gap-3">
                   <span className="font-medium text-sm">
                     {session.date.toLocaleDateString("fr-FR", {
+                      weekday: "short",
                       day: "numeric",
                       month: "short",
                       year: "numeric",

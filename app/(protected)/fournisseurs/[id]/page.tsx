@@ -2,6 +2,7 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, Globe, Loader2, Mail, Package, Pencil, Truck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import EditSupplierModal from "@/components/edit-supplier-modal";
 
 export default function SupplierDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const router = useRouter();
   const { data: supplier, isLoading } = useSupplier(id);
   const [editOpen, setEditOpen] = useState(false);
 
@@ -28,11 +30,9 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <Truck className="size-14 text-muted-foreground/20 mb-4" />
         <h2 className="font-heading font-semibold text-lg">Fournisseur introuvable</h2>
-        <Button asChild variant="outline" className="mt-4">
-          <Link href="/fournisseurs">
-            <ChevronLeft className="size-4 mr-1" />
-            Retour
-          </Link>
+        <Button variant="outline" className="mt-4" onClick={() => router.back()}>
+          <ChevronLeft className="size-4 mr-1" />
+          Retour
         </Button>
       </div>
     );
@@ -41,13 +41,13 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
   return (
     <div className="space-y-6">
       {/* Back */}
-      <Link
-        href="/fournisseurs"
+      <button
+        onClick={() => router.back()}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <ChevronLeft className="size-4" />
-        Fournisseurs
-      </Link>
+        Retour
+      </button>
 
       {/* Hero */}
       <div className="flex items-start justify-between gap-4">
