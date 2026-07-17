@@ -175,9 +175,6 @@ export default function ProductList() {
       header: ({ column }) => <SortHeader label="Stock" column={column} />,
       cell: ({ row }) => {
         const product = row.original;
-        const orgStocks =
-          product.product_organization_stock?.filter((pos) => pos.stock_current > 0) ?? [];
-        const hasMultiOrg = orgStocks.length > 1;
 
         // If org filter is active, show that org's stock
         const singleOrg = filterOrgs.size === 1 ? [...filterOrgs][0] : null;
@@ -215,11 +212,16 @@ export default function ProductList() {
                 />
               </div>
             )}
-            {hasMultiOrg && !singleOrg && (
+            {isMultiOrg && !singleOrg && (
               <p className="text-[10px] text-muted-foreground tabular-nums">
-                {orgStocks
-                  .sort((a, b) => b.stock_current - a.stock_current)
-                  .map((pos) => `${pos.organization?.name ?? "?"}: ${pos.stock_current}`)
+                {(userOrgs ?? [])
+                  .map((org) => {
+                    const qty =
+                      product.product_organization_stock?.find(
+                        (pos) => pos.organization_id === org.id
+                      )?.stock_current ?? 0;
+                    return `${org.name}: ${qty}`;
+                  })
                   .join(" · ")}
               </p>
             )}
