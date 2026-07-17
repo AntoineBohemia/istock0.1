@@ -18,12 +18,11 @@ import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StatusPill } from "@/components/ui/status-pill";
 import StockEntryModal from "@/components/stock-entry-modal";
 import StockExitModal from "@/components/stock-exit-modal";
 
 import { ProductWithRelations } from "@/lib/supabase/queries/products";
-import { calculateStockScore, getStockScoreColor, getStockBadgeVariant } from "@/lib/utils/stock";
+import { calculateStockScore, getStockScoreColor } from "@/lib/utils/stock";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProducts, useCategories, useOrganizations } from "@/hooks/queries";
 import ProductIconDisplay from "@/components/product-icon-display";
@@ -143,6 +142,9 @@ export default function ProductList() {
 
   const [columnVisibility, setColumnVisibility] = useColumnVisibility("produits");
 
+  // Max stock across all products — for proportional micro-bars (Hodent: length encoding)
+  const maxStock = Math.max(1, ...products.map((p) => p.stock_current ?? 0));
+
   const columns: ColumnDef<ProductWithRelations>[] = [
     {
       accessorKey: "name",
@@ -186,18 +188,34 @@ export default function ProductList() {
           : (product.stock_current ?? 0);
 
         const score = calculateStockScore(displayStock, product.stock_min);
+        const pct = maxStock > 0 ? (displayStock / maxStock) * 100 : 0;
         return (
-          <div className="text-center">
+          <div className="flex flex-col items-center gap-1 min-w-[60px]">
             <span
               className={cn(
-                "font-heading font-bold tabular-nums text-xl",
+                "font-heading font-bold tabular-nums text-xl leading-none",
                 getStockScoreColor(score)
               )}
             >
               {displayStock}
             </span>
+            {displayStock > 0 && (
+              <div className="w-full h-1 rounded-full bg-foreground/[0.06] overflow-hidden">
+                <div
+                  className={cn(
+                    "h-full rounded-full",
+                    score < 30
+                      ? "bg-critique/40"
+                      : score < 60
+                        ? "bg-attention/40"
+                        : "bg-foreground/20"
+                  )}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            )}
             {hasMultiOrg && !orgFilter && (
-              <p className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
+              <p className="text-[10px] text-muted-foreground tabular-nums">
                 {orgStocks
                   .sort((a, b) => b.stock_current - a.stock_current)
                   .map((pos) => `${pos.organization?.name ?? "?"}: ${pos.stock_current}`)
@@ -208,31 +226,6 @@ export default function ProductList() {
         );
       },
       meta: { align: "center", label: "Stock" },
-    },
-    {
-      id: "status",
-      accessorFn: (row) => {
-        const stock = orgFilter
-          ? (row.product_organization_stock?.find((pos) => pos.organization_id === orgFilter)
-              ?.stock_current ?? 0)
-          : (row.stock_current ?? 0);
-        return calculateStockScore(stock, row.stock_min);
-      },
-      header: ({ column }) => (
-        <SortHeader label="Statut" column={column} className="justify-end w-full" />
-      ),
-      cell: ({ row }) => {
-        const product = row.original;
-        const stock = orgFilter
-          ? (product.product_organization_stock?.find((pos) => pos.organization_id === orgFilter)
-              ?.stock_current ?? 0)
-          : (product.stock_current ?? 0);
-        const score = calculateStockScore(stock, product.stock_min);
-        const status = getStockBadgeVariant(score);
-        return <StatusPill status={status} />;
-      },
-      sortingFn: "basic",
-      meta: { align: "right", label: "Statut" },
     },
     {
       id: "actions",

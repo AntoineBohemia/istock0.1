@@ -10,7 +10,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, Loader2, Package, Plus, Search, UserPlus, Wrench } from "lucide-react";
+import { ArrowUpDown, Loader2, Package, Plus, Search, UserPlus } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 
 import { Input } from "@/components/ui/input";
@@ -164,6 +164,12 @@ export default function TechniciansList() {
 
   const [columnVisibility, setColumnVisibility] = useColumnVisibility("techniciens");
 
+  // Max units across all techs — used for proportional micro-bars
+  const maxUnits = useMemo(
+    () => Math.max(1, ...filteredData.map((t) => t.year_units_total)),
+    [filteredData]
+  );
+
   const columns: ColumnDef<TechnicianWithInventory>[] = [
     {
       accessorKey: "name",
@@ -190,6 +196,79 @@ export default function TechniciansList() {
         );
       },
     },
+    // Réappro right after name — most actionable info closest to identifier (Hodent)
+    {
+      id: "restock",
+      accessorFn: (row) => {
+        const days = daysSince(row.last_restock_at);
+        if (days === null) return 9999;
+        return days;
+      },
+      header: ({ column }) => <SortHeader label="Réappro" column={column} />,
+      cell: ({ row }) => {
+        const days = daysSince(row.original.last_restock_at);
+        const status = restockStatus(days);
+        const label = restockLabel(days);
+        if (status === "standard") {
+          return <span className="text-sm text-muted-foreground">{label}</span>;
+        }
+        return <StatusPill status={status} label={label} />;
+      },
+      sortingFn: "basic",
+      meta: { label: "Réappro" },
+    },
+    {
+      accessorKey: "year_units_total",
+      header: ({ column }) => (
+        <SortHeader label="Unités (année)" column={column} className="justify-center w-full" />
+      ),
+      cell: ({ row }) => {
+        const count = row.original.year_units_total;
+        const pct = maxUnits > 0 ? (count / maxUnits) * 100 : 0;
+        return (
+          <div className="flex flex-col items-center gap-1 min-w-[60px]">
+            <span
+              className={cn(
+                "font-heading font-bold tabular-nums text-xl leading-none",
+                count === 0 ? "text-muted-foreground/40" : "text-foreground"
+              )}
+            >
+              {count}
+            </span>
+            {count > 0 && (
+              <div className="w-full h-1 rounded-full bg-foreground/[0.06] overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-foreground/20"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            )}
+          </div>
+        );
+      },
+      meta: { align: "center", label: "Unités (année)" },
+    },
+    {
+      id: "equipment",
+      accessorFn: (row) => row.equipment_count ?? 0,
+      header: ({ column }) => (
+        <SortHeader label="Outillage" column={column} className="justify-center w-full" />
+      ),
+      cell: ({ row }) => {
+        const count = row.original.equipment_count ?? 0;
+        return (
+          <span
+            className={cn(
+              "font-heading font-bold tabular-nums text-xl",
+              count === 0 ? "text-muted-foreground/40" : "text-foreground"
+            )}
+          >
+            {count}
+          </span>
+        );
+      },
+      meta: { align: "center", label: "Outillage" },
+    },
     {
       accessorKey: "city",
       meta: { label: "Département" },
@@ -212,75 +291,6 @@ export default function TechniciansList() {
       cell: ({ row }) => (
         <span className="text-[15px] tabular-nums">{row.original.phone || "—"}</span>
       ),
-    },
-    {
-      id: "equipment",
-      accessorFn: (row) => row.equipment_count ?? 0,
-      header: ({ column }) => (
-        <SortHeader label="Outillage" column={column} className="justify-center w-full" />
-      ),
-      cell: ({ row }) => {
-        const count = row.original.equipment_count ?? 0;
-        if (count === 0) return <span className="text-muted-foreground/40">{"\u2014"}</span>;
-        return (
-          <div className="flex flex-col items-center gap-0.5">
-            <div className="relative inline-flex items-center justify-center">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-foreground/[0.04] border border-foreground/[0.06]">
-                <Wrench className="size-3.5 text-foreground/50" />
-              </div>
-              <span className="absolute -top-1 -right-1.5 flex size-4 items-center justify-center rounded-full bg-foreground text-background text-[9px] font-bold tabular-nums leading-none">
-                {count}
-              </span>
-            </div>
-            <span className="text-[10px] text-muted-foreground tabular-nums">
-              {count} outil{count > 1 ? "s" : ""}
-            </span>
-          </div>
-        );
-      },
-      meta: { align: "center", label: "Outillage" },
-    },
-    {
-      accessorKey: "year_units_total",
-      header: ({ column }) => (
-        <SortHeader label="Unités (année)" column={column} className="justify-center w-full" />
-      ),
-      cell: ({ row }) => {
-        const count = row.original.year_units_total;
-        return (
-          <span
-            className={cn(
-              "font-heading font-bold tabular-nums text-xl",
-              count === 0 ? "text-muted-foreground/40" : "text-foreground"
-            )}
-          >
-            {count}
-          </span>
-        );
-      },
-      meta: { align: "center", label: "Unités (année)" },
-    },
-    {
-      id: "restock",
-      accessorFn: (row) => {
-        const days = daysSince(row.last_restock_at);
-        if (days === null) return 9999;
-        return days;
-      },
-      header: ({ column }) => (
-        <SortHeader label="Réappro" column={column} className="justify-end w-full" />
-      ),
-      cell: ({ row }) => {
-        const days = daysSince(row.original.last_restock_at);
-        const status = restockStatus(days);
-        const label = restockLabel(days);
-        if (status === "standard") {
-          return <span className="text-sm text-muted-foreground">{label}</span>;
-        }
-        return <StatusPill status={status} label={label} />;
-      },
-      sortingFn: "basic",
-      meta: { align: "right", label: "Réappro" },
     },
     {
       id: "actions",
