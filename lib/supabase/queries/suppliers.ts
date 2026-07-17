@@ -42,7 +42,7 @@ export async function getSuppliers(organizationId?: string): Promise<Supplier[]>
     throw new Error(`Erreur lors de la récupération des fournisseurs: ${error.message}`);
   }
 
-  return data || [];
+  return (data as Supplier[]) || [];
 }
 
 /**
