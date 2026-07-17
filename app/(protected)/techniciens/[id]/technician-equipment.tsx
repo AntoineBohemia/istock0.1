@@ -49,13 +49,6 @@ function getAgeTier(days: number): AgeTier {
   return "old";
 }
 
-const ageBarColor: Record<AgeTier, string> = {
-  fresh: "bg-standard",
-  normal: "bg-foreground/25",
-  aging: "bg-attention",
-  old: "bg-destructive/70",
-};
-
 const ageTierLabel: Record<AgeTier, string | null> = {
   fresh: null,
   normal: null,
@@ -69,21 +62,6 @@ const ageTierLabelColor: Record<AgeTier, string> = {
   aging: "text-attention",
   old: "text-destructive",
 };
-
-// ── Age Bar — pre-attentive visual cue (Hodent: color encodes meaning instantly) ──
-
-function AgeBar({ days }: { days: number }) {
-  const pct = Math.min((days / 365) * 100, 100);
-  const tier = getAgeTier(days);
-  return (
-    <div className="h-1.5 rounded-full bg-foreground/[0.05] overflow-hidden w-full">
-      <div
-        className={cn("h-full rounded-full transition-all duration-500", ageBarColor[tier])}
-        style={{ width: `${Math.max(pct, 4)}%` }}
-      />
-    </div>
-  );
-}
 
 const fmtPrice = (n: number) =>
   n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
@@ -221,7 +199,6 @@ export default function TechnicianEquipment({
                 </div>
                 <Skeleton className="h-7 w-20 rounded-[7px]" />
               </div>
-              <Skeleton className="h-1 w-full rounded-full" />
             </div>
           ))}
         </div>
@@ -327,9 +304,8 @@ export default function TechnicianEquipment({
                   </Button>
                 </div>
 
-                {/* Age bar — pre-attentive cue (color before text) */}
+                {/* Assignment age — duration + status */}
                 <div className="space-y-1">
-                  <AgeBar days={days} />
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
                       <Clock className="size-2.5" />

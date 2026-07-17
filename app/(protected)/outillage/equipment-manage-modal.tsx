@@ -62,7 +62,12 @@ export default function EquipmentManageModal({
   onEdit,
 }: EquipmentManageModalProps) {
   const { currentOrganization } = useOrganizationStore();
-  const { data: technicians = [] } = useTechnicians(currentOrganization?.id);
+  // Pass the year so this resolves to the 2-arg get_technicians_with_stats overload
+  // (calling without a year is ambiguous in the DB and silently returns nothing)
+  const { data: technicians = [] } = useTechnicians(
+    currentOrganization?.id,
+    new Date().getFullYear()
+  );
   // Live data — re-fetched after each assign/unassign via query invalidation
   const { data: liveProduct } = useEquipmentProduct(product.id);
   const assignMutation = useAssignEquipment();
@@ -78,6 +83,15 @@ export default function EquipmentManageModal({
   const stock = p.stock_current ?? 0;
   const totalUnits = stock + p.total_assigned;
   const totalValue = (p.price ?? 0) * totalUnits;
+
+  // Assign entry point is always shown; disabled with a reason when it can't be used
+  const canAssign = stock > 0 && activeTechs.length > 0;
+  const assignDisabledReason =
+    activeTechs.length === 0
+      ? "Aucun technicien — créez-en un d'abord"
+      : stock <= 0
+        ? "Plus de stock disponible pour assigner"
+        : null;
 
   // Build holder data sorted by age (oldest first = most urgent)
   const holders = p.assignments
@@ -250,69 +264,70 @@ export default function EquipmentManageModal({
               );
             })}
 
-            {/* ── "+" add holder — inline at end of list ── */}
-            {stock > 0 &&
-              activeTechs.length > 0 &&
-              (showAssignPicker ? (
-                <div key="picker" className="overflow-hidden">
-                  <div className="rounded-lg border border-dashed border-foreground/[0.12] p-3 mt-3 space-y-2">
-                    <select
-                      value={assigningTech}
-                      onChange={(e) => setAssigningTech(e.target.value)}
-                      autoFocus
-                      className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
+            {/* ── Assign entry point — always visible when a tool is opened ── */}
+            {showAssignPicker && canAssign ? (
+              <div key="picker" className="overflow-hidden">
+                <div className="rounded-lg border border-dashed border-foreground/[0.12] p-3 mt-3 space-y-2">
+                  <select
+                    value={assigningTech}
+                    onChange={(e) => setAssigningTech(e.target.value)}
+                    autoFocus
+                    className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
+                  >
+                    <option value="">Choisir un technicien...</option>
+                    {activeTechs.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.first_name} {t.last_name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 flex-1 text-xs"
+                      onClick={() => {
+                        setShowAssignPicker(false);
+                        setAssigningTech("");
+                      }}
                     >
-                      <option value="">Choisir un technicien...</option>
-                      {activeTechs.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.first_name} {t.last_name}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 flex-1 text-xs"
-                        onClick={() => {
-                          setShowAssignPicker(false);
-                          setAssigningTech("");
-                        }}
-                      >
-                        Annuler
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="h-8 flex-1 text-xs"
-                        onClick={() => {
-                          handleAssign();
-                          setShowAssignPicker(false);
-                        }}
-                        disabled={!assigningTech || assignMutation.isPending}
-                      >
-                        Assigner
-                      </Button>
-                    </div>
+                      Annuler
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-8 flex-1 text-xs"
+                      onClick={() => {
+                        handleAssign();
+                        setShowAssignPicker(false);
+                      }}
+                      disabled={!assigningTech || assignMutation.isPending}
+                    >
+                      Assigner
+                    </Button>
                   </div>
                 </div>
-              ) : (
-                <button
-                  key="add-btn"
-                  type="button"
-                  onClick={() => setShowAssignPicker(true)}
-                  className="w-full flex items-center gap-3 rounded-lg border border-dashed border-foreground/[0.10] p-3 mt-3 hover:border-foreground/20 hover:bg-muted/20 transition-colors cursor-pointer"
-                >
-                  <div className="flex size-8 items-center justify-center rounded-full bg-foreground/[0.04]">
-                    <Plus className="size-4 text-muted-foreground/40" />
-                  </div>
-                  <span className="text-sm text-muted-foreground/50">Assigner a un technicien</span>
-                </button>
-              ))}
-
-            {stock === 0 && holders.length > 0 && (
-              <p className="text-[11px] text-attention text-center py-2 font-medium">
-                Tout le stock est deploye
-              </p>
+              </div>
+            ) : (
+              <button
+                key="add-btn"
+                type="button"
+                onClick={() => canAssign && setShowAssignPicker(true)}
+                disabled={!canAssign}
+                title={assignDisabledReason ?? undefined}
+                className={cn(
+                  "w-full flex items-center gap-3 rounded-lg border border-dashed p-3 mt-3 transition-colors text-left",
+                  canAssign
+                    ? "border-foreground/[0.10] hover:border-foreground/20 hover:bg-muted/20 cursor-pointer"
+                    : "border-foreground/[0.08] opacity-70 cursor-not-allowed"
+                )}
+              >
+                <div className="flex size-8 items-center justify-center rounded-full bg-foreground/[0.04]">
+                  <Plus className="size-4 text-muted-foreground/40" />
+                </div>
+                <span className="text-sm text-muted-foreground/60">
+                  {canAssign ? "Assigner a un technicien" : assignDisabledReason}
+                </span>
+              </button>
             )}
           </div>
         </div>
