@@ -210,11 +210,6 @@ export default function TechnicianEquipment({
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          {[...Array(2)].map((_, i) => (
-            <Skeleton key={i} className="h-[72px] rounded-xl" />
-          ))}
-        </div>
         <Skeleton className="h-9 w-full rounded-md" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[...Array(4)].map((_, i) => (
@@ -227,26 +222,6 @@ export default function TechnicianEquipment({
 
   return (
     <div className="space-y-4">
-      {/* ── Stats — CD2: accomplishment, sense of responsibility ── */}
-      {equipment.length > 0 && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-xl border bg-card px-4 py-3">
-            <p className="font-heading text-2xl font-bold tabular-nums leading-none">
-              {totalItems}
-            </p>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              outil{totalItems > 1 ? "s" : ""} equipe{totalItems > 1 ? "s" : ""}
-            </p>
-          </div>
-          <div className="rounded-xl border bg-card px-4 py-3">
-            <p className="font-heading text-2xl font-bold tabular-nums leading-none truncate">
-              {totalValue > 0 ? fmtPrice(totalValue) : "\u2014"}
-            </p>
-            <p className="text-[11px] text-muted-foreground mt-1">valeur confiee</p>
-          </div>
-        </div>
-      )}
-
       {/* ── Assign bar ── */}
       {availableEquipment.length > 0 && (
         <div className="flex gap-2">

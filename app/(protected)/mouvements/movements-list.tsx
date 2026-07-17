@@ -12,15 +12,12 @@ import {
 } from "@tanstack/react-table";
 import {
   ArrowUpDown,
-  ArrowDownToLine,
-  ArrowUpFromLine,
   Search,
   History,
   CalendarDays,
   Building2,
   Truck,
   HardHat,
-  Wrench,
   Check,
   X,
 } from "lucide-react";
@@ -540,31 +537,19 @@ export default function MovementsList() {
         header: ({ column }) => <SortHeader label="Type" column={column} />,
         cell: ({ row }) => {
           const type = row.original.movement_type;
-          const isEntry = type === "entry";
           const isEquipment = type === "assign_equipment" || type === "unassign_equipment";
           return (
-            <div className="flex items-center gap-2">
-              {isEquipment ? (
-                <Wrench className="size-3.5 text-primary" />
-              ) : isEntry ? (
-                <ArrowDownToLine className="size-3.5 text-standard" />
-              ) : type === "exit_anonymous" ? (
-                <ArrowUpFromLine className="size-3.5 text-attention" />
-              ) : (
-                <ArrowUpFromLine className="size-3.5 text-critique" />
+            <span
+              className={cn(
+                "inline-flex items-center rounded-full px-2 py-0.5 text-[13px] font-medium",
+                type === "entry" && "text-standard bg-standard-bg",
+                type === "exit_technician" && "text-critique bg-critique-bg",
+                type === "exit_anonymous" && "text-attention bg-attention-bg",
+                isEquipment && "text-primary bg-primary/10"
               )}
-              <span
-                className={cn(
-                  "inline-flex items-center rounded-full px-2 py-0.5 text-[13px] font-medium",
-                  type === "entry" && "text-standard bg-standard-bg",
-                  type === "exit_technician" && "text-critique bg-critique-bg",
-                  type === "exit_anonymous" && "text-attention bg-attention-bg",
-                  isEquipment && "text-primary bg-primary/10"
-                )}
-              >
-                {MOVEMENT_TYPE_LABELS[type]}
-              </span>
-            </div>
+            >
+              {MOVEMENT_TYPE_LABELS[type]}
+            </span>
           );
         },
       },
@@ -592,30 +577,21 @@ export default function MovementsList() {
           );
         },
       },
+      // Technicien right after Produit — most actionable info close (Hodent)
       {
-        id: "organization",
-        meta: { label: "Société" },
-        accessorFn: (row) => row.organization?.name ?? "",
-        header: ({ column }) => <SortHeader label="Société" column={column} />,
+        id: "technician",
+        meta: { label: "Technicien" },
+        accessorFn: (row) =>
+          row.technician ? `${row.technician.first_name} ${row.technician.last_name}` : "",
+        header: ({ column }) => <SortHeader label="Technicien" column={column} />,
         cell: ({ row }) => {
-          // Société de l'entrée, ou société drainée pour une sortie technicien
-          const org = row.original.organization;
-          if (!org) return <span className="text-muted-foreground">—</span>;
-          return <span className="text-[15px]">{org.name}</span>;
-        },
-      },
-      {
-        id: "supplier",
-        meta: { label: "Fournisseur" },
-        accessorFn: (row) => row.supplier?.name ?? "",
-        header: ({ column }) => <SortHeader label="Fournisseur" column={column} />,
-        cell: ({ row }) => {
-          if (row.original.movement_type !== "entry") {
-            return <span className="text-muted-foreground">—</span>;
-          }
-          const supplier = row.original.supplier;
-          if (!supplier) return <span className="text-muted-foreground">—</span>;
-          return <span className="text-[15px]">{supplier.name}</span>;
+          const technician = row.original.technician;
+          if (!technician) return <span className="text-muted-foreground">—</span>;
+          return (
+            <span className="text-[15px]">
+              {technician.first_name} {technician.last_name}
+            </span>
+          );
         },
       },
       {
@@ -640,19 +616,28 @@ export default function MovementsList() {
         meta: { align: "center", label: "Qté" },
       },
       {
-        id: "technician",
-        meta: { label: "Technicien" },
-        accessorFn: (row) =>
-          row.technician ? `${row.technician.first_name} ${row.technician.last_name}` : "",
-        header: ({ column }) => <SortHeader label="Technicien" column={column} />,
+        id: "organization",
+        meta: { label: "Société" },
+        accessorFn: (row) => row.organization?.name ?? "",
+        header: ({ column }) => <SortHeader label="Société" column={column} />,
         cell: ({ row }) => {
-          const technician = row.original.technician;
-          if (!technician) return <span className="text-muted-foreground">—</span>;
-          return (
-            <span className="text-[15px]">
-              {technician.first_name} {technician.last_name}
-            </span>
-          );
+          const org = row.original.organization;
+          if (!org) return <span className="text-muted-foreground">—</span>;
+          return <span className="text-[15px]">{org.name}</span>;
+        },
+      },
+      {
+        id: "supplier",
+        meta: { label: "Fournisseur" },
+        accessorFn: (row) => row.supplier?.name ?? "",
+        header: ({ column }) => <SortHeader label="Fournisseur" column={column} />,
+        cell: ({ row }) => {
+          if (row.original.movement_type !== "entry") {
+            return <span className="text-muted-foreground">—</span>;
+          }
+          const supplier = row.original.supplier;
+          if (!supplier) return <span className="text-muted-foreground">—</span>;
+          return <span className="text-[15px]">{supplier.name}</span>;
         },
       },
     ],
@@ -966,44 +951,71 @@ export default function MovementsList() {
           </Popover>
         )}
 
-        <div className="flex items-center gap-1.5">
-          {TYPE_FILTER_OPTIONS.map((opt) => {
-            const isAll = opt.value === "all";
-            const isActive = isAll ? filterTypes.size === 0 : filterTypes.has(opt.value);
-            const count = typeCounts[opt.value] || 0;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() =>
-                  startTransition(() => {
-                    if (isAll) {
-                      setFilterTypes(new Set());
-                    } else {
-                      setFilterTypes((prev) => toggleSet(prev, opt.value));
-                    }
-                  })
-                }
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none",
-                  isActive
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
-                )}
-              >
-                {opt.label}
+        <Popover>
+          <PopoverTrigger
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none cursor-pointer",
+              filterTypes.size > 0
+                ? "bg-primary text-primary-foreground"
+                : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
+            )}
+          >
+            <History className="size-3" />
+            Type
+            {filterTypes.size > 0 && (
+              <>
+                <span className="opacity-80 tabular-nums font-heading">{filterTypes.size}</span>
                 <span
-                  className={cn(
-                    "tabular-nums font-heading",
-                    isActive ? "opacity-80" : "opacity-50"
-                  )}
+                  role="button"
+                  className="ml-0.5 rounded-full hover:bg-white/20 p-0.5 -mr-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startTransition(() => setFilterTypes(new Set()));
+                  }}
                 >
-                  {count}
+                  <X className="size-3" />
                 </span>
-              </button>
-            );
-          })}
-        </div>
+              </>
+            )}
+          </PopoverTrigger>
+          <PopoverContent
+            align="start"
+            className="w-auto min-w-[200px] p-1 rounded-xl overflow-hidden"
+          >
+            <div className="flex flex-col gap-0.5 max-h-[280px] overflow-y-auto">
+              {TYPE_FILTER_OPTIONS.filter((o) => o.value !== "all").map((opt) => {
+                const selected = filterTypes.has(opt.value);
+                const count = typeCounts[opt.value] || 0;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={cn(
+                      "flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-lg transition-colors",
+                      selected
+                        ? "bg-primary/10 text-foreground font-medium"
+                        : "text-foreground/70 hover:bg-muted hover:text-foreground"
+                    )}
+                    onClick={() => {
+                      startTransition(() => setFilterTypes((prev) => toggleSet(prev, opt.value)));
+                    }}
+                  >
+                    <span
+                      className={cn(
+                        "size-3.5 flex items-center justify-center",
+                        !selected && "opacity-0"
+                      )}
+                    >
+                      <Check className="size-3.5" />
+                    </span>
+                    <span className="flex-1">{opt.label}</span>
+                    <span className="text-[11px] tabular-nums text-muted-foreground">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </PopoverContent>
+        </Popover>
 
         <TableColumnToggle table={table} />
       </div>

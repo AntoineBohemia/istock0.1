@@ -228,9 +228,27 @@ export default function EquipmentList() {
                       <p className="font-semibold text-[15px] leading-tight truncate">
                         {item.name}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                        {stock} en stock · {item.total_assigned} assigne
-                        {item.total_assigned > 1 ? "s" : ""}
+                      <p className="text-xs mt-0.5 truncate">
+                        <span
+                          className={cn(
+                            "font-semibold tabular-nums",
+                            stock === 0
+                              ? "text-critique"
+                              : stock <= 2
+                                ? "text-attention"
+                                : "text-muted-foreground"
+                          )}
+                        >
+                          {stock}
+                        </span>
+                        <span className="text-muted-foreground"> en stock · </span>
+                        <span className="text-muted-foreground tabular-nums">
+                          {item.total_assigned}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {" "}
+                          assigne{item.total_assigned > 1 ? "s" : ""}
+                        </span>
                       </p>
                     </div>
                     {alert !== "none" && (
@@ -243,6 +261,19 @@ export default function EquipmentList() {
                       />
                     )}
                   </div>
+
+                  {/* Distribution micro-bar */}
+                  {total > 0 && (
+                    <div className="h-1 rounded-full bg-foreground/[0.06] overflow-hidden">
+                      <div
+                        className={cn(
+                          "h-full rounded-full",
+                          stock === 0 ? "bg-attention/50" : "bg-foreground/20"
+                        )}
+                        style={{ width: `${Math.round((item.total_assigned / total) * 100)}%` }}
+                      />
+                    </div>
+                  )}
 
                   {/* Footer: avatars + value */}
                   <div className="flex items-center justify-between">

@@ -238,6 +238,24 @@ export default function AchatsList() {
     }
   }, [products.length]);
 
+  // Max values for proportional micro-bars
+  const { maxEntries, maxValue } = useMemo(() => {
+    let mE = 1;
+    let mV = 1;
+    for (const p of products) {
+      const data = entryQtyByProduct?.[p.id];
+      if (!data) continue;
+      const qty = Object.values(data).reduce((s, d) => s + d.qty, 0);
+      const val = Object.values(data).reduce(
+        (s, d) => s + d.byPrice.reduce((ps, bp) => ps + bp.unitPrice * bp.qty, 0),
+        0
+      );
+      if (qty > mE) mE = qty;
+      if (val > mV) mV = val;
+    }
+    return { maxEntries: mE, maxValue: mV };
+  }, [products, entryQtyByProduct]);
+
   const toggleExpand = (productId: string) => {
     setExpandedRows((prev) => {
       const next = new Set(prev);
@@ -439,10 +457,19 @@ export default function AchatsList() {
             0
           );
           if (value === 0) return <span className="text-muted-foreground">—</span>;
+          const pct = maxValue > 0 ? (value / maxValue) * 100 : 0;
           return (
-            <span className="font-heading tabular-nums text-[15px] font-semibold text-foreground">
-              {value.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
-            </span>
+            <div className="flex flex-col items-end gap-1 min-w-[80px]">
+              <span className="font-heading tabular-nums text-[15px] font-semibold leading-none text-foreground">
+                {value.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
+              </span>
+              <div className="w-full h-1 rounded-full bg-foreground/[0.06] overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-foreground/20"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
           );
         },
         sortingFn: "basic",

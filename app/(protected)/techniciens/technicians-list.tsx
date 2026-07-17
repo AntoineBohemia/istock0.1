@@ -162,7 +162,10 @@ export default function TechniciansList() {
     });
   }, [technicians, debouncedSearch]);
 
-  const [columnVisibility, setColumnVisibility] = useColumnVisibility("techniciens");
+  const [columnVisibility, setColumnVisibility] = useColumnVisibility("techniciens", {
+    phone: false,
+    organization: false,
+  });
 
   // Max units across all techs — used for proportional micro-bars
   const maxUnits = useMemo(

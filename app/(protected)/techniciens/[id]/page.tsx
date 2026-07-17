@@ -38,7 +38,7 @@ async function getTechnician(id: string, year: number) {
 
   const { data: technician, error } = await supabase
     .from("technicians")
-    .select("*")
+    .select("*, organization:organizations(name)")
     .eq("id", id)
     .single();
 
@@ -50,36 +50,38 @@ async function getTechnician(id: string, year: number) {
   const yearEnd = new Date(year + 1, 0, 1).toISOString();
 
   // Toutes les queries sont indépendantes → paralléliser
-  const [inventoryResult, lastMovementResult, restocksResult, yearMovementsResult, equipmentResult] =
-    await Promise.all([
-      supabase.from("technician_inventory").select("quantity").eq("technician_id", id),
-      supabase
-        .from("stock_movements")
-        .select("created_at")
-        .eq("technician_id", id)
-        .eq("movement_type", "exit_technician")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single(),
-      supabase
-        .from("technician_inventory_history")
-        .select("id", { count: "exact", head: true })
-        .eq("technician_id", id)
-        .gte("created_at", yearStart)
-        .lt("created_at", yearEnd),
-      supabase
-        .from("stock_movements")
-        .select("id, product_id, quantity, created_at, product:products(id, name, sku, image_url)")
-        .eq("technician_id", id)
-        .eq("movement_type", "exit_technician")
-        .gte("created_at", yearStart)
-        .lt("created_at", yearEnd)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("equipment_assignments")
-        .select("quantity")
-        .eq("technician_id", id),
-    ]);
+  const [
+    inventoryResult,
+    lastMovementResult,
+    restocksResult,
+    yearMovementsResult,
+    equipmentResult,
+  ] = await Promise.all([
+    supabase.from("technician_inventory").select("quantity").eq("technician_id", id),
+    supabase
+      .from("stock_movements")
+      .select("created_at")
+      .eq("technician_id", id)
+      .eq("movement_type", "exit_technician")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single(),
+    supabase
+      .from("technician_inventory_history")
+      .select("id", { count: "exact", head: true })
+      .eq("technician_id", id)
+      .gte("created_at", yearStart)
+      .lt("created_at", yearEnd),
+    supabase
+      .from("stock_movements")
+      .select("id, product_id, quantity, created_at, product:products(id, name, sku, image_url)")
+      .eq("technician_id", id)
+      .eq("movement_type", "exit_technician")
+      .gte("created_at", yearStart)
+      .lt("created_at", yearEnd)
+      .order("created_at", { ascending: false }),
+    supabase.from("equipment_assignments").select("quantity").eq("technician_id", id),
+  ]);
 
   const inventoryCount = inventoryResult.data?.reduce((sum, item) => sum + item.quantity, 0) || 0;
   const equipmentCount = equipmentResult.data?.reduce((sum, item) => sum + item.quantity, 0) || 0;
@@ -125,8 +127,12 @@ async function getTechnician(id: string, year: number) {
     product: Array.isArray(item.product) ? item.product[0] : item.product,
   }));
 
+  const orgData = technician.organization as { name: string } | { name: string }[] | null;
+  const organizationName = Array.isArray(orgData) ? orgData[0]?.name : orgData?.name;
+
   return {
     ...technician,
+    organization_name: organizationName ?? null,
     inventory_count: inventoryCount,
     year_units_total: yearUnitsTotal,
     yearly_product_totals: yearlyProductTotals,
@@ -195,6 +201,20 @@ export default async function TechnicianDetailPage({
                   {" · "}
                 </>
               )}
+              {technician.phone && (
+                <>
+                  <span className="tabular-nums">{technician.phone}</span>
+                  {" · "}
+                </>
+              )}
+              {technician.organization_name && (
+                <>
+                  <span className="font-semibold text-foreground">
+                    {technician.organization_name}
+                  </span>
+                  {" · "}
+                </>
+              )}
               dernier réappro{" "}
               <span className="font-semibold text-foreground">
                 {formatDate(technician.last_restock_at)}
@@ -211,37 +231,6 @@ export default async function TechnicianDetailPage({
             <TechnicianRestockButton technicianId={id} />
             <ArchiveTechnicianButton technicianId={id} technicianName={fullName} />
           </div>
-        </div>
-
-        {/* Stats inline */}
-        <div className="flex items-baseline gap-1.5 flex-wrap border-t pt-5">
-          <span className="font-heading text-5xl font-bold tabular-nums leading-none">
-            {technician.year_units_total}
-          </span>
-          <span className="text-muted-foreground text-lg">unités en {year}</span>
-          <span className="text-muted-foreground text-lg mx-1.5">·</span>
-          <span className="font-heading text-xl font-bold tabular-nums">
-            {technician.inventory_count}
-          </span>
-          <span className="text-muted-foreground text-lg">en stock</span>
-          <span className="text-muted-foreground text-lg mx-1.5">·</span>
-          <span className="font-heading text-xl font-bold tabular-nums">
-            {technician.total_restocks}
-          </span>
-          <span className="text-muted-foreground text-lg">
-            réappro{year !== currentYear ? ` en ${year}` : ""}
-          </span>
-          {technician.equipment_count > 0 && (
-            <>
-              <span className="text-muted-foreground text-lg mx-1.5">&middot;</span>
-              <span className="font-heading text-xl font-bold tabular-nums">
-                {technician.equipment_count}
-              </span>
-              <span className="text-muted-foreground text-lg">
-                outil{technician.equipment_count > 1 ? "s" : ""}
-              </span>
-            </>
-          )}
         </div>
       </div>
 
