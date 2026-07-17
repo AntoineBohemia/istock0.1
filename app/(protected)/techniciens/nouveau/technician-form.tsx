@@ -22,7 +22,11 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { createTechnician, updateTechnician, uploadTechnicianPhoto } from "@/lib/supabase/queries/technicians";
+import {
+  createTechnician,
+  updateTechnician,
+  uploadTechnicianPhoto,
+} from "@/lib/supabase/queries/technicians";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useOrganizations } from "@/hooks/queries";
 
@@ -97,7 +101,11 @@ export default function TechnicianForm({ mode = "create", initialData }: Technic
       }
 
       if (mode === "edit" && initialData?.id) {
-        await updateTechnician(initialData.id, { ...data, photo_url: photoUrl }, currentOrganization.id);
+        await updateTechnician(
+          initialData.id,
+          { ...data, photo_url: photoUrl },
+          currentOrganization.id
+        );
         toast.success("Technicien mis à jour avec succès");
         router.push(`/techniciens/${initialData.id}`);
       } else {
@@ -136,12 +144,13 @@ export default function TechnicianForm({ mode = "create", initialData }: Technic
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="outline-contrast" size="icon" type="button" asChild>
-              <Link
-                href={mode === "edit" && initialData?.id ? `/techniciens/${initialData.id}` : "/techniciens"}
-              >
-                <ChevronLeft />
-              </Link>
+            <Button
+              variant="outline-contrast"
+              size="icon"
+              type="button"
+              onClick={() => router.back()}
+            >
+              <ChevronLeft />
             </Button>
             <h1 className="text-2xl font-bold tracking-tight">
               {mode === "edit" ? "Modifier le technicien" : "Ajouter un technicien"}
@@ -263,9 +272,13 @@ export default function TechnicianForm({ mode = "create", initialData }: Technic
                           onChange={(e) => field.onChange(e.target.value)}
                           className="border-input bg-background text-sm flex h-9 w-full rounded-md border px-3 py-1.5 outline-none focus:border-ring focus:ring-ring/50 focus:ring-[3px]"
                         >
-                          <option value="" disabled>Sélectionner</option>
+                          <option value="" disabled>
+                            Sélectionner
+                          </option>
                           {userOrgs?.map((o) => (
-                            <option key={o.id} value={o.id}>{o.name}</option>
+                            <option key={o.id} value={o.id}>
+                              {o.name}
+                            </option>
                           ))}
                         </select>
                       </FormControl>
@@ -329,7 +342,9 @@ export default function TechnicianForm({ mode = "create", initialData }: Technic
                         >
                           <option value="">—</option>
                           {["XS", "S", "M", "L", "XL", "XXL", "3XL"].map((s) => (
-                            <option key={s} value={s}>{s}</option>
+                            <option key={s} value={s}>
+                              {s}
+                            </option>
                           ))}
                         </select>
                       </FormControl>

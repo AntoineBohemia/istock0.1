@@ -1,15 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import {
-  ArrowLeft,
-  Upload01,
-  Package,
-  User01,
-  UserX01,
-  Image01,
-  ArrowRight,
-} from "@untitled-ui/icons-react";
+import { BackButton } from "@/components/back-button";
+import { Upload01, Package, User01, UserX01, Image01, ArrowRight } from "@untitled-ui/icons-react";
 import { generateMeta } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
@@ -88,11 +81,7 @@ export default async function OutcomeDetailPage({ params }: { params: Promise<{ 
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" asChild className="shrink-0 -ml-2" aria-label="Retour aux mouvements">
-            <Link href="/mouvements">
-              <ArrowLeft className="size-4" />
-            </Link>
-          </Button>
+          <BackButton label="Retour aux mouvements" className="shrink-0 -ml-2" />
           <div>
             <div className="flex items-center gap-2.5">
               <Upload01 className="size-5 text-red-600 shrink-0" />
