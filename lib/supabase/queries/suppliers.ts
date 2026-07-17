@@ -66,8 +66,10 @@ export async function getSuppliersWithProducts(
   }
 
   return (data ?? []).map((s) => ({
-    ...s,
-    products: (s.products ?? []).filter((p: SupplierProduct) => !p.archived_at),
+    ...(s as unknown as Supplier),
+    products: (((s as Record<string, unknown>).products as SupplierProduct[]) ?? []).filter(
+      (p) => !p.archived_at
+    ),
   }));
 }
 
@@ -91,8 +93,10 @@ export async function getSupplier(id: string): Promise<SupplierWithProducts | nu
   }
 
   return {
-    ...data,
-    products: (data.products ?? []).filter((p: SupplierProduct) => !p.archived_at),
+    ...(data as unknown as Supplier),
+    products: (((data as Record<string, unknown>).products as SupplierProduct[]) ?? []).filter(
+      (p) => !p.archived_at
+    ),
   };
 }
 
