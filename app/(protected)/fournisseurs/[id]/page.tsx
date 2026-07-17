@@ -76,7 +76,12 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
             )}
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="shrink-0">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setEditOpen(true)}
+          className="shrink-0 bg-white dark:bg-card"
+        >
           <Pencil className="mr-2 size-3.5" />
           Modifier
         </Button>
