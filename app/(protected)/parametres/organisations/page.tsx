@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Building2,
   Edit2,
@@ -15,10 +16,11 @@ import {
   X,
   ImageIcon,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -285,20 +287,69 @@ export default function OrganizationsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-4 w-64 mt-1" />
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
+                    <Skeleton className="h-3 w-20" />
+                  </TableHead>
+                  <TableHead>
+                    <Skeleton className="h-3 w-10" />
+                  </TableHead>
+                  <TableHead>
+                    <Skeleton className="h-3 w-10" />
+                  </TableHead>
+                  <TableHead className="w-12" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {[...Array(3)].map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="size-10 rounded-full" />
+                        <Skeleton className="h-4 w-32" />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-3 w-20" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-5 w-16 rounded-full" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="size-8 rounded-[9px]" />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
+  const actionSlot =
+    typeof document !== "undefined" ? document.getElementById("settings-action-slot") : null;
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
-        <Button onClick={openCreateDialog}>
-          <Plus className="mr-2 size-4" />
-          Nouvelle organisation
-        </Button>
-      </div>
+      {actionSlot &&
+        createPortal(
+          <Button onClick={openCreateDialog}>
+            <Plus className="mr-2 size-4" />
+            Nouvelle organisation
+          </Button>,
+          actionSlot
+        )}
 
       <Card>
         <CardHeader>
@@ -374,7 +425,12 @@ export default function OrganizationsPage() {
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="size-8">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8"
+                              aria-label="Actions"
+                            >
                               <MoreHorizontal className="size-4" />
                             </Button>
                           </DropdownMenuTrigger>

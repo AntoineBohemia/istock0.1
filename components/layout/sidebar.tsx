@@ -162,7 +162,7 @@ export default function Sidebar() {
                   <button
                     onClick={() => {
                       setUserMenuOpen(false);
-                      router.push("/parametres/equipe");
+                      router.push("/parametres?tab=team");
                     }}
                     className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent cursor-pointer text-left"
                   >
@@ -172,7 +172,7 @@ export default function Sidebar() {
                   <button
                     onClick={() => {
                       setUserMenuOpen(false);
-                      router.push("/parametres/organisations");
+                      router.push("/parametres?tab=organizations");
                     }}
                     className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent cursor-pointer text-left"
                   >

@@ -3,7 +3,7 @@ import { filterRoutesByRole, isRoleAllowed, page_routes } from "./routes-config"
 
 describe("isRoleAllowed", () => {
   it("returns true when allowedRoles is undefined (no restriction)", () => {
-    expect(isRoleAllowed("guest", undefined)).toBe(true);
+    expect(isRoleAllowed("member", undefined)).toBe(true);
     expect(isRoleAllowed("owner", undefined)).toBe(true);
   });
 
@@ -13,8 +13,7 @@ describe("isRoleAllowed", () => {
   });
 
   it("returns false when role is NOT in allowedRoles", () => {
-    expect(isRoleAllowed("guest", ["owner", "admin", "member"])).toBe(false);
-    expect(isRoleAllowed("member", ["owner"])).toBe(false);
+    expect(isRoleAllowed("member", ["owner", "admin"])).toBe(false);
   });
 
   it("returns false when role is undefined and restriction exists", () => {
@@ -22,81 +21,43 @@ describe("isRoleAllowed", () => {
   });
 });
 
-describe("filterRoutesByRole — owner/admin/member", () => {
-  it.each(["owner", "admin", "member"] as const)(
-    "shows both Stock and Configuration sections for %s",
-    (role) => {
-      const filtered = filterRoutesByRole(page_routes, role);
-      const titles = filtered.map((s) => s.title);
-      expect(titles).toContain("Stock");
-      expect(titles).toContain("Configuration");
-    }
-  );
-
-  it.each(["owner", "admin", "member"] as const)(
-    "shows Vue d'ensemble (dashboard) for %s",
-    (role) => {
-      const filtered = filterRoutesByRole(page_routes, role);
-      const stockSection = filtered.find((s) => s.title === "Stock");
-      expect(stockSection?.items.some((i) => i.href === "/actions")).toBe(true);
-    }
-  );
-
-  it.each(["owner", "admin", "member"] as const)(
-    "shows Catégories sub-item for %s",
-    (role) => {
-      const filtered = filterRoutesByRole(page_routes, role);
-      const stockProduits = filtered
-        .find((s) => s.title === "Stock")
-        ?.items.find((i) => i.href === "/produits");
-      expect(
-        stockProduits?.items?.some((sub) => sub.href === "/parametres/categories")
-      ).toBe(true);
-    }
-  );
-});
-
-describe("filterRoutesByRole — guest (RESTRICTED)", () => {
-  const filtered = filterRoutesByRole(page_routes, "guest");
-
-  it("does NOT show the Configuration section", () => {
-    expect(filtered.some((s) => s.title === "Configuration")).toBe(false);
-  });
-
-  it("does NOT show Vue d'ensemble (dashboard)", () => {
-    const items = filtered.flatMap((s) => s.items);
-    expect(items.some((i) => i.href === "/actions")).toBe(false);
-  });
-
-  it("does NOT show Catégories sub-item", () => {
-    const stockProduits = filtered
-      .find((s) => s.title === "Stock")
-      ?.items.find((i) => i.href === "/produits");
-    expect(
-      stockProduits?.items?.some((sub) => sub.href === "/parametres/categories")
-    ).toBe(false);
-  });
-
-  it("still shows Techniciens, Stock produits, Flux de stock", () => {
+describe("filterRoutesByRole — owner/admin (full access)", () => {
+  it.each(["owner", "admin"] as const)("shows all routes for %s", (role) => {
+    const filtered = filterRoutesByRole(page_routes, role);
     const hrefs = filtered.flatMap((s) => s.items.map((i) => i.href));
-    expect(hrefs).toContain("/techniciens");
+    expect(hrefs).toContain("/actions");
     expect(hrefs).toContain("/produits");
+    expect(hrefs).toContain("/outillage");
+    expect(hrefs).toContain("/achats");
+    expect(hrefs).toContain("/techniciens");
     expect(hrefs).toContain("/mouvements");
   });
+});
 
-  it("only shows the Stock section (no Configuration)", () => {
-    expect(filtered).toHaveLength(1);
-    expect(filtered[0].title).toBe("Stock");
+describe("filterRoutesByRole — member (restricted to /actions)", () => {
+  const filtered = filterRoutesByRole(page_routes, "member");
+  const hrefs = filtered.flatMap((s) => s.items.map((i) => i.href));
+
+  it("shows /actions", () => {
+    expect(hrefs).toContain("/actions");
+  });
+
+  it("does NOT show other routes", () => {
+    expect(hrefs).not.toContain("/produits");
+    expect(hrefs).not.toContain("/outillage");
+    expect(hrefs).not.toContain("/achats");
+    expect(hrefs).not.toContain("/techniciens");
+    expect(hrefs).not.toContain("/mouvements");
   });
 });
 
 describe("filterRoutesByRole — undefined role", () => {
-  it("treats undefined role as no-access for restricted items", () => {
+  it("only shows unrestricted items", () => {
     const filtered = filterRoutesByRole(page_routes, undefined);
-    // Les items sans allowedRoles restent visibles
     const hrefs = filtered.flatMap((s) => s.items.map((i) => i.href));
-    expect(hrefs).toContain("/techniciens");
-    // Les items restreints (/global) doivent disparaître
-    expect(hrefs).not.toContain("/actions");
+    // /actions has no allowedRoles restriction, so it shows
+    expect(hrefs).toContain("/actions");
+    // restricted routes should be hidden
+    expect(hrefs).not.toContain("/produits");
   });
 });

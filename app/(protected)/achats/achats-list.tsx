@@ -1,7 +1,8 @@
 "use client";
 
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useDebouncedValue } from "@/hooks/use-debounce";
 import {
   ColumnDef,
   SortingState,
@@ -10,10 +11,11 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, Search, Package, ChevronDown } from "lucide-react";
+import { ArrowUpDown, Package, ChevronDown, Building2, Check, X } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/search-input";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProductWithRelations } from "@/lib/supabase/queries/products";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
@@ -189,18 +191,16 @@ export default function AchatsList() {
 
   // Search: local state + debounce
   const [searchInput, setSearchInput] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [filterOrg, setFilterOrg] = useState("");
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const isInitialMount = useRef(true);
+  const debouncedSearch = useDebouncedValue(searchInput, 300);
+  const [filterOrgs, setFilterOrgs] = useState<Set<string>>(new Set());
 
-  const onSearchChange = useCallback((value: string) => {
-    setSearchInput(value);
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      startTransition(() => setDebouncedSearch(value));
-    }, 300);
-  }, []);
+  const toggleSet = (prev: Set<string>, value: string) => {
+    const next = new Set(prev);
+    if (next.has(value)) next.delete(value);
+    else next.add(value);
+    return next;
+  };
+  const isInitialMount = useRef(true);
 
   const { data: userOrgs } = useOrganizations();
   const currentYear = new Date().getFullYear();
@@ -213,14 +213,15 @@ export default function AchatsList() {
 
   const allProducts = productsResult?.products || [];
 
-  // Filter products by org: only show products that have entries for the selected org
+  // Filter products by org: only show products that have entries for selected orgs
   const products = useMemo(() => {
-    if (!filterOrg) return allProducts;
+    if (filterOrgs.size === 0) return allProducts;
     return allProducts.filter((p) => {
       const data = entryQtyByProduct?.[p.id];
-      return data && data[filterOrg];
+      if (!data) return false;
+      return [...filterOrgs].some((orgId) => data[orgId]);
     });
-  }, [allProducts, filterOrg, entryQtyByProduct]);
+  }, [allProducts, filterOrgs, entryQtyByProduct]);
 
   const orgNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -447,7 +448,7 @@ export default function AchatsList() {
           );
         },
         header: ({ column }) => (
-          <SortHeader label="Valeur achats" column={column} className="justify-end w-full" />
+          <SortHeader label="Valeur achats HT" column={column} className="justify-end w-full" />
         ),
         cell: ({ row }) => {
           const data = entryQtyByProduct?.[row.original.id];
@@ -473,7 +474,7 @@ export default function AchatsList() {
           );
         },
         sortingFn: "basic",
-        meta: { align: "right", label: "Valeur achats" },
+        meta: { align: "right", label: "Valeur achats HT" },
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -552,54 +553,83 @@ export default function AchatsList() {
 
   return (
     <div className="space-y-3">
-      {/* Search + category filter */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Rechercher un produit..."
-              value={searchInput}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="pl-9 bg-white dark:bg-card"
-            />
-          </div>
-          <TableColumnToggle table={table} />
-        </div>
+      {/* Search + filters on same line */}
+      <div className="flex items-center gap-2">
+        <SearchInput
+          value={searchInput}
+          onChange={setSearchInput}
+          placeholder="Rechercher un produit..."
+          className="bg-white dark:bg-card"
+          wrapperClassName="flex-1 min-w-0"
+        />
 
-        {(userOrgs?.length ?? 0) > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onClick={() => startTransition(() => setFilterOrg(""))}
+        {(userOrgs?.length ?? 0) > 1 && (
+          <Popover>
+            <PopoverTrigger
               className={cn(
-                "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                !filterOrg
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none cursor-pointer",
+                filterOrgs.size > 0
                   ? "bg-primary text-primary-foreground"
                   : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
               )}
             >
-              Toutes
-            </button>
-            {userOrgs?.map((org) => (
-              <button
-                key={org.id}
-                type="button"
-                onClick={() =>
-                  startTransition(() => setFilterOrg(filterOrg === org.id ? "" : org.id))
-                }
-                className={cn(
-                  "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                  filterOrg === org.id
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
-                )}
-              >
-                {org.name}
-              </button>
-            ))}
-          </div>
+              <Building2 className="size-3" />
+              Societe
+              {filterOrgs.size > 0 && (
+                <>
+                  <span className="opacity-80 tabular-nums font-heading">{filterOrgs.size}</span>
+                  <span
+                    role="button"
+                    className="ml-0.5 rounded-full hover:bg-white/20 p-0.5 -mr-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startTransition(() => setFilterOrgs(new Set()));
+                    }}
+                  >
+                    <X className="size-3" />
+                  </span>
+                </>
+              )}
+            </PopoverTrigger>
+            <PopoverContent
+              align="start"
+              className="w-auto min-w-[180px] p-1 rounded-xl overflow-hidden"
+            >
+              <div className="flex flex-col gap-0.5 max-h-[280px] overflow-y-auto">
+                {userOrgs?.map((org) => {
+                  const selected = filterOrgs.has(org.id);
+                  return (
+                    <button
+                      key={org.id}
+                      type="button"
+                      className={cn(
+                        "flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-lg transition-colors",
+                        selected
+                          ? "bg-primary/10 text-foreground font-medium"
+                          : "text-foreground/70 hover:bg-muted hover:text-foreground"
+                      )}
+                      onClick={() =>
+                        startTransition(() => setFilterOrgs((prev) => toggleSet(prev, org.id)))
+                      }
+                    >
+                      <span
+                        className={cn(
+                          "size-3.5 flex items-center justify-center",
+                          !selected && "opacity-0"
+                        )}
+                      >
+                        <Check className="size-3.5" />
+                      </span>
+                      {org.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
         )}
+
+        <TableColumnToggle table={table} />
       </div>
 
       <div className="rounded-xl border bg-card overflow-hidden">
@@ -701,9 +731,9 @@ export default function AchatsList() {
                     </div>
                     <h3 className="text-lg font-semibold">Aucun produit</h3>
                     <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-                      {debouncedSearch || filterOrg
+                      {debouncedSearch || filterOrgs.size > 0
                         ? "Aucun produit ne correspond à cette recherche."
-                        : "Ajoutez vos produits pour commencer."}
+                        : "Aucun achat enregistré cette année."}
                     </p>
                   </div>
                 </td>

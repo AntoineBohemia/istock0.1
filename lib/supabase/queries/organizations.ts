@@ -168,7 +168,7 @@ export async function getOrganizationMembers(
 export async function updateMemberRole(
   organizationId: string,
   userId: string,
-  role: "admin" | "member" | "guest"
+  role: "admin" | "member"
 ): Promise<void> {
   const supabase = createClient();
 
@@ -211,7 +211,7 @@ export interface InviteResult {
 export async function inviteUserToOrganization(
   organizationId: string,
   email: string,
-  role: "admin" | "member" | "guest" = "member"
+  role: "admin" | "member" = "member"
 ): Promise<InviteResult> {
   const supabase = createClient();
 

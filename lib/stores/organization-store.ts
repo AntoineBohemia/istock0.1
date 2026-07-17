@@ -1,7 +1,7 @@
 import { create, StateCreator } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
-export type Role = "owner" | "admin" | "member" | "guest";
+export type Role = "owner" | "admin" | "member";
 
 export interface Organization {
   id: string;
@@ -71,18 +71,6 @@ export function canDeleteOrganization(role: string): boolean {
 
 export function canManageAdmins(role: string): boolean {
   return role === "owner";
-}
-
-export function canAccessDashboard(role: string): boolean {
-  return role !== "guest";
-}
-
-export function canAccessSettings(role: string): boolean {
-  return role !== "guest";
-}
-
-export function isReadOnlyMember(role: string): boolean {
-  return role === "guest";
 }
 
 // Selective hooks to avoid unnecessary re-renders

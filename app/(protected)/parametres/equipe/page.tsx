@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowRightLeft,
   Copy,
@@ -9,17 +10,15 @@ import {
   Mail,
   MoreHorizontal,
   Shield,
-  Search,
   User,
   UserMinus,
   UserPlus,
   Users,
   Clock,
   X,
-  Eye,
   Send,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +37,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { SearchInput } from "@/components/search-input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -80,7 +81,6 @@ const roleLabels: Record<string, { label: string; icon: React.ElementType }> = {
   owner: { label: "Propriétaire", icon: Crown },
   admin: { label: "Administrateur", icon: Shield },
   member: { label: "Membre", icon: User },
-  guest: { label: "Invité", icon: Eye },
 };
 
 export default function MembersPage() {
@@ -110,7 +110,7 @@ export default function MembersPage() {
 
   // Form states
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"admin" | "member" | "guest">("member");
+  const [inviteRole, setInviteRole] = useState<"admin" | "member">("member");
   const [memberToRemove, setMemberToRemove] = useState<MemberWithEmail | null>(null);
   const [memberToTransfer, setMemberToTransfer] = useState<MemberWithEmail | null>(null);
   const [transferConfirmName, setTransferConfirmName] = useState("");
@@ -184,7 +184,7 @@ export default function MembersPage() {
     );
   };
 
-  const handleUpdateRole = (userId: string, newRole: "admin" | "member" | "guest") => {
+  const handleUpdateRole = (userId: string, newRole: "admin" | "member") => {
     if (!currentOrganization) return;
 
     updateRoleMutation.mutate(
@@ -281,8 +281,51 @@ export default function MembersPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-4 w-56 mt-1" />
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
+                    <Skeleton className="h-3 w-14" />
+                  </TableHead>
+                  <TableHead>
+                    <Skeleton className="h-3 w-10" />
+                  </TableHead>
+                  <TableHead>
+                    <Skeleton className="h-3 w-16" />
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {[...Array(4)].map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="size-8 rounded-full" />
+                        <div className="space-y-1">
+                          <Skeleton className="h-4 w-28" />
+                          <Skeleton className="h-3 w-36" />
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-5 w-16 rounded-full" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-3 w-20" />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -295,16 +338,20 @@ export default function MembersPage() {
     );
   }
 
+  const actionSlot =
+    typeof document !== "undefined" ? document.getElementById("settings-action-slot") : null;
+
   return (
     <div className="space-y-6">
-      {canManageMembers && (
-        <div className="flex justify-end">
+      {canManageMembers &&
+        actionSlot &&
+        createPortal(
           <Button onClick={() => setIsInviteDialogOpen(true)}>
             <UserPlus className="mr-2 size-4" />
             Inviter un membre
-          </Button>
-        </div>
-      )}
+          </Button>,
+          actionSlot
+        )}
 
       {/* Members List */}
       <Card>
@@ -317,15 +364,13 @@ export default function MembersPage() {
               </CardDescription>
             </div>
             {members.length > 3 && (
-              <div className="relative w-64">
-                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Rechercher..."
-                  value={memberSearch}
-                  onChange={(e) => setMemberSearch(e.target.value)}
-                  className="pl-9 h-9"
-                />
-              </div>
+              <SearchInput
+                value={memberSearch}
+                onChange={setMemberSearch}
+                placeholder="Rechercher..."
+                className="h-9"
+                wrapperClassName="w-64"
+              />
             )}
           </div>
         </CardHeader>
@@ -352,6 +397,16 @@ export default function MembersPage() {
                           ? "Aucun membre ne correspond à cette recherche."
                           : "Aucun membre dans cette organisation."}
                       </p>
+                      {!memberSearch && canManageMembers && (
+                        <Button
+                          variant="outline"
+                          className="mt-3"
+                          onClick={() => setIsInviteDialogOpen(true)}
+                        >
+                          <UserPlus className="mr-2 size-4" />
+                          Inviter un membre
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -402,34 +457,23 @@ export default function MembersPage() {
                           {!isOwner && !isCurrentUser && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="size-8">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-8"
+                                  aria-label="Actions"
+                                >
                                   <MoreHorizontal className="size-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                {member.role === "guest" && (
-                                  <DropdownMenuItem
-                                    onClick={() => handleUpdateRole(member.user_id, "member")}
-                                  >
-                                    <User className="mr-2 size-4" />
-                                    Promouvoir membre
-                                  </DropdownMenuItem>
-                                )}
                                 {member.role === "member" && (
-                                  <>
-                                    <DropdownMenuItem
-                                      onClick={() => handleUpdateRole(member.user_id, "admin")}
-                                    >
-                                      <Shield className="mr-2 size-4" />
-                                      Promouvoir admin
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      onClick={() => handleUpdateRole(member.user_id, "guest")}
-                                    >
-                                      <Eye className="mr-2 size-4" />
-                                      Rétrograder invité
-                                    </DropdownMenuItem>
-                                  </>
+                                  <DropdownMenuItem
+                                    onClick={() => handleUpdateRole(member.user_id, "admin")}
+                                  >
+                                    <Shield className="mr-2 size-4" />
+                                    Promouvoir admin
+                                  </DropdownMenuItem>
                                 )}
                                 {member.role === "admin" && (
                                   <DropdownMenuItem
@@ -581,20 +625,17 @@ export default function MembersPage() {
               <Label htmlFor="role">Rôle</Label>
               <select
                 value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value as "admin" | "member" | "guest")}
+                onChange={(e) => setInviteRole(e.target.value as "admin" | "member")}
                 disabled={isSubmitting}
-                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="member">Membre</option>
                 <option value="admin">Administrateur</option>
-                <option value="guest">Invité</option>
               </select>
               <p className="text-xs text-muted-foreground">
-                {inviteRole === "guest"
-                  ? "Accès restreint : peut voir Techniciens, Stock, Flux de stock et faire des restocks/sorties. Pas d'accès au Dashboard ni aux paramètres."
-                  : inviteRole === "admin"
-                    ? "Les administrateurs peuvent inviter et gérer les membres."
-                    : "Accès standard : peut voir et gérer le stock, les produits, les techniciens."}
+                {inviteRole === "admin"
+                  ? "Accès complet : peut inviter, gérer les membres et accéder à toutes les pages."
+                  : "Accès restreint : peut uniquement utiliser les Actions rapides (entrées/sorties stock)."}
               </p>
             </div>
           </div>
@@ -677,7 +718,7 @@ export default function MembersPage() {
             <AlertDialogAction
               onClick={handleRemoveMember}
               disabled={isSubmitting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-white hover:bg-destructive/90"
             >
               {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
               Retirer

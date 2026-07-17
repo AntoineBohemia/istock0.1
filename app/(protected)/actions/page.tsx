@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import {
   Search,
@@ -14,7 +14,7 @@ import {
   Plus,
   Trash2,
   ChevronLeft,
-  HardHat,
+  PackagePlus,
   Check,
 } from "lucide-react";
 
@@ -59,7 +59,7 @@ const ACTION_OPTIONS: {
   {
     mode: "exit_technician",
     label: "Sortie technicien",
-    icon: HardHat,
+    icon: PackagePlus,
     color: "text-primary",
     borderColor: "hover:border-primary",
   },
@@ -511,8 +511,8 @@ export default function GlobalPage() {
           key={mode}
           onClick={() => setActionMode(mode)}
           className={cn(
-            "group flex flex-col items-center justify-center gap-3 rounded-2xl border bg-card shadow-sm",
-            "transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm",
+            "group flex flex-col items-center justify-center gap-3 rounded-2xl border bg-card cursor-pointer",
+            "transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0",
             borderColor,
             compact ? "py-6 px-3" : "py-10 px-6"
           )}

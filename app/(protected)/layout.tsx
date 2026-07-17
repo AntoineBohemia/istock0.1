@@ -6,7 +6,7 @@ import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
 import MobileTopBar from "@/components/layout/mobile-top-bar";
 import OrganizationProvider from "@/components/organization-provider";
-import { GuestRouteGuard } from "@/components/guest-route-guard";
+import { RoleRouteGuard } from "@/components/role-route-guard";
 import { MobileRouteGuard } from "@/components/mobile-route-guard";
 import QueryProvider from "@/components/query-provider";
 
@@ -23,7 +23,7 @@ export default async function AuthLayout({
   return (
     <QueryProvider>
       <OrganizationProvider>
-        <GuestRouteGuard>
+        <RoleRouteGuard>
           <SidebarProvider defaultOpen={defaultOpen}>
             <Sidebar />
             <SidebarInset>
@@ -37,7 +37,7 @@ export default async function AuthLayout({
               </div>
             </SidebarInset>
           </SidebarProvider>
-        </GuestRouteGuard>
+        </RoleRouteGuard>
       </OrganizationProvider>
     </QueryProvider>
   );

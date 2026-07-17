@@ -99,7 +99,7 @@ export function useUpdateMemberRole() {
     }: {
       organizationId: string;
       userId: string;
-      role: "admin" | "member" | "guest";
+      role: "admin" | "member";
     }) => updateMemberRole(organizationId, userId, role),
     onSettled: (_data, _err, { organizationId }) => {
       qc.invalidateQueries({
@@ -144,7 +144,7 @@ export function useInviteUser() {
     }: {
       organizationId: string;
       email: string;
-      role?: "admin" | "member" | "guest";
+      role?: "admin" | "member";
     }) => inviteUserToOrganization(organizationId, email, role),
     onSettled: (_data, _err, { organizationId }) => {
       qc.invalidateQueries({

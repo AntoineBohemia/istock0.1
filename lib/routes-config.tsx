@@ -26,38 +26,40 @@ export const page_routes: PageRoutesType[] = [
         title: "Actions rapides",
         href: "/actions",
         icon: "LayoutDashboard",
-        allowedRoles: ["owner", "admin", "member"],
       },
       {
         title: "Produits",
         href: "/produits",
         icon: "Package",
+        allowedRoles: ["owner", "admin"],
       },
       {
         title: "Outillage",
         href: "/outillage",
         icon: "Wrench",
+        allowedRoles: ["owner", "admin"],
       },
       {
         title: "Achats",
         href: "/achats",
         icon: "ShoppingCart",
+        allowedRoles: ["owner", "admin"],
       },
       {
         title: "Techniciens",
         href: "/techniciens",
         icon: "HardHat",
+        allowedRoles: ["owner", "admin"],
       },
       {
         title: "Mouvements",
         href: "/mouvements",
         icon: "ArrowLeftRight",
+        allowedRoles: ["owner", "admin"],
       },
     ],
   },
 ];
-
-export const SETTINGS_ALLOWED_ROLES: Role[] = ["owner", "admin", "member"];
 
 export function isRoleAllowed(role: Role | undefined, allowedRoles: Role[] | undefined): boolean {
   if (!allowedRoles) return true;

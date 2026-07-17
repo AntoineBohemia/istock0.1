@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import {
   Search,
@@ -15,7 +15,7 @@ import {
   Plus,
   Trash2,
   ChevronLeft,
-  HardHat,
+  PackagePlus,
   Check,
   Clock,
   ScanLine,
@@ -94,7 +94,7 @@ const ACTION_OPTIONS: {
   {
     mode: "exit_technician",
     label: "Sortie technicien",
-    icon: HardHat,
+    icon: PackagePlus,
     color: "text-primary",
     borderColor: "hover:border-primary",
   },
@@ -975,7 +975,7 @@ export default function ActionsMobileSheet() {
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-12 text-center">
-                      <HardHat className="size-10 text-muted-foreground/20 mb-2" />
+                      <PackagePlus className="size-10 text-muted-foreground/20 mb-2" />
                       <p className="text-sm text-muted-foreground">
                         {debouncedSearch ? "Aucun technicien trouve." : "Aucun technicien."}
                       </p>
@@ -1455,7 +1455,7 @@ export default function ActionsMobileSheet() {
                     {
                       mode: "exit_technician",
                       label: "Sortie technicien",
-                      icon: HardHat,
+                      icon: PackagePlus,
                       color: "text-primary",
                     },
                   ] as const

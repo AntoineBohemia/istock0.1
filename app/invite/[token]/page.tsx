@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, CheckCircle, XCircle, Building2, Mail } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -37,8 +37,7 @@ interface InvitationData {
   userExists: boolean;
 }
 
-const roleLabel = (role: string) =>
-  role === "admin" ? "Administrateur" : role === "guest" ? "Invité" : "Membre";
+const roleLabel = (role: string) => (role === "admin" ? "Administrateur" : "Membre");
 
 export default function AcceptInvitationPage() {
   const params = useParams();
