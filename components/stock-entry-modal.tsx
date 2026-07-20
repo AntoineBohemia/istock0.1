@@ -101,6 +101,7 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
         organizationId: data.organization_id,
         productId: data.product_id,
         quantity: data.quantity,
+        supplierId: selectedProduct?.supplier_id ?? undefined,
         unitPrice: price,
         invoiceReference: data.invoice_reference || undefined,
         entryDate: data.entry_date ? new Date(data.entry_date).toISOString() : undefined,
@@ -199,6 +200,18 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
                       </svg>
                     </div>
                   </FormControl>
+                  {selectedProduct && (
+                    <p className="text-xs mt-1.5">
+                      <span className="text-muted-foreground">Fournisseur : </span>
+                      {selectedProduct.supplier?.name ? (
+                        <span className="font-medium">{selectedProduct.supplier.name}</span>
+                      ) : (
+                        <span className="text-attention font-medium">
+                          aucun — à renseigner sur la fiche produit
+                        </span>
+                      )}
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}

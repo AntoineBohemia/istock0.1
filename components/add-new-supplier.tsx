@@ -29,6 +29,7 @@ export default function AddNewSupplier({ onSupplierCreated, trigger }: AddNewSup
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { currentOrganization } = useOrganizationStore();
@@ -54,13 +55,15 @@ export default function AddNewSupplier({ onSupplierCreated, trigger }: AddNewSup
         currentOrganization.id,
         name.trim(),
         websiteUrl.trim() || null,
-        email.trim() || null
+        email.trim() || null,
+        phone.trim() || null
       );
       toast.success(`Fournisseur "${newSupplier.name}" créé avec succès`);
       queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.all });
       onSupplierCreated?.(newSupplier);
       setName("");
       setEmail("");
+      setPhone("");
       setWebsiteUrl("");
       setOpen(false);
     } catch (error) {
@@ -106,6 +109,17 @@ export default function AddNewSupplier({ onSupplierCreated, trigger }: AddNewSup
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="commandes@fournisseur.com"
+                disabled={isLoading}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="supplier-phone">Téléphone</Label>
+              <Input
+                id="supplier-phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="01 23 45 67 89"
                 disabled={isLoading}
               />
             </div>

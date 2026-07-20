@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
+import ProductIconDisplay from "@/components/product-icon-display";
 
 import {
   Drawer,
@@ -53,6 +54,11 @@ interface ConsoleProduct {
   stock_current: number;
   stock_min: number | null;
   price: number | null;
+  icon_name?: string | null;
+  icon_color?: string | null;
+  image_url?: string | null;
+  supplier_id?: string | null;
+  supplier_name?: string | null;
 }
 
 interface CartItem {
@@ -500,6 +506,7 @@ export default function ActionsMobileSheet() {
           organizationId: orgId,
           productId: product.id,
           quantity,
+          supplierId: product.supplier_id ?? undefined,
           unitPrice: parsedPrice || undefined,
           invoiceReference: invoiceRef || undefined,
           entryDate:
@@ -1014,20 +1021,20 @@ export default function ActionsMobileSheet() {
             {drawerStep === "products" && (
               <div className="space-y-2 pt-1">
                 {isSearching && debouncedSearch ? (
-                  <div className="space-y-1 py-2">
+                  <div className="grid grid-cols-2 gap-2.5 py-2">
                     {Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} className="flex items-center gap-3 rounded-xl p-3">
-                        <Skeleton className="size-10 rounded-lg shrink-0" />
-                        <div className="flex-1 space-y-1.5">
-                          <Skeleton className="h-3.5 w-3/4" />
-                          <Skeleton className="h-3 w-1/3" />
+                      <div key={i} className="rounded-xl border p-2 space-y-2">
+                        <Skeleton className="w-full aspect-square rounded-lg" />
+                        <Skeleton className="h-3.5 w-3/4" />
+                        <div className="flex items-center justify-between">
+                          <Skeleton className="h-5 w-8" />
+                          <Skeleton className="h-5 w-12 rounded-full" />
                         </div>
-                        <Skeleton className="h-5 w-12 rounded-full" />
                       </div>
                     ))}
                   </div>
                 ) : sortedProducts.length > 0 ? (
-                  <ul className="space-y-1">
+                  <ul className="grid grid-cols-2 gap-2.5">
                     {sortedProducts.map((p) => {
                       const score = calculateStockScore(p.stock_current ?? 0, p.stock_min);
                       const status = getStockBadgeVariant(score);
@@ -1039,6 +1046,11 @@ export default function ActionsMobileSheet() {
                         stock_current: p.stock_current ?? 0,
                         stock_min: p.stock_min,
                         price: p.price ?? null,
+                        icon_name: p.icon_name,
+                        icon_color: p.icon_color,
+                        image_url: p.image_url,
+                        supplier_id: p.supplier_id,
+                        supplier_name: p.supplier?.name ?? null,
                       };
                       return (
                         <li key={p.id}>
@@ -1049,42 +1061,38 @@ export default function ActionsMobileSheet() {
                                 : selectProductSingle(consoleP)
                             }
                             className={cn(
-                              "w-full flex items-center gap-3 rounded-xl px-3 py-3 transition-all active:scale-[0.98] min-h-[56px]",
-                              "hover:bg-muted/60",
-                              inCart && "bg-primary/5 ring-1 ring-primary/30",
-                              !inCart && status === "critique" && "bg-critique-bg/20",
-                              !inCart && status === "attention" && "bg-attention-bg/20"
+                              "w-full rounded-xl border p-2 flex flex-col gap-2 text-left transition-all active:scale-[0.98]",
+                              inCart && "bg-primary/5 ring-2 ring-primary/40 border-primary/30",
+                              !inCart && status === "critique" && "border-critique/30",
+                              !inCart && status === "attention" && "border-attention/30"
                             )}
                           >
-                            {/* In-cart checkmark */}
-                            {actionMode === "exit_technician" && (
-                              <div
-                                className={cn(
-                                  "size-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
-                                  inCart
-                                    ? "bg-primary border-primary"
-                                    : "border-muted-foreground/30"
-                                )}
-                              >
-                                {inCart && <Check className="size-3.5 text-primary-foreground" />}
-                              </div>
-                            )}
-
-                            {/* Product info */}
-                            <div className="flex-1 min-w-0 text-left">
-                              <p className="text-sm font-medium leading-tight truncate">{p.name}</p>
-                              {p.sku && (
-                                <p className="text-[11px] text-muted-foreground font-mono truncate">
-                                  {p.sku}
-                                </p>
+                            {/* Large photo — primary visual anchor on mobile */}
+                            <div className="relative w-full">
+                              <ProductIconDisplay
+                                iconName={p.icon_name}
+                                iconColor={p.icon_color}
+                                imageUrl={p.image_url}
+                                size="xl"
+                                className="w-full"
+                              />
+                              {actionMode === "exit_technician" && inCart && (
+                                <div className="absolute top-1.5 right-1.5 size-6 rounded-full bg-primary flex items-center justify-center shadow">
+                                  <Check className="size-3.5 text-primary-foreground" />
+                                </div>
                               )}
                             </div>
 
-                            {/* Stock + pill */}
-                            <div className="flex items-center gap-2 shrink-0">
+                            {/* Name */}
+                            <p className="text-[13px] font-medium leading-tight line-clamp-2 min-h-[2.2em]">
+                              {p.name}
+                            </p>
+
+                            {/* Stock + state */}
+                            <div className="flex items-center justify-between gap-1">
                               <span
                                 className={cn(
-                                  "font-heading font-bold tabular-nums text-base",
+                                  "font-heading font-bold tabular-nums text-lg leading-none",
                                   status === "critique" && "text-critique",
                                   status === "attention" && "text-attention"
                                 )}
@@ -1122,15 +1130,34 @@ export default function ActionsMobileSheet() {
                   const previewStatus = getStockBadgeVariant(previewScore);
                   return (
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <h2 className="font-heading text-[17px] font-semibold leading-tight">
-                          {product.name}
-                        </h2>
-                        {product.sku && (
-                          <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                            {product.sku}
-                          </p>
-                        )}
+                      <div className="flex items-start gap-3 min-w-0 flex-1">
+                        <ProductIconDisplay
+                          iconName={product.icon_name}
+                          iconColor={product.icon_color}
+                          imageUrl={product.image_url}
+                          size="lg"
+                          className="shrink-0"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <h2 className="font-heading text-[17px] font-semibold leading-tight">
+                            {product.name}
+                          </h2>
+                          {product.sku && (
+                            <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                              {product.sku}
+                            </p>
+                          )}
+                          {isEntry && (
+                            <p className="text-xs mt-1">
+                              <span className="text-muted-foreground">Fournisseur : </span>
+                              {product.supplier_name ? (
+                                <span className="font-medium">{product.supplier_name}</span>
+                              ) : (
+                                <span className="text-attention font-medium">aucun</span>
+                              )}
+                            </p>
+                          )}
+                        </div>
                       </div>
                       <div className="text-right shrink-0">
                         <div className="flex items-baseline gap-1.5">
@@ -1286,6 +1313,13 @@ export default function ActionsMobileSheet() {
                       key={item.product.id}
                       className="flex items-center gap-3 rounded-xl bg-muted/30 px-3 py-3"
                     >
+                      <ProductIconDisplay
+                        iconName={item.product.icon_name}
+                        iconColor={item.product.icon_color}
+                        imageUrl={item.product.image_url}
+                        size="md"
+                        className="shrink-0"
+                      />
                       <div className="flex-1 min-w-0">
                         <p className="text-[14px] font-medium truncate">{item.product.name}</p>
                         <p className="text-[11px] text-muted-foreground">

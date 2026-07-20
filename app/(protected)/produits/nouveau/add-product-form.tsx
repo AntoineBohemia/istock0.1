@@ -22,7 +22,6 @@ import {
   SelectGroup,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { AlertCircleIcon, ImageIcon, Loader2, UploadIcon, XIcon } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
@@ -690,7 +689,11 @@ export default function AddProductForm({ mode = "create", initialData }: AddProd
                                   {isLoadingCategories ? (
                                     <Loader2 className="size-4 animate-spin" />
                                   ) : (
-                                    <SelectValue placeholder="Sélectionnez" />
+                                    <span className="truncate">
+                                      {field.value
+                                        ? getCategoryDisplayName(field.value) || "Sélectionnez"
+                                        : "Sans catégorie"}
+                                    </span>
                                   )}
                                 </SelectTrigger>
                                 <SelectContent>
@@ -729,7 +732,11 @@ export default function AddProductForm({ mode = "create", initialData }: AddProd
                                   {isLoadingSuppliers ? (
                                     <Loader2 className="size-4 animate-spin" />
                                   ) : (
-                                    <SelectValue placeholder="Sélectionnez" />
+                                    <span className="truncate">
+                                      {field.value
+                                        ? getSupplierDisplayName(field.value) || "Sélectionnez"
+                                        : "Sans fournisseur"}
+                                    </span>
                                   )}
                                 </SelectTrigger>
                                 <SelectContent>

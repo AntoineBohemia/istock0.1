@@ -156,7 +156,8 @@ export default function AchatsList() {
 
   const { data: userOrgs } = useOrganizations();
   const currentYear = new Date().getFullYear();
-  const { data: entryQtyByProduct } = useYearlyEntryQtyByProduct(currentYear);
+  const { data: entryQtyByProduct, isLoading: isEntriesLoading } =
+    useYearlyEntryQtyByProduct(currentYear);
 
   const { data: productsResult, isLoading } = useProducts({
     organizationId: currentOrganization?.id,
@@ -165,12 +166,15 @@ export default function AchatsList() {
 
   const allProducts = productsResult?.products || [];
 
-  // Filter products by org: only show products that have entries for selected orgs
+  // Only products actually purchased this year belong on the Achats page.
+  // (A product with no entry has never been bought — it would just add an empty row.)
+  // When an org filter is active, also require the entry to belong to one of those orgs.
   const products = useMemo(() => {
-    if (filterOrgs.size === 0) return allProducts;
     return allProducts.filter((p) => {
       const data = entryQtyByProduct?.[p.id];
       if (!data) return false;
+      if (!Object.values(data).some((d) => d.qty > 0)) return false;
+      if (filterOrgs.size === 0) return true;
       return [...filterOrgs].some((orgId) => data[orgId]);
     });
   }, [allProducts, filterOrgs, entryQtyByProduct]);
@@ -423,7 +427,7 @@ export default function AchatsList() {
     state: { sorting, columnVisibility },
   });
 
-  if (isLoading || isOrgLoading || !currentOrganization) {
+  if (isLoading || isEntriesLoading || isOrgLoading || !currentOrganization) {
     return (
       <div className="space-y-3">
         <Skeleton className="h-9 w-full rounded-md" />

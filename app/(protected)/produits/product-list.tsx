@@ -140,7 +140,7 @@ export default function ProductList() {
   const [columnVisibility, setColumnVisibility] = useColumnVisibility("produits");
 
   // Reorder computation — products at or below stock_min
-  const reorderItems = useMemo(() => computeReorderList(allProducts, "all"), [allProducts]);
+  const reorderItems = useMemo(() => computeReorderList(allProducts), [allProducts]);
   const reorderCount = reorderItems.length;
 
   // Micro-bars are now per-product relative to their own threshold (not global max)
@@ -387,22 +387,22 @@ export default function ProductList() {
         </div>
       </div>
 
-      {/* Search + filters on same line */}
-      <div className="flex items-center gap-2">
+      {/* Filtres mis en avant ; recherche volontairement compacte */}
+      <div className="flex flex-wrap items-center gap-2">
         <SearchInput
           value={searchQuery}
           onChange={setSearchQuery}
-          placeholder="Rechercher un produit..."
-          className="bg-white dark:bg-card"
-          wrapperClassName="flex-1 min-w-0"
+          placeholder="Rechercher…"
+          className="bg-white dark:bg-card h-9"
+          wrapperClassName="w-full sm:w-52 shrink-0"
         />
 
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-2 flex-wrap">
           {isMultiOrg && (
             <Popover>
               <PopoverTrigger
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none cursor-pointer",
+                  "inline-flex items-center gap-1.5 rounded-full h-9 px-4 text-[13px] font-semibold transition-all select-none cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97]",
                   filterOrgs.size > 0
                     ? "bg-primary text-primary-foreground"
                     : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
@@ -466,7 +466,7 @@ export default function ProductList() {
             <Popover>
               <PopoverTrigger
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none cursor-pointer",
+                  "inline-flex items-center gap-1.5 rounded-full h-9 px-4 text-[13px] font-semibold transition-all select-none cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97]",
                   filterCategories.size > 0
                     ? "bg-primary text-primary-foreground"
                     : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
@@ -529,7 +529,9 @@ export default function ProductList() {
           )}
         </div>
 
-        <TableColumnToggle table={table} />
+        <div className="ml-auto shrink-0">
+          <TableColumnToggle table={table} />
+        </div>
       </div>
 
       <div className="rounded-xl border bg-card overflow-hidden">

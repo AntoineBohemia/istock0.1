@@ -402,6 +402,7 @@ export type Database = {
         Row: {
           created_at: string | null;
           id: string;
+          invoice_reference: string | null;
           movement_type: Database["public"]["Enums"]["stock_movement_type"];
           organization_id: string | null;
           product_id: string;
@@ -413,6 +414,7 @@ export type Database = {
         Insert: {
           created_at?: string | null;
           id?: string;
+          invoice_reference?: string | null;
           movement_type: Database["public"]["Enums"]["stock_movement_type"];
           organization_id?: string | null;
           product_id: string;
@@ -424,6 +426,7 @@ export type Database = {
         Update: {
           created_at?: string | null;
           id?: string;
+          invoice_reference?: string | null;
           movement_type?: Database["public"]["Enums"]["stock_movement_type"];
           organization_id?: string | null;
           product_id?: string;
@@ -470,6 +473,7 @@ export type Database = {
           id: string;
           name: string;
           organization_id: string | null;
+          phone: string | null;
           website_url: string | null;
         };
         Insert: {
@@ -478,6 +482,7 @@ export type Database = {
           id?: string;
           name: string;
           organization_id?: string | null;
+          phone?: string | null;
           website_url?: string | null;
         };
         Update: {
@@ -486,6 +491,7 @@ export type Database = {
           id?: string;
           name?: string;
           organization_id?: string | null;
+          phone?: string | null;
           website_url?: string | null;
         };
         Relationships: [

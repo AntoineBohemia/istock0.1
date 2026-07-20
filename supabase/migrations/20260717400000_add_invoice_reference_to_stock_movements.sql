@@ -1,5 +1,11 @@
 -- Add optional invoice reference to stock movements (entries only)
-ALTER TABLE stock_movements ADD COLUMN invoice_reference TEXT NULL;
+ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS invoice_reference TEXT NULL;
+
+-- The signature below gains two parameters, so CREATE OR REPLACE would NOT replace
+-- the previous 5-argument function — it would add a second overload and make every
+-- 5-argument call ambiguous (the exact bug that broke get_technicians_with_stats).
+-- Drop the old signature first; the new one covers those calls via its defaults.
+DROP FUNCTION IF EXISTS create_stock_entry(uuid, uuid, integer, uuid, numeric);
 
 -- Update create_stock_entry RPC to accept invoice_reference + optional created_at override
 CREATE OR REPLACE FUNCTION create_stock_entry(

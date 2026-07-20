@@ -4,6 +4,7 @@ export interface Supplier {
   id: string;
   name: string;
   email: string | null;
+  phone: string | null;
   website_url: string | null;
   organization_id: string | null;
   created_at: string | null;
@@ -107,7 +108,8 @@ export async function createSupplier(
   organizationId: string,
   name: string,
   websiteUrl?: string | null,
-  email?: string | null
+  email?: string | null,
+  phone?: string | null
 ): Promise<Supplier> {
   const supabase = createClient();
 
@@ -118,6 +120,7 @@ export async function createSupplier(
       name,
       website_url: websiteUrl || null,
       email: email || null,
+      phone: phone || null,
     })
     .select()
     .single();
@@ -134,7 +137,12 @@ export async function createSupplier(
  */
 export async function updateSupplier(
   id: string,
-  data: { name?: string; email?: string | null; website_url?: string | null }
+  data: {
+    name?: string;
+    email?: string | null;
+    phone?: string | null;
+    website_url?: string | null;
+  }
 ): Promise<Supplier> {
   const supabase = createClient();
 

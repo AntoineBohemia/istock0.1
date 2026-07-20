@@ -24,6 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 import { StatusPill } from "@/components/ui/status-pill";
 import { HeroNumber } from "@/components/ui/hero-number";
+import ProductIconDisplay from "@/components/product-icon-display";
 
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProducts, useTechnicians, useStockMovements } from "@/hooks/queries";
@@ -79,6 +80,11 @@ interface ConsoleProduct {
   sku: string | null;
   stock_current: number;
   stock_min: number | null;
+  icon_name?: string | null;
+  icon_color?: string | null;
+  image_url?: string | null;
+  supplier_id?: string | null;
+  supplier_name?: string | null;
 }
 
 interface CartItem {
@@ -362,6 +368,7 @@ export default function GlobalPage() {
           organizationId: orgId,
           productId: product.id,
           quantity,
+          supplierId: product.supplier_id ?? undefined,
           invoiceReference: invoiceRef || undefined,
           entryDate: entryDate?.toISOString(),
         },
@@ -573,33 +580,50 @@ export default function GlobalPage() {
             sku: p.sku,
             stock_current: p.stock_current ?? 0,
             stock_min: p.stock_min,
+            icon_name: p.icon_name,
+            icon_color: p.icon_color,
+            image_url: p.image_url,
+            supplier_id: p.supplier_id,
+            supplier_name: p.supplier?.name ?? null,
           })
         }
         className={cn(
-          "relative aspect-square rounded-xl border bg-card p-3 flex flex-col justify-between text-left transition-all shadow-sm",
+          "relative rounded-xl border bg-card p-2 flex flex-col gap-2 text-left transition-all shadow-sm",
           "hover:border-primary/40 hover:shadow-md active:scale-[0.97]",
           inCart && "ring-2 ring-primary border-primary/30 bg-primary/5",
           !inCart && status === "critique" && "border-critique/30",
           !inCart && status === "attention" && "border-attention/30"
         )}
       >
-        {inCart && (
-          <div className="absolute top-1.5 right-1.5 size-5 rounded-full bg-primary flex items-center justify-center">
-            <Check className="size-3 text-primary-foreground" />
-          </div>
-        )}
+        {/* Large photo — primary visual anchor */}
+        <div className="relative w-full">
+          <ProductIconDisplay
+            iconName={p.icon_name}
+            iconColor={p.icon_color}
+            imageUrl={p.image_url}
+            size="xl"
+            className="w-full"
+          />
+          {inCart && (
+            <div className="absolute top-1.5 right-1.5 size-6 rounded-full bg-primary flex items-center justify-center shadow">
+              <Check className="size-3.5 text-primary-foreground" />
+            </div>
+          )}
+        </div>
+
         <p
           className={cn(
-            "font-medium leading-tight line-clamp-2",
-            compact ? "text-[11px]" : "text-xs"
+            "font-medium leading-tight line-clamp-2 min-h-[2.2em]",
+            compact ? "text-[11px]" : "text-[13px]"
           )}
         >
           {p.name}
         </p>
-        <div className="flex items-end justify-between">
+
+        <div className="flex items-center justify-between gap-1">
           <span
             className={cn(
-              "font-heading font-bold tabular-nums",
+              "font-heading font-bold tabular-nums leading-none",
               compact ? "text-lg" : "text-xl",
               status === "critique" && "text-critique",
               status === "attention" && "text-attention"
@@ -684,6 +708,13 @@ export default function GlobalPage() {
         <ul className="space-y-2">
           {cart.map((item) => (
             <li key={item.product.id} className="flex items-center gap-3">
+              <ProductIconDisplay
+                iconName={item.product.icon_name}
+                iconColor={item.product.icon_color}
+                imageUrl={item.product.image_url}
+                size="sm"
+                className="shrink-0"
+              />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{item.product.name}</p>
                 <p className="text-xs text-muted-foreground">dispo {item.product.stock_current}</p>
@@ -973,7 +1004,14 @@ export default function GlobalPage() {
                 {isSearching && searchQuery ? (
                   <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 py-2">
                     {Array.from({ length: 6 }).map((_, i) => (
-                      <Skeleton key={i} className="aspect-square rounded-xl" />
+                      <div key={i} className="rounded-xl border p-2 space-y-2">
+                        <Skeleton className="w-full aspect-square rounded-lg" />
+                        <Skeleton className="h-3.5 w-3/4" />
+                        <div className="flex items-center justify-between">
+                          <Skeleton className="h-5 w-8" />
+                          <Skeleton className="h-5 w-12 rounded-full" />
+                        </div>
+                      </div>
                     ))}
                   </div>
                 ) : sortedProducts.length > 0 ? (
@@ -997,18 +1035,39 @@ export default function GlobalPage() {
             {step === "detail" && product && (
               <>
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                      {stepLabel}
-                    </p>
-                    <h2 className="font-heading text-xl font-semibold leading-tight">
-                      {product.name}
-                    </h2>
-                    {product.sku && (
-                      <p className="text-sm text-muted-foreground font-mono mt-0.5">
-                        {product.sku}
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <ProductIconDisplay
+                      iconName={product.icon_name}
+                      iconColor={product.icon_color}
+                      imageUrl={product.image_url}
+                      size="lg"
+                      className="shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                        {stepLabel}
                       </p>
-                    )}
+                      <h2 className="font-heading text-xl font-semibold leading-tight">
+                        {product.name}
+                      </h2>
+                      {product.sku && (
+                        <p className="text-sm text-muted-foreground font-mono mt-0.5">
+                          {product.sku}
+                        </p>
+                      )}
+                      {actionMode === "entry" && (
+                        <p className="text-sm mt-1">
+                          <span className="text-muted-foreground">Fournisseur : </span>
+                          {product.supplier_name ? (
+                            <span className="font-medium">{product.supplier_name}</span>
+                          ) : (
+                            <span className="text-attention font-medium">
+                              aucun — à renseigner sur la fiche produit
+                            </span>
+                          )}
+                        </p>
+                      )}
+                    </div>
                   </div>
                   <button
                     onClick={() => {

@@ -32,7 +32,12 @@ export function useUpdateSupplier() {
       data,
     }: {
       id: string;
-      data: { name?: string; email?: string | null; website_url?: string | null };
+      data: {
+        name?: string;
+        email?: string | null;
+        phone?: string | null;
+        website_url?: string | null;
+      };
     }) => updateSupplier(id, data),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.suppliers.all });
