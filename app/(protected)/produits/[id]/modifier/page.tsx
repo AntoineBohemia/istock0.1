@@ -67,6 +67,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
     name: product.name,
     sku: product.sku || "",
     description: product.description || "",
+    product_url: product.product_url || "",
     price: product.price?.toString() || "",
     stock_current: product.stock_current?.toString() || "0",
     stock_min: product.stock_min?.toString() || "10",

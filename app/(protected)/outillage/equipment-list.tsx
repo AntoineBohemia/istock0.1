@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQueryStates, parseAsString } from "nuqs";
-import { Wrench, AlertTriangle, ArrowUpDown, Check } from "lucide-react";
+import { Wrench, AlertTriangle, Pencil } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/search-input";
@@ -14,7 +14,6 @@ import { HeroNumber } from "@/components/ui/hero-number";
 import { EquipmentProduct } from "@/lib/supabase/queries/equipment";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useEquipmentProducts } from "@/hooks/queries";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import ProductIconDisplay from "@/components/product-icon-display";
 import { cn } from "@/lib/utils";
 
@@ -45,28 +44,11 @@ const alertDotClass: Record<AlertLevel, string> = {
   danger: "bg-destructive",
 };
 
-// ── Sorting ──
+// ── Tri ──
+// Le sélecteur de tri a été retiré de l'interface : la liste est triée par nom.
 
-type SortKey = "name" | "available" | "value" | "alerts";
-
-function sortEquipment(items: EquipmentProduct[], sortBy: SortKey): EquipmentProduct[] {
-  return [...items].sort((a, b) => {
-    switch (sortBy) {
-      case "name":
-        return a.name.localeCompare(b.name, "fr");
-      case "available":
-        return (b.stock_current ?? 0) - (a.stock_current ?? 0);
-      case "value": {
-        const aVal = (a.price ?? 0) * ((a.stock_current ?? 0) + a.total_assigned);
-        const bVal = (b.price ?? 0) * ((b.stock_current ?? 0) + b.total_assigned);
-        return bVal - aVal;
-      }
-      case "alerts": {
-        const order: Record<AlertLevel, number> = { danger: 0, warning: 1, none: 2 };
-        return order[getCardAlert(a)] - order[getCardAlert(b)];
-      }
-    }
-  });
+function sortEquipmentByName(items: EquipmentProduct[]): EquipmentProduct[] {
+  return [...items].sort((a, b) => a.name.localeCompare(b.name, "fr"));
 }
 
 export default function EquipmentList() {
@@ -86,12 +68,15 @@ export default function EquipmentList() {
     search: search || undefined,
   });
 
-  const [sortBy, setSortBy] = useState<SortKey>("name");
   const [manageProduct, setManageProduct] = useState<EquipmentProduct | null>(null);
   const [editProduct, setEditProduct] = useState<EquipmentProduct | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [onlyAlerts, setOnlyAlerts] = useState(false);
 
-  const sorted = useMemo(() => sortEquipment(equipment, sortBy), [equipment, sortBy]);
+  const sorted = useMemo(() => {
+    const list = onlyAlerts ? equipment.filter((e) => getCardAlert(e) !== "none") : equipment;
+    return sortEquipmentByName(list);
+  }, [equipment, onlyAlerts]);
 
   // ── Fleet stats ──
   const stats = useMemo(() => {
@@ -111,7 +96,7 @@ export default function EquipmentList() {
       <div className="space-y-4">
         <Skeleton className="h-12 w-full rounded-xl" />
         <Skeleton className="h-9 w-full rounded-md" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="rounded-xl border bg-card p-4 space-y-3">
               <div className="flex items-start gap-3">
@@ -141,28 +126,7 @@ export default function EquipmentList() {
 
   return (
     <div className="space-y-4">
-      {/* ── Fleet strip — one line, essentials only ── */}
-      {totalCount > 0 && (
-        <div className="rounded-xl border bg-card px-5 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Wrench className="size-4 text-muted-foreground" />
-            <span className="text-sm">
-              <span className="font-semibold">{stats.totalUnits}</span> unites
-              {stats.totalValue > 0 && (
-                <span className="text-muted-foreground"> · {fmtPrice(stats.totalValue)}</span>
-              )}
-            </span>
-          </div>
-          {stats.alertCount > 0 && (
-            <span className="flex items-center gap-1.5 text-xs text-attention font-medium">
-              <AlertTriangle className="size-3.5" />
-              {stats.alertCount} alerte{stats.alertCount > 1 ? "s" : ""}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* ── Search + filters + sort ── */}
+      {/* ── Recherche et totaux sur une seule ligne ── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <SearchInput
           value={search}
@@ -172,52 +136,40 @@ export default function EquipmentList() {
           wrapperClassName="flex-1"
         />
 
-        <Popover>
-          <PopoverTrigger className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none cursor-pointer bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10] shrink-0">
-            <ArrowUpDown className="size-3" />
-            {{ name: "Nom", available: "Disponible", value: "Valeur", alerts: "Alertes" }[sortBy]}
-          </PopoverTrigger>
-          <PopoverContent
-            align="end"
-            className="w-auto min-w-[140px] p-1 rounded-xl overflow-hidden"
-          >
-            <div className="flex flex-col gap-0.5">
-              {(
-                [
-                  { value: "name", label: "Nom" },
-                  { value: "available", label: "Disponible" },
-                  { value: "value", label: "Valeur" },
-                  { value: "alerts", label: "Alertes" },
-                ] as const
-              ).map((opt) => {
-                const active = sortBy === opt.value;
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    className={cn(
-                      "flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-lg transition-colors",
-                      active
-                        ? "bg-primary/10 text-foreground font-medium"
-                        : "text-foreground/70 hover:bg-muted hover:text-foreground"
-                    )}
-                    onClick={() => setSortBy(opt.value)}
-                  >
-                    <span
-                      className={cn(
-                        "size-3.5 flex items-center justify-center",
-                        !active && "opacity-0"
-                      )}
-                    >
-                      <Check className="size-3.5" />
-                    </span>
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-          </PopoverContent>
-        </Popover>
+        {totalCount > 0 && (
+          <div className="flex items-center gap-4 shrink-0">
+            <span className="flex items-center gap-2 text-sm">
+              <Wrench className="size-4 text-muted-foreground" />
+              <span>
+                <span className="font-semibold tabular-nums">{stats.totalUnits}</span> unites
+                {stats.totalValue > 0 && (
+                  <span className="text-muted-foreground tabular-nums">
+                    {" · "}
+                    {fmtPrice(stats.totalValue)}
+                  </span>
+                )}
+              </span>
+            </span>
+            {stats.alertCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setOnlyAlerts((v) => !v)}
+                title={
+                  onlyAlerts ? "Afficher tous les outils" : "N'afficher que les outils en alerte"
+                }
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full h-9 px-3.5 text-[13px] font-semibold transition-all cursor-pointer select-none active:scale-[0.97] outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+                  onlyAlerts
+                    ? "bg-attention text-white"
+                    : "bg-attention/15 text-attention hover:bg-attention/25"
+                )}
+              >
+                <AlertTriangle className="size-3.5" />
+                {stats.alertCount} alerte{stats.alertCount > 1 ? "s" : ""}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Cards ── */}
@@ -249,7 +201,7 @@ export default function EquipmentList() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {sorted.map((item) => {
             const stock = item.stock_current ?? 0;
             const total = stock + item.total_assigned;
@@ -261,98 +213,130 @@ export default function EquipmentList() {
             return (
               <div
                 key={item.id}
-                className="rounded-xl border bg-card p-4 space-y-3 cursor-pointer transition-colors hover:bg-muted/30 hover:border-foreground/10 active:scale-[0.98]"
+                className="group rounded-xl border bg-card overflow-hidden cursor-pointer transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.99]"
                 onClick={() => setManageProduct(item)}
               >
-                {/* Header: icon + name + alert dot */}
-                <div className="flex items-start gap-3">
+                {/* Photo — repère visuel principal */}
+                <div className="relative">
                   <ProductIconDisplay
                     iconName={item.icon_name}
                     iconColor={item.icon_color}
                     imageUrl={item.image_url}
-                    size="md"
+                    size="xl"
+                    className="w-full rounded-none border-0"
                   />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-[15px] leading-tight truncate">{item.name}</p>
-                    <p className="text-xs mt-0.5 truncate">
-                      <span
-                        className={cn(
-                          "font-semibold tabular-nums",
-                          stock === 0
-                            ? "text-critique"
-                            : stock <= 2
-                              ? "text-attention"
-                              : "text-muted-foreground"
-                        )}
-                      >
-                        {stock}
-                      </span>
-                      <span className="text-muted-foreground"> en stock · </span>
-                      <span className="text-muted-foreground tabular-nums">
-                        {item.total_assigned}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {" "}
-                        assigne{item.total_assigned > 1 ? "s" : ""}
-                      </span>
-                    </p>
-                  </div>
                   {alert !== "none" && (
                     <span
-                      className={cn("size-2.5 rounded-full shrink-0 mt-1.5", alertDotClass[alert])}
+                      className={cn(
+                        "absolute top-2 left-2 size-3 rounded-full ring-2 ring-background",
+                        alertDotClass[alert]
+                      )}
                       title={alert === "danger" ? "Assignation > 1 an" : "Assignation > 6 mois"}
                     />
                   )}
+                  {/* Modification directe, sans passer par la fenêtre de gestion */}
+                  <button
+                    type="button"
+                    title="Modifier cet outil"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditProduct(item);
+                    }}
+                    className="absolute top-2 right-2 flex size-8 items-center justify-center rounded-lg border bg-background/95 backdrop-blur shadow-sm transition-colors hover:bg-foreground hover:text-background cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  >
+                    <Pencil className="size-3.5" />
+                  </button>
                 </div>
 
-                {/* Distribution micro-bar */}
-                {total > 0 && (
-                  <div className="h-1 rounded-full bg-foreground/[0.06] overflow-hidden">
-                    <div
-                      className={cn(
-                        "h-full rounded-full",
-                        stock === 0 ? "bg-attention/50" : "bg-foreground/20"
-                      )}
-                      style={{ width: `${Math.round((item.total_assigned / total) * 100)}%` }}
-                    />
-                  </div>
-                )}
-
-                {/* Footer: avatars + value */}
-                <div className="flex items-center justify-between">
-                  {shown.length > 0 ? (
-                    <div className="flex items-center -space-x-1.5">
-                      {shown.map((a) => {
-                        const tech = a.technician;
-                        if (!tech) return null;
-                        const initials = `${tech.first_name.charAt(0)}${tech.last_name.charAt(0)}`;
-                        return (
-                          <Avatar
-                            key={a.id}
-                            className="size-6 border-2 border-card"
-                            title={`${tech.first_name} ${tech.last_name} (x${a.quantity})`}
-                          >
-                            {tech.photo_url && <AvatarImage src={tech.photo_url} />}
-                            <AvatarFallback className="text-[8px] font-semibold">
-                              {initials}
-                            </AvatarFallback>
-                          </Avatar>
-                        );
-                      })}
-                      {remaining > 0 && (
-                        <div className="flex size-6 items-center justify-center rounded-full border-2 border-card bg-muted text-[9px] font-semibold">
-                          +{remaining}
-                        </div>
-                      )}
+                <div className="p-4 space-y-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-[15px] leading-tight truncate group-hover:text-primary transition-colors">
+                      {item.name}
+                    </p>
+                    {/* Deux chiffres clés, lisibles d'un coup d'œil */}
+                    <div className="flex items-baseline gap-2.5 mt-1.5">
+                      <span className="flex items-baseline gap-1">
+                        <span
+                          className={cn(
+                            "font-heading font-bold tabular-nums text-lg leading-none",
+                            stock === 0
+                              ? "text-critique"
+                              : stock <= 2
+                                ? "text-attention"
+                                : "text-foreground"
+                          )}
+                        >
+                          {stock}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">dispo.</span>
+                      </span>
+                      <span className="text-foreground/20">·</span>
+                      <span className="flex items-baseline gap-1">
+                        <span className="font-heading font-bold tabular-nums text-lg leading-none">
+                          {item.total_assigned}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">assigne</span>
+                      </span>
                     </div>
-                  ) : (
-                    <span className="text-[11px] text-muted-foreground/50">Non assigne</span>
+                  </div>
+
+                  {/* Répartition stock / assigné */}
+                  {total > 0 && (
+                    <div className="h-1.5 rounded-full bg-foreground/[0.06] overflow-hidden">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all",
+                          stock === 0 ? "bg-attention/60" : "bg-foreground/25"
+                        )}
+                        style={{ width: `${Math.round((item.total_assigned / total) * 100)}%` }}
+                      />
+                    </div>
                   )}
-                  {itemValue > 0 && (
-                    <span className="text-xs text-muted-foreground tabular-nums">
-                      {fmtPrice(itemValue)}
-                    </span>
-                  )}
+
+                  {/* Détenteurs — qui a l'outil, lisible sans ouvrir la carte */}
+                  <div className="flex items-center justify-between gap-2 border-t pt-2.5">
+                    {shown.length > 0 ? (
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <div className="flex items-center -space-x-1.5 shrink-0">
+                          {shown.map((a) => {
+                            const tech = a.technician;
+                            if (!tech) return null;
+                            const initials = `${tech.first_name.charAt(0)}${tech.last_name.charAt(0)}`;
+                            return (
+                              <Avatar
+                                key={a.id}
+                                className="size-7 border-2 border-card"
+                                title={`${tech.first_name} ${tech.last_name} (x${a.quantity})`}
+                              >
+                                {tech.photo_url && <AvatarImage src={tech.photo_url} />}
+                                <AvatarFallback className="text-[9px] font-semibold">
+                                  {initials}
+                                </AvatarFallback>
+                              </Avatar>
+                            );
+                          })}
+                          {remaining > 0 && (
+                            <div className="flex size-7 items-center justify-center rounded-full border-2 border-card bg-muted text-[9px] font-semibold">
+                              +{remaining}
+                            </div>
+                          )}
+                        </div>
+                        {/* Un seul détenteur : on le nomme. Sinon, on compte. */}
+                        <span className="text-[11px] text-muted-foreground truncate">
+                          {item.assignments.length === 1 && shown[0]?.technician
+                            ? `${shown[0].technician.first_name} ${shown[0].technician.last_name.charAt(0)}.`
+                            : `${item.assignments.length} techniciens`}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground">Non assigne</span>
+                    )}
+                    {itemValue > 0 && (
+                      <span className="text-xs font-medium tabular-nums">
+                        {fmtPrice(itemValue)}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             );

@@ -200,6 +200,45 @@ export async function getTechnicianEquipment(technicianId: string): Promise<Equi
   })) as EquipmentAssignment[];
 }
 
+export interface EquipmentHistoryEntry {
+  id: string;
+  movement_type: "assign_equipment" | "unassign_equipment";
+  quantity: number;
+  created_at: string | null;
+  technician: { id: string; first_name: string; last_name: string } | null;
+}
+
+/**
+ * Historique des assignations et retours d'un outil.
+ * Répond à « qui a eu cet outil, et quand ? » — les mouvements sont déjà
+ * enregistrés, ils n'étaient simplement affichés nulle part.
+ */
+export async function getEquipmentHistory(
+  productId: string,
+  limit = 30
+): Promise<EquipmentHistoryEntry[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("stock_movements")
+    .select(
+      "id, movement_type, quantity, created_at, technician:technicians(id, first_name, last_name)"
+    )
+    .eq("product_id", productId)
+    .in("movement_type", ["assign_equipment", "unassign_equipment"])
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw new Error(`Erreur lors de la récupération de l'historique: ${error.message}`);
+  }
+
+  return (data ?? []).map((row) => ({
+    ...row,
+    technician: Array.isArray(row.technician) ? row.technician[0] : row.technician,
+  })) as unknown as EquipmentHistoryEntry[];
+}
+
 /**
  * Assign equipment to technician via RPC
  */

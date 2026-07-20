@@ -90,6 +90,7 @@ export default function AddProductForm({ mode = "create", initialData }: AddProd
       name: initialData?.name || "",
       sku: "",
       description: initialData?.description || "",
+      product_url: initialData?.product_url || "",
       price: initialData?.price || "",
       stock_current: initialData?.stock_current || "0",
       stock_min: initialData?.stock_min || "10",
@@ -144,6 +145,9 @@ export default function AddProductForm({ mode = "create", initialData }: AddProd
         name: data.name,
         sku: data.sku || undefined,
         description: data.description || undefined,
+        // Transmis tel quel (et non `|| undefined`) : sinon vider le champ
+        // ne permettrait jamais de supprimer un lien existant.
+        product_url: data.product_url ?? "",
         icon_name: finalIconName,
         icon_color: finalIconColor,
         image_url: finalImageUrl || undefined,
@@ -553,6 +557,23 @@ export default function AddProductForm({ mode = "create", initialData }: AddProd
                       </FormItem>
                     )}
                   />
+                  <FormField
+                    control={form.control}
+                    name="product_url"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Lien web de l&apos;article</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="url"
+                            placeholder="https://www.fournisseur.com/produit/..."
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
               </div>
             </div>
@@ -766,6 +787,24 @@ export default function AddProductForm({ mode = "create", initialData }: AddProd
                       <FormLabel>Description</FormLabel>
                       <FormControl>
                         <Textarea placeholder="Description du produit..." rows={2} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="product_url"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Lien web de l&apos;article</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="url"
+                          placeholder="https://www.fournisseur.com/produit/..."
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

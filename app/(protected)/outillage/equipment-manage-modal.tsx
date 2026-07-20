@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Plus } from "lucide-react";
+import { ChevronDown, History, Minus, Pencil, Plus } from "lucide-react";
 import Link from "next/link";
 import { toast } from "@/lib/toast";
 
@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 import { useOrganizationStore } from "@/lib/stores/organization-store";
-import { useTechnicians, useEquipmentProduct } from "@/hooks/queries";
+import { useTechnicians, useEquipmentProduct, useEquipmentHistory } from "@/hooks/queries";
 import { useAssignEquipment, useUnassignEquipment } from "@/hooks/mutations";
 import { EquipmentProduct } from "@/lib/supabase/queries/equipment";
 import ProductIconDisplay from "@/components/product-icon-display";
@@ -29,6 +29,17 @@ function getAgeTier(days: number): AgeTier {
   if (days < 90) return "normal";
   if (days < 180) return "aging";
   return "old";
+}
+
+/** Date et heure exactes de l'assignation */
+function formatAssignedAt(d: string): string {
+  return new Date(d).toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatDuration(days: number): string {
@@ -75,6 +86,13 @@ export default function EquipmentManageModal({
 
   const [assigningTech, setAssigningTech] = useState("");
   const [showAssignPicker, setShowAssignPicker] = useState(false);
+  const [assignQty, setAssignQty] = useState(1);
+  const [showHistory, setShowHistory] = useState(false);
+  const { data: history = [], isLoading: isHistoryLoading } = useEquipmentHistory(
+    showHistory ? product.id : undefined
+  );
+  /** Quantité à rendre, par technicien (défaut : tout ce qu'il détient) */
+  const [returnQty, setReturnQty] = useState<Record<string, number>>({});
 
   // Use live data when available, fallback to prop for initial render
   const p = liveProduct ?? product;
@@ -107,32 +125,41 @@ export default function EquipmentManageModal({
     const tech = activeTechs.find((t) => t.id === assigningTech);
     if (!tech) return;
     const name = `${tech.first_name} ${tech.last_name}`;
+    const qty = Math.min(Math.max(1, assignQty), stock);
     setAssigningTech("");
+    setAssignQty(1);
     assignMutation.mutate(
       {
         organizationId: currentOrganization.id,
         productId: p.id,
         technicianId: assigningTech,
-        quantity: 1,
+        quantity: qty,
       },
       {
-        onSuccess: () => toast.success(`${p.name} assigne a ${name}`),
+        onSuccess: () => toast.success(`${qty} × ${p.name} assigne a ${name}`),
         onError: (err) => toast.error(err instanceof Error ? err.message : "Erreur"),
       }
     );
   };
 
-  const handleUnassign = (technicianId: string, techName: string) => {
+  const handleUnassign = (technicianId: string, techName: string, quantity: number) => {
     if (!currentOrganization?.id) return;
     unassignMutation.mutate(
       {
         organizationId: currentOrganization.id,
         productId: p.id,
         technicianId,
-        quantity: 1,
+        quantity,
       },
       {
-        onSuccess: () => toast.success(`${p.name} recupere de ${techName}`),
+        onSuccess: () => {
+          setReturnQty((prev) => {
+            const next = { ...prev };
+            delete next[technicianId];
+            return next;
+          });
+          toast.success(`${quantity} × ${p.name} recupere de ${techName}`);
+        },
         onError: (err) => toast.error(err instanceof Error ? err.message : "Erreur"),
       }
     );
@@ -140,7 +167,12 @@ export default function EquipmentManageModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md gap-0 p-0 flex flex-col max-h-[85vh]">
+      {/* Pas de croix : elle chevauchait le bouton « Modifier ». Échap et le clic
+          en dehors ferment la fenêtre, comme partout ailleurs. */}
+      <DialogContent
+        showCloseButton={false}
+        className="max-w-md gap-0 p-0 flex flex-col max-h-[85vh]"
+      >
         {/* ── Header ── */}
         <DialogHeader className="px-5 pt-5 pb-0">
           <div className="flex items-start gap-3">
@@ -155,45 +187,63 @@ export default function EquipmentManageModal({
                 {p.name}
               </DialogTitle>
               <p className="text-xs text-muted-foreground mt-0.5">{p.sku}</p>
-              <button
-                type="button"
-                onClick={() => {
-                  onOpenChange(false);
-                  onEdit();
-                }}
-                className="inline-flex items-center gap-1 mt-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Pencil className="size-2.5" />
-                Modifier
-              </button>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs shrink-0"
+              onClick={() => {
+                onOpenChange(false);
+                onEdit();
+              }}
+            >
+              <Pencil className="size-3.5" />
+              Modifier
+            </Button>
           </div>
         </DialogHeader>
 
-        {/* ── Stats line ── */}
+        {/* ── Chiffres clés ── */}
         <div className="px-5 py-3">
-          <p className="text-sm text-muted-foreground">
-            <span
-              className={cn(
-                "font-semibold tabular-nums",
-                stock === 0 ? "text-attention" : "text-foreground"
-              )}
-            >
-              {stock}
-            </span>{" "}
-            en stock
-            {" · "}
-            <span className="font-semibold text-foreground tabular-nums">
-              {product.total_assigned}
-            </span>{" "}
-            assigne{product.total_assigned > 1 ? "s" : ""}
-            {totalValue > 0 && (
-              <>
-                {" "}
-                · <span className="tabular-nums">{fmtPrice(totalValue)}</span>
-              </>
-            )}
-          </p>
+          <div className="grid grid-cols-3 gap-2 rounded-lg border bg-muted/30 p-3">
+            <div>
+              <p
+                className={cn(
+                  "font-heading text-2xl font-bold tabular-nums leading-none",
+                  stock === 0 ? "text-attention" : "text-foreground"
+                )}
+              >
+                {stock}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                disponible{stock > 1 ? "s" : ""}
+              </p>
+            </div>
+            <div>
+              <p className="font-heading text-2xl font-bold tabular-nums leading-none">
+                {product.total_assigned}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                assigne{product.total_assigned > 1 ? "s" : ""}
+              </p>
+            </div>
+            <div>
+              <p className="font-heading text-2xl font-bold tabular-nums leading-none">
+                {totalUnits}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                au total{totalValue > 0 ? ` · ${fmtPrice(totalValue)}` : ""}
+              </p>
+            </div>
+          </div>
+
+          {/* Description — saisie dans le formulaire, elle n'était affichée nulle part */}
+          {p.description && (
+            <div className="mt-3">
+              <p className="text-xs font-medium text-muted-foreground mb-1">Description</p>
+              <p className="text-sm text-foreground whitespace-pre-line">{p.description}</p>
+            </div>
+          )}
         </div>
 
         {/* ── Content ── */}
@@ -229,33 +279,78 @@ export default function EquipmentManageModal({
                     ? "text-attention"
                     : "text-muted-foreground";
 
+              // Par défaut on rend tout ce que le technicien détient
+              const toReturn = Math.min(returnQty[tech.id] ?? a.quantity, a.quantity);
+
               return (
-                <div key={a.id} className="flex items-center gap-2.5 py-2.5">
-                  <Avatar className="size-7 shrink-0 bg-foreground/[0.08]">
+                <div key={a.id} className="flex items-center gap-2.5 py-3">
+                  <Avatar className="size-8 shrink-0 bg-foreground/[0.08]">
                     {tech.photo_url && <AvatarImage src={tech.photo_url} />}
-                    <AvatarFallback className="text-[9px] font-semibold bg-foreground/[0.08] text-foreground/70">
+                    <AvatarFallback className="text-[10px] font-semibold bg-foreground/[0.08] text-foreground/70">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
-                  <Link
-                    href={`/techniciens/${tech.id}`}
-                    className="text-sm font-medium hover:underline truncate flex-1 min-w-0"
-                  >
-                    {fullName}
-                  </Link>
-                  {a.quantity > 1 && (
-                    <span className="text-[10px] font-bold tabular-nums bg-foreground/[0.06] px-1.5 py-0.5 rounded shrink-0">
-                      x{a.quantity}
+
+                  <div className="flex-1 min-w-0">
+                    <Link
+                      href={`/techniciens/${tech.id}`}
+                      className="text-sm font-medium hover:underline truncate block"
+                    >
+                      {fullName}
+                    </Link>
+                    <span
+                      className={cn("text-[11px] tabular-nums", durationColor)}
+                      title={`Assigné depuis ${formatDuration(a.days)}`}
+                    >
+                      {formatAssignedAt(a.assigned_at)}
                     </span>
+                  </div>
+
+                  {/* Combien il en détient, et combien on lui reprend */}
+                  {a.quantity > 1 ? (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        aria-label="Rendre moins"
+                        onClick={() =>
+                          setReturnQty((prev) => ({
+                            ...prev,
+                            [tech.id]: Math.max(1, toReturn - 1),
+                          }))
+                        }
+                        disabled={toReturn <= 1}
+                        className="flex size-7 items-center justify-center rounded-md border bg-background hover:bg-muted active:scale-95 transition-all disabled:opacity-30 cursor-pointer"
+                      >
+                        <Minus className="size-3" />
+                      </button>
+                      <span className="w-10 text-center text-xs tabular-nums">
+                        <span className="font-bold">{toReturn}</span>
+                        <span className="text-muted-foreground">/{a.quantity}</span>
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Rendre plus"
+                        onClick={() =>
+                          setReturnQty((prev) => ({
+                            ...prev,
+                            [tech.id]: Math.min(a.quantity, toReturn + 1),
+                          }))
+                        }
+                        disabled={toReturn >= a.quantity}
+                        className="flex size-7 items-center justify-center rounded-md border bg-background hover:bg-muted active:scale-95 transition-all disabled:opacity-30 cursor-pointer"
+                      >
+                        <Plus className="size-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground tabular-nums shrink-0">×1</span>
                   )}
-                  <span className={cn("text-[11px] tabular-nums shrink-0", durationColor)}>
-                    {formatDuration(a.days)}
-                  </span>
+
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 px-2.5 text-xs shrink-0 text-destructive border-destructive/30 hover:bg-destructive/10 hover:border-destructive/50"
-                    onClick={() => handleUnassign(tech.id, fullName)}
+                    className="h-8 px-2.5 text-xs shrink-0 text-destructive border-destructive/30 hover:bg-destructive/10 hover:border-destructive/50"
+                    onClick={() => handleUnassign(tech.id, fullName, toReturn)}
                     disabled={unassignMutation.isPending}
                   >
                     Retirer
@@ -267,7 +362,7 @@ export default function EquipmentManageModal({
             {/* ── Assign entry point — always visible when a tool is opened ── */}
             {showAssignPicker && canAssign ? (
               <div key="picker" className="overflow-hidden">
-                <div className="rounded-lg border border-dashed border-foreground/[0.12] p-3 mt-3 space-y-2">
+                <div className="rounded-lg border border-foreground/20 bg-muted/30 p-3 mt-3 space-y-3">
                   <select
                     value={assigningTech}
                     onChange={(e) => setAssigningTech(e.target.value)}
@@ -281,6 +376,38 @@ export default function EquipmentManageModal({
                       </option>
                     ))}
                   </select>
+
+                  {/* Quantité à assigner — plafonnée au stock disponible */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium">Quantité</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        aria-label="Diminuer la quantité"
+                        onClick={() => setAssignQty((q) => Math.max(1, q - 1))}
+                        disabled={assignQty <= 1}
+                        className="flex size-8 items-center justify-center rounded-lg border bg-background hover:bg-muted active:scale-95 transition-all disabled:opacity-30 cursor-pointer"
+                      >
+                        <Minus className="size-3.5" />
+                      </button>
+                      <span className="w-9 text-center font-heading font-bold tabular-nums">
+                        {assignQty}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Augmenter la quantité"
+                        onClick={() => setAssignQty((q) => Math.min(stock, q + 1))}
+                        disabled={assignQty >= stock}
+                        className="flex size-8 items-center justify-center rounded-lg border bg-background hover:bg-muted active:scale-95 transition-all disabled:opacity-30 cursor-pointer"
+                      >
+                        <Plus className="size-3.5" />
+                      </button>
+                      <span className="text-[11px] text-muted-foreground tabular-nums ml-1">
+                        / {stock}
+                      </span>
+                    </div>
+                  </div>
+
                   <div className="flex gap-2">
                     <Button
                       variant="ghost"
@@ -315,19 +442,103 @@ export default function EquipmentManageModal({
                 disabled={!canAssign}
                 title={assignDisabledReason ?? undefined}
                 className={cn(
-                  "w-full flex items-center gap-3 rounded-lg border border-dashed p-3 mt-3 transition-colors text-left",
+                  "w-full flex items-center gap-3 rounded-lg border p-3 mt-3 transition-colors text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
                   canAssign
-                    ? "border-foreground/[0.10] hover:border-foreground/20 hover:bg-muted/20 cursor-pointer"
-                    : "border-foreground/[0.08] opacity-70 cursor-not-allowed"
+                    ? "border-foreground/15 bg-muted/40 hover:bg-muted cursor-pointer"
+                    : "border-attention/30 bg-attention/[0.05] cursor-not-allowed"
                 )}
               >
-                <div className="flex size-8 items-center justify-center rounded-full bg-foreground/[0.04]">
-                  <Plus className="size-4 text-muted-foreground/40" />
+                <div
+                  className={cn(
+                    "flex size-8 items-center justify-center rounded-full",
+                    canAssign ? "bg-foreground/[0.08]" : "bg-attention/15"
+                  )}
+                >
+                  <Plus
+                    className={cn("size-4", canAssign ? "text-foreground" : "text-attention")}
+                  />
                 </div>
-                <span className="text-sm text-muted-foreground/60">
+                <span
+                  className={cn(
+                    "text-sm font-medium",
+                    canAssign ? "text-foreground" : "text-attention"
+                  )}
+                >
                   {canAssign ? "Assigner a un technicien" : assignDisabledReason}
                 </span>
               </button>
+            )}
+          </div>
+
+          {/* ── Historique — qui a eu cet outil, et quand ── */}
+          <div className="mt-5 border-t pt-4">
+            <button
+              type="button"
+              onClick={() => setShowHistory((v) => !v)}
+              className="flex w-full items-center gap-2.5 rounded-lg border bg-card px-3 py-2.5 text-left transition-colors hover:bg-muted/50 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            >
+              <span className="flex size-8 items-center justify-center rounded-full bg-foreground/[0.06] shrink-0">
+                <History className="size-4" />
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-sm font-semibold">Historique</span>
+                <span className="block text-[11px] text-muted-foreground">
+                  Qui a eu cet outil, et quand
+                </span>
+              </span>
+              <ChevronDown
+                className={cn(
+                  "size-4 shrink-0 text-muted-foreground transition-transform duration-200",
+                  !showHistory && "-rotate-90"
+                )}
+              />
+            </button>
+
+            {showHistory && (
+              <div className="mt-2">
+                {isHistoryLoading ? (
+                  <p className="text-xs text-muted-foreground py-2">Chargement…</p>
+                ) : history.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-2">
+                    Aucun mouvement enregistré pour cet outil.
+                  </p>
+                ) : (
+                  <ul className="divide-y rounded-lg border">
+                    {history.map((h) => {
+                      const isOut = h.movement_type === "assign_equipment";
+                      return (
+                        <li key={h.id} className="flex items-center gap-2 px-3 py-2">
+                          <span
+                            className={cn(
+                              "flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
+                              isOut
+                                ? "bg-attention/15 text-attention"
+                                : "bg-standard/15 text-standard"
+                            )}
+                            title={isOut ? "Assigné" : "Rendu"}
+                          >
+                            {isOut ? "↑" : "↓"}
+                          </span>
+                          <span className="text-xs flex-1 min-w-0 truncate">
+                            <span className="font-medium">
+                              {h.technician
+                                ? `${h.technician.first_name} ${h.technician.last_name}`
+                                : "Technicien supprimé"}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {isOut ? " a reçu " : " a rendu "}
+                            </span>
+                            <span className="font-medium tabular-nums">{h.quantity}</span>
+                          </span>
+                          <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
+                            {h.created_at ? formatAssignedAt(h.created_at) : "—"}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
             )}
           </div>
         </div>

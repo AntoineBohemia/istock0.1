@@ -384,6 +384,7 @@ export type Database = {
           organization_id: string | null;
           price: number | null;
           product_type: Database["public"]["Enums"]["product_type"];
+          product_url: string | null;
           sku: string;
           stock_current: number | null;
           stock_min: number | null;
@@ -403,6 +404,7 @@ export type Database = {
           organization_id?: string | null;
           price?: number | null;
           product_type?: Database["public"]["Enums"]["product_type"];
+          product_url?: string | null;
           sku: string;
           stock_current?: number | null;
           stock_min?: number | null;
@@ -422,6 +424,7 @@ export type Database = {
           organization_id?: string | null;
           price?: number | null;
           product_type?: Database["public"]["Enums"]["product_type"];
+          product_url?: string | null;
           sku?: string;
           stock_current?: number | null;
           stock_min?: number | null;

@@ -6,6 +6,12 @@ export const ProductFormSchema = z.object({
   }),
   sku: z.string().optional(),
   description: z.string().optional(),
+  product_url: z
+    .string()
+    .optional()
+    .refine((val) => !val || /^https?:\/\/.+/.test(val), {
+      message: "Le lien doit commencer par http:// ou https://",
+    }),
   price: z
     .string()
     .optional()

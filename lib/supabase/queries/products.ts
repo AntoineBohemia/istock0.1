@@ -10,6 +10,8 @@ export interface Product {
   icon_name: string | null;
   icon_color: string | null;
   image_url: string | null;
+  /** Lien web de l'article (page fournisseur ou fabricant) */
+  product_url: string | null;
   price: number | null;
   stock_current: number | null;
   stock_min: number | null;
@@ -55,6 +57,7 @@ export interface CreateProductData {
   icon_name?: string | null;
   icon_color?: string | null;
   image_url?: string | null;
+  product_url?: string | null;
   price?: number | null;
   stock_current?: number;
   stock_min?: number;
@@ -183,6 +186,7 @@ export async function createProduct(data: CreateProductData): Promise<Product> {
     icon_name: data.icon_name || null,
     icon_color: data.icon_color || null,
     image_url: data.image_url || null,
+    product_url: data.product_url || null,
     price: data.price ?? null,
     stock_current: data.stock_current ?? 0,
     stock_min: data.stock_min ?? 10,
@@ -224,6 +228,7 @@ export async function updateProduct(
   if (data.icon_name !== undefined) updateData.icon_name = data.icon_name;
   if (data.icon_color !== undefined) updateData.icon_color = data.icon_color;
   if (data.image_url !== undefined) updateData.image_url = data.image_url;
+  if (data.product_url !== undefined) updateData.product_url = data.product_url || null;
   if (data.price !== undefined) updateData.price = data.price;
   if (data.stock_current !== undefined) updateData.stock_current = data.stock_current;
   if (data.stock_min !== undefined) updateData.stock_min = data.stock_min;

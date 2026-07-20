@@ -19,6 +19,9 @@ export function useCreateProduct() {
       qc.invalidateQueries({ queryKey: queryKeys.products.lists() });
       qc.invalidateQueries({ queryKey: queryKeys.products.stats() });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      // L'outillage, ce sont des produits (product_type = 'equipment') mais son
+      // cache vit sous une autre cle. Sans ceci, l'ecran Outillage garde l'ancienne valeur.
+      qc.invalidateQueries({ queryKey: queryKeys.equipment.all });
     },
   });
 }
@@ -45,6 +48,7 @@ export function useUpdateProduct() {
       qc.invalidateQueries({ queryKey: queryKeys.products.lists() });
       qc.invalidateQueries({ queryKey: queryKeys.products.stats() });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      qc.invalidateQueries({ queryKey: queryKeys.equipment.all });
     },
   });
 }
@@ -82,6 +86,7 @@ export function useArchiveProduct() {
       qc.invalidateQueries({ queryKey: queryKeys.products.lists() });
       qc.invalidateQueries({ queryKey: queryKeys.products.stats() });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      qc.invalidateQueries({ queryKey: queryKeys.equipment.all });
     },
   });
 }

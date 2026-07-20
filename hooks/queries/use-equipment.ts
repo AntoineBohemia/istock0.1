@@ -7,8 +7,17 @@ import {
   getEquipmentProduct,
   getTechnicianEquipment,
   getAvailableEquipment,
+  getEquipmentHistory,
   type EquipmentFilters,
 } from "@/lib/supabase/queries/equipment";
+
+export function useEquipmentHistory(productId?: string) {
+  return useQuery({
+    queryKey: queryKeys.equipment.history(productId ?? ""),
+    queryFn: () => getEquipmentHistory(productId!),
+    enabled: !!productId,
+  });
+}
 
 export function useEquipmentProducts(filters: EquipmentFilters) {
   return useQuery({

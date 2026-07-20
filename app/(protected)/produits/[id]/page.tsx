@@ -1,6 +1,6 @@
 import { generateMeta, cn } from "@/lib/utils";
 
-import { AlertTriangle, Mail, Phone } from "lucide-react";
+import { AlertTriangle, ExternalLink, Mail, Phone } from "lucide-react";
 
 import { StatusPill } from "@/components/ui/status-pill";
 import { Button } from "@/components/ui/button";
@@ -147,14 +147,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         }
         actions={
           <>
-            {orderMailtoUrl && (
-              <Button variant="outline-contrast" asChild>
-                <a href={orderMailtoUrl}>
-                  <Mail className="size-4" />
-                  Commander à nouveau
-                </a>
-              </Button>
-            )}
             <EditProductButton productId={id} />
             <ArchiveProductButton productId={id} productName={product.name} />
           </>
@@ -337,6 +329,22 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                     className="font-medium underline underline-offset-2 decoration-muted-foreground/40 hover:decoration-foreground transition-colors"
                   >
                     {product.supplier.name}
+                  </a>
+                </div>
+              )}
+              {product.product_url && (
+                <div className="flex justify-between px-5 py-2.5 gap-4">
+                  <span className="text-muted-foreground shrink-0">Lien de l&apos;article</span>
+                  <a
+                    href={product.product_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium inline-flex items-center gap-1.5 min-w-0 underline underline-offset-2 decoration-muted-foreground/40 hover:decoration-foreground transition-colors"
+                  >
+                    <span className="truncate">
+                      {product.product_url.replace(/^https?:\/\/(www\.)?/, "")}
+                    </span>
+                    <ExternalLink className="size-3.5 shrink-0" />
                   </a>
                 </div>
               )}
