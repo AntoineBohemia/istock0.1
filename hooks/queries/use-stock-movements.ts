@@ -5,6 +5,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { STALE_TIME } from "@/lib/query-stale-times";
 import {
   getStockMovements,
+  getMovementTypeCounts,
   getProductMovements,
   getProductMovementStats,
   getMovementsSummary,
@@ -13,6 +14,14 @@ import {
   getProductPriceHistory,
   type StockMovementFilters,
 } from "@/lib/supabase/queries/stock-movements";
+
+export function useMovementTypeCounts() {
+  return useQuery({
+    queryKey: [...queryKeys.movements.all, "typeCounts"] as const,
+    queryFn: () => getMovementTypeCounts(),
+    staleTime: STALE_TIME.REALTIME,
+  });
+}
 
 export function useStockMovements(filters: StockMovementFilters = {}) {
   return useQuery({

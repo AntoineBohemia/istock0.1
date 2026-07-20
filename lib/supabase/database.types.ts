@@ -938,6 +938,10 @@ export type Database = {
         Args: { org_logo_url?: string; org_name: string; org_slug: string };
         Returns: Json;
       };
+      get_movement_type_counts: {
+        Args: Record<string, never>;
+        Returns: { movement_type: string; count: number }[];
+      };
       get_suppliers_with_stats: {
         Args: { p_organization_id: string };
         Returns: {

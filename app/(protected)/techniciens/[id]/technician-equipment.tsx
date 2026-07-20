@@ -23,6 +23,16 @@ interface TechnicianEquipmentProps {
 const fmtPrice = (n: number) =>
   n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
+/** Date et heure exactes, comme sur la page Outillage */
+const fmtAssignedAt = (d: string) =>
+  new Date(d).toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
 // ── Equipment icon (supports lucide icons, images, fallback) ──
 
 function EquipmentIcon({
@@ -191,14 +201,27 @@ export default function TechnicianEquipment({
         </div>
       )}
 
-      {/* ── Search ── */}
-      {equipment.length > 5 && (
-        <SearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder="Rechercher…"
-          className="bg-white dark:bg-card"
-        />
+      {/* ── Recherche + total sur une ligne ──
+           La recherche etait masquee sous 6 outils : elle apparaissait et
+           disparaissait, et la mise en page sautait. */}
+      {equipment.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex-1 min-w-[200px]">
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Rechercher un outil…"
+              className="bg-white dark:bg-card"
+            />
+          </div>
+          <p className="text-muted-foreground text-sm shrink-0">
+            <span className="font-heading font-semibold tabular-nums text-foreground">
+              {totalItems}
+            </span>{" "}
+            outil{totalItems > 1 ? "s" : ""}
+            {totalValue > 0 && <> · {fmtPrice(totalValue)}</>}
+          </p>
+        </div>
       )}
 
       {/* ── Equipment grid — CD4: ownership, each card = precious item ── */}
@@ -215,15 +238,14 @@ export default function TechnicianEquipment({
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map((assignment) => {
             const product = assignment.product;
             if (!product) return null;
             const itemValue = (product.price ?? 0) * assignment.quantity;
 
             return (
-              <div key={assignment.id} className="rounded-xl border bg-card p-4 space-y-3">
-                {/* Top: icon + info + action */}
+              <div key={assignment.id} className="rounded-xl border bg-card p-4">
                 <div className="flex items-start gap-3">
                   <EquipmentIcon
                     iconName={product.icon_name}
@@ -233,11 +255,11 @@ export default function TechnicianEquipment({
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold leading-tight truncate">{product.name}</p>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      {assignment.quantity > 1 && (
-                        <span className="inline-flex items-center rounded-md bg-foreground/[0.06] px-1.5 py-0.5 text-[11px] font-bold tabular-nums">
-                          x{assignment.quantity}
-                        </span>
-                      )}
+                      {/* Quantite toujours affichee : « x1 » absent laissait
+                          croire a un oubli plutot qu'a une unite. */}
+                      <span className="inline-flex items-center rounded-md bg-foreground/[0.06] px-1.5 py-0.5 text-[11px] font-bold tabular-nums">
+                        x{assignment.quantity}
+                      </span>
                       {itemValue > 0 && (
                         <span className="text-[11px] text-muted-foreground tabular-nums">
                           {fmtPrice(itemValue)}
@@ -256,21 +278,16 @@ export default function TechnicianEquipment({
                     Retirer
                   </Button>
                 </div>
+
+                {/* Depuis quand il l'a — l'information manquait completement,
+                    alors qu'elle figure deja sur la page Outillage. */}
+                <p className="mt-3 border-t pt-2.5 text-[11px] text-muted-foreground tabular-nums">
+                  Assigné le {fmtAssignedAt(assignment.assigned_at)}
+                </p>
               </div>
             );
           })}
         </div>
-      )}
-
-      {/* ── Footer ── */}
-      {equipment.length > 0 && (
-        <p className="text-muted-foreground text-sm px-1">
-          <span className="font-heading font-semibold tabular-nums text-foreground">
-            {totalItems}
-          </span>{" "}
-          outil{totalItems > 1 ? "s" : ""}
-          {totalValue > 0 && <> · {fmtPrice(totalValue)}</>}
-        </p>
       )}
     </div>
   );

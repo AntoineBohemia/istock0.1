@@ -154,10 +154,14 @@ export default async function TechnicianDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ year?: string }>;
+  searchParams: Promise<{ year?: string; tab?: string }>;
 }) {
   const { id } = await params;
-  const { year: yearParam } = await searchParams;
+  const { year: yearParam, tab: tabParam } = await searchParams;
+  // L'onglet est pilotable par l'URL : la liste peut ainsi pointer directement
+  // sur l'outillage d'un technicien. Valeur inconnue → onglet par defaut.
+  const TABS = ["inventory", "history", "equipment"];
+  const activeTab = tabParam && TABS.includes(tabParam) ? tabParam : "inventory";
   const currentYear = new Date().getFullYear();
   const selectedYear = yearParam ? parseInt(yearParam, 10) : currentYear;
   const year = Number.isNaN(selectedYear) ? currentYear : selectedYear;
@@ -246,7 +250,7 @@ export default async function TechnicianDetailPage({
 
       {/* ── Year selector + Tabs ── */}
       <div className="flex items-center justify-between">
-        <Tabs defaultValue="inventory" className="flex-1">
+        <Tabs defaultValue={activeTab} className="flex-1">
           <div className="flex items-center justify-between">
             <TabsList>
               <TabsTrigger value="inventory">

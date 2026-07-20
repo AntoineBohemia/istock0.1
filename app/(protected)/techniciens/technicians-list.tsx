@@ -12,7 +12,15 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, ChevronLeft, ChevronRight, Package, Plus, UserPlus } from "lucide-react";
+import {
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  Package,
+  Phone,
+  Plus,
+  UserPlus,
+} from "lucide-react";
 import { SearchInput } from "@/components/search-input";
 import { QueryError } from "@/components/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -234,15 +242,22 @@ export default function TechniciansList() {
       header: ({ column }) => <SortHeader label="Outillage" column={column} />,
       cell: ({ row }) => {
         const count = row.original.equipment_count ?? 0;
+        // A zero, il n'y a rien a consulter : on n'invite pas a cliquer
+        if (count === 0) {
+          return (
+            <span className="font-heading font-bold tabular-nums text-xl text-muted-foreground/40">
+              0
+            </span>
+          );
+        }
         return (
-          <span
-            className={cn(
-              "font-heading font-bold tabular-nums text-xl",
-              count === 0 ? "text-muted-foreground/40" : "text-foreground"
-            )}
+          <Link
+            href={`/techniciens/${row.original.id}?tab=equipment`}
+            onClick={(e) => e.stopPropagation()}
+            className="font-heading font-bold tabular-nums text-xl hover:underline underline-offset-4 decoration-2"
           >
             {count}
-          </span>
+          </Link>
         );
       },
       meta: { label: "Outillage" },
@@ -291,14 +306,17 @@ export default function TechniciansList() {
       accessorKey: "phone",
       meta: { label: "Téléphone" },
       header: ({ column }) => <SortHeader label="Téléphone" column={column} />,
-      // Cliquable : depuis la liste, le geste utile est d'appeler, pas de lire
+      // Cliquable : depuis la liste, le geste utile est d'appeler, pas de lire.
+      // L'icone rend l'action lisible — un numero souligne au survol seulement
+      // ne se distingue pas du texte tant qu'on ne le survole pas.
       cell: ({ row }) =>
         row.original.phone ? (
           <a
             href={`tel:${row.original.phone.replace(/\s/g, "")}`}
             onClick={(e) => e.stopPropagation()}
-            className="text-[15px] tabular-nums hover:underline underline-offset-2"
+            className="inline-flex items-center gap-1.5 text-[15px] tabular-nums hover:underline underline-offset-2"
           >
+            <Phone className="size-3.5 text-muted-foreground shrink-0" />
             {row.original.phone}
           </a>
         ) : (

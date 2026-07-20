@@ -51,11 +51,23 @@ export interface StockMovementFilters {
   movementType?: MovementType;
   startDate?: string;
   endDate?: string;
+  /** Filtres multi-valeurs de la page Mouvements */
+  organizationIds?: string[];
+  supplierIds?: string[];
+  technicianIds?: string[];
+  movementTypes?: MovementType[];
+  /** Recherche sur le nom du produit ou celui du technicien */
+  search?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 export interface StockMovementsResult {
   movements: StockMovement[];
   total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 export const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
@@ -79,12 +91,57 @@ export const MOVEMENT_TYPE_COLORS: Record<MovementType, string> = {
 /**
  * Récupère la liste des mouvements de stock avec filtres et pagination
  */
+/**
+ * Nombre de mouvements par type, toutes pages confondues.
+ *
+ * Les pastilles de filtre comptaient auparavant les lignes deja chargees ;
+ * avec la pagination serveur, elles n'auraient plus vu qu'une page.
+ */
+export async function getMovementTypeCounts(): Promise<Record<string, number>> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase.rpc("get_movement_type_counts");
+
+  if (error) {
+    throw new Error(`Erreur lors du comptage des mouvements: ${error.message}`);
+  }
+
+  const counts: Record<string, number> = {};
+  let all = 0;
+  for (const row of data ?? []) {
+    // Postgres renvoie bigint en chaine : sans Number(), les additions
+    // concatenent au lieu de sommer.
+    const n = Number(row.count ?? 0);
+    counts[row.movement_type] = n;
+    all += n;
+  }
+  counts.all = all;
+
+  return counts;
+}
+
 export async function getStockMovements(
   filters: StockMovementFilters = {}
 ): Promise<StockMovementsResult> {
   const supabase = createClient();
-  const { organizationId, productId, technicianId, movementType, startDate, endDate } = filters;
+  const {
+    organizationId,
+    productId,
+    technicianId,
+    movementType,
+    startDate,
+    endDate,
+    organizationIds,
+    supplierIds,
+    technicianIds,
+    movementTypes,
+    search,
+    page = 1,
+    pageSize = 20,
+  } = filters;
 
+  // count: "exact" — sans lui, le total valait la taille du tableau recu, donc
+  // la troncature a 1000 lignes se serait presentee comme un total legitime.
   let query = supabase.from("stock_movements").select(
     `
       *,
@@ -92,7 +149,8 @@ export async function getStockMovements(
       technician:technicians(id, first_name, last_name),
       supplier:suppliers(id, name),
       organization:organizations(id, name)
-    `
+    `,
+    { count: "exact" }
   );
 
   // Filtrer par organisation
@@ -121,19 +179,68 @@ export async function getStockMovements(
     query = query.lte("created_at", endDate);
   }
 
+  // ── Filtres multi-valeurs ──
+  if (organizationIds?.length) {
+    query = query.in("organization_id", organizationIds);
+  }
+  if (supplierIds?.length) {
+    query = query.in("supplier_id", supplierIds);
+  }
+  if (technicianIds?.length) {
+    query = query.in("technician_id", technicianIds);
+  }
+  if (movementTypes?.length) {
+    query = query.in("movement_type", movementTypes);
+  }
+
+  // ── Recherche ──
+  // Elle porte sur le nom du produit OU celui du technicien, soit deux tables
+  // liees : PostgREST ne sait pas exprimer un OR a travers deux relations. On
+  // resout donc d'abord les identifiants concernes, puis on filtre dessus.
+  if (search?.trim()) {
+    const term = `%${search.trim()}%`;
+    const [productsRes, techniciansRes] = await Promise.all([
+      supabase.from("products").select("id").or(`name.ilike.${term},sku.ilike.${term}`),
+      supabase
+        .from("technicians")
+        .select("id")
+        .or(`first_name.ilike.${term},last_name.ilike.${term}`),
+    ]);
+
+    const productIds = (productsRes.data ?? []).map((p) => p.id);
+    const technicianIdMatches = (techniciansRes.data ?? []).map((t) => t.id);
+
+    if (productIds.length === 0 && technicianIdMatches.length === 0) {
+      // Rien ne correspond : inutile d'interroger les mouvements
+      return { movements: [], total: 0, page, pageSize, totalPages: 0 };
+    }
+
+    const clauses: string[] = [];
+    if (productIds.length) clauses.push(`product_id.in.(${productIds.join(",")})`);
+    if (technicianIdMatches.length)
+      clauses.push(`technician_id.in.(${technicianIdMatches.join(",")})`);
+    query = query.or(clauses.join(","));
+  }
+
   query = query.order("created_at", { ascending: false });
 
-  const { data, error } = await query;
+  const from = (page - 1) * pageSize;
+  query = query.range(from, from + pageSize - 1);
+
+  const { data, error, count } = await query;
 
   if (error) {
     throw new Error(`Erreur lors de la récupération des mouvements: ${error.message}`);
   }
 
-  const movements = (data as StockMovement[]) || [];
+  const total = count ?? 0;
 
   return {
-    movements,
-    total: movements.length,
+    movements: (data as StockMovement[]) || [],
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
   };
 }
 

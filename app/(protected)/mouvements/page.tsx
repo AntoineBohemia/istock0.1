@@ -1,5 +1,4 @@
 import { generateMeta } from "@/lib/utils";
-import MovementsHeader from "./movements-header";
 import MovementsList from "./movements-list";
 
 export async function generateMetadata() {
@@ -11,12 +10,7 @@ export async function generateMetadata() {
 }
 
 export default function Page() {
-  return (
-    <div className="space-y-4">
-      <MovementsHeader />
-      <div className="pt-4">
-        <MovementsList />
-      </div>
-    </div>
-  );
+  // Le titre et l'export sont rendus par MovementsList : l'export doit
+  // connaitre les filtres courants, qui vivent dans ce composant.
+  return <MovementsList />;
 }

@@ -38,7 +38,9 @@ export function TableColumnToggle<T>({
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none cursor-pointer bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]",
+          // Meme gabarit que les pastilles de filtre (h-9, px-4, 13px) : le
+          // bouton faisait deux tiers de leur hauteur et cassait la ligne.
+          "inline-flex items-center gap-1.5 rounded-full h-9 px-4 text-[13px] font-semibold transition-all select-none cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97] bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]",
           className
         )}
       >

@@ -198,15 +198,20 @@ export default function TechnicianInventory({
 
   return (
     <div className="space-y-3">
-      {/* Search + Compare selector */}
-      <div className="flex items-center gap-2">
+      {/* Recherche, total et comparaison sur une seule ligne */}
+      <div className="flex flex-wrap items-center gap-2">
         <SearchInput
           value={search}
           onChange={setSearch}
           placeholder="Rechercher un produit..."
           className="bg-white dark:bg-card"
-          wrapperClassName="flex-1"
+          wrapperClassName="flex-1 min-w-[200px]"
         />
+        <p className="text-sm text-muted-foreground tabular-nums shrink-0">
+          {filtered.length} produit{filtered.length > 1 ? "s" : ""} ·{" "}
+          <span className="font-heading font-semibold text-foreground">{grandTotal}</span> unités en{" "}
+          {year}
+        </p>
         <CompareSelector technicianId={technicianId} compared={compared} onToggle={toggleCompare} />
       </div>
 
@@ -226,13 +231,6 @@ export default function TechnicianInventory({
           ))}
         </div>
       )}
-
-      {/* Summary */}
-      <p className="text-sm text-muted-foreground tabular-nums">
-        {filtered.length} produit{filtered.length > 1 ? "s" : ""} ·{" "}
-        <span className="font-heading font-semibold text-foreground">{grandTotal}</span> unités en{" "}
-        {year}
-      </p>
 
       {/* Table */}
       <div className="rounded-xl border bg-card overflow-x-auto">
@@ -263,7 +261,7 @@ export default function TechnicianInventory({
                     isComparing ? "text-foreground" : "text-foreground/50"
                   )}
                 >
-                  {isComparing ? technicianName : "Total sorti"}
+                  {isComparing ? technicianName : `Sorti en ${year}`}
                   <ArrowUpDown
                     className={cn(
                       "size-3 transition-colors",
@@ -302,6 +300,7 @@ export default function TechnicianInventory({
                   compared={compared}
                   year={year}
                   isComparing={isComparing}
+                  grandTotal={grandTotal}
                 />
               ))
             )}
@@ -327,12 +326,18 @@ function ComparisonRow({
   compared,
   year,
   isComparing,
+  grandTotal,
 }: {
   item: ProductTotal;
   compared: ComparedTechnician[];
   year: number;
   isComparing: boolean;
+  grandTotal: number;
 }) {
+  // Part du produit dans la consommation de l'annee. Une colonne de nombres
+  // seuls oblige a tout lire pour reperer les gros postes ; la barre les donne
+  // d'un coup d'oeil. Masquee en comparaison, ou les colonnes s'accumulent.
+  const share = grandTotal > 0 ? (item.total_quantity / grandTotal) * 100 : 0;
   return (
     <tr className="border-b last:border-b-0 transition-colors hover:bg-muted/40">
       <td className="px-5 py-4">
@@ -361,11 +366,26 @@ function ComparisonRow({
         </Link>
       </td>
       <td className="px-5 py-4">
-        <span
-          className={cn("font-heading font-bold tabular-nums", isComparing ? "text-lg" : "text-xl")}
-        >
-          {item.total_quantity}
-        </span>
+        {isComparing ? (
+          <span className="font-heading font-bold tabular-nums text-lg">{item.total_quantity}</span>
+        ) : (
+          <div className="min-w-[120px]">
+            <div className="flex items-baseline gap-2">
+              <span className="font-heading font-bold tabular-nums text-xl leading-none">
+                {item.total_quantity}
+              </span>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {share.toFixed(0)} %
+              </span>
+            </div>
+            <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-foreground/70"
+                style={{ width: `${Math.max(share, 2)}%` }}
+              />
+            </div>
+          </div>
+        )}
       </td>
       {compared.map((c) => (
         <ComparedCell

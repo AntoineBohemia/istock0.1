@@ -16,11 +16,17 @@ import {
   History,
   CalendarDays,
   Building2,
+  ChevronLeft,
+  ChevronRight,
+  Download,
   Truck,
   HardHat,
   Check,
   X,
 } from "lucide-react";
+
+const fmtPrice = (n: number) =>
+  n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 import {
   format,
   subDays,
@@ -44,8 +50,22 @@ import { QueryError } from "@/components/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HeroNumber } from "@/components/ui/hero-number";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { StockMovement, MOVEMENT_TYPE_LABELS } from "@/lib/supabase/queries/stock-movements";
-import { useStockMovements, useOrganizations } from "@/hooks/queries";
+import {
+  StockMovement,
+  MOVEMENT_TYPE_LABELS,
+  getStockMovements,
+  type MovementType,
+} from "@/lib/supabase/queries/stock-movements";
+import { toast } from "@/lib/toast";
+import { exportMovementsExcel } from "@/lib/utils/excel-export";
+import {
+  useStockMovements,
+  useMovementTypeCounts,
+  useOrganizations,
+  useTechnicians,
+  useSuppliers,
+} from "@/hooks/queries";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 import ProductIconDisplay from "@/components/product-icon-display";
 import { TableColumnToggle } from "@/components/table-column-toggle";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
@@ -167,7 +187,7 @@ function DateRangePicker({
     >
       <PopoverTrigger
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none cursor-pointer",
+          "inline-flex items-center gap-1.5 rounded-full h-9 px-4 text-[13px] font-semibold transition-all select-none cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97]",
           dateRange?.from
             ? "bg-primary text-primary-foreground"
             : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
@@ -337,44 +357,71 @@ export default function MovementsList() {
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebouncedValue(searchInput, 300);
 
-  // Fetch all movements (no org scoping — org is just a tag on entries)
-  const { data: movementsResult, isLoading, isError, refetch } = useStockMovements({});
+  const currentOrgId = useOrganizationStore((s) => s.currentOrganization?.id);
+  const [isExporting, setIsExporting] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 50;
 
-  const allMovements = movementsResult?.movements || [];
+  // Tous les filtres partent au serveur. Auparavant la page rapatriait
+  // l'historique complet puis filtrait en memoire : au-dela de 1000 lignes,
+  // Supabase tronquait en silence et le total affiche devenait la limite.
+  const serverFilters = useMemo(
+    () => ({
+      movementTypes: filterTypes.size > 0 ? (Array.from(filterTypes) as MovementType[]) : undefined,
+      organizationIds: filterOrgs.size > 0 ? Array.from(filterOrgs) : undefined,
+      supplierIds: filterSuppliers.size > 0 ? Array.from(filterSuppliers) : undefined,
+      technicianIds: filterTechs.size > 0 ? Array.from(filterTechs) : undefined,
+      search: debouncedSearch || undefined,
+      startDate: dateRange?.from ? startOfDay(dateRange.from).toISOString() : undefined,
+      endDate: dateRange?.to
+        ? endOfDay(dateRange.to).toISOString()
+        : dateRange?.from
+          ? endOfDay(dateRange.from).toISOString()
+          : undefined,
+      page,
+      pageSize: PAGE_SIZE,
+    }),
+    [filterTypes, filterOrgs, filterSuppliers, filterTechs, debouncedSearch, dateRange, page]
+  );
 
-  // Count per type for chip badges
-  const typeCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: allMovements.length };
-    for (const m of allMovements) {
-      counts[m.movement_type] = (counts[m.movement_type] || 0) + 1;
-    }
-    return counts;
-  }, [allMovements]);
+  const { data: movementsResult, isLoading, isError, refetch } = useStockMovements(serverFilters);
 
-  // Unique technicians from movements (for filter)
-  const availableTechs = useMemo(() => {
-    const map = new Map<string, { id: string; name: string }>();
-    for (const m of allMovements) {
-      if (m.technician) {
-        map.set(m.technician.id, {
-          id: m.technician.id,
-          name: `${m.technician.first_name} ${m.technician.last_name}`,
-        });
-      }
-    }
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [allMovements]);
+  const movements = useMemo(() => movementsResult?.movements ?? [], [movementsResult]);
+  const totalCount = movementsResult?.total ?? 0;
+  const totalPages = movementsResult?.totalPages ?? 0;
 
-  // Unique suppliers from entry movements (for filter)
-  const availableSuppliers = useMemo(() => {
-    const map = new Map<string, { id: string; name: string }>();
-    for (const m of allMovements) {
-      if (m.movement_type === "entry" && m.supplier) {
-        map.set(m.supplier.id, { id: m.supplier.id, name: m.supplier.name });
-      }
-    }
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [allMovements]);
+  // Un changement de filtre doit ramener a la premiere page, sinon on reste
+  // sur une page 7 qui n'existe plus dans le nouveau resultat.
+  const filterSignature = `${Array.from(filterTypes).sort().join()}|${Array.from(filterOrgs).sort().join()}|${Array.from(filterSuppliers).sort().join()}|${Array.from(filterTechs).sort().join()}|${debouncedSearch}|${dateRange?.from?.toISOString() ?? ""}|${dateRange?.to?.toISOString() ?? ""}`;
+  const [prevSignature, setPrevSignature] = useState(filterSignature);
+  if (filterSignature !== prevSignature) {
+    setPrevSignature(filterSignature);
+    setPage(1);
+  }
+
+  // Compteurs des pastilles : issus d'un comptage serveur, pas des lignes
+  // chargees — une page de 50 donnerait des totaux faux.
+  const { data: typeCounts = {} } = useMovementTypeCounts();
+
+  // Listes de filtres : lues dans leurs propres tables. Les deduire des
+  // mouvements charges limiterait les choix a ce que contient la page courante.
+  const { data: allTechnicians = [] } = useTechnicians(currentOrgId);
+  const availableTechs = useMemo(
+    () =>
+      allTechnicians
+        .map((t) => ({ id: t.id, name: `${t.first_name} ${t.last_name}` }))
+        .sort((a, b) => a.name.localeCompare(b.name, "fr")),
+    [allTechnicians]
+  );
+
+  const { data: allSuppliers = [] } = useSuppliers(currentOrgId);
+  const availableSuppliers = useMemo(
+    () =>
+      allSuppliers
+        .map((s) => ({ id: s.id, name: s.name }))
+        .sort((a, b) => a.name.localeCompare(b.name, "fr")),
+    [allSuppliers]
+  );
 
   // User's organizations (for filter)
   const { data: userOrgs } = useOrganizations();
@@ -393,54 +440,68 @@ export default function MovementsList() {
     return next;
   }, []);
 
-  // Client-side type + search + date filter
-  const filteredMovements = useMemo(() => {
-    let result = allMovements;
-    if (filterTypes.size > 0) {
-      result = result.filter((m) => filterTypes.has(m.movement_type));
-    }
-    if (debouncedSearch) {
-      const q = debouncedSearch.toLowerCase();
-      result = result.filter((m) => {
-        const productName = m.product?.name?.toLowerCase() || "";
-        const techName = m.technician
-          ? `${m.technician.first_name} ${m.technician.last_name}`.toLowerCase()
-          : "";
-        return productName.includes(q) || techName.includes(q);
+  // Valeur de la page affichee. Seules les entrees portent un prix unitaire.
+  const pageValue = useMemo(
+    () =>
+      movements.reduce(
+        (sum, m) => (m.unit_price ? sum + m.quantity * Number(m.unit_price) : sum),
+        0
+      ),
+    [movements]
+  );
+
+  /**
+   * Export Excel de la selection filtree, toutes pages confondues.
+   *
+   * On rappelle la requete sans pagination plutot que d'exporter les 50 lignes
+   * affichees : un export partiel qui ne le dit pas est pire que pas d'export.
+   */
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const { movements: all } = await getStockMovements({
+        ...serverFilters,
+        page: 1,
+        pageSize: 5000,
       });
-    }
-    if (filterOrgs.size > 0) {
-      result = result.filter(
-        (m) => m.movement_type === "entry" && m.organization_id && filterOrgs.has(m.organization_id)
-      );
-    }
-    if (filterSuppliers.size > 0) {
-      result = result.filter(
-        (m) => m.movement_type === "entry" && m.supplier_id && filterSuppliers.has(m.supplier_id)
-      );
-    }
-    if (filterTechs.size > 0) {
-      result = result.filter((m) => m.technician_id && filterTechs.has(m.technician_id));
-    }
-    if (dateRange?.from) {
-      const fromTs = startOfDay(dateRange.from).getTime();
-      const toTs = (dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from)).getTime();
-      result = result.filter((m) => {
-        if (!m.created_at) return false;
-        const ts = new Date(m.created_at).getTime();
-        return ts >= fromTs && ts <= toTs;
+
+      // Les filtres sont rappeles en clair dans le fichier : un export sorti
+      // de son contexte ne dit plus sur quoi il porte.
+      const activeFilters: string[] = [];
+      if (debouncedSearch) activeFilters.push(`recherche « ${debouncedSearch} »`);
+      if (filterTypes.size > 0)
+        activeFilters.push(
+          Array.from(filterTypes)
+            .map((t) => MOVEMENT_TYPE_LABELS[t as MovementType] ?? t)
+            .join(", ")
+        );
+      if (filterOrgs.size > 0) activeFilters.push(`${filterOrgs.size} société(s)`);
+      if (filterSuppliers.size > 0) activeFilters.push(`${filterSuppliers.size} fournisseur(s)`);
+      if (filterTechs.size > 0) activeFilters.push(`${filterTechs.size} technicien(s)`);
+
+      const periodLabel = dateRange?.from
+        ? dateRange.to &&
+          format(dateRange.from, "yyyy-MM-dd") !== format(dateRange.to, "yyyy-MM-dd")
+          ? `du ${format(dateRange.from, "d MMMM yyyy", { locale: fr })} au ${format(dateRange.to, "d MMMM yyyy", { locale: fr })}`
+          : format(dateRange.from, "d MMMM yyyy", { locale: fr })
+        : "tout l'historique";
+
+      await exportMovementsExcel({
+        movements: all,
+        periodLabel,
+        filtersLabel: activeFilters.length > 0 ? activeFilters.join(" · ") : "aucun",
+        totalMatching: totalCount,
       });
+
+      if (all.length < totalCount) {
+        toast.error(`Export limité à ${all.length} lignes sur ${totalCount}. Affinez les filtres.`);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de l'export");
+    } finally {
+      setIsExporting(false);
     }
-    return result;
-  }, [
-    allMovements,
-    filterTypes,
-    debouncedSearch,
-    filterOrgs,
-    filterSuppliers,
-    filterTechs,
-    dateRange,
-  ]);
+  };
 
   const handleRowClick = (movement: StockMovement) => {
     if (movement.movement_type === "entry") {
@@ -552,6 +613,29 @@ export default function MovementsList() {
         meta: { label: "Qté", align: "right" },
       },
       {
+        // 96 mouvements portent un prix unitaire, pour pres de 92 000 EUR
+        // d'entrees : aucune colonne ne les montrait.
+        id: "value",
+        accessorFn: (row) => (row.unit_price ? row.quantity * Number(row.unit_price) : 0),
+        header: ({ column }) => <SortHeader label="Montant" column={column} />,
+        cell: ({ row }) => {
+          const price = row.original.unit_price;
+          if (!price) return <span className="text-muted-foreground">—</span>;
+          const value = row.original.quantity * Number(price);
+          return (
+            <div className="leading-tight">
+              <span className="font-heading font-semibold tabular-nums text-sm">
+                {fmtPrice(value)}
+              </span>
+              <span className="block text-[11px] text-muted-foreground tabular-nums">
+                {fmtPrice(Number(price))} /u
+              </span>
+            </div>
+          );
+        },
+        meta: { label: "Montant", align: "right" },
+      },
+      {
         id: "organization",
         meta: { label: "Société" },
         accessorFn: (row) => row.organization?.name ?? "",
@@ -581,7 +665,7 @@ export default function MovementsList() {
   );
 
   const table = useReactTable({
-    data: filteredMovements,
+    data: movements,
     columns,
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
@@ -590,7 +674,7 @@ export default function MovementsList() {
     state: { sorting, columnVisibility },
   });
 
-  if (isLoading && allMovements.length === 0) {
+  if (isLoading && movements.length === 0) {
     return (
       <div className="space-y-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -671,18 +755,34 @@ export default function MovementsList() {
     return <QueryError message="Impossible de charger les mouvements." onRetry={() => refetch()} />;
   }
 
-  const totalCount = allMovements.length;
-
   return (
     <div className="space-y-3">
-      {/* Search + date picker + type chips */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      {/* Titre et export. L'export vit ici et non dans un composant d'en-tete
+          separe : il doit connaitre les filtres courants pour exporter la
+          selection, pas l'historique entier. */}
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight">Mouvements de stock</h1>
+        <Button
+          variant="outline"
+          className="bg-white dark:bg-card"
+          onClick={handleExport}
+          disabled={isExporting || totalCount === 0}
+        >
+          <Download className="mr-2 size-4" />
+          {isExporting ? "Export…" : "Exporter"}
+        </Button>
+      </div>
+
+      {/* Recherche compacte, filtres au premier plan — meme dosage que la
+          liste produits : la recherche prenait toute la largeur et repoussait
+          les filtres, alors que ce sont eux qu'on utilise le plus ici. */}
+      <div className="flex flex-wrap items-center gap-2">
         <SearchInput
           value={searchInput}
           onChange={setSearchInput}
-          placeholder="Rechercher un mouvement..."
-          className="bg-white dark:bg-card"
-          wrapperClassName="flex-1"
+          placeholder="Rechercher…"
+          className="bg-white dark:bg-card h-9"
+          wrapperClassName="w-full sm:w-52 shrink-0"
         />
 
         <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
@@ -691,7 +791,7 @@ export default function MovementsList() {
           <Popover open={orgPickerOpen} onOpenChange={setOrgPickerOpen}>
             <PopoverTrigger
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none cursor-pointer",
+                "inline-flex items-center gap-1.5 rounded-full h-9 px-4 text-[13px] font-semibold transition-all select-none cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97]",
                 filterOrgs.size > 0
                   ? "bg-primary text-primary-foreground"
                   : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
@@ -757,7 +857,7 @@ export default function MovementsList() {
           <Popover open={supplierPickerOpen} onOpenChange={setSupplierPickerOpen}>
             <PopoverTrigger
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none cursor-pointer",
+                "inline-flex items-center gap-1.5 rounded-full h-9 px-4 text-[13px] font-semibold transition-all select-none cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97]",
                 filterSuppliers.size > 0
                   ? "bg-primary text-primary-foreground"
                   : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
@@ -827,7 +927,7 @@ export default function MovementsList() {
           <Popover open={techPickerOpen} onOpenChange={setTechPickerOpen}>
             <PopoverTrigger
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none cursor-pointer",
+                "inline-flex items-center gap-1.5 rounded-full h-9 px-4 text-[13px] font-semibold transition-all select-none cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97]",
                 filterTechs.size > 0
                   ? "bg-primary text-primary-foreground"
                   : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
@@ -892,7 +992,7 @@ export default function MovementsList() {
         <Popover>
           <PopoverTrigger
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none cursor-pointer",
+              "inline-flex items-center gap-1.5 rounded-full h-9 px-4 text-[13px] font-semibold transition-all select-none cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97]",
               filterTypes.size > 0
                 ? "bg-primary text-primary-foreground"
                 : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
@@ -955,7 +1055,9 @@ export default function MovementsList() {
           </PopoverContent>
         </Popover>
 
-        <TableColumnToggle table={table} />
+        {/* Repousse a droite : les filtres se choisissent, les colonnes se
+            reglent une fois — ce n'est pas au meme niveau d'usage. */}
+        <TableColumnToggle table={table} className="ml-auto" />
       </div>
 
       {/* Table */}
@@ -1037,16 +1139,52 @@ export default function MovementsList() {
         </table>
       </div>
 
-      {/* Footer — animated count */}
+      {/* Pied : total reel + valeur + pagination.
+          Le total vient d'un count serveur — il ne peut plus se confondre
+          avec le nombre de lignes recues. */}
       {totalCount > 0 && (
-        <div className="px-1">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-1">
           <p className="text-muted-foreground text-sm">
-            <HeroNumber value={filteredMovements.length} className="text-sm" />
-            {filteredMovements.length !== totalCount && (
-              <span className="tabular-nums"> sur {totalCount}</span>
-            )}{" "}
-            mouvement{totalCount > 1 ? "s" : ""}
+            <HeroNumber value={totalCount} className="text-sm" /> mouvement
+            {totalCount > 1 ? "s" : ""}
+            {pageValue > 0 && (
+              <>
+                {" · "}
+                <span className="font-heading font-semibold text-foreground tabular-nums">
+                  {fmtPrice(pageValue)}
+                </span>{" "}
+                sur cette page
+              </>
+            )}
           </p>
+
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                <ChevronLeft className="size-4" />
+                Précédent
+              </Button>
+              <span className="text-sm text-muted-foreground tabular-nums">
+                {page} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Suivant
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>
