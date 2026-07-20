@@ -2,9 +2,22 @@
 
 import { use, useState } from "react";
 import { notFound } from "next/navigation";
-import { Car, FileText, Fuel, Loader2, Pencil, Shield, Trash2, User, Wrench } from "lucide-react";
+import Link from "next/link";
+import {
+  Car,
+  FileText,
+  Fuel,
+  Image as ImageIcon,
+  Loader2,
+  Pencil,
+  Shield,
+  Trash2,
+  User,
+  Wrench,
+} from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -124,10 +137,24 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
           )}
           {vehicle.vin && <span className="font-mono text-xs">VIN: {vehicle.vin}</span>}
           {vehicle.technician && (
-            <span>
-              <User className="size-3.5 inline mr-1 -mt-0.5" />
+            <Link
+              href={`/techniciens/${vehicle.technician.id}`}
+              className="inline-flex items-center gap-1.5 hover:underline underline-offset-2"
+            >
+              <Avatar className="size-5">
+                {vehicle.technician.photo_url && (
+                  <AvatarImage
+                    src={vehicle.technician.photo_url}
+                    alt={`${vehicle.technician.first_name} ${vehicle.technician.last_name}`}
+                  />
+                )}
+                <AvatarFallback className="text-[8px] font-bold uppercase">
+                  {vehicle.technician.first_name.charAt(0)}
+                  {vehicle.technician.last_name.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
               {vehicle.technician.first_name} {vehicle.technician.last_name}
-            </span>
+            </Link>
           )}
         </div>
 
@@ -151,6 +178,10 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
             <Shield className="size-4 mr-1.5" />
             Assurance
           </TabsTrigger>
+          <TabsTrigger value="photo">
+            <ImageIcon className="size-4 mr-1.5" />
+            Photos
+          </TabsTrigger>
         </TabsList>
         <div className="mt-4">
           <TabsContent value="contract">
@@ -172,6 +203,13 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
               vehicleId={id}
               organizationId={vehicle.organization_id}
               documentType="insurance"
+            />
+          </TabsContent>
+          <TabsContent value="photo">
+            <DocumentList
+              vehicleId={id}
+              organizationId={vehicle.organization_id}
+              documentType="photo"
             />
           </TabsContent>
         </div>

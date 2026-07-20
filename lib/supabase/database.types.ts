@@ -316,6 +316,60 @@ export type Database = {
           },
         ];
       };
+      purchase_invoices: {
+        Row: {
+          created_at: string;
+          file_name: string | null;
+          file_path: string | null;
+          id: string;
+          invoice_date: string | null;
+          organization_id: string;
+          reference: string;
+          supplier_id: string | null;
+          total_amount: number | null;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          file_name?: string | null;
+          file_path?: string | null;
+          id?: string;
+          invoice_date?: string | null;
+          organization_id: string;
+          reference: string;
+          supplier_id?: string | null;
+          total_amount?: number | null;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          file_name?: string | null;
+          file_path?: string | null;
+          id?: string;
+          invoice_date?: string | null;
+          organization_id?: string;
+          reference?: string;
+          supplier_id?: string | null;
+          total_amount?: number | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "purchase_invoices_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchase_invoices_supplier_id_fkey";
+            columns: ["supplier_id"];
+            isOneToOne: false;
+            referencedRelation: "suppliers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       products: {
         Row: {
           archived_at: string | null;
@@ -402,6 +456,7 @@ export type Database = {
         Row: {
           created_at: string | null;
           id: string;
+          invoice_id: string | null;
           invoice_reference: string | null;
           movement_type: Database["public"]["Enums"]["stock_movement_type"];
           organization_id: string | null;
@@ -414,6 +469,7 @@ export type Database = {
         Insert: {
           created_at?: string | null;
           id?: string;
+          invoice_id?: string | null;
           invoice_reference?: string | null;
           movement_type: Database["public"]["Enums"]["stock_movement_type"];
           organization_id?: string | null;
@@ -426,6 +482,7 @@ export type Database = {
         Update: {
           created_at?: string | null;
           id?: string;
+          invoice_id?: string | null;
           invoice_reference?: string | null;
           movement_type?: Database["public"]["Enums"]["stock_movement_type"];
           organization_id?: string | null;

@@ -17,6 +17,7 @@ export interface Vehicle {
   mileage: number | null;
   technician_id: string | null;
   notes: string | null;
+  photo_url: string | null;
   archived_at: string | null;
   created_at: string;
   updated_at: string;
@@ -27,6 +28,7 @@ export interface VehicleWithTechnician extends Vehicle {
     id: string;
     first_name: string;
     last_name: string;
+    photo_url: string | null;
   } | null;
 }
 
@@ -46,7 +48,30 @@ export interface VehicleDocument {
   uploaded_by: string | null;
 }
 
-export type DocumentType = "contract" | "revision" | "insurance";
+// 'photo' alimente la galerie d'etat du vehicule (historique date).
+export type DocumentType = "contract" | "revision" | "insurance" | "photo";
+
+/**
+ * Televerse la photo principale d'un vehicule et renvoie son URL publique.
+ * Ne cree pas de ligne dans vehicle_documents : l'URL est stockee sur le vehicule.
+ */
+export async function uploadVehiclePhoto(file: File, vehicleId: string): Promise<string> {
+  const supabase = createClient();
+
+  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const path = `${vehicleId}/photo/${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
+
+  const { error } = await supabase.storage
+    .from("vehicle-documents")
+    .upload(path, file, { cacheControl: "3600", upsert: false });
+
+  if (error) {
+    throw new Error(`Erreur lors de l'upload de la photo: ${error.message}`);
+  }
+
+  const { data } = supabase.storage.from("vehicle-documents").getPublicUrl(path);
+  return data.publicUrl;
+}
 
 // ---------------------------------------------------------------------------
 // Vehicle queries
@@ -57,7 +82,7 @@ export async function getVehicles(organizationId?: string): Promise<VehicleWithT
 
   let query = supabase
     .from("vehicles")
-    .select("*, technician:technicians(id, first_name, last_name)")
+    .select("*, technician:technicians(id, first_name, last_name, photo_url)")
     .is("archived_at", null)
     .order("name", { ascending: true });
 
@@ -88,7 +113,7 @@ export async function getVehicle(id: string): Promise<VehicleWithTechnician | nu
 
   const { data, error } = await supabase
     .from("vehicles")
-    .select("*, technician:technicians(id, first_name, last_name)")
+    .select("*, technician:technicians(id, first_name, last_name, photo_url)")
     .eq("id", id)
     .single();
 
@@ -124,6 +149,7 @@ export async function createVehicle(
     mileage?: number | null;
     technician_id?: string | null;
     notes?: string | null;
+    photo_url?: string | null;
   }
 ): Promise<Vehicle> {
   const supabase = createClient();
@@ -142,6 +168,7 @@ export async function createVehicle(
       mileage: fields.mileage ?? null,
       technician_id: fields.technician_id || null,
       notes: fields.notes || null,
+      photo_url: fields.photo_url || null,
     })
     .select()
     .single();
@@ -166,6 +193,7 @@ export async function updateVehicle(
     mileage?: number | null;
     technician_id?: string | null;
     notes?: string | null;
+    photo_url?: string | null;
   }
 ): Promise<Vehicle> {
   const supabase = createClient();

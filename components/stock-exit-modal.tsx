@@ -193,7 +193,7 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
                           type="button"
                           className={cn(
                             "flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left transition-colors bg-white dark:bg-card",
-                            !field.value && "text-muted-foreground"
+                            !field.value && "text-foreground/70"
                           )}
                         >
                           <span className="flex-1 text-sm truncate">
@@ -278,7 +278,7 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
                           "flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left transition-colors",
                           selectedProduct
                             ? "bg-white dark:bg-card"
-                            : "bg-white dark:bg-card text-muted-foreground"
+                            : "bg-white dark:bg-card text-foreground/70"
                         )}
                       >
                         {selectedProduct ? (

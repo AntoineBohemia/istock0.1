@@ -22,7 +22,8 @@ import { Button } from "@/components/ui/button";
 
 import { TechnicianWithInventory } from "@/lib/supabase/queries/technicians";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
-import { useTechnicians } from "@/hooks/queries";
+import Link from "next/link";
+import { useTechnicians, useVehicles } from "@/hooks/queries";
 import { TableColumnToggle } from "@/components/table-column-toggle";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { cn } from "@/lib/utils";
@@ -100,6 +101,17 @@ export default function TechniciansList() {
   const debouncedSearch = useDebouncedValue(searchQuery, 300);
   const [restockTechId, setRestockTechId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+
+  // Véhicule assigné : source de vérité = la table vehicles, pas les anciennes
+  // colonnes vehicle_* des techniciens.
+  const { data: vehicles = [] } = useVehicles(currentOrganization?.id);
+  const vehicleByTechnician = useMemo(() => {
+    const map = new Map<string, (typeof vehicles)[number]>();
+    for (const v of vehicles) {
+      if (v.technician_id) map.set(v.technician_id, v);
+    }
+    return map;
+  }, [vehicles]);
 
   // Filter data by search
   const filteredData = useMemo(() => {
@@ -217,24 +229,25 @@ export default function TechniciansList() {
       meta: { label: "Outillage" },
     },
     {
-      accessorKey: "vehicle_brand",
+      id: "vehicle",
+      accessorFn: (row) => vehicleByTechnician.get(row.id)?.name ?? "",
       meta: { label: "Véhicule" },
       header: ({ column }) => <SortHeader label="Véhicule" column={column} />,
       cell: ({ row }) => {
-        const brand = row.original.vehicle_brand;
-        const model = row.original.vehicle_model;
-        const plate = row.original.vehicle_plate;
-        if (!brand && !model && !plate) return <span className="text-[15px]">—</span>;
+        const vehicle = vehicleByTechnician.get(row.original.id);
+        if (!vehicle) return <span className="text-muted-foreground">—</span>;
+        // vehicle.name vaut déjà « marque modèle » : ne pas le répéter en dessous
         return (
-          <div className="leading-tight">
-            <span className="text-[15px]">{brand || "—"}</span>
-            {model && <span className="block text-xs text-muted-foreground">{model}</span>}
-            {plate && (
-              <span className="block text-xs font-mono tracking-wide text-muted-foreground">
-                {plate}
-              </span>
-            )}
-          </div>
+          <Link
+            href={`/vehicules/${vehicle.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="leading-tight block hover:underline underline-offset-2"
+          >
+            <span className="text-[15px]">{vehicle.name}</span>
+            <span className="block text-xs font-mono tracking-wide text-muted-foreground mt-0.5">
+              {vehicle.license_plate}
+            </span>
+          </Link>
         );
       },
     },

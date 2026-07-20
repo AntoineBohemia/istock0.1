@@ -1,6 +1,7 @@
 import { generateMeta } from "@/lib/utils";
 import { notFound } from "next/navigation";
-import { CalendarClock, Package, Wrench } from "lucide-react";
+import Link from "next/link";
+import { CalendarClock, Car, Package, Wrench } from "lucide-react";
 
 import { BackButton } from "@/components/back-button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -56,6 +57,7 @@ async function getTechnician(id: string, year: number) {
     restocksResult,
     yearMovementsResult,
     equipmentResult,
+    vehicleResult,
   ] = await Promise.all([
     supabase.from("technician_inventory").select("quantity").eq("technician_id", id),
     supabase
@@ -81,6 +83,14 @@ async function getTechnician(id: string, year: number) {
       .lt("created_at", yearEnd)
       .order("created_at", { ascending: false }),
     supabase.from("equipment_assignments").select("quantity").eq("technician_id", id),
+    // Véhicule assigné (table vehicles — source de vérité)
+    supabase
+      .from("vehicles")
+      .select("id, name, license_plate")
+      .eq("technician_id", id)
+      .is("archived_at", null)
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const inventoryCount = inventoryResult.data?.reduce((sum, item) => sum + item.quantity, 0) || 0;
@@ -133,6 +143,7 @@ async function getTechnician(id: string, year: number) {
   return {
     ...technician,
     organization_name: organizationName ?? null,
+    vehicle: vehicleResult.data ?? null,
     inventory_count: inventoryCount,
     year_units_total: yearUnitsTotal,
     yearly_product_totals: yearlyProductTotals,
@@ -215,6 +226,23 @@ export default async function TechnicianDetailPage({
               <span className="font-semibold text-foreground">
                 {formatDate(technician.last_restock_at)}
               </span>
+            </p>
+            {/* Véhicule assigné — depuis la table vehicles */}
+            <p className="text-sm text-muted-foreground mt-1">
+              <Car className="inline size-3.5 mr-1 -mt-0.5" />
+              {technician.vehicle ? (
+                <Link
+                  href={`/vehicules/${technician.vehicle.id}`}
+                  className="hover:underline underline-offset-2"
+                >
+                  {/* name vaut déjà « marque modèle » : ne pas le répéter */}
+                  <span className="font-semibold text-foreground">{technician.vehicle.name}</span>
+                  {" · "}
+                  <span className="font-mono">{technician.vehicle.license_plate}</span>
+                </Link>
+              ) : (
+                <span>Aucun véhicule assigné</span>
+              )}
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">

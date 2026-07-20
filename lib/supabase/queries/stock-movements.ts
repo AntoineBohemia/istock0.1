@@ -19,6 +19,8 @@ export interface StockMovement {
   organization_id: string | null;
   unit_price: number | null;
   invoice_reference?: string | null;
+  /** Facture d'achat qui couvre ce mouvement (une facture → plusieurs achats) */
+  invoice_id?: string | null;
   created_at: string | null;
   product?: {
     id: string;
@@ -163,6 +165,57 @@ export async function getProductMovements(
   }
 
   return data || [];
+}
+
+/**
+ * Entrées d'achat d'un produit sur une année, avec fournisseur et facture.
+ * Utilisé par la page Achats pour détailler et retrouver les factures.
+ */
+export async function getProductEntries(productId: string, year: number): Promise<StockMovement[]> {
+  const supabase = createClient();
+
+  const startOfYear = new Date(year, 0, 1).toISOString();
+  const endOfYear = new Date(year + 1, 0, 1).toISOString();
+
+  const { data, error } = await supabase
+    .from("stock_movements")
+    .select(
+      `
+      *,
+      organization:organizations(id, name),
+      supplier:suppliers(id, name)
+    `
+    )
+    .eq("product_id", productId)
+    .eq("movement_type", "entry")
+    .gte("created_at", startOfYear)
+    .lt("created_at", endOfYear)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(`Erreur lors de la récupération des achats: ${error.message}`);
+  }
+
+  return (data || []) as unknown as StockMovement[];
+}
+
+/**
+ * Rattache un achat (mouvement d'entrée) à une facture existante.
+ */
+export async function linkMovementToInvoice(
+  movementId: string,
+  invoiceId: string | null
+): Promise<void> {
+  const supabase = createClient();
+
+  const { error } = await supabase
+    .from("stock_movements")
+    .update({ invoice_id: invoiceId })
+    .eq("id", movementId);
+
+  if (error) {
+    throw new Error(`Erreur lors du rattachement à la facture: ${error.message}`);
+  }
 }
 
 /**

@@ -23,6 +23,7 @@ const TYPE_TITLES: Record<DocumentType, string> = {
   contract: "Ajouter un contrat",
   revision: "Ajouter une révision",
   insurance: "Ajouter une assurance",
+  photo: "Ajouter une photo",
 };
 
 function formatFileSize(bytes: number): string {

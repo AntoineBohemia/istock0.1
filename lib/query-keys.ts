@@ -11,6 +11,12 @@ export const queryKeys = {
     stats: (orgId?: string) => [...queryKeys.products.all, "stats", orgId] as const,
   },
 
+  purchaseInvoices: {
+    all: ["purchase-invoices"] as const,
+    list: (orgId?: string) => [...queryKeys.purchaseInvoices.all, "list", orgId] as const,
+    detail: (id: string) => [...queryKeys.purchaseInvoices.all, "detail", id] as const,
+  },
+
   categories: {
     all: ["categories"] as const,
     list: (orgId?: string) => [...queryKeys.categories.all, "list", orgId] as const,

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { page_routes, filterRoutesByRole } from "@/lib/routes-config";
-import { LogOut, Users, Building2 } from "lucide-react";
+import { LogOut, Users, Building2, Car } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { motion } from "motion/react";
@@ -178,6 +178,16 @@ export default function Sidebar() {
                   >
                     <Building2 className="size-4 text-muted-foreground" />
                     Organisations
+                  </button>
+                  <button
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      router.push("/parametres?tab=vehicles");
+                    }}
+                    className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent cursor-pointer text-left"
+                  >
+                    <Car className="size-4 text-muted-foreground" />
+                    Véhicules
                   </button>
                   <div className="my-1 h-px bg-border" />
                   <button

@@ -44,6 +44,8 @@ import { TableColumnToggle } from "@/components/table-column-toggle";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { cn } from "@/lib/utils";
 
+const fmtPrice = (n: number) => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+
 // ─── Sort header button ────────────────────────────────────
 function SortHeader({
   label,
@@ -231,6 +233,31 @@ export default function ProductList() {
       meta: { label: "Stock" },
     },
     {
+      accessorKey: "price",
+      header: ({ column }) => <SortHeader label="Prix HT" column={column} />,
+      cell: ({ row }) => {
+        const price = row.original.price;
+        if (price == null) return <span className="text-muted-foreground">—</span>;
+        return <span className="text-[15px] tabular-nums">{fmtPrice(price)}</span>;
+      },
+      meta: { label: "Prix HT" },
+    },
+    {
+      id: "category",
+      accessorFn: (row) => row.category?.name ?? "",
+      header: ({ column }) => <SortHeader label="Catégorie" column={column} />,
+      cell: ({ row }) => {
+        const category = row.original.category;
+        if (!category) return <span className="text-muted-foreground">—</span>;
+        return (
+          <span className="inline-flex items-center rounded-md bg-foreground/[0.06] px-2 py-0.5 text-xs font-medium">
+            {category.name}
+          </span>
+        );
+      },
+      meta: { label: "Catégorie" },
+    },
+    {
       id: "supplier",
       accessorFn: (row) => row.supplier?.name ?? "",
       header: ({ column }) => <SortHeader label="Fournisseur" column={column} />,
@@ -253,7 +280,7 @@ export default function ProductList() {
         const score = calculateStockScore(product.stock_current, product.stock_min);
         return <StatusPill status={getStockBadgeVariant(score)} />;
       },
-      meta: { label: "Statut", align: "right" },
+      meta: { label: "Statut" },
     },
     {
       id: "actions",

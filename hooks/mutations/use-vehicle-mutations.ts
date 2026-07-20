@@ -58,6 +58,7 @@ export function useUpdateVehicle() {
       mileage?: number | null;
       technician_id?: string | null;
       notes?: string | null;
+      photo_url?: string | null;
     }) => updateVehicle(id, fields),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.vehicles.all });

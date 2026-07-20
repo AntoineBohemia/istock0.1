@@ -1,14 +1,12 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
+import * as React from "react";
+import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
-function Popover({
-  ...props
-}: React.ComponentProps<typeof PopoverPrimitive.Root>) {
-  return <PopoverPrimitive.Root data-slot="popover" {...props} />
+function Popover({ ...props }: React.ComponentProps<typeof PopoverPrimitive.Root>) {
+  return <PopoverPrimitive.Root data-slot="popover" {...props} />;
 }
 
 function PopoverTrigger({
@@ -16,17 +14,15 @@ function PopoverTrigger({
   children,
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Trigger> & {
-  asChild?: boolean
+  asChild?: boolean;
 }) {
   return (
     <PopoverPrimitive.Trigger
       data-slot="popover-trigger"
-      {...(asChild && React.isValidElement(children)
-        ? { render: children }
-        : { children })}
+      {...(asChild && React.isValidElement(children) ? { render: children } : { children })}
       {...props}
     />
-  )
+  );
 }
 
 function PopoverContent({
@@ -36,13 +32,16 @@ function PopoverContent({
   side = "bottom",
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Popup> & {
-  align?: "start" | "center" | "end"
-  sideOffset?: number
-  side?: "top" | "bottom" | "left" | "right"
+  align?: "start" | "center" | "end";
+  sideOffset?: number;
+  side?: "top" | "bottom" | "left" | "right";
 }) {
   return (
     <PopoverPrimitive.Portal>
+      {/* Le z-index doit vivre sur le Positioner : c'est lui l'element positionne.
+          Sans cela, un popover ouvert depuis une modale (z-50) passe derriere. */}
       <PopoverPrimitive.Positioner
+        className="z-50"
         side={side}
         align={align}
         sideOffset={sideOffset}
@@ -57,7 +56,7 @@ function PopoverContent({
         />
       </PopoverPrimitive.Positioner>
     </PopoverPrimitive.Portal>
-  )
+  );
 }
 
 function PopoverAnchor({
@@ -69,9 +68,13 @@ function PopoverAnchor({
     return React.cloneElement(children, {
       "data-slot": "popover-anchor",
       ...props,
-    } as any)
+    } as any);
   }
-  return <div data-slot="popover-anchor" {...props}>{children}</div>
+  return (
+    <div data-slot="popover-anchor" {...props}>
+      {children}
+    </div>
+  );
 }
 
-export { Popover, PopoverTrigger, PopoverContent, PopoverAnchor }
+export { Popover, PopoverTrigger, PopoverContent, PopoverAnchor };

@@ -3,8 +3,11 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Car, Fuel, Loader2, Plus, User } from "lucide-react";
+import Image from "next/image";
+import { Car, ChevronRight, Fuel, Loader2, Pencil, Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/search-input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,6 +29,7 @@ import { useDeleteVehicle } from "@/hooks/mutations/use-vehicle-mutations";
 import type { VehicleWithTechnician } from "@/lib/supabase/queries/vehicles";
 import CreateVehicleDialog from "./create-vehicle-dialog";
 import EditVehicleDialog from "./edit-vehicle-dialog";
+import AssignTechnicianDialog from "./assign-technician-dialog";
 
 const FUEL_LABELS: Record<string, string> = {
   diesel: "Diesel",
@@ -42,6 +46,7 @@ export default function VehiclesPage() {
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [editVehicle, setEditVehicle] = useState<VehicleWithTechnician | null>(null);
+  const [assignVehicle, setAssignVehicle] = useState<VehicleWithTechnician | null>(null);
   const [deleteVehicle, setDeleteVehicle] = useState<VehicleWithTechnician | null>(null);
 
   const filtered = useMemo(() => {
@@ -135,50 +140,103 @@ export default function VehiclesPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((vehicle) => (
-            <Link
+            <div
               key={vehicle.id}
-              href={`/vehicules/${vehicle.id}`}
-              className="group rounded-xl border bg-card p-4 flex flex-col gap-2 transition-all hover:border-primary/40 active:scale-[0.98]"
+              className="group rounded-xl border bg-card overflow-hidden flex flex-col transition-all hover:border-primary/40 hover:shadow-md"
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <h3 className="font-heading font-semibold text-sm truncate group-hover:text-primary transition-colors">
+              <Link href={`/vehicules/${vehicle.id}`} className="block active:scale-[0.99]">
+                {/* Photo — repère visuel principal */}
+                <div className="relative aspect-[16/10] w-full bg-muted overflow-hidden">
+                  {vehicle.photo_url ? (
+                    <Image
+                      src={vehicle.photo_url}
+                      alt={vehicle.name}
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <span className="absolute inset-0 flex items-center justify-center">
+                      <Car className="size-10 text-muted-foreground/30" />
+                    </span>
+                  )}
+                  {vehicle.fuel_type && (
+                    <span className="absolute top-2 right-2 flex items-center gap-1 text-[11px] font-medium rounded-full bg-background/90 backdrop-blur px-2 py-0.5 shadow-sm">
+                      <Fuel className="size-3" />
+                      {FUEL_LABELS[vehicle.fuel_type] ?? vehicle.fuel_type}
+                    </span>
+                  )}
+                </div>
+
+                <div className="p-4">
+                  <h3 className="font-heading font-semibold text-[15px] truncate group-hover:text-primary transition-colors">
                     {vehicle.name}
                   </h3>
-                  <p className="text-xs text-muted-foreground mt-0.5 font-mono tracking-wide">
-                    {vehicle.license_plate}
-                  </p>
+                  <p className="text-sm font-mono tracking-wide mt-1">{vehicle.license_plate}</p>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
+                    {vehicle.year && <span className="tabular-nums">{vehicle.year}</span>}
+                    {vehicle.mileage != null && vehicle.mileage > 0 && (
+                      <span className="tabular-nums">
+                        {vehicle.mileage.toLocaleString("fr-FR")} km
+                      </span>
+                    )}
+                  </div>
                 </div>
-                {vehicle.fuel_type && (
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground shrink-0 rounded-full bg-foreground/[0.06] px-2 py-0.5">
-                    <Fuel className="size-3" />
-                    {FUEL_LABELS[vehicle.fuel_type] ?? vehicle.fuel_type}
-                  </span>
-                )}
-              </div>
+              </Link>
 
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                {vehicle.brand && (
-                  <span>
-                    {vehicle.brand}
-                    {vehicle.model ? ` ${vehicle.model}` : ""}
-                    {vehicle.year ? ` (${vehicle.year})` : ""}
-                  </span>
+              {/* Assignation — cliquable, hors du lien vers la fiche */}
+              <button
+                type="button"
+                onClick={() => setAssignVehicle(vehicle)}
+                title={
+                  vehicle.technician
+                    ? "Changer le technicien"
+                    : "Assigner un technicien à ce véhicule"
+                }
+                className={cn(
+                  "mt-auto flex items-center gap-2.5 border-t px-4 py-3 text-left transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+                  vehicle.technician
+                    ? "hover:bg-muted/60"
+                    : "bg-primary/[0.04] hover:bg-primary/[0.09]"
                 )}
-                {vehicle.mileage != null && vehicle.mileage > 0 && (
-                  <span className="tabular-nums">{vehicle.mileage.toLocaleString("fr-FR")} km</span>
+              >
+                {vehicle.technician ? (
+                  <>
+                    <Avatar className="size-7 shrink-0">
+                      {vehicle.technician.photo_url && (
+                        <AvatarImage
+                          src={vehicle.technician.photo_url}
+                          alt={`${vehicle.technician.first_name} ${vehicle.technician.last_name}`}
+                        />
+                      )}
+                      <AvatarFallback className="text-[10px] font-bold uppercase">
+                        {vehicle.technician.first_name.charAt(0)}
+                        {vehicle.technician.last_name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[10px] uppercase tracking-wider text-muted-foreground leading-none">
+                        Technicien
+                      </span>
+                      <span className="block truncate text-sm font-medium mt-0.5">
+                        {vehicle.technician.first_name} {vehicle.technician.last_name}
+                      </span>
+                    </span>
+                    <Pencil className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                  </>
+                ) : (
+                  <>
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-primary/40">
+                      <Plus className="size-3.5 text-primary" />
+                    </span>
+                    <span className="flex-1 text-sm font-medium text-primary">
+                      Assigner un technicien
+                    </span>
+                    <ChevronRight className="size-4 shrink-0 text-primary/60" />
+                  </>
                 )}
-              </div>
-
-              {vehicle.technician && (
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
-                  <User className="size-3 shrink-0" />
-                  <span className="truncate">
-                    {vehicle.technician.first_name} {vehicle.technician.last_name}
-                  </span>
-                </div>
-              )}
-            </Link>
+              </button>
+            </div>
           ))}
         </div>
       )}
@@ -196,6 +254,14 @@ export default function VehiclesPage() {
           open
           onOpenChange={(o) => !o && setEditVehicle(null)}
           vehicle={editVehicle}
+        />
+      )}
+
+      {assignVehicle && (
+        <AssignTechnicianDialog
+          open
+          onOpenChange={(o) => !o && setAssignVehicle(null)}
+          vehicle={assignVehicle}
         />
       )}
 

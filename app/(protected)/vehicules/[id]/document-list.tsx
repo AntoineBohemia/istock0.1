@@ -40,6 +40,10 @@ const TYPE_LABELS: Record<DocumentType, { empty: string; description: string }> 
     empty: "Aucune assurance",
     description: "Ajoutez vos attestations et contrats d'assurance.",
   },
+  photo: {
+    empty: "Aucune photo",
+    description: "Gardez une trace datée de l'état du véhicule dans le temps.",
+  },
 };
 
 function getMimeIcon(mimeType: string | null) {
