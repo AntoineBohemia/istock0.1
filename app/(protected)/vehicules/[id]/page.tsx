@@ -163,7 +163,7 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
         )}
       </div>
 
-      {/* Tabs: Contrats / Révisions / Assurance */}
+      {/* Tabs: Contrats / Factures entretien / Assurance */}
       <Tabs defaultValue="contract">
         <TabsList>
           <TabsTrigger value="contract">
@@ -172,7 +172,7 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
           </TabsTrigger>
           <TabsTrigger value="revision">
             <Wrench className="size-4 mr-1.5" />
-            Révisions
+            Factures entretien
           </TabsTrigger>
           <TabsTrigger value="insurance">
             <Shield className="size-4 mr-1.5" />

@@ -6,6 +6,7 @@ export interface Supplier {
   email: string | null;
   phone: string | null;
   website_url: string | null;
+  logo_url: string | null;
   organization_id: string | null;
   created_at: string | null;
 }
@@ -23,6 +24,26 @@ export interface SupplierProduct {
 
 export interface SupplierWithProducts extends Supplier {
   products: SupplierProduct[];
+}
+
+/** Statistiques d'achat renvoyees par la RPC get_suppliers_with_stats */
+export interface SupplierStats {
+  product_count: number;
+  alert_count: number;
+  total_purchased: number;
+  last_purchase_at: string | null;
+  invoice_count: number;
+}
+
+export interface SupplierWithStats extends SupplierWithProducts, SupplierStats {}
+
+/** Facture d'achat rattachee a un fournisseur */
+export interface SupplierInvoice {
+  id: string;
+  reference: string | null;
+  invoice_date: string | null;
+  total_amount: number | null;
+  file_path: string | null;
 }
 
 /**
@@ -75,6 +96,71 @@ export async function getSuppliersWithProducts(
 }
 
 /**
+ * Fournisseurs avec leurs produits ET leurs statistiques d'achat.
+ *
+ * Deux appels en parallèle plutôt qu'un seul : la RPC agrège (dépense, dernier
+ * achat, alertes) mais ne peut pas renvoyer proprement la liste imbriquée des
+ * produits, dont on a besoin pour les icônes des cartes.
+ */
+export async function getSuppliersWithStats(organizationId: string): Promise<SupplierWithStats[]> {
+  const supabase = createClient();
+
+  const [withProducts, statsResult] = await Promise.all([
+    getSuppliersWithProducts(organizationId),
+    supabase.rpc("get_suppliers_with_stats", { p_organization_id: organizationId }),
+  ]);
+
+  if (statsResult.error) {
+    throw new Error(
+      `Erreur lors de la récupération des statistiques fournisseurs: ${statsResult.error.message}`
+    );
+  }
+
+  const statsById = new Map<string, SupplierStats>();
+  for (const row of statsResult.data ?? []) {
+    statsById.set(row.id, {
+      // Postgres renvoie bigint et numeric en chaîne : sans Number(), les tris
+      // et les totaux se feraient en comparaison de texte ("9" > "10").
+      product_count: Number(row.product_count ?? 0),
+      alert_count: Number(row.alert_count ?? 0),
+      total_purchased: Number(row.total_purchased ?? 0),
+      last_purchase_at: row.last_purchase_at,
+      invoice_count: Number(row.invoice_count ?? 0),
+    });
+  }
+
+  return withProducts.map((s) => ({
+    ...s,
+    ...(statsById.get(s.id) ?? {
+      product_count: s.products.length,
+      alert_count: 0,
+      total_purchased: 0,
+      last_purchase_at: null,
+      invoice_count: 0,
+    }),
+  }));
+}
+
+/**
+ * Factures d'achat d'un fournisseur, la plus récente en premier
+ */
+export async function getSupplierInvoices(supplierId: string): Promise<SupplierInvoice[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("purchase_invoices")
+    .select("id, reference, invoice_date, total_amount, file_path")
+    .eq("supplier_id", supplierId)
+    .order("invoice_date", { ascending: false });
+
+  if (error) {
+    throw new Error(`Erreur lors de la récupération des factures: ${error.message}`);
+  }
+
+  return (data ?? []) as SupplierInvoice[];
+}
+
+/**
  * Récupère un fournisseur par ID avec ses produits
  */
 export async function getSupplier(id: string): Promise<SupplierWithProducts | null> {
@@ -102,6 +188,32 @@ export async function getSupplier(id: string): Promise<SupplierWithProducts | nu
 }
 
 /**
+ * Televerse un logo de fournisseur.
+ *
+ * Reutilise le bucket public "product-images" sous le prefixe suppliers/ :
+ * ses policies portent sur le bucket entier, sans restriction de chemin.
+ */
+export async function uploadSupplierLogo(file: File): Promise<string> {
+  const supabase = createClient();
+
+  const fileExt = file.name.split(".").pop();
+  const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+  const filePath = `suppliers/${fileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("product-images")
+    .upload(filePath, file, { cacheControl: "3600", upsert: false });
+
+  if (uploadError) {
+    throw new Error(`Erreur lors de l'upload du logo: ${uploadError.message}`);
+  }
+
+  const { data } = supabase.storage.from("product-images").getPublicUrl(filePath);
+
+  return data.publicUrl;
+}
+
+/**
  * Crée un nouveau fournisseur
  */
 export async function createSupplier(
@@ -109,7 +221,8 @@ export async function createSupplier(
   name: string,
   websiteUrl?: string | null,
   email?: string | null,
-  phone?: string | null
+  phone?: string | null,
+  logoUrl?: string | null
 ): Promise<Supplier> {
   const supabase = createClient();
 
@@ -121,6 +234,7 @@ export async function createSupplier(
       website_url: websiteUrl || null,
       email: email || null,
       phone: phone || null,
+      logo_url: logoUrl || null,
     })
     .select()
     .single();
@@ -142,6 +256,7 @@ export async function updateSupplier(
     email?: string | null;
     phone?: string | null;
     website_url?: string | null;
+    logo_url?: string | null;
   }
 ): Promise<Supplier> {
   const supabase = createClient();

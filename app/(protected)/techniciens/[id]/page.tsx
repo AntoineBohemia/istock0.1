@@ -1,7 +1,7 @@
 import { generateMeta } from "@/lib/utils";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { CalendarClock, Car, Package, Wrench } from "lucide-react";
+import { CalendarClock, Car, Mail, Package, Phone, Wrench } from "lucide-react";
 
 import { BackButton } from "@/components/back-button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -50,50 +50,39 @@ async function getTechnician(id: string, year: number) {
   const yearStart = new Date(year, 0, 1).toISOString();
   const yearEnd = new Date(year + 1, 0, 1).toISOString();
 
-  // Toutes les queries sont indépendantes → paralléliser
-  const [
-    inventoryResult,
-    lastMovementResult,
-    restocksResult,
-    yearMovementsResult,
-    equipmentResult,
-    vehicleResult,
-  ] = await Promise.all([
-    supabase.from("technician_inventory").select("quantity").eq("technician_id", id),
-    supabase
-      .from("stock_movements")
-      .select("created_at")
-      .eq("technician_id", id)
-      .eq("movement_type", "exit_technician")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single(),
-    supabase
-      .from("technician_inventory_history")
-      .select("id", { count: "exact", head: true })
-      .eq("technician_id", id)
-      .gte("created_at", yearStart)
-      .lt("created_at", yearEnd),
-    supabase
-      .from("stock_movements")
-      .select("id, product_id, quantity, created_at, product:products(id, name, sku, image_url)")
-      .eq("technician_id", id)
-      .eq("movement_type", "exit_technician")
-      .gte("created_at", yearStart)
-      .lt("created_at", yearEnd)
-      .order("created_at", { ascending: false }),
-    supabase.from("equipment_assignments").select("quantity").eq("technician_id", id),
-    // Véhicule assigné (table vehicles — source de vérité)
-    supabase
-      .from("vehicles")
-      .select("id, name, license_plate")
-      .eq("technician_id", id)
-      .is("archived_at", null)
-      .limit(1)
-      .maybeSingle(),
-  ]);
+  // Toutes les queries sont indépendantes → paralléliser.
+  // technician_inventory et le comptage des réappros ont été retirés : leurs
+  // résultats (inventory_count, total_restocks) n'étaient rendus nulle part,
+  // soit deux allers-retours réseau par ouverture de fiche pour rien.
+  const [lastMovementResult, yearMovementsResult, equipmentResult, vehicleResult] =
+    await Promise.all([
+      supabase
+        .from("stock_movements")
+        .select("created_at")
+        .eq("technician_id", id)
+        .eq("movement_type", "exit_technician")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single(),
+      supabase
+        .from("stock_movements")
+        .select("id, product_id, quantity, created_at, product:products(id, name, sku, image_url)")
+        .eq("technician_id", id)
+        .eq("movement_type", "exit_technician")
+        .gte("created_at", yearStart)
+        .lt("created_at", yearEnd)
+        .order("created_at", { ascending: false }),
+      supabase.from("equipment_assignments").select("quantity").eq("technician_id", id),
+      // Véhicule assigné (table vehicles — source de vérité)
+      supabase
+        .from("vehicles")
+        .select("id, name, license_plate")
+        .eq("technician_id", id)
+        .is("archived_at", null)
+        .limit(1)
+        .maybeSingle(),
+    ]);
 
-  const inventoryCount = inventoryResult.data?.reduce((sum, item) => sum + item.quantity, 0) || 0;
   const equipmentCount = equipmentResult.data?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
   // Agréger les sorties par produit côté serveur
@@ -126,7 +115,6 @@ async function getTechnician(id: string, year: number) {
   const yearlyProductTotals = Array.from(productMap.values()).sort(
     (a, b) => b.total_quantity - a.total_quantity
   );
-  const yearUnitsTotal = yearlyProductTotals.reduce((sum, p) => sum + p.total_quantity, 0);
 
   // Mouvements de l'année pour l'historique (déjà fetchés, on normalise)
   const yearMovements = (yearMovementsResult.data || []).map((item) => ({
@@ -144,12 +132,9 @@ async function getTechnician(id: string, year: number) {
     ...technician,
     organization_name: organizationName ?? null,
     vehicle: vehicleResult.data ?? null,
-    inventory_count: inventoryCount,
-    year_units_total: yearUnitsTotal,
     yearly_product_totals: yearlyProductTotals,
     year_movements: yearMovements,
     last_restock_at: lastMovementResult.data?.created_at || null,
-    total_restocks: restocksResult.count || 0,
     equipment_count: equipmentCount,
     created_year: new Date(technician.created_at!).getFullYear(),
   };
@@ -200,50 +185,56 @@ export default async function TechnicianDetailPage({
           </Avatar>
           <div className="min-w-0 flex-1">
             <h1 className="font-heading text-3xl font-bold tracking-tight truncate">{fullName}</h1>
+
+            {/* Identite : ville et organisation. L'ancienne ligne melait tout
+                — coordonnees, rattachement et activite — separe par des points
+                medians, sans hierarchie lisible. */}
             <p className="text-sm text-muted-foreground mt-0.5">
-              {technician.city && (
-                <>
-                  Département{" "}
-                  <span className="font-semibold text-foreground">{technician.city}</span>
-                  {" · "}
-                </>
-              )}
-              {technician.phone && (
-                <>
-                  <span className="tabular-nums">{technician.phone}</span>
-                  {" · "}
-                </>
-              )}
-              {technician.organization_name && (
-                <>
-                  <span className="font-semibold text-foreground">
-                    {technician.organization_name}
-                  </span>
-                  {" · "}
-                </>
-              )}
-              dernier réappro{" "}
-              <span className="font-semibold text-foreground">
-                {formatDate(technician.last_restock_at)}
-              </span>
+              {[technician.city, technician.organization_name].filter(Boolean).join(" · ") ||
+                "Aucun rattachement"}
             </p>
-            {/* Véhicule assigné — depuis la table vehicles */}
-            <p className="text-sm text-muted-foreground mt-1">
-              <Car className="inline size-3.5 mr-1 -mt-0.5" />
+
+            {/* Contacts et vehicule : des liens, pas du texte a recopier */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm">
+              {technician.phone && (
+                <a
+                  href={`tel:${technician.phone.replace(/\s/g, "")}`}
+                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Phone className="size-3.5" />
+                  <span className="tabular-nums">{technician.phone}</span>
+                </a>
+              )}
+              {technician.email && (
+                <a
+                  href={`mailto:${technician.email}`}
+                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Mail className="size-3.5" />
+                  {technician.email}
+                </a>
+              )}
               {technician.vehicle ? (
                 <Link
                   href={`/vehicules/${technician.vehicle.id}`}
-                  className="hover:underline underline-offset-2"
+                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
                 >
+                  <Car className="size-3.5" />
                   {/* name vaut déjà « marque modèle » : ne pas le répéter */}
-                  <span className="font-semibold text-foreground">{technician.vehicle.name}</span>
-                  {" · "}
-                  <span className="font-mono">{technician.vehicle.license_plate}</span>
+                  <span>{technician.vehicle.name}</span>
+                  <span className="font-mono text-xs">{technician.vehicle.license_plate}</span>
                 </Link>
               ) : (
-                <span>Aucun véhicule assigné</span>
+                <span className="flex items-center gap-1.5 text-muted-foreground">
+                  <Car className="size-3.5" />
+                  Aucun véhicule
+                </span>
               )}
-            </p>
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <CalendarClock className="size-3.5" />
+                Réappro {formatDate(technician.last_restock_at)}
+              </span>
+            </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <EditTechnicianButton technician={technician} />

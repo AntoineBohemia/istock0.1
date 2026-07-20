@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
-import { History, ImageIcon } from "lucide-react";
+import { ChevronRight, History, ImageIcon } from "lucide-react";
 import { SearchInput } from "@/components/search-input";
 
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
@@ -69,6 +69,9 @@ function groupMovementsIntoSessions(movements: Movement[]): RestockSession[] {
   return sessions;
 }
 
+/** « janvier », « décembre » — sert d'intertitre quand le mois change */
+const monthKey = (d: Date) => d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+
 interface TechnicianHistoryProps {
   movements: Movement[];
   year: number;
@@ -120,22 +123,23 @@ export default function TechnicianHistory({ movements, year }: TechnicianHistory
 
   return (
     <div className="space-y-3">
-      {/* Search */}
-      <SearchInput
-        value={search}
-        onChange={setSearch}
-        placeholder="Rechercher un produit..."
-        className="bg-white dark:bg-card"
-      />
+      {/* Recherche et total sur une seule ligne, comme ailleurs dans l'app */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex-1 min-w-[200px]">
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Rechercher un produit..."
+            className="bg-white dark:bg-card"
+          />
+        </div>
+        <p className="text-sm text-muted-foreground tabular-nums shrink-0">
+          {sessions.length} réappro{sessions.length > 1 ? "s" : ""} ·{" "}
+          <span className="font-heading font-semibold text-foreground">{totalItems}</span> unités
+          {search ? " (filtré)" : ` en ${year}`}
+        </p>
+      </div>
 
-      {/* Summary */}
-      <p className="text-sm text-muted-foreground tabular-nums px-1">
-        {sessions.length} réapprovisionnement{sessions.length > 1 ? "s" : ""} ·{" "}
-        <span className="font-heading font-semibold text-foreground">{totalItems}</span> unités
-        {search ? " (filtré)" : ` en ${year}`}
-      </p>
-
-      {/* Sessions or no results */}
       {sessions.length === 0 ? (
         <div className="rounded-xl border bg-card overflow-hidden">
           <div className="py-12 text-center text-muted-foreground text-sm">
@@ -143,78 +147,97 @@ export default function TechnicianHistory({ movements, year }: TechnicianHistory
           </div>
         </div>
       ) : (
-        <div className="rounded-xl border bg-card overflow-hidden divide-y">
-          {sessions.map((session, sessionIndex) => (
-            <Collapsible key={session.id} defaultOpen={sessionIndex === 0 || !!search}>
-              <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors cursor-pointer select-none">
-                <div className="flex items-center gap-3">
-                  <span className="font-medium text-sm">
-                    {session.date.toLocaleDateString("fr-FR", {
-                      weekday: "long",
-                      day: "numeric",
-                      month: "long",
-                    })}
-                    <span className="text-muted-foreground font-normal">
-                      {" · "}
-                      {session.date.toLocaleTimeString("fr-FR", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="tabular-nums">
-                    {session.movements.length} produit
-                    {session.movements.length > 1 ? "s" : ""}
-                  </span>
-                  <span className="font-heading font-bold text-foreground text-base tabular-nums">
-                    +{session.totalItems}
-                  </span>
-                </div>
-              </CollapsibleTrigger>
+        <div className="rounded-xl border bg-card overflow-hidden">
+          {sessions.map((session, sessionIndex) => {
+            // Intertitre au changement de mois : sur une annee entiere, une
+            // suite de dates sans reperes se lit mal.
+            const showMonth =
+              sessionIndex === 0 ||
+              monthKey(session.date) !== monthKey(sessions[sessionIndex - 1].date);
 
-              <CollapsibleContent>
-                <div className="divide-y border-t">
-                  {session.movements.map((movement) => (
-                    <div
-                      key={movement.id}
-                      className="flex items-center justify-between pl-14 pr-4 py-2.5"
-                    >
-                      <div className="flex items-center gap-3">
-                        <figure className="flex size-8 items-center justify-center rounded-md border bg-muted shrink-0 overflow-hidden">
-                          {movement.product?.image_url ? (
-                            <Image
-                              src={movement.product.image_url}
-                              width={32}
-                              height={32}
-                              alt={movement.product.name}
-                              className="size-full object-cover"
-                            />
-                          ) : (
-                            <ImageIcon className="size-3.5 text-muted-foreground" />
-                          )}
-                        </figure>
-                        <div>
-                          <p className="font-medium text-sm leading-tight">
-                            {movement.product?.name || "Produit supprimé"}
-                          </p>
-                          {movement.product?.sku && (
-                            <p className="text-[11px] text-muted-foreground font-mono">
-                              {movement.product.sku}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <span className="tabular-nums text-sm text-muted-foreground">
-                        +{movement.quantity}
+            return (
+              <div key={session.id}>
+                {showMonth && (
+                  <div className="bg-muted/40 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b">
+                    {monthKey(session.date)}
+                  </div>
+                )}
+
+                <Collapsible
+                  className="group/collapsible border-b last:border-b-0"
+                  defaultOpen={sessionIndex === 0 || !!search}
+                >
+                  <CollapsibleTrigger className="flex w-full items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors cursor-pointer select-none text-left">
+                    {/* Le chevron manquait : rien n'indiquait qu'une ligne s'ouvrait */}
+                    <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+
+                    <span className="flex-1 min-w-0 font-medium text-sm">
+                      {session.date.toLocaleDateString("fr-FR", {
+                        weekday: "short",
+                        day: "numeric",
+                        month: "short",
+                      })}
+                      <span className="text-muted-foreground font-normal tabular-nums">
+                        {" · "}
+                        {session.date.toLocaleTimeString("fr-FR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </span>
+                    </span>
+
+                    <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                      {session.movements.length} produit
+                      {session.movements.length > 1 ? "s" : ""}
+                    </span>
+                    <span className="font-heading font-bold text-foreground text-base tabular-nums shrink-0 w-12 text-right">
+                      +{session.totalItems}
+                    </span>
+                  </CollapsibleTrigger>
+
+                  <CollapsibleContent>
+                    {/* pl-11 = px-4 + taille du chevron + gap : les produits
+                        s'alignent sous le libelle de la session, pas au hasard. */}
+                    <div className="divide-y border-t bg-muted/20">
+                      {session.movements.map((movement) => (
+                        <div
+                          key={movement.id}
+                          className="flex items-center gap-3 pl-11 pr-4 py-2.5"
+                        >
+                          <figure className="flex size-8 items-center justify-center rounded-md border bg-card shrink-0 overflow-hidden">
+                            {movement.product?.image_url ? (
+                              <Image
+                                src={movement.product.image_url}
+                                width={32}
+                                height={32}
+                                alt={movement.product.name}
+                                className="size-full object-cover"
+                              />
+                            ) : (
+                              <ImageIcon className="size-3.5 text-muted-foreground" />
+                            )}
+                          </figure>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm leading-tight truncate">
+                              {movement.product?.name || "Produit supprimé"}
+                            </p>
+                            {movement.product?.sku && (
+                              <p className="text-[11px] text-muted-foreground font-mono">
+                                {movement.product.sku}
+                              </p>
+                            )}
+                          </div>
+                          <span className="tabular-nums text-sm font-medium shrink-0 w-12 text-right">
+                            +{movement.quantity}
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-          ))}
+                  </CollapsibleContent>
+                </Collapsible>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

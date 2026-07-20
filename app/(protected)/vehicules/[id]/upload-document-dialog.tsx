@@ -21,7 +21,7 @@ interface UploadDocumentDialogProps {
 
 const TYPE_TITLES: Record<DocumentType, string> = {
   contract: "Ajouter un contrat",
-  revision: "Ajouter une révision",
+  revision: "Ajouter une facture entretien",
   insurance: "Ajouter une assurance",
   photo: "Ajouter une photo",
 };

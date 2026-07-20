@@ -78,6 +78,18 @@ function restockLabel(days: number | null): string {
   return `il y a ${days}j`;
 }
 
+/** Date et heure exactes du dernier réappro */
+function restockDateTime(dateString: string | null): string | null {
+  if (!dateString) return null;
+  return new Date(dateString).toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 // ─── Filter helpers ──────────────────────────────────────────
 
 // ─── Main component ────────────────────────────────────────
@@ -113,25 +125,32 @@ export default function TechniciansList() {
     return map;
   }, [vehicles]);
 
-  // Filter data by search
+  // Recherche elargie : les colonnes affichees doivent toutes etre cherchables,
+  // sinon on cherche « Kangoo » ou un numero et la liste repond vide.
   const filteredData = useMemo(() => {
     if (!debouncedSearch) return technicians;
     const q = debouncedSearch.toLowerCase();
     return technicians.filter((tech) => {
-      const name = `${tech.first_name} ${tech.last_name}`.toLowerCase();
-      return name.includes(q);
+      const vehicle = vehicleByTechnician.get(tech.id);
+      return [
+        `${tech.first_name} ${tech.last_name}`,
+        tech.phone ?? "",
+        tech.email ?? "",
+        tech.city ?? "",
+        tech.organization_name ?? "",
+        vehicle?.name ?? "",
+        vehicle?.license_plate ?? "",
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(q);
     });
-  }, [technicians, debouncedSearch]);
+  }, [technicians, debouncedSearch, vehicleByTechnician]);
 
   const [columnVisibility, setColumnVisibility] = useColumnVisibility("techniciens", {
-    phone: false,
+    organization: false,
+    email: false,
   });
-
-  // Max units across all techs — used for proportional micro-bars
-  const maxUnits = useMemo(
-    () => Math.max(1, ...filteredData.map((t) => t.year_units_total)),
-    [filteredData]
-  );
 
   const yearLabel = `Unités (${selectedYear})`;
   const columns: ColumnDef<TechnicianWithInventory>[] = [
@@ -168,14 +187,23 @@ export default function TechniciansList() {
       id: "restock",
       accessorFn: (row) => {
         const days = daysSince(row.last_restock_at);
-        if (days === null) return 9999;
-        return days;
+        if (days !== null) return days;
+        // Jamais reappro : urgent seulement s'il a deja un inventaire. Sans rien
+        // en stock, c'est un technicien inactif — il n'a rien a faire en tete de
+        // liste, la ou le regard se pose en premier.
+        return row.inventory_count > 0 ? 9999 : -1;
       },
       header: ({ column }) => <SortHeader label="Réappro" column={column} />,
       cell: ({ row }) => {
         const days = daysSince(row.original.last_restock_at);
         const label = restockLabel(days);
-        return <span className="text-sm text-muted-foreground">{label}</span>;
+        const exact = restockDateTime(row.original.last_restock_at);
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span className="text-sm text-foreground tabular-nums">{exact ?? "Jamais"}</span>
+            {exact && <span className="text-xs text-muted-foreground">{label}</span>}
+          </div>
+        );
       },
       sortingFn: "basic",
       meta: { label: "Réappro" },
@@ -185,9 +213,8 @@ export default function TechniciansList() {
       header: ({ column }) => <SortHeader label={yearLabel} column={column} />,
       cell: ({ row }) => {
         const count = row.original.year_units_total;
-        const pct = maxUnits > 0 ? (count / maxUnits) * 100 : 0;
         return (
-          <div className="flex flex-col items-start gap-1 min-w-[60px]">
+          <div className="flex flex-col items-start min-w-[60px]">
             <span
               className={cn(
                 "font-heading font-bold tabular-nums text-xl leading-none",
@@ -196,14 +223,6 @@ export default function TechniciansList() {
             >
               {count}
             </span>
-            {count > 0 && (
-              <div className="w-full h-1 rounded-full bg-foreground/[0.06] overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-foreground/20"
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-            )}
           </div>
         );
       },
@@ -253,6 +272,8 @@ export default function TechniciansList() {
     },
     {
       accessorKey: "city",
+      // Le champ en base s'appelle toujours `city`, mais on y saisit le
+      // departement d'affectation : c'est ce libelle-la qui est affiche partout.
       meta: { label: "Département" },
       header: ({ column }) => <SortHeader label="Département" column={column} />,
       cell: ({ row }) => <span className="text-[15px]">{row.original.city || "—"}</span>,
@@ -270,9 +291,36 @@ export default function TechniciansList() {
       accessorKey: "phone",
       meta: { label: "Téléphone" },
       header: ({ column }) => <SortHeader label="Téléphone" column={column} />,
-      cell: ({ row }) => (
-        <span className="text-[15px] tabular-nums">{row.original.phone || "—"}</span>
-      ),
+      // Cliquable : depuis la liste, le geste utile est d'appeler, pas de lire
+      cell: ({ row }) =>
+        row.original.phone ? (
+          <a
+            href={`tel:${row.original.phone.replace(/\s/g, "")}`}
+            onClick={(e) => e.stopPropagation()}
+            className="text-[15px] tabular-nums hover:underline underline-offset-2"
+          >
+            {row.original.phone}
+          </a>
+        ) : (
+          <span className="text-[15px] text-muted-foreground">—</span>
+        ),
+    },
+    {
+      accessorKey: "email",
+      meta: { label: "Email" },
+      header: ({ column }) => <SortHeader label="Email" column={column} />,
+      cell: ({ row }) =>
+        row.original.email ? (
+          <a
+            href={`mailto:${row.original.email}`}
+            onClick={(e) => e.stopPropagation()}
+            className="text-[15px] hover:underline underline-offset-2"
+          >
+            {row.original.email}
+          </a>
+        ) : (
+          <span className="text-[15px] text-muted-foreground">—</span>
+        ),
     },
     {
       id: "actions",
@@ -319,25 +367,19 @@ export default function TechniciansList() {
             ))}
           </div>
         </div>
+        {/* Le squelette doit avoir autant de colonnes que le tableau reel,
+            sinon la mise en page saute au moment ou les donnees arrivent.
+            7 visibles : Technicien, Reappro, Unites, Outillage, Vehicule,
+            Departement, action. */}
         <div className="rounded-xl border bg-card overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b">
-                <th className="h-11 px-5 text-left">
-                  <Skeleton className="h-3 w-20" />
-                </th>
-                <th className="h-11 px-5 text-left">
-                  <Skeleton className="h-3 w-20" />
-                </th>
-                <th className="h-11 px-5 text-left">
-                  <Skeleton className="h-3 w-16" />
-                </th>
-                <th className="h-11 px-5 text-left">
-                  <Skeleton className="h-3 w-16" />
-                </th>
-                <th className="h-11 px-5 text-left">
-                  <Skeleton className="h-3 w-14" />
-                </th>
+                {[20, 20, 16, 16, 20, 14, 10].map((w, i) => (
+                  <th key={i} className="h-11 px-5 text-left">
+                    <Skeleton className="h-3" style={{ width: `${w * 4}px` }} />
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -350,16 +392,22 @@ export default function TechniciansList() {
                     </div>
                   </td>
                   <td className="px-5 py-4">
-                    <Skeleton className="h-4 w-20" />
-                  </td>
-                  <td className="px-5 py-4">
                     <Skeleton className="h-4 w-24" />
                   </td>
                   <td className="px-5 py-4">
                     <Skeleton className="h-5 w-8" />
                   </td>
                   <td className="px-5 py-4">
-                    <Skeleton className="h-6 w-16 rounded-full" />
+                    <Skeleton className="h-5 w-8" />
+                  </td>
+                  <td className="px-5 py-4">
+                    <Skeleton className="h-4 w-24" />
+                  </td>
+                  <td className="px-5 py-4">
+                    <Skeleton className="h-4 w-16" />
+                  </td>
+                  <td className="px-5 py-4">
+                    <Skeleton className="h-7 w-20 rounded-md ml-auto" />
                   </td>
                 </tr>
               ))}

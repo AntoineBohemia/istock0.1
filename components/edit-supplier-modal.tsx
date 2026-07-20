@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 
 import { useUpdateSupplier } from "@/hooks/mutations/use-supplier-mutations";
-import type { Supplier } from "@/lib/supabase/queries/suppliers";
+import { uploadSupplierLogo, type Supplier } from "@/lib/supabase/queries/suppliers";
+import SupplierLogoInput from "@/components/supplier-logo-input";
 
 interface EditSupplierModalProps {
   supplier: Supplier;
@@ -29,6 +30,9 @@ export default function EditSupplierModal({
   const [email, setEmail] = useState(supplier.email ?? "");
   const [phone, setPhone] = useState(supplier.phone ?? "");
   const [websiteUrl, setWebsiteUrl] = useState(supplier.website_url ?? "");
+  const [logoUrl, setLogoUrl] = useState(supplier.logo_url ?? null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   if (supplier.id !== prevId) {
     setPrevId(supplier.id);
@@ -36,11 +40,29 @@ export default function EditSupplierModal({
     setEmail(supplier.email ?? "");
     setPhone(supplier.phone ?? "");
     setWebsiteUrl(supplier.website_url ?? "");
+    setLogoUrl(supplier.logo_url ?? null);
+    setLogoFile(null);
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const isBusy = updateMutation.isPending || isUploading;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+
+    let nextLogoUrl = logoUrl;
+    if (logoFile) {
+      try {
+        setIsUploading(true);
+        nextLogoUrl = await uploadSupplierLogo(logoFile);
+      } catch {
+        toast.error("Erreur lors de l'upload du logo");
+        setIsUploading(false);
+        return;
+      } finally {
+        setIsUploading(false);
+      }
+    }
 
     updateMutation.mutate(
       {
@@ -50,11 +72,14 @@ export default function EditSupplierModal({
           email: email.trim() || null,
           phone: phone.trim() || null,
           website_url: websiteUrl.trim() || null,
+          logo_url: nextLogoUrl,
         },
       },
       {
         onSuccess: () => {
           toast.success("Fournisseur modifié");
+          setLogoFile(null);
+          setLogoUrl(nextLogoUrl);
           onOpenChange(false);
         },
         onError: (err) => {
@@ -73,6 +98,16 @@ export default function EditSupplierModal({
 
         <form onSubmit={handleSubmit}>
           <div className="px-5 py-3 border-t space-y-3">
+            <SupplierLogoInput
+              existingUrl={logoUrl}
+              file={logoFile}
+              onFileChange={setLogoFile}
+              onRemove={() => {
+                setLogoFile(null);
+                setLogoUrl(null);
+              }}
+              disabled={isBusy}
+            />
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Nom *</label>
               <Input value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
@@ -115,12 +150,14 @@ export default function EditSupplierModal({
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={updateMutation.isPending}
+              disabled={isBusy}
             >
               Annuler
             </Button>
-            <Button type="submit" disabled={updateMutation.isPending || !name.trim()}>
-              {updateMutation.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+            {/* isBusy et non isPending : pendant l'upload du logo, la mutation
+                n'a pas encore demarre et le bouton resterait cliquable. */}
+            <Button type="submit" disabled={isBusy || !name.trim()}>
+              {isBusy && <Loader2 className="mr-2 size-4 animate-spin" />}
               Enregistrer
             </Button>
           </div>

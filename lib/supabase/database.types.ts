@@ -531,6 +531,7 @@ export type Database = {
           created_at: string | null;
           email: string | null;
           id: string;
+          logo_url: string | null;
           name: string;
           organization_id: string | null;
           phone: string | null;
@@ -540,6 +541,7 @@ export type Database = {
           created_at?: string | null;
           email?: string | null;
           id?: string;
+          logo_url?: string | null;
           name: string;
           organization_id?: string | null;
           phone?: string | null;
@@ -549,6 +551,7 @@ export type Database = {
           created_at?: string | null;
           email?: string | null;
           id?: string;
+          logo_url?: string | null;
           name?: string;
           organization_id?: string | null;
           phone?: string | null;
@@ -934,6 +937,23 @@ export type Database = {
       create_organization_with_owner: {
         Args: { org_logo_url?: string; org_name: string; org_slug: string };
         Returns: Json;
+      };
+      get_suppliers_with_stats: {
+        Args: { p_organization_id: string };
+        Returns: {
+          id: string;
+          name: string;
+          email: string | null;
+          phone: string | null;
+          website_url: string | null;
+          organization_id: string | null;
+          created_at: string | null;
+          product_count: number;
+          alert_count: number;
+          total_purchased: number;
+          last_purchase_at: string | null;
+          invoice_count: number;
+        }[];
       };
       create_stock_entry: {
         Args: {

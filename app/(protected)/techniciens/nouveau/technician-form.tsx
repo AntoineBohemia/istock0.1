@@ -27,8 +27,12 @@ import {
   updateTechnician,
   uploadTechnicianPhoto,
 } from "@/lib/supabase/queries/technicians";
+import { setTechnicianVehicle } from "@/lib/supabase/queries/vehicles";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
-import { useOrganizations } from "@/hooks/queries";
+import { useOrganizations, useVehicles } from "@/hooks/queries";
+import TechnicianVehicleSelect from "../technician-vehicle-select";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 
 const FormSchema = z.object({
   first_name: z.string().min(2, {
@@ -47,9 +51,6 @@ const FormSchema = z.object({
   organization_id: z.string().optional(),
   tablet_ref: z.string().optional(),
   clothing_size: z.string().optional(),
-  vehicle_plate: z.string().optional(),
-  vehicle_brand: z.string().optional(),
-  vehicle_model: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof FormSchema>;
@@ -67,6 +68,18 @@ export default function TechnicianForm({ mode = "create", initialData }: Technic
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(initialData?.photo_url || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
+
+  // Vehicule actuellement affecte, deduit de la table vehicles. On ne le copie
+  // pas dans un etat : la liste arrive de facon asynchrone et un setState dans
+  // un effet ecraserait un choix deja fait par l'utilisateur.
+  const { data: vehicles = [] } = useVehicles(currentOrganization?.id);
+  const technicianId = initialData?.id;
+  const currentVehicleId = technicianId
+    ? (vehicles.find((v) => v.technician_id === technicianId)?.id ?? "")
+    : "";
+  const [vehicleChoice, setVehicleChoice] = useState<string | null>(null);
+  const vehicleId = vehicleChoice ?? currentVehicleId;
 
   const form = useForm<FormValues>({
     mode: "onTouched",
@@ -80,9 +93,6 @@ export default function TechnicianForm({ mode = "create", initialData }: Technic
       organization_id: initialData?.organization_id || currentOrganization?.id || "",
       tablet_ref: initialData?.tablet_ref || "",
       clothing_size: initialData?.clothing_size || "",
-      vehicle_plate: initialData?.vehicle_plate || "",
-      vehicle_brand: initialData?.vehicle_brand || "",
-      vehicle_model: initialData?.vehicle_model || "",
     },
   });
 
@@ -108,6 +118,8 @@ export default function TechnicianForm({ mode = "create", initialData }: Technic
           { ...data, photo_url: photoUrl },
           currentOrganization.id
         );
+        await setTechnicianVehicle(initialData.id, vehicleId || null, currentVehicleId || null);
+        queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all });
         toast.success("Technicien mis à jour avec succès");
         router.push(`/techniciens/${initialData.id}`);
       } else {
@@ -116,6 +128,8 @@ export default function TechnicianForm({ mode = "create", initialData }: Technic
           photo_url: photoUrl,
           organization_id: data.organization_id || currentOrganization.id,
         });
+        await setTechnicianVehicle(technician.id, vehicleId || null, null);
+        queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all });
         toast.success("Technicien créé avec succès");
         router.push(`/techniciens/${technician.id}`);
       }
@@ -307,11 +321,11 @@ export default function TechnicianForm({ mode = "create", initialData }: Technic
                 name="city"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Ville</FormLabel>
+                    <FormLabel>Département</FormLabel>
                     <FormControl>
-                      <Input placeholder="Paris" {...field} />
+                      <Input placeholder="Yvelines" {...field} />
                     </FormControl>
-                    <FormDescription>Ville d&apos;affectation du technicien</FormDescription>
+                    <FormDescription>Département d&apos;affectation du technicien</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -355,47 +369,14 @@ export default function TechnicianForm({ mode = "create", initialData }: Technic
                   )}
                 />
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="vehicle_plate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Plaque véhicule</FormLabel>
-                      <FormControl>
-                        <Input placeholder="AB-123-CD" className="font-mono uppercase" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="vehicle_brand"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Marque</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Renault" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="vehicle_model"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Modèle</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Kangoo" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              {/* On affecte un vehicule existant au lieu d'en saisir les
+                  caracteristiques : la table vehicles est la source de verite. */}
+              <TechnicianVehicleSelect
+                technicianId={initialData?.id}
+                value={vehicleId}
+                onChange={setVehicleChoice}
+                disabled={isSubmitting}
+              />
             </CardContent>
           </Card>
         </div>

@@ -212,6 +212,28 @@ export async function updateVehicle(
   return data as unknown as Vehicle;
 }
 
+/**
+ * Affecte (ou retire) le vehicule d'un technicien.
+ *
+ * La relation vit sur vehicles.technician_id : changer de vehicule veut donc
+ * dire liberer l'ancien AVANT d'affecter le nouveau, sans quoi le technicien
+ * se retrouverait avec deux vehicules a son nom.
+ */
+export async function setTechnicianVehicle(
+  technicianId: string,
+  nextVehicleId: string | null,
+  previousVehicleId: string | null
+): Promise<void> {
+  if (previousVehicleId === nextVehicleId) return;
+
+  if (previousVehicleId) {
+    await updateVehicle(previousVehicleId, { technician_id: null });
+  }
+  if (nextVehicleId) {
+    await updateVehicle(nextVehicleId, { technician_id: technicianId });
+  }
+}
+
 export async function deleteVehicle(id: string): Promise<void> {
   const supabase = createClient();
 

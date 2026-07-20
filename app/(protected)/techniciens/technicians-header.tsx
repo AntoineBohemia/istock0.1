@@ -13,8 +13,9 @@ export default function TechniciansHeader() {
     <>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Techniciens</h1>
-        <Button variant="outline-contrast" onClick={() => setOpen(true)}>
-          <Plus /> Ajouter un technicien
+        {/* Meme style que « Ajouter un fournisseur » : un seul geste, un seul look */}
+        <Button variant="outline" className="bg-white dark:bg-card" onClick={() => setOpen(true)}>
+          <Plus className="mr-2 size-4" /> Ajouter un technicien
         </Button>
       </div>
 

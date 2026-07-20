@@ -14,7 +14,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { createSupplier, Supplier } from "@/lib/supabase/queries/suppliers";
+import { createSupplier, uploadSupplierLogo, Supplier } from "@/lib/supabase/queries/suppliers";
+import SupplierLogoInput from "@/components/supplier-logo-input";
 import { toast } from "@/lib/toast";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useQueryClient } from "@tanstack/react-query";
@@ -31,6 +32,7 @@ export default function AddNewSupplier({ onSupplierCreated, trigger }: AddNewSup
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { currentOrganization } = useOrganizationStore();
   const queryClient = useQueryClient();
@@ -51,12 +53,20 @@ export default function AddNewSupplier({ onSupplierCreated, trigger }: AddNewSup
     setIsLoading(true);
 
     try {
+      // Le logo part avant la creation : si l'upload echoue, on n'a pas
+      // cree un fournisseur a moitie renseigne.
+      let logoUrl: string | null = null;
+      if (logoFile) {
+        logoUrl = await uploadSupplierLogo(logoFile);
+      }
+
       const newSupplier = await createSupplier(
         currentOrganization.id,
         name.trim(),
         websiteUrl.trim() || null,
         email.trim() || null,
-        phone.trim() || null
+        phone.trim() || null,
+        logoUrl
       );
       toast.success(`Fournisseur "${newSupplier.name}" créé avec succès`);
       queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.all });
@@ -65,6 +75,7 @@ export default function AddNewSupplier({ onSupplierCreated, trigger }: AddNewSup
       setEmail("");
       setPhone("");
       setWebsiteUrl("");
+      setLogoFile(null);
       setOpen(false);
     } catch (error) {
       toast.error(
@@ -91,6 +102,13 @@ export default function AddNewSupplier({ onSupplierCreated, trigger }: AddNewSup
             <DialogDescription>Ajoutez un nouveau fournisseur à votre catalogue.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            <SupplierLogoInput
+              existingUrl={null}
+              file={logoFile}
+              onFileChange={setLogoFile}
+              onRemove={() => setLogoFile(null)}
+              disabled={isLoading}
+            />
             <div className="grid gap-2">
               <Label htmlFor="supplier-name">Nom *</Label>
               <Input

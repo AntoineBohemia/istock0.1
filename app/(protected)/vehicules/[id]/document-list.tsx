@@ -33,8 +33,8 @@ const TYPE_LABELS: Record<DocumentType, { empty: string; description: string }> 
     description: "Ajoutez vos contrats de location, leasing ou achat.",
   },
   revision: {
-    empty: "Aucune révision",
-    description: "Ajoutez vos factures de révision et contrôles techniques.",
+    empty: "Aucune facture entretien",
+    description: "Ajoutez vos factures d'entretien et contrôles techniques.",
   },
   insurance: {
     empty: "Aucune assurance",

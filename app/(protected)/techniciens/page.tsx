@@ -24,7 +24,7 @@ export default function Page() {
       <div className="hidden md:block">
         <div className="space-y-4">
           <TechniciansHeader />
-          <div className="pt-4">
+          <div className="pt-2">
             <TechniciansList />
           </div>
         </div>

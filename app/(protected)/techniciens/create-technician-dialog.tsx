@@ -12,9 +12,18 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { createTechnician } from "@/lib/supabase/queries/technicians";
+import {
+  createTechnician,
+  updateTechnician,
+  uploadTechnicianPhoto,
+} from "@/lib/supabase/queries/technicians";
+import { setTechnicianVehicle } from "@/lib/supabase/queries/vehicles";
+import TechnicianPhotoInput from "./technician-photo-input";
+import TechnicianVehicleSelect from "./technician-vehicle-select";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useOrganizations } from "@/hooks/queries";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 
 const FormSchema = z.object({
   first_name: z.string().min(2, "Min. 2 caractères"),
@@ -25,9 +34,6 @@ const FormSchema = z.object({
   organization_id: z.string().optional(),
   tablet_ref: z.string().optional(),
   clothing_size: z.string().optional(),
-  vehicle_plate: z.string().optional(),
-  vehicle_brand: z.string().optional(),
-  vehicle_model: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof FormSchema>;
@@ -45,6 +51,9 @@ export default function CreateTechnicianDialog({
   const { currentOrganization } = useOrganizationStore();
   const { data: userOrgs } = useOrganizations();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [vehicleId, setVehicleId] = useState("");
+  const queryClient = useQueryClient();
 
   const form = useForm<FormValues>({
     mode: "onTouched",
@@ -58,9 +67,6 @@ export default function CreateTechnicianDialog({
       organization_id: currentOrganization?.id || "",
       tablet_ref: "",
       clothing_size: "",
-      vehicle_plate: "",
-      vehicle_brand: "",
-      vehicle_model: "",
     },
   });
 
@@ -76,9 +82,34 @@ export default function CreateTechnicianDialog({
         ...data,
         organization_id: data.organization_id || currentOrganization.id,
       });
+
+      // La photo part apres la creation : uploadTechnicianPhoto a besoin de
+      // l'identifiant. Un echec ici ne doit pas perdre le technicien deja cree.
+      if (photoFile) {
+        try {
+          const photoUrl = await uploadTechnicianPhoto(photoFile, technician.id);
+          await updateTechnician(technician.id, { photo_url: photoUrl });
+        } catch {
+          toast.error("Technicien créé, mais la photo n'a pas pu être envoyée");
+        }
+      }
+
+      // Le vehicule aussi ne peut etre affecte qu'apres coup : la relation
+      // vit sur vehicles.technician_id.
+      if (vehicleId) {
+        try {
+          await setTechnicianVehicle(technician.id, vehicleId, null);
+          queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all });
+        } catch {
+          toast.error("Technicien créé, mais le véhicule n'a pas pu être affecté");
+        }
+      }
+
       toast.success(`${data.first_name} ${data.last_name} ajouté`);
       onOpenChange(false);
       form.reset();
+      setPhotoFile(null);
+      setVehicleId("");
       router.push(`/techniciens/${technician.id}`);
       router.refresh();
     } catch (error) {
@@ -104,6 +135,11 @@ export default function CreateTechnicianDialog({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <div className="px-5 py-4 space-y-3">
+              <TechnicianPhotoInput
+                file={photoFile}
+                onFileChange={setPhotoFile}
+                disabled={isSubmitting}
+              />
               <div className="grid grid-cols-2 gap-3">
                 <FormField
                   control={form.control}
@@ -175,7 +211,7 @@ export default function CreateTechnicianDialog({
                   <FormItem>
                     <FormControl>
                       <Input
-                        placeholder="Ville / Département"
+                        placeholder="Département"
                         className="bg-white dark:bg-card"
                         {...field}
                       />
@@ -252,56 +288,13 @@ export default function CreateTechnicianDialog({
                   )}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <FormField
-                  control={form.control}
-                  name="vehicle_plate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input
-                          placeholder="Plaque (AB-123-CD)"
-                          className="bg-white dark:bg-card font-mono uppercase"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="vehicle_brand"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input
-                          placeholder="Marque véhicule"
-                          className="bg-white dark:bg-card"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="vehicle_model"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input
-                          placeholder="Modèle véhicule"
-                          className="bg-white dark:bg-card"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              {/* On affecte un vehicule existant au lieu d'en saisir les
+                  caracteristiques : la table vehicles est la source de verite. */}
+              <TechnicianVehicleSelect
+                value={vehicleId}
+                onChange={setVehicleId}
+                disabled={isSubmitting}
+              />
             </div>
 
             <div className="px-5 pt-2 pb-5">
