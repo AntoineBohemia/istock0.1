@@ -1111,7 +1111,7 @@ export default function GlobalPage() {
                       onChange={setEntryDate}
                       disabled={{ after: todayDate, before: ninetyDaysAgo }}
                       placeholder="Aujourd'hui"
-                      className="h-9 text-sm"
+                      className="h-9 text-sm bg-white dark:bg-card"
                     />
                   </div>
                 )}
@@ -1144,17 +1144,6 @@ export default function GlobalPage() {
                   >
                     {isSubmitting ? "En cours…" : submitLabel}
                   </Button>
-                  {actionMode === "entry" && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="h-10 text-xs"
-                      onClick={() => setActionMode("exit_anonymous")}
-                    >
-                      <ArrowUpFromLine className="size-3.5" />
-                      Sortie autre
-                    </Button>
-                  )}
                   {actionMode === "exit_anonymous" && (
                     <Button
                       variant="default"

@@ -699,6 +699,138 @@ export type Database = {
           },
         ];
       };
+      vehicle_documents: {
+        Row: {
+          created_at: string;
+          document_type: string;
+          file_name: string;
+          file_size: number | null;
+          file_url: string;
+          id: string;
+          label: string;
+          mime_type: string | null;
+          organization_id: string;
+          uploaded_by: string | null;
+          valid_from: string | null;
+          valid_until: string | null;
+          vehicle_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          document_type: string;
+          file_name: string;
+          file_size?: number | null;
+          file_url: string;
+          id?: string;
+          label: string;
+          mime_type?: string | null;
+          organization_id: string;
+          uploaded_by?: string | null;
+          valid_from?: string | null;
+          valid_until?: string | null;
+          vehicle_id: string;
+        };
+        Update: {
+          created_at?: string;
+          document_type?: string;
+          file_name?: string;
+          file_size?: number | null;
+          file_url?: string;
+          id?: string;
+          label?: string;
+          mime_type?: string | null;
+          organization_id?: string;
+          uploaded_by?: string | null;
+          valid_from?: string | null;
+          valid_until?: string | null;
+          vehicle_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_documents_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "vehicle_documents_vehicle_id_fkey";
+            columns: ["vehicle_id"];
+            isOneToOne: false;
+            referencedRelation: "vehicles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      vehicles: {
+        Row: {
+          archived_at: string | null;
+          brand: string | null;
+          created_at: string;
+          fuel_type: string | null;
+          id: string;
+          license_plate: string;
+          mileage: number | null;
+          model: string | null;
+          name: string;
+          notes: string | null;
+          organization_id: string;
+          technician_id: string | null;
+          updated_at: string;
+          vin: string | null;
+          year: number | null;
+        };
+        Insert: {
+          archived_at?: string | null;
+          brand?: string | null;
+          created_at?: string;
+          fuel_type?: string | null;
+          id?: string;
+          license_plate: string;
+          mileage?: number | null;
+          model?: string | null;
+          name: string;
+          notes?: string | null;
+          organization_id: string;
+          technician_id?: string | null;
+          updated_at?: string;
+          vin?: string | null;
+          year?: number | null;
+        };
+        Update: {
+          archived_at?: string | null;
+          brand?: string | null;
+          created_at?: string;
+          fuel_type?: string | null;
+          id?: string;
+          license_plate?: string;
+          mileage?: number | null;
+          model?: string | null;
+          name?: string;
+          notes?: string | null;
+          organization_id?: string;
+          technician_id?: string | null;
+          updated_at?: string;
+          vin?: string | null;
+          year?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "vehicles_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "vehicles_technician_id_fkey";
+            columns: ["technician_id"];
+            isOneToOne: false;
+            referencedRelation: "technicians";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       organization_members_view: {

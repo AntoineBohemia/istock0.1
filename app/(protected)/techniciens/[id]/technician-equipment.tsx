@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Wrench, Clock, icons } from "lucide-react";
+import { Wrench, icons } from "lucide-react";
 import { toast } from "@/lib/toast";
 
 import Image from "next/image";
@@ -19,49 +19,6 @@ interface TechnicianEquipmentProps {
   technicianId: string;
   technicianName: string;
 }
-
-// ── Duration helpers ──
-
-function daysSince(assignedAt: string): number {
-  return Math.floor((Date.now() - new Date(assignedAt).getTime()) / 86_400_000);
-}
-
-function formatDuration(days: number): string {
-  if (days === 0) return "aujourd'hui";
-  if (days === 1) return "hier";
-  if (days < 30) return `${days}j`;
-  const months = Math.floor(days / 30);
-  if (months < 12) return `${months} mois`;
-  const years = Math.floor(months / 12);
-  const rem = months % 12;
-  if (rem === 0) return `${years} an${years > 1 ? "s" : ""}`;
-  return `${years}a ${rem}m`;
-}
-
-// ── Age tier — visual encoding of assignment duration (CD8: loss aversion) ──
-
-type AgeTier = "fresh" | "normal" | "aging" | "old";
-
-function getAgeTier(days: number): AgeTier {
-  if (days < 30) return "fresh";
-  if (days < 90) return "normal";
-  if (days < 180) return "aging";
-  return "old";
-}
-
-const ageTierLabel: Record<AgeTier, string | null> = {
-  fresh: null,
-  normal: null,
-  aging: "A verifier",
-  old: "Depuis longtemps",
-};
-
-const ageTierLabelColor: Record<AgeTier, string> = {
-  fresh: "",
-  normal: "",
-  aging: "text-attention",
-  old: "text-destructive",
-};
 
 const fmtPrice = (n: number) =>
   n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
@@ -262,10 +219,7 @@ export default function TechnicianEquipment({
           {filtered.map((assignment) => {
             const product = assignment.product;
             if (!product) return null;
-            const days = daysSince(assignment.assigned_at);
-            const tier = getAgeTier(days);
             const itemValue = (product.price ?? 0) * assignment.quantity;
-            const tierLabel = ageTierLabel[tier];
 
             return (
               <div key={assignment.id} className="rounded-xl border bg-card p-4 space-y-3">
@@ -301,21 +255,6 @@ export default function TechnicianEquipment({
                   >
                     Retirer
                   </Button>
-                </div>
-
-                {/* Assignment age — duration + status */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                      <Clock className="size-2.5" />
-                      {formatDuration(days)}
-                    </span>
-                    {tierLabel && (
-                      <span className={cn("text-[10px] font-medium", ageTierLabelColor[tier])}>
-                        {tierLabel}
-                      </span>
-                    )}
-                  </div>
                 </div>
               </div>
             );

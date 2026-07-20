@@ -356,17 +356,20 @@ export default function AchatsList() {
         id: "supplier",
         accessorFn: (row) => {
           const data = entryQtyByProduct?.[row.id];
-          if (!data) return "";
           const names = new Set<string>();
-          Object.values(data).forEach((d) => d.suppliers.forEach((s) => names.add(s.name)));
+          if (data)
+            Object.values(data).forEach((d) => d.suppliers.forEach((s) => names.add(s.name)));
+          if (names.size === 0 && row.supplier?.name) names.add(row.supplier.name);
           return Array.from(names).join(", ");
         },
         header: ({ column }) => <SortHeader label="Fournisseur" column={column} />,
         cell: ({ row }) => {
           const data = entryQtyByProduct?.[row.original.id];
-          if (!data) return <span className="text-muted-foreground">—</span>;
           const names = new Set<string>();
-          Object.values(data).forEach((d) => d.suppliers.forEach((s) => names.add(s.name)));
+          if (data)
+            Object.values(data).forEach((d) => d.suppliers.forEach((s) => names.add(s.name)));
+          if (names.size === 0 && row.original.supplier?.name)
+            names.add(row.original.supplier.name);
           const list = Array.from(names);
 
           if (list.length === 0) return <span className="text-muted-foreground">—</span>;

@@ -349,6 +349,7 @@ export default function ActionsMobileSheet() {
         stock_current: found.stock_current ?? 0,
         stock_min: found.stock_min,
         price: found.price ?? null,
+        supplier_id: found.supplier_id ?? null,
       };
       // Add to cart or increment qty
       setCart((prev) => {

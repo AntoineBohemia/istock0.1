@@ -161,7 +161,8 @@ export default function TechniciansList() {
       },
       header: ({ column }) => <SortHeader label="Réappro" column={column} />,
       cell: ({ row }) => {
-        const label = restockLabel(daysSince(row.original.last_restock_at));
+        const days = daysSince(row.original.last_restock_at);
+        const label = restockLabel(days);
         return <span className="text-sm text-muted-foreground">{label}</span>;
       },
       sortingFn: "basic",
