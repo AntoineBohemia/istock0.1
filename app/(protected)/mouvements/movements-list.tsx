@@ -25,8 +25,6 @@ import {
   X,
 } from "lucide-react";
 
-const fmtPrice = (n: number) =>
-  n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 import {
   format,
   subDays,
@@ -70,6 +68,9 @@ import ProductIconDisplay from "@/components/product-icon-display";
 import { TableColumnToggle } from "@/components/table-column-toggle";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { cn } from "@/lib/utils";
+
+const fmtPrice = (n: number) =>
+  n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
 // ─── Sort header button ────────────────────────────────────
 function SortHeader({
