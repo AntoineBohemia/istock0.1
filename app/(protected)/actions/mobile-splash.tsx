@@ -44,10 +44,48 @@ const MARK_STYLE = `
 /** Duree du lancement. La barre se remplit exactement sur ce temps. */
 const HOLD_MS = 2000;
 
+const SPLASH_KEY = "istock:splash-shown-at";
+/** Deux heures de chantier ne doivent pas etre ponctuees de logos. */
+const SPLASH_INTERVAL_MS = 15 * 60 * 1000;
+
+/**
+ * Le lancement a-t-il lieu d'etre rejoue ?
+ *
+ * Il jouait a chaque chargement de page. Un technicien qui actualise, revient
+ * d'un autre onglet ou rouvre l'appli entre deux mouvements se retrouvait a
+ * attendre deux secondes pour rien. On ne le remontre qu'apres un quart
+ * d'heure : assez pour marquer une reprise, assez rare pour ne jamais gener.
+ *
+ * L'horodatage vit dans localStorage et non dans la session : rouvrir
+ * l'onglet ne doit pas relancer l'animation.
+ */
+export function shouldShowSplash(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const last = Number(window.localStorage.getItem(SPLASH_KEY));
+    return !last || Date.now() - last > SPLASH_INTERVAL_MS;
+  } catch {
+    // Stockage refuse (navigation privee, cookies bloques) : on s'abstient.
+    // Mieux vaut ne jamais montrer le logo que le montrer a chaque ecran.
+    return false;
+  }
+}
+
+function markSplashShown() {
+  try {
+    window.localStorage.setItem(SPLASH_KEY, String(Date.now()));
+  } catch {
+    // Sans stockage, le lancement ne se rejouera de toute facon pas.
+  }
+}
+
 export function MobileSplash({ onDone }: { onDone: () => void }) {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
+    // Marque a l'affichage et non a la fin : quitter la page en cours de
+    // route ne doit pas donner droit a une relecture immediate.
+    markSplashShown();
     const id = setTimeout(() => setVisible(false), HOLD_MS);
     return () => clearTimeout(id);
   }, []);

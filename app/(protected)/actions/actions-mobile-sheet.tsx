@@ -43,7 +43,7 @@ import { calculateStockScore, getStockBadgeVariant } from "@/lib/utils/stock";
 import { cn } from "@/lib/utils";
 import { useDebouncedValue } from "@/hooks/use-debounce";
 import { MobileStackScreen, InsetGroup, InsetRow, InsetField } from "./mobile-stack-screen";
-import { MobileSplash } from "./mobile-splash";
+import { MobileSplash, shouldShowSplash } from "./mobile-splash";
 import {
   MobileHistorySheet,
   movementToHistoryEntry,
@@ -200,9 +200,11 @@ export default function ActionsMobileSheet() {
   const [cart, setCart] = useState<CartItem[]>([]);
 
   // ─── Ecran de lancement ────────────────────────────────
-  // Une seule fois par chargement de page : les etapes se posent par-dessus
-  // l'accueil sans le remonter, revenir en arriere ne le rejoue donc pas.
-  const [splashDone, setSplashDone] = useState(false);
+  // Rejoue au plus une fois par quart d'heure. Les etapes se posant par-dessus
+  // l'accueil sans le remonter, revenir en arriere ne le declenche pas non
+  // plus. La decision est prise a l'initialisation : la calculer plus tard
+  // ferait apparaitre le logo apres coup, en plein ecran deja affiche.
+  const [splashDone, setSplashDone] = useState(() => !shouldShowSplash());
 
   // ─── Historique du jour (tiroir) ───────────────────────
   const [historyOpen, setHistoryOpen] = useState(false);
