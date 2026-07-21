@@ -113,6 +113,32 @@ const ACTION_OPTIONS: {
   },
 ];
 
+const EXIT_REASON_OPTIONS: {
+  reason: ExitReason;
+  label: string;
+  hint: string;
+  icon: React.ElementType;
+  accent: string;
+  tint: string;
+}[] = [
+  {
+    reason: "technician",
+    label: "Sortie technicien",
+    hint: "Le stock part chez quelqu'un",
+    icon: PackagePlus,
+    accent: "text-primary",
+    tint: "bg-primary/10",
+  },
+  {
+    reason: "loss",
+    label: "Erreur de stock",
+    hint: "Casse, perte, écart d'inventaire",
+    icon: ArrowUpFromLine,
+    accent: "text-attention",
+    tint: "bg-attention-bg",
+  },
+];
+
 // ─── Helper: today string that refreshes every 60s ──────────
 function useTodayString() {
   const [today, setToday] = useState(() => new Date().toISOString().split("T")[0]);
@@ -141,8 +167,8 @@ export default function ActionsMobileSheet() {
 
   // ─── Drawer inner navigation ────────────────────────────
   // Entree : "products" → "detail"
-  // Sortie : "reason" → "products" → "cart"
-  type DrawerStep = "products" | "detail" | "reason" | "cart";
+  // Sortie : "reason" → ("technicians") → "products" → "cart"
+  type DrawerStep = "reason" | "technicians" | "products" | "detail" | "cart";
   const [drawerStep, setDrawerStep] = useState<DrawerStep>("products");
 
   // ─── Search ─────────────────────────────────────────────
@@ -387,14 +413,25 @@ export default function ActionsMobileSheet() {
     });
   }, []);
 
-  // ─── Choix de la destination d'une sortie ─────────────
-  const selectExitReason = useCallback((reason: ExitReason, techId?: string) => {
+  // ─── Nature de la sortie ──────────────────────────────
+  // Une erreur de stock n'est pas un technicien parmi d'autres : c'est une
+  // autre nature de mouvement. La poser d'abord evite de la choisir en visant
+  // un nom voisin, et laisse la liste des techniciens ne contenir que des
+  // techniciens.
+  const selectExitReason = useCallback((reason: ExitReason) => {
     navigator.vibrate?.(10);
     setExitReason(reason);
-    setTechnicianId(reason === "technician" ? (techId ?? "") : "");
+    setTechnicianId("");
+    setSearchQuery("");
+    setDrawerStep(reason === "technician" ? "technicians" : "products");
+  }, []);
+
+  // ─── Choix du technicien ──────────────────────────────
+  const selectTechnician = useCallback((techId: string) => {
+    navigator.vibrate?.(10);
+    setTechnicianId(techId);
     setSearchQuery("");
     setDrawerStep("products");
-    setTimeout(() => searchInputRef.current?.focus(), 100);
   }, []);
 
   // ─── Revenir sur le choix de destination ──────────────
@@ -436,18 +473,27 @@ export default function ActionsMobileSheet() {
     if (drawerStep === "cart") {
       setDrawerStep("products");
       setSearchQuery("");
-      setTimeout(() => searchInputRef.current?.focus(), 100);
     } else if (drawerStep === "detail") {
       setProduct(null);
       setQuantity(1);
       setUnitPrice("");
       setDrawerStep("products");
       setSearchQuery("");
-      setTimeout(() => searchInputRef.current?.focus(), 100);
     } else if (drawerStep === "products" && actionMode === "exit") {
+      // On remonte d'un seul cran : vers la liste des techniciens si l'on en
+      // vient, vers la nature de la sortie sinon.
+      if (exitReason === "technician") {
+        setTechnicianId("");
+        setCart([]);
+        setDrawerStep("technicians");
+        setSearchQuery("");
+      } else {
+        clearExitReason();
+      }
+    } else if (drawerStep === "technicians") {
       clearExitReason();
     }
-  }, [drawerStep, actionMode, clearExitReason]);
+  }, [drawerStep, actionMode, exitReason, clearExitReason]);
 
   // ─── Submit single (entry / exit_anonymous) ───────────
   const handleSubmit = useCallback(() => {
@@ -491,7 +537,6 @@ export default function ActionsMobileSheet() {
       setProduct(null);
       setDrawerStep("products");
       setSearchQuery("");
-      setTimeout(() => searchInputRef.current?.focus(), 100);
     };
 
     const onError = (error: Error) => {
@@ -602,7 +647,6 @@ export default function ActionsMobileSheet() {
       setCart([]);
       setSearchQuery("");
       // Drawer stays open for rapid-fire
-      setTimeout(() => searchInputRef.current?.focus(), 100);
     }
   }, [
     orgId,
@@ -716,15 +760,17 @@ export default function ActionsMobileSheet() {
   const drawerTitle = useMemo(() => {
     if (actionMode === "entry") return "Entr\u00e9e";
     if (actionMode !== "exit") return "Action";
-    // Tant que la destination n'est pas choisie, l'annoncer serait mentir.
+    // Tant que la nature n'est pas choisie, l'annoncer serait mentir.
     if (!exitReason) return "Sortie";
+    if (drawerStep === "technicians") return "Quel technicien ?";
     return exitReason === "loss" ? "Erreur de stock" : "Sortie technicien";
-  }, [actionMode, exitReason]);
+  }, [actionMode, exitReason, drawerStep]);
 
   // ─── Pile : peut-on remonter d'un cran ? ──────────────
   const canGoBack =
     drawerStep === "detail" ||
     drawerStep === "cart" ||
+    drawerStep === "technicians" ||
     (drawerStep === "products" && actionMode === "exit");
 
   // ─── Barre d'action de l'etape courante ───────────────
@@ -795,8 +841,14 @@ export default function ActionsMobileSheet() {
           Deux choix, rien d'autre. Le scan et l'historique existent toujours
           mais en pied d'ecran : ce sont des outils, pas des decisions, et les
           melanger aux deux cartes ferait quatre choix au lieu de deux. */}
-      <div className="flex flex-col gap-3" style={{ minHeight: "calc(100dvh - 9rem)" }}>
-        <div className="flex-1 flex flex-col justify-center gap-3">
+      {/* Hauteur exacte, pas une estimation : 3rem de barre du haut et les 2rem
+          de padding du layout. Une valeur approchee laissait du vide en bas et
+          l'historique flottait au milieu de nulle part. */}
+      <div
+        className="flex flex-col gap-3"
+        style={{ height: "calc(100dvh - 5rem - env(safe-area-inset-bottom))" }}
+      >
+        <div className="flex-1 min-h-0 flex flex-col gap-3">
           {ACTION_OPTIONS.map(({ mode, label, hint, icon: Icon, accent, tint }, i) => (
             <motion.button
               key={mode}
@@ -806,7 +858,7 @@ export default function ActionsMobileSheet() {
               initial={{ opacity: 0, y: 16 }}
               animate={splashDone ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
               transition={{ type: "spring", bounce: 0, duration: 0.45, delay: i * 0.07 }}
-              className="w-full flex-1 max-h-[42vh] flex flex-col items-center justify-center gap-3 rounded-3xl border bg-white dark:bg-card px-5 py-8 active:scale-[0.98] transition-transform"
+              className="w-full flex-1 min-h-0 flex flex-col items-center justify-center gap-3 rounded-3xl border bg-white dark:bg-card px-5 active:scale-[0.98] transition-transform"
             >
               <span
                 className={cn(
@@ -828,8 +880,9 @@ export default function ActionsMobileSheet() {
           ))}
         </div>
 
-        {/* Pied d'ecran : l'historique seul, a portee de pouce */}
-        <div className="pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
+        {/* Pied d'ecran : l'historique seul, colle en bas. La zone sure est
+            deja retiree de la hauteur du conteneur. */}
+        <div className="shrink-0">
           <button
             onClick={() => setHistoryOpen(true)}
             className="w-full flex items-center justify-center gap-2 rounded-2xl border bg-white dark:bg-card py-3.5 active:scale-[0.97] transition-transform"
@@ -1000,8 +1053,10 @@ export default function ActionsMobileSheet() {
         open={drawerOpen && !batchScanOpen}
         title={drawerTitle}
         subtitle={
-          actionMode === "exit" && exitReason && drawerStep !== "reason"
-            ? exitDestination
+          // Pas avant que la destination soit reellement connue : sur l'ecran
+          // de choix du technicien, exitDestination est encore vide.
+          actionMode === "exit" && drawerStep !== "reason" && drawerStep !== "technicians"
+            ? exitDestination || undefined
             : undefined
         }
         onBack={canGoBack ? drawerGoBack : undefined}
@@ -1025,15 +1080,15 @@ export default function ActionsMobileSheet() {
             )}
 
             {/* Search input (products + technicians steps) */}
-            {(drawerStep === "products" || drawerStep === "reason") && (
+            {(drawerStep === "products" || drawerStep === "technicians") && (
               <div className="relative mt-2">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
                 <Input
                   ref={searchInputRef}
                   placeholder={
-                    drawerStep === "reason"
+                    drawerStep === "technicians"
                       ? "Rechercher un technicien\u2026"
-                      : exitReason
+                      : exitDestination
                         ? `Ajouter un produit \u2014 ${exitDestination}\u2026`
                         : "Rechercher un produit\u2026"
                   }
@@ -1046,7 +1101,6 @@ export default function ActionsMobileSheet() {
                     }
                   }}
                   className="pl-9 h-11 text-base bg-muted/50 rounded-xl"
-                  autoFocus
                 />
                 {searchQuery && (
                   <button
@@ -1065,15 +1119,48 @@ export default function ActionsMobileSheet() {
 
           {/* ── Drawer body (scrollable) ── */}
           <div className="flex-1 overflow-y-auto min-h-0 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-            {/* ═══ DESTINATION DE LA SORTIE (etape 2) ═══ */}
+            {/* ═══ NATURE DE LA SORTIE (etape 2) ═══
+                Deux cartes, comme a l'accueil : un choix binaire se presente
+                partout de la meme facon dans cette application. */}
             {drawerStep === "reason" && (
-              <div className="space-y-5 pt-1">
+              <div className="flex flex-col gap-3 pt-2">
+                {EXIT_REASON_OPTIONS.map(({ reason, label, hint, icon: Icon, accent, tint }) => (
+                  <button
+                    key={reason}
+                    onClick={() => selectExitReason(reason)}
+                    className="w-full flex items-center gap-4 rounded-2xl border bg-white dark:bg-card px-4 py-5 text-left active:scale-[0.98] transition-transform"
+                  >
+                    <span
+                      className={cn(
+                        "size-14 rounded-2xl flex items-center justify-center shrink-0",
+                        tint
+                      )}
+                    >
+                      <Icon className={cn("size-7", accent)} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-heading font-semibold text-[19px] leading-tight">
+                        {label}
+                      </span>
+                      <span className="block text-[13px] text-muted-foreground leading-tight mt-0.5">
+                        {hint}
+                      </span>
+                    </span>
+                    <ChevronLeft className="size-4 shrink-0 rotate-180 text-muted-foreground/40" />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* ═══ CHOIX DU TECHNICIEN (etape 3) ═══ */}
+            {drawerStep === "technicians" && (
+              <div className="pt-1">
                 {filteredTechnicians.length > 0 ? (
-                  <InsetGroup header="Sortie vers un technicien">
+                  <InsetGroup>
                     {filteredTechnicians.map((t) => (
                       <InsetRow
                         key={t.id}
-                        onClick={() => selectExitReason("technician", t.id)}
+                        onClick={() => selectTechnician(t.id)}
                         title={`${t.first_name} ${t.last_name}`}
                         leading={
                           <span className="size-9 rounded-full bg-muted flex items-center justify-center font-semibold shrink-0 text-xs">
@@ -1085,30 +1172,13 @@ export default function ActionsMobileSheet() {
                     ))}
                   </InsetGroup>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="flex flex-col items-center justify-center py-10 text-center">
                     <PackagePlus className="size-10 text-muted-foreground/20 mb-2" />
                     <p className="text-sm text-muted-foreground">
                       {debouncedSearch ? "Aucun technicien trouvé." : "Aucun technicien."}
                     </p>
                   </div>
                 )}
-
-                {/* Groupe distinct : une erreur de stock n'est pas un technicien.
-                    Les melanger exposerait a en choisir une en visant un nom
-                    voisin. La recherche ne la masque pas — c'est le recours
-                    quand aucun technicien ne convient. */}
-                <InsetGroup header="Ou" footer="Sort le stock sans l'attribuer à personne.">
-                  <InsetRow
-                    onClick={() => selectExitReason("loss")}
-                    title="Erreur de stock"
-                    subtitle="Casse, perte, écart d'inventaire"
-                    leading={
-                      <span className="size-9 rounded-full bg-attention-bg flex items-center justify-center shrink-0">
-                        <ArrowUpFromLine className="size-4 text-attention" />
-                      </span>
-                    }
-                  />
-                </InsetGroup>
               </div>
             )}
 
@@ -1394,7 +1464,6 @@ export default function ActionsMobileSheet() {
                     onClick={() => {
                       setDrawerStep("products");
                       setSearchQuery("");
-                      setTimeout(() => searchInputRef.current?.focus(), 100);
                     }}
                     className="text-xs text-primary font-medium"
                   >
