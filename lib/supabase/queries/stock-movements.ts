@@ -21,6 +21,9 @@ export interface StockMovement {
   invoice_reference?: string | null;
   /** Facture d'achat qui couvre ce mouvement (une facture → plusieurs achats) */
   invoice_id?: string | null;
+  reverses_movement_id?: string | null;
+  /** Quantite deja corrigee sur ce mouvement (quantite reelle = quantity - reversed_quantity) */
+  reversed_quantity?: number;
   created_at: string | null;
   product?: {
     id: string;
@@ -42,6 +45,11 @@ export interface StockMovement {
     id: string;
     name: string;
   } | null;
+  /** Facture d'achat rattachee, pour les entrees */
+  invoice?: {
+    id: string;
+    reference: string | null;
+  } | null;
 }
 
 export interface StockMovementFilters {
@@ -58,6 +66,13 @@ export interface StockMovementFilters {
   movementTypes?: MovementType[];
   /** Recherche sur le nom du produit ou celui du technicien */
   search?: string;
+  /**
+   * Tri serveur. Limite aux colonnes de stock_movements : PostgREST ne sait
+   * pas trier une table par une colonne d'une table liee, donc produit,
+   * technicien, societe et fournisseur ne sont pas triables.
+   */
+  sortBy?: "created_at" | "movement_type" | "quantity" | "total_value";
+  sortDir?: "asc" | "desc";
   page?: number;
   pageSize?: number;
 }
@@ -79,18 +94,33 @@ export const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
   unassign_equipment: "Retour outil",
 };
 
-export const MOVEMENT_TYPE_COLORS: Record<MovementType, string> = {
-  entry: "success",
-  exit_technician: "info",
-  exit_anonymous: "secondary",
-  exit_loss: "secondary",
-  assign_equipment: "info",
-  unassign_equipment: "success",
-};
-
 /**
  * Récupère la liste des mouvements de stock avec filtres et pagination
  */
+/**
+ * Annule un mouvement par un mouvement inverse.
+ *
+ * Le mouvement fautif reste dans l'historique : on voit l'erreur et sa
+ * correction. La fonction en base retablit stock produit, stock par societe
+ * et inventaire technicien dans la meme transaction.
+ */
+export async function reverseStockMovement(
+  movementId: string,
+  /** Quantite a corriger. Omise, corrige le solde restant. */
+  quantity?: number
+): Promise<void> {
+  const supabase = createClient();
+
+  const { error } = await supabase.rpc("reverse_stock_movement", {
+    p_movement_id: movementId,
+    p_quantity: quantity ?? undefined,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 /**
  * Nombre de mouvements par type, toutes pages confondues.
  *
@@ -136,6 +166,8 @@ export async function getStockMovements(
     technicianIds,
     movementTypes,
     search,
+    sortBy = "created_at",
+    sortDir = "desc",
     page = 1,
     pageSize = 20,
   } = filters;
@@ -148,7 +180,8 @@ export async function getStockMovements(
       product:products(id, name, sku, image_url, supplier_id),
       technician:technicians(id, first_name, last_name),
       supplier:suppliers(id, name),
-      organization:organizations(id, name)
+      organization:organizations(id, name),
+      invoice:purchase_invoices(id, reference)
     `,
     { count: "exact" }
   );
@@ -222,7 +255,12 @@ export async function getStockMovements(
     query = query.or(clauses.join(","));
   }
 
-  query = query.order("created_at", { ascending: false });
+  query = query.order(sortBy, { ascending: sortDir === "asc" });
+  // Departage stable : sans second critere, deux lignes de meme montant ou de
+  // meme type peuvent changer de place entre deux pages.
+  if (sortBy !== "created_at") {
+    query = query.order("created_at", { ascending: false });
+  }
 
   const from = (page - 1) * pageSize;
   query = query.range(from, from + pageSize - 1);
@@ -407,8 +445,11 @@ export async function getProductMovementStats(
 
   const { data, error } = await supabase
     .from("stock_movements")
-    .select("quantity, movement_type, created_at")
+    .select("quantity, reversed_quantity, movement_type, created_at")
     .eq("product_id", productId)
+    // Les lignes de correction sont ecartees : leur effet est deja retranche
+    // de la quantite nette du mouvement d'origine.
+    .is("reverses_movement_id", null)
     .gte("created_at", startDate.toISOString())
     .order("created_at", { ascending: true });
 
@@ -426,10 +467,11 @@ export async function getProductMovementStats(
       dailyStats[date] = { entries: 0, exits: 0 };
     }
 
+    const netQty = movement.quantity - (movement.reversed_quantity ?? 0);
     if (movement.movement_type === "entry") {
-      dailyStats[date].entries += movement.quantity;
+      dailyStats[date].entries += netQty;
     } else {
-      dailyStats[date].exits += movement.quantity;
+      dailyStats[date].exits += netQty;
     }
   });
 
@@ -461,8 +503,9 @@ export async function getYearlyEntryValuesByOrg(year?: number): Promise<{
   // 1. Entry values by org (join with products for price)
   const { data: entries, error: entriesError } = await supabase
     .from("stock_movements")
-    .select("quantity, organization_id, product:products(price)")
+    .select("quantity, reversed_quantity, unit_price, organization_id, product:products(price)")
     .eq("movement_type", "entry")
+    .is("reverses_movement_id", null)
     .gte("created_at", startOfYear)
     .lt("created_at", endOfYear);
 
@@ -474,8 +517,12 @@ export async function getYearlyEntryValuesByOrg(year?: number): Promise<{
   let cumul = 0;
 
   entries?.forEach((m) => {
-    const price = (m.product as unknown as { price: number | null })?.price ?? 0;
-    const value = m.quantity * price;
+    // Prix paye au moment de l'achat, pas le tarif du jour : sans cela, une
+    // revision tarifaire reecrit retroactivement le montant des achats passes.
+    // Repli sur le prix produit pour les entrees saisies sans prix.
+    const price = m.unit_price ?? (m.product as unknown as { price: number | null })?.price ?? 0;
+    // Quantite nette : ce qui a ete corrige n'a pas ete achete.
+    const value = (m.quantity - (m.reversed_quantity ?? 0)) * price;
     const orgId = m.organization_id ?? "unknown";
     byOrg[orgId] = (byOrg[orgId] ?? 0) + value;
     cumul += value;
@@ -566,8 +613,11 @@ export async function getYearlyEntryQtyByProduct(
 
   const { data, error } = await supabase
     .from("stock_movements")
-    .select("product_id, organization_id, quantity, unit_price, supplier:suppliers(name)")
+    .select(
+      "product_id, organization_id, quantity, reversed_quantity, unit_price, supplier:suppliers(name)"
+    )
     .eq("movement_type", "entry")
+    .is("reverses_movement_id", null)
     .gte("created_at", startOfYear)
     .lt("created_at", endOfYear);
 
@@ -582,16 +632,21 @@ export async function getYearlyEntryQtyByProduct(
     const oid = m.organization_id ?? "unknown";
     const price = m.unit_price ?? 0;
 
+    // Quantite nette : ce qui a ete corrige n'a pas ete achete. Une entree
+    // entierement corrigee disparait donc du recap des achats.
+    const netQty = m.quantity - (m.reversed_quantity ?? 0);
+    if (netQty <= 0) return;
+
     if (!result[pid]) result[pid] = {};
     if (!result[pid][oid]) result[pid][oid] = { qty: 0, byPrice: [], suppliers: [] };
 
-    result[pid][oid].qty += m.quantity;
+    result[pid][oid].qty += netQty;
 
     const existing = result[pid][oid].byPrice.find((bp) => bp.unitPrice === price);
     if (existing) {
-      existing.qty += m.quantity;
+      existing.qty += netQty;
     } else {
-      result[pid][oid].byPrice.push({ unitPrice: price, qty: m.quantity });
+      result[pid][oid].byPrice.push({ unitPrice: price, qty: netQty });
     }
 
     // Fournisseur de l'entrée (jointure many-to-one : objet ou tableau selon l'inférence)

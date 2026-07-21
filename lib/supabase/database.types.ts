@@ -465,6 +465,9 @@ export type Database = {
           organization_id: string | null;
           product_id: string;
           quantity: number;
+          total_value: number | null;
+          reverses_movement_id: string | null;
+          reversed_quantity: number;
           supplier_id: string | null;
           technician_id: string | null;
           unit_price: number | null;
@@ -501,6 +504,13 @@ export type Database = {
             columns: ["organization_id"];
             isOneToOne: false;
             referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_movements_invoice_id_fkey";
+            columns: ["invoice_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_invoices";
             referencedColumns: ["id"];
           },
           {
@@ -935,6 +945,10 @@ export type Database = {
       get_movement_type_counts: {
         Args: Record<string, never>;
         Returns: { movement_type: string; count: number }[];
+      };
+      reverse_stock_movement: {
+        Args: { p_movement_id: string; p_quantity?: number };
+        Returns: Json;
       };
       get_suppliers_with_stats: {
         Args: { p_organization_id: string };

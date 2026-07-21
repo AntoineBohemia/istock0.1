@@ -143,12 +143,15 @@ export async function getTechnician(id: string): Promise<TechnicianWithInventory
   const yearStart = new Date(new Date().getFullYear(), 0, 1).toISOString();
   const { data: yearMovements } = await supabase
     .from("stock_movements")
-    .select("quantity")
+    .select("quantity, reversed_quantity")
     .eq("technician_id", id)
     .eq("movement_type", "exit_technician")
+    .is("reverses_movement_id", null)
     .gte("created_at", yearStart);
 
-  const yearUnitsTotal = yearMovements?.reduce((sum, m) => sum + m.quantity, 0) || 0;
+  // Quantite nette : une sortie corrigee n'a pas ete consommee par le technicien
+  const yearUnitsTotal =
+    yearMovements?.reduce((sum, m) => sum + m.quantity - (m.reversed_quantity ?? 0), 0) || 0;
   const inventoryCount = inventory?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
   return {

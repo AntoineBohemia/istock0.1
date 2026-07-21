@@ -66,7 +66,6 @@ const protectedRoutes = [
     icon: ShoppingCart,
     description: "Gestion des commandes",
     children: [
-      { title: "Détail commande", href: "/mouvements/1" },
       { title: "Entrée stock", href: "/mouvements/entree/1" },
       { title: "Sortie stock", href: "/mouvements/sortie/1" },
     ],
@@ -144,16 +143,10 @@ export default function DevPage() {
                   <div className="p-2 rounded-md bg-blue-500/10 text-blue-500">
                     <route.icon className="h-4 w-4" />
                   </div>
-                  <span className="font-medium group-hover:underline">
-                    {route.title}
-                  </span>
+                  <span className="font-medium group-hover:underline">{route.title}</span>
                 </div>
-                <p className="text-xs text-muted-foreground mb-2">
-                  {route.description}
-                </p>
-                <code className="text-xs bg-muted px-2 py-0.5 rounded">
-                  {route.href}
-                </code>
+                <p className="text-xs text-muted-foreground mb-2">{route.description}</p>
+                <code className="text-xs bg-muted px-2 py-0.5 rounded">{route.href}</code>
               </Link>
             ))}
           </div>
@@ -187,13 +180,9 @@ export default function DevPage() {
                         {route.title}
                         <ExternalLink className="h-3 w-3" />
                       </Link>
-                      <code className="text-xs bg-muted px-2 py-1 rounded">
-                        {route.href}
-                      </code>
+                      <code className="text-xs bg-muted px-2 py-1 rounded">{route.href}</code>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      {route.description}
-                    </p>
+                    <p className="text-sm text-muted-foreground">{route.description}</p>
                     {route.children && (
                       <div className="flex flex-wrap gap-2 pt-2">
                         {route.children.map((child) => (
@@ -203,9 +192,7 @@ export default function DevPage() {
                             className="inline-flex items-center gap-1 text-xs bg-secondary hover:bg-secondary/80 px-2 py-1 rounded transition-colors"
                           >
                             {child.title}
-                            <code className="text-muted-foreground">
-                              {child.href}
-                            </code>
+                            <code className="text-muted-foreground">{child.href}</code>
                           </Link>
                         ))}
                       </div>
@@ -234,13 +221,9 @@ export default function DevPage() {
                   <div className="p-2 rounded-md bg-red-500/10 text-red-500">
                     <route.icon className="h-4 w-4" />
                   </div>
-                  <span className="font-medium group-hover:underline">
-                    {route.title}
-                  </span>
+                  <span className="font-medium group-hover:underline">{route.title}</span>
                 </div>
-                <code className="text-xs bg-muted px-2 py-0.5 rounded">
-                  {route.href}
-                </code>
+                <code className="text-xs bg-muted px-2 py-0.5 rounded">{route.href}</code>
               </Link>
             ))}
           </div>
@@ -251,8 +234,7 @@ export default function DevPage() {
           <p>Cette page est visible uniquement en mode développement.</p>
           <p className="mt-1">
             Les pages protégées redirigent vers{" "}
-            <code className="bg-muted px-1 rounded">/login</code> si non
-            connecté.
+            <code className="bg-muted px-1 rounded">/login</code> si non connecté.
           </p>
         </footer>
       </div>

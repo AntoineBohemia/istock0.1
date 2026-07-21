@@ -2,13 +2,13 @@
 
 import { startTransition, useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useDebouncedValue } from "@/hooks/use-debounce";
 import {
   ColumnDef,
   SortingState,
   flexRender,
   getCoreRowModel,
-  getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 import {
@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Download,
   Truck,
+  Undo2,
   HardHat,
   X,
 } from "lucide-react";
@@ -65,6 +66,7 @@ import {
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import ProductIconDisplay from "@/components/product-icon-display";
 import { FilterChip } from "@/components/filter-chip";
+import { MovementTypePill } from "@/components/movement-type-pill";
 import { TableColumnToggle } from "@/components/table-column-toggle";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { cn } from "@/lib/utils";
@@ -340,7 +342,7 @@ const TYPE_FILTER_OPTIONS: { value: string; label: string }[] = [
 // ─── Main component ────────────────────────────────────────
 export default function MovementsList() {
   const router = useRouter();
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: "created_at", desc: true }]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => ({
     from: startOfYear(new Date()),
     to: new Date(),
@@ -372,6 +374,14 @@ export default function MovementsList() {
       supplierIds: filterSuppliers.size > 0 ? Array.from(filterSuppliers) : undefined,
       technicianIds: filterTechs.size > 0 ? Array.from(filterTechs) : undefined,
       search: debouncedSearch || undefined,
+      // Le tri part au serveur : seules les colonnes de stock_movements sont
+      // triables, les colonnes de tables liees n'ont pas de bouton de tri.
+      sortBy: (sorting[0]?.id ?? "created_at") as
+        | "created_at"
+        | "movement_type"
+        | "quantity"
+        | "total_value",
+      sortDir: (sorting[0]?.desc ?? true) ? ("desc" as const) : ("asc" as const),
       startDate: dateRange?.from ? startOfDay(dateRange.from).toISOString() : undefined,
       endDate: dateRange?.to
         ? endOfDay(dateRange.to).toISOString()
@@ -381,7 +391,16 @@ export default function MovementsList() {
       page,
       pageSize: PAGE_SIZE,
     }),
-    [filterTypes, filterOrgs, filterSuppliers, filterTechs, debouncedSearch, dateRange, page]
+    [
+      filterTypes,
+      filterOrgs,
+      filterSuppliers,
+      filterTechs,
+      debouncedSearch,
+      dateRange,
+      sorting,
+      page,
+    ]
   );
 
   const { data: movementsResult, isLoading, isError, refetch } = useStockMovements(serverFilters);
@@ -440,10 +459,13 @@ export default function MovementsList() {
   }, []);
 
   // Valeur de la page affichee. Seules les entrees portent un prix unitaire.
+  // Les corrections sont exclues : une annulation porte le meme prix unitaire
+  // que le mouvement qu'elle defait, l'additionner doublerait le montant.
   const pageValue = useMemo(
     () =>
       movements.reduce(
-        (sum, m) => (m.unit_price ? sum + m.quantity * Number(m.unit_price) : sum),
+        (sum, m) =>
+          m.unit_price && !m.reverses_movement_id ? sum + m.quantity * Number(m.unit_price) : sum,
         0
       ),
     [movements]
@@ -532,29 +554,41 @@ export default function MovementsList() {
         accessorKey: "movement_type",
         meta: { label: "Type" },
         header: ({ column }) => <SortHeader label="Type" column={column} />,
-        cell: ({ row }) => {
-          const type = row.original.movement_type;
-          const isEquipment = type === "assign_equipment" || type === "unassign_equipment";
-          return (
+        cell: ({ row }) => <MovementTypePill type={row.original.movement_type} />,
+      },
+      {
+        // Un mouvement de correction ressemble a un mouvement ordinaire :
+        // sans marqueur, il gonflerait la lecture des entrees et sorties.
+        id: "correction",
+        meta: { label: "Correction" },
+        accessorFn: (row) => (row.reverses_movement_id ? 1 : 0),
+        header: () => (
+          <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
+            Correction
+          </span>
+        ),
+        cell: ({ row }) =>
+          row.original.reverses_movement_id ? (
             <span
-              className={cn(
-                "inline-flex items-center rounded-full px-2 py-0.5 text-[13px] font-medium",
-                type === "entry" && "text-standard bg-standard-bg",
-                type === "exit_technician" && "text-critique bg-critique-bg",
-                type === "exit_anonymous" && "text-attention bg-attention-bg",
-                isEquipment && "text-primary bg-primary/10"
-              )}
+              className="inline-flex items-center gap-1 rounded-full bg-foreground/[0.06] px-2 py-0.5 text-[11px] font-semibold"
+              title="Ce mouvement annule un mouvement precedent"
             >
-              {MOVEMENT_TYPE_LABELS[type]}
+              <Undo2 className="size-3" />
+              Annulation
             </span>
-          );
-        },
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          ),
       },
       {
         id: "product",
         enableHiding: false,
         accessorFn: (row) => row.product?.name ?? "",
-        header: ({ column }) => <SortHeader label="Produit" column={column} />,
+        header: () => (
+          <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
+            Produit
+          </span>
+        ),
         cell: ({ row }) => {
           const product = row.original.product;
           return (
@@ -580,7 +614,11 @@ export default function MovementsList() {
         meta: { label: "Technicien" },
         accessorFn: (row) =>
           row.technician ? `${row.technician.first_name} ${row.technician.last_name}` : "",
-        header: ({ column }) => <SortHeader label="Technicien" column={column} />,
+        header: () => (
+          <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
+            Technicien
+          </span>
+        ),
         cell: ({ row }) => {
           const technician = row.original.technician;
           if (!technician) return <span className="text-muted-foreground">—</span>;
@@ -614,7 +652,7 @@ export default function MovementsList() {
       {
         // 96 mouvements portent un prix unitaire, pour pres de 92 000 EUR
         // d'entrees : aucune colonne ne les montrait.
-        id: "value",
+        id: "total_value",
         accessorFn: (row) => (row.unit_price ? row.quantity * Number(row.unit_price) : 0),
         header: ({ column }) => <SortHeader label="Montant" column={column} />,
         cell: ({ row }) => {
@@ -638,7 +676,11 @@ export default function MovementsList() {
         id: "organization",
         meta: { label: "Société" },
         accessorFn: (row) => row.organization?.name ?? "",
-        header: ({ column }) => <SortHeader label="Société" column={column} />,
+        header: () => (
+          <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
+            Société
+          </span>
+        ),
         cell: ({ row }) => {
           const org = row.original.organization;
           if (!org) return <span className="text-muted-foreground">—</span>;
@@ -649,7 +691,11 @@ export default function MovementsList() {
         id: "supplier",
         meta: { label: "Fournisseur" },
         accessorFn: (row) => row.supplier?.name ?? "",
-        header: ({ column }) => <SortHeader label="Fournisseur" column={column} />,
+        header: () => (
+          <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
+            Fournisseur
+          </span>
+        ),
         cell: ({ row }) => {
           if (row.original.movement_type !== "entry") {
             return <span className="text-muted-foreground">—</span>;
@@ -659,17 +705,45 @@ export default function MovementsList() {
           return <span className="text-[15px]">{supplier.name}</span>;
         },
       },
+      {
+        // La facture rattachee n'apparaissait ni ici ni sur la fiche : la
+        // relation n'etait consultable que depuis la page Factures.
+        id: "invoice",
+        meta: { label: "Facture" },
+        accessorFn: (row) => row.invoice?.reference ?? "",
+        header: () => (
+          <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
+            Facture
+          </span>
+        ),
+        cell: ({ row }) => {
+          const invoice = row.original.invoice;
+          if (!invoice) return <span className="text-muted-foreground">—</span>;
+          return (
+            <Link
+              href={`/factures?facture=${invoice.id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="text-[15px] hover:underline underline-offset-2"
+            >
+              {invoice.reference || "Sans réf."}
+            </Link>
+          );
+        },
+      },
     ],
     []
   );
 
+  // Pas de getSortedRowModel : le tri se fait au serveur. Le conserver aurait
+  // reordonne les 50 lignes de la page courante en laissant croire a un
+  // classement sur les 871 mouvements.
   const table = useReactTable({
     data: movements,
     columns,
+    manualSorting: true,
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     state: { sorting, columnVisibility },
   });
 

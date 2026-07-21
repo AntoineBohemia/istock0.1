@@ -87,8 +87,12 @@ export async function exportMovementsExcel({
   const fmt = (n: number) => n.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
 
   // ─── Indicateurs ───────────────────────────────────────
-  const entries = movements.filter((m) => m.movement_type === "entry");
-  const exits = movements.filter((m) => m.movement_type.startsWith("exit"));
+  // Les corrections s'excluent des indicateurs : une annulation d'entree est
+  // techniquement une sortie, mais rien n'est reellement sorti du stock. Les
+  // compter gonflerait les totaux des deux cotes.
+  const real = movements.filter((m) => !m.reverses_movement_id);
+  const entries = real.filter((m) => m.movement_type === "entry");
+  const exits = real.filter((m) => m.movement_type.startsWith("exit"));
   const unitsIn = entries.reduce((s, m) => s + m.quantity, 0);
   const unitsOut = exits.reduce((s, m) => s + m.quantity, 0);
   const valueIn = entries.reduce(

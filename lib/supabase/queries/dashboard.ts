@@ -519,7 +519,9 @@ export async function getGlobalStockEvolution(
   // Récupérer tous les mouvements sur la période
   let movementsQuery = supabase
     .from("stock_movements")
-    .select("quantity, movement_type, created_at")
+    // Quantite nette : une entree de 40 corrigee de 36 vaut 4. Les lignes de
+    // correction sont ecartees, sinon elles compteraient une seconde fois.
+    .select("quantity, reversed_quantity, movement_type, created_at")
     .gte("created_at", startDate.toISOString())
     .order("created_at", { ascending: true });
 
@@ -556,10 +558,12 @@ export async function getGlobalStockEvolution(
       monthlyData[monthKey] = { entries: 0, exits: 0 };
     }
 
+    // Quantite nette : ce qui a ete corrige n'a jamais eu lieu
+    const netQty = movement.quantity - (movement.reversed_quantity ?? 0);
     if (movement.movement_type === "entry") {
-      monthlyData[monthKey].entries += movement.quantity;
+      monthlyData[monthKey].entries += netQty;
     } else {
-      monthlyData[monthKey].exits += movement.quantity;
+      monthlyData[monthKey].exits += netQty;
     }
   });
 
@@ -645,7 +649,9 @@ export async function getProductStockEvolution(
   // Récupérer tous les mouvements du produit sur la période
   const { data: movements, error } = await supabase
     .from("stock_movements")
-    .select("quantity, movement_type, created_at")
+    // Quantite nette : une entree de 40 corrigee de 36 vaut 4. Les lignes de
+    // correction sont ecartees, sinon elles compteraient une seconde fois.
+    .select("quantity, reversed_quantity, movement_type, created_at")
     .eq("product_id", productId)
     .gte("created_at", startDate.toISOString())
     .order("created_at", { ascending: true });
@@ -666,10 +672,12 @@ export async function getProductStockEvolution(
       monthlyData[monthKey] = { entries: 0, exits: 0 };
     }
 
+    // Quantite nette : ce qui a ete corrige n'a jamais eu lieu
+    const netQty = movement.quantity - (movement.reversed_quantity ?? 0);
     if (movement.movement_type === "entry") {
-      monthlyData[monthKey].entries += movement.quantity;
+      monthlyData[monthKey].entries += netQty;
     } else {
-      monthlyData[monthKey].exits += movement.quantity;
+      monthlyData[monthKey].exits += netQty;
     }
   });
 
@@ -764,7 +772,9 @@ export async function getCategoryStockEvolution(
   // Récupérer tous les mouvements des produits de la catégorie sur la période
   const { data: movements, error } = await supabase
     .from("stock_movements")
-    .select("quantity, movement_type, created_at")
+    // Quantite nette : une entree de 40 corrigee de 36 vaut 4. Les lignes de
+    // correction sont ecartees, sinon elles compteraient une seconde fois.
+    .select("quantity, reversed_quantity, movement_type, created_at")
     .in("product_id", productIds)
     .gte("created_at", startDate.toISOString())
     .order("created_at", { ascending: true });
@@ -785,10 +795,12 @@ export async function getCategoryStockEvolution(
       monthlyData[monthKey] = { entries: 0, exits: 0 };
     }
 
+    // Quantite nette : ce qui a ete corrige n'a jamais eu lieu
+    const netQty = movement.quantity - (movement.reversed_quantity ?? 0);
     if (movement.movement_type === "entry") {
-      monthlyData[monthKey].entries += movement.quantity;
+      monthlyData[monthKey].entries += netQty;
     } else {
-      monthlyData[monthKey].exits += movement.quantity;
+      monthlyData[monthKey].exits += netQty;
     }
   });
 

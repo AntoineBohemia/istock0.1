@@ -209,6 +209,8 @@ export async function getUnlinkedEntries(organizationId: string): Promise<
     .select("id, quantity, unit_price, created_at, product:products(id, name, sku)")
     .eq("organization_id", organizationId)
     .eq("movement_type", "entry")
+    // Une correction n'est pas un achat : elle n'a pas a etre rattachee a une facture
+    .is("reverses_movement_id", null)
     .is("invoice_id", null)
     .order("created_at", { ascending: false })
     .limit(100);
