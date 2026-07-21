@@ -42,9 +42,13 @@ import { useCreateStockEntry, useCreateStockExit } from "@/hooks/mutations";
 import { calculateStockScore, getStockBadgeVariant } from "@/lib/utils/stock";
 import { cn } from "@/lib/utils";
 import { useDebouncedValue } from "@/hooks/use-debounce";
-import { MOVEMENT_TYPE_LABELS, isPositiveMovement } from "@/lib/supabase/queries/stock-movements";
 import { MobileStackScreen, InsetGroup, InsetRow, InsetField } from "./mobile-stack-screen";
 import { MobileSplash } from "./mobile-splash";
+import {
+  MobileHistorySheet,
+  movementToHistoryEntry,
+  type HistoryEntry,
+} from "./mobile-history-sheet";
 
 const QrScannerModal = dynamic(() => import("@/components/qr-scanner-modal"), { ssr: false });
 
@@ -254,6 +258,28 @@ export default function ActionsMobileSheet() {
   // Compteur du pied d'ecran : sans lui, rien n'indique qu'il y a quelque
   // chose derriere le bouton.
   const todayCount = session.length + olderMovements.length;
+
+  // ─── Lignes d'historique ───────────────────────────────
+  // Deux origines, une seule forme : ce que l'on vient d'enregistrer (encore
+  // annulable) et ce qui existait avant l'ouverture de la page.
+  const sessionEntries: HistoryEntry[] = useMemo(
+    () =>
+      session.map((e) => ({
+        key: e.localId,
+        movementType: e.movementType,
+        productName: e.productName,
+        quantity: e.quantity,
+        who: e.technicianName,
+        at: e.createdAt,
+        undoable: true,
+      })),
+    [session]
+  );
+  const olderEntries: HistoryEntry[] = useMemo(
+    () => olderMovements.map(movementToHistoryEntry),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [todayResult, pageLoadTime]
+  );
 
   // ─── Mutations ─────────────────────────────────────────
   const createEntry = useCreateStockEntry();
@@ -933,153 +959,19 @@ export default function ActionsMobileSheet() {
         </div>
       </div>
 
-      {/* ═══ HISTORIQUE DU JOUR (tiroir) ═══ */}
-      <Drawer open={historyOpen} onOpenChange={setHistoryOpen}>
-        <DrawerContent className="max-h-[85vh] flex flex-col">
-          <DrawerTitle className="px-4 pt-3 pb-2 font-heading text-base font-semibold shrink-0">
-            Historique du jour
-          </DrawerTitle>
-          <div className="flex-1 overflow-y-auto min-h-0 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-            {session.length === 0 && olderMovements.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                {isLoadingToday ? (
-                  <div className="w-full space-y-2 px-1">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <div key={i} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5">
-                        <Skeleton className="h-4 w-8 shrink-0" />
-                        <div className="flex-1 space-y-1.5">
-                          <Skeleton className="h-3.5 w-3/4" />
-                          <Skeleton className="h-3 w-1/2" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <>
-                    <Clock className="size-10 text-muted-foreground/20 mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      Aucun mouvement aujourd&apos;hui.
-                    </p>
-                  </>
-                )}
-              </div>
-            ) : (
-              <ul className="space-y-1.5">
-                {/* Session entries (current session, with undo) */}
-                {session.map((entry) => {
-                  const isEntry = isPositiveMovement(entry.movementType);
-                  const reverting = revertingIds.has(entry.localId);
-                  const time = new Date(entry.createdAt).toLocaleTimeString("fr-FR", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  });
-                  return (
-                    <li
-                      key={entry.localId}
-                      className={cn(
-                        "rounded-xl border-l-2 px-3 py-2.5",
-                        isEntry
-                          ? "border-l-standard bg-standard-bg/30"
-                          : "border-l-critique bg-critique-bg/30"
-                      )}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <span
-                          className={cn(
-                            "font-heading font-bold tabular-nums text-sm shrink-0",
-                            isEntry ? "text-standard" : "text-critique"
-                          )}
-                        >
-                          {isEntry ? "+" : "-"}
-                          {entry.quantity}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{entry.productName}</p>
-                          <p className="text-sm text-muted-foreground truncate">
-                            {MOVEMENT_TYPE_LABELS[entry.movementType]}
-                            {entry.technicianName && ` \u2192 ${entry.technicianName}`}
-                          </p>
-                        </div>
-                        <span className="text-sm font-heading tabular-nums text-muted-foreground shrink-0">
-                          {time}
-                        </span>
-                        <button
-                          onClick={() => handleRevert(entry)}
-                          disabled={reverting}
-                          className="text-sm text-muted-foreground active:text-foreground shrink-0 disabled:opacity-30 min-h-[44px] flex items-center px-1"
-                        >
-                          {reverting ? "\u2026" : "annuler"}
-                        </button>
-                      </div>
-                    </li>
-                  );
-                })}
-
-                {/* Separator if both session + older exist */}
-                {olderMovements.length > 0 && session.length > 0 && (
-                  <li className="pt-2 pb-1 px-1">
-                    <span className="text-sm uppercase tracking-wider text-muted-foreground">
-                      Plus tot
-                    </span>
-                  </li>
-                )}
-
-                {/* Older movements (before page load) */}
-                {olderMovements.map((m) => {
-                  const isEntry = isPositiveMovement(m.movement_type);
-                  const time = m.created_at
-                    ? new Date(m.created_at).toLocaleTimeString("fr-FR", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : "";
-                  const techName = m.technician
-                    ? `${m.technician.first_name} ${m.technician.last_name}`
-                    : undefined;
-                  const typeLabel = MOVEMENT_TYPE_LABELS[m.movement_type] ?? m.movement_type;
-                  return (
-                    <li
-                      key={m.id}
-                      className={cn(
-                        "rounded-xl border-l-2 px-3 py-2.5",
-                        isEntry
-                          ? "border-l-standard/50 bg-standard-bg/20"
-                          : "border-l-critique/50 bg-critique-bg/20"
-                      )}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <span
-                          className={cn(
-                            "font-heading font-bold tabular-nums text-sm shrink-0",
-                            isEntry ? "text-standard" : "text-critique"
-                          )}
-                        >
-                          {isEntry ? "+" : "-"}
-                          {m.quantity}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {m.product?.name ?? "\u2014"}
-                          </p>
-                          <p className="text-sm text-muted-foreground truncate">
-                            {typeLabel}
-                            {techName && ` \u2192 ${techName}`}
-                          </p>
-                        </div>
-                        {time && (
-                          <span className="text-sm font-heading tabular-nums text-muted-foreground shrink-0">
-                            {time}
-                          </span>
-                        )}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        </DrawerContent>
-      </Drawer>
+      {/* ═══ HISTORIQUE DU JOUR ═══ */}
+      <MobileHistorySheet
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        session={sessionEntries}
+        older={olderEntries}
+        isLoading={isLoadingToday}
+        revertingKeys={revertingIds}
+        onUndo={(key) => {
+          const entry = session.find((e) => e.localId === key);
+          if (entry) handleRevert(entry);
+        }}
+      />
 
       {/* ═══════════════════════════════════════════════════════ */}
       {/* PILE D'ECRANS (etapes)                                 */}
@@ -1269,11 +1161,6 @@ export default function ActionsMobileSheet() {
                       // dire ici plutot qu'a la validation, apres avoir fait
                       // remplir un panier pour rien.
                       const outOfStock = actionMode === "exit" && stock <= 0;
-                      // Meme jauge que sur l'ordinateur : le seuil mini vaut la
-                      // moitie de la cible, on lit d'un coup ce qui reste avant
-                      // de descendre trop bas.
-                      const target = (p.stock_min ?? 10) * 2;
-                      const pct = target > 0 ? Math.min(100, (stock / target) * 100) : 0;
                       const cartQty = cart.find((item) => item.product.id === p.id)?.quantity ?? 0;
                       const consoleP: ConsoleProduct = {
                         id: p.id,
@@ -1344,34 +1231,21 @@ export default function ActionsMobileSheet() {
                               </p>
                             </div>
 
-                            {/* Etat du stock : le chiffre, son verdict, sa jauge */}
-                            <div className="mt-auto w-full space-y-1.5">
-                              <div className="flex items-center justify-between gap-1">
-                                <span
-                                  className={cn(
-                                    "font-heading font-bold tabular-nums text-xl leading-none",
-                                    inCart && "text-primary",
-                                    !inCart && status === "critique" && "text-critique",
-                                    !inCart && status === "attention" && "text-attention"
-                                  )}
-                                >
-                                  {inCart ? `×${cartQty}` : stock}
-                                </span>
-                                <StatusPill status={status} className="whitespace-nowrap" />
-                              </div>
-                              <div className="h-1 w-full rounded-full bg-foreground/[0.06] overflow-hidden">
-                                <div
-                                  className={cn(
-                                    "h-full rounded-full",
-                                    status === "critique"
-                                      ? "bg-critique/50"
-                                      : status === "attention"
-                                        ? "bg-attention/50"
-                                        : "bg-foreground/25"
-                                  )}
-                                  style={{ width: `${pct}%` }}
-                                />
-                              </div>
+                            {/* Etat du stock : le chiffre et son verdict.
+                                La jauge disait une troisieme fois ce que le
+                                chiffre et la pastille disaient deja. */}
+                            <div className="mt-auto w-full flex items-center justify-between gap-1">
+                              <span
+                                className={cn(
+                                  "font-heading font-bold tabular-nums text-xl leading-none",
+                                  inCart && "text-primary",
+                                  !inCart && status === "critique" && "text-critique",
+                                  !inCart && status === "attention" && "text-attention"
+                                )}
+                              >
+                                {inCart ? `×${cartQty}` : stock}
+                              </span>
+                              <StatusPill status={status} className="whitespace-nowrap" />
                             </div>
                           </button>
                         </li>
