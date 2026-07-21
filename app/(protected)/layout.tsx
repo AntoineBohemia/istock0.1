@@ -9,6 +9,7 @@ import OrganizationProvider from "@/components/organization-provider";
 import { RoleRouteGuard } from "@/components/role-route-guard";
 import { MobileRouteGuard } from "@/components/mobile-route-guard";
 import QueryProvider from "@/components/query-provider";
+import { RealtimeSync } from "@/components/realtime-sync";
 
 export default async function AuthLayout({
   children,
@@ -22,6 +23,8 @@ export default async function AuthLayout({
 
   return (
     <QueryProvider>
+      {/* Sous QueryProvider : l'abonnement invalide le cache des requetes */}
+      <RealtimeSync />
       <OrganizationProvider>
         <RoleRouteGuard>
           <SidebarProvider defaultOpen={defaultOpen}>

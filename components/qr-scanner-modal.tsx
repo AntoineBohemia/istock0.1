@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { X, Camera, AlertCircle } from "lucide-react";
 
@@ -32,6 +32,9 @@ export default function QrScannerModal({
   const [scanFlash, setScanFlash] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Identifiant propre a l'instance : « qr-reader » etait code en dur, donc
+  // deux lecteurs montes en meme temps visaient le meme noeud.
+  const readerId = `qr-reader-${useId().replace(/:/g, "")}`;
   const lastScanTime = useRef(0);
   const continuousRef = useRef(continuous);
   useEffect(() => {
@@ -47,16 +50,24 @@ export default function QrScannerModal({
   });
 
   const stopScanner = useCallback(async () => {
-    if (scannerRef.current) {
-      try {
-        const state = scannerRef.current.getState();
-        if (state === 2) {
-          await scannerRef.current.stop();
-        }
-      } catch {
-        // Ignore stop errors
-      }
-      scannerRef.current = null;
+    const scanner = scannerRef.current;
+    if (!scanner) return;
+    scannerRef.current = null;
+    try {
+      // On tente l'arret quel que soit l'etat declare. L'ancien code ne
+      // stoppait que l'etat SCANNING : ferme pendant le demarrage, la camera
+      // restait allumee et la reouverture creait un second lecteur sur le
+      // meme flux — d'ou le plantage.
+      await scanner.stop();
+    } catch {
+      // Deja arrete, ou jamais demarre : rien a faire.
+    }
+    try {
+      // Libere le noeud DOM, sinon le lecteur suivant heriterait du canvas
+      // du precedent.
+      scanner.clear();
+    } catch {
+      // Idem.
     }
   }, []);
 
@@ -75,8 +86,15 @@ export default function QrScannerModal({
         await new Promise((resolve) => setTimeout(resolve, 100));
 
         if (!mounted || !containerRef.current) return;
+        if (!document.getElementById(readerId)) {
+          // Sans ce garde-fou, html5-qrcode leve une erreur brute et l'ecran
+          // reste noir sans explication.
+          setError("La zone de capture n'a pas pu être initialisée.");
+          setIsStarting(false);
+          return;
+        }
 
-        const scanner = new Html5Qrcode("qr-reader");
+        const scanner = new Html5Qrcode(readerId);
         scannerRef.current = scanner;
 
         const scanConfig = {
@@ -122,9 +140,20 @@ export default function QrScannerModal({
           await scanner.start({ facingMode: "environment" }, scanConfig, onSuccess, onFailure);
         }
 
-        if (mounted) {
-          setIsStarting(false);
+        // Le demarrage prend pres d'une seconde. Si l'ecran s'est ferme entre
+        // temps, le nettoyage est deja passe sans rien trouver a arreter : on
+        // eteint ici, sinon la camera tourne jusqu'au rechargement de la page.
+        if (!mounted) {
+          try {
+            await scanner.stop();
+            scanner.clear();
+          } catch {
+            // Rien a rattraper.
+          }
+          return;
         }
+
+        setIsStarting(false);
       } catch (err) {
         if (!mounted) return;
 
@@ -152,7 +181,7 @@ export default function QrScannerModal({
       mounted = false;
       stopScanner();
     };
-  }, [open, stopScanner]);
+  }, [open, stopScanner, readerId]);
 
   // Track if close was already handled (to avoid double-firing onClose)
   const closedByHandleClose = useRef(false);
@@ -194,7 +223,7 @@ export default function QrScannerModal({
 
       {/* ── Camera feed ── */}
       <div ref={containerRef} className="flex-1 relative overflow-hidden">
-        <div id="qr-reader" className="w-full h-full" style={{ minHeight: "300px" }} />
+        <div id={readerId} className="w-full h-full" style={{ minHeight: "300px" }} />
 
         {/* Viewfinder overlay */}
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
