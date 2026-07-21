@@ -74,6 +74,9 @@ export interface CreateTechnicianData {
 
 export type UpdateTechnicianData = Partial<CreateTechnicianData>;
 
+/** Comparaison francaise : accents ignores, chiffres lus comme des nombres. */
+const COLLATOR = new Intl.Collator("fr", { sensitivity: "base", numeric: true });
+
 /**
  * Récupère la liste des techniciens avec leur nombre d'items en inventaire
  * Utilise une RPC pour tout faire en une seule requête SQL (JOIN + aggregation)
@@ -93,7 +96,21 @@ export async function getTechnicians(
     throw new Error(`Erreur lors de la récupération des techniciens: ${error.message}`);
   }
 
-  return (data as unknown as TechnicianWithInventory[]) || [];
+  // Tri alphabetique sur le prenom, puis le nom : c'est l'ordre dans lequel
+  // les techniciens sont affiches partout (« Kevin Martin »). Trier sur le
+  // nom de famille donnerait une liste qui parait melangee a la lecture.
+  //
+  // Le tri se fait ici et non dans le RPC : tous les ecrans passent par cette
+  // fonction, aucun ne peut donc afficher un ordre different.
+  const list = (data as unknown as TechnicianWithInventory[]) || [];
+  return [...list].sort((a, b) =>
+    // « É » doit se ranger avec « E » : une comparaison brute mettrait les
+    // prenoms accentues apres le Z.
+    COLLATOR.compare(
+      `${a.first_name ?? ""} ${a.last_name ?? ""}`,
+      `${b.first_name ?? ""} ${b.last_name ?? ""}`
+    )
+  );
 }
 
 /**
