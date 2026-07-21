@@ -7,6 +7,31 @@ import { X, Camera, AlertCircle } from "lucide-react";
 import { parseProductQr } from "@/lib/utils/qr";
 import { getRearCameraId } from "@/lib/utils/camera";
 
+/** Nature du refus, pour choisir quoi proposer ensuite. */
+function describeCameraError(err: unknown): "denied" | "missing" | "busy" | "other" {
+  const name = (err as { name?: string })?.name;
+  if (name === "NotAllowedError" || name === "SecurityError") return "denied";
+  if (name === "NotFoundError" || name === "OverconstrainedError") return "missing";
+  if (name === "NotReadableError") return "busy";
+  return "other";
+}
+
+function cameraErrorMessage(err: unknown): string {
+  const name = (err as { name?: string })?.name;
+  switch (describeCameraError(err)) {
+    case "denied":
+      // Un refus est memorise par le navigateur : redemander ne reaffiche
+      // aucune invite. Sans le chemin exact, l'utilisateur reste bloque.
+      return "Accès à la caméra bloqué pour ce site.";
+    case "missing":
+      return "Aucune caméra détectée sur cet appareil.";
+    case "busy":
+      return "La caméra est utilisée par une autre application. Fermez-la, puis réessayez.";
+    default:
+      return `Caméra indisponible${name ? ` (${name})` : ""}.`;
+  }
+}
+
 interface QrScannerModalProps {
   open: boolean;
   onClose: () => void;
@@ -32,6 +57,10 @@ export default function QrScannerModal({
   // Une autorisation refusee puis accordee dans les reglages ne se reprend pas
   // toute seule : il faut relancer le demarrage sans quitter l'ecran.
   const [retryCount, setRetryCount] = useState(0);
+  // Refus memorise par le navigateur : redemander ne servira a rien tant que
+  // le reglage du site n'aura pas change. On le dit plutot que de laisser
+  // appuyer sur un bouton sans effet.
+  const [denied, setDenied] = useState(false);
   const [scanFlash, setScanFlash] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -82,6 +111,7 @@ export default function QrScannerModal({
     const startScanner = async () => {
       if (!mounted) return;
       setError(null);
+      setDenied(false);
       setIsStarting(true);
 
       try {
@@ -120,19 +150,9 @@ export default function QrScannerModal({
           probe.getTracks().forEach((t) => t.stop());
         } catch (permErr) {
           if (!mounted) return;
-          const name = (permErr as { name?: string })?.name;
           setIsStarting(false);
-          if (name === "NotAllowedError" || name === "SecurityError") {
-            setError(
-              "Accès à la caméra refusé. Autorisez-le dans les réglages du navigateur, puis réessayez."
-            );
-          } else if (name === "NotFoundError" || name === "OverconstrainedError") {
-            setError("Aucune caméra arrière détectée sur cet appareil.");
-          } else if (name === "NotReadableError") {
-            setError("La caméra est déjà utilisée par une autre application.");
-          } else {
-            setError(`Caméra indisponible${name ? ` (${name})` : ""}.`);
-          }
+          setDenied(describeCameraError(permErr) === "denied");
+          setError(cameraErrorMessage(permErr));
           return;
         }
 
@@ -255,6 +275,31 @@ export default function QrScannerModal({
     onClose();
   };
 
+  /**
+   * Relance apres un echec.
+   *
+   * L'appel a getUserMedia part d'ici, du gestionnaire de clic lui-meme, et
+   * non d'un effet : Safari n'affiche l'invite d'autorisation que dans la
+   * foulee d'un geste de l'utilisateur. Depuis un effet, la fenetre
+   * d'activation est deja close et la demande est rejetee sans rien montrer
+   * — le bouton semblait alors ne rien faire.
+   */
+  const handleRetry = async () => {
+    setError(null);
+    setIsStarting(true);
+    await stopScanner();
+    try {
+      const probe = await navigator.mediaDevices.getUserMedia({ video: true });
+      probe.getTracks().forEach((t) => t.stop());
+      setDenied(false);
+      setRetryCount((n) => n + 1);
+    } catch (err) {
+      setIsStarting(false);
+      setDenied(describeCameraError(err) === "denied");
+      setError(cameraErrorMessage(err));
+    }
+  };
+
   if (!open) return null;
 
   return (
@@ -302,17 +347,34 @@ export default function QrScannerModal({
       {/* ── Bottom info ── */}
       <div className="relative z-10 px-6 pt-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] space-y-3">
         {error ? (
-          <div className="rounded-xl bg-destructive/20 border border-destructive/30 px-4 py-3 space-y-3">
+          <div className="rounded-xl bg-white/10 border border-white/20 px-4 py-3 space-y-3 text-left">
             <div className="flex items-start gap-2">
-              <AlertCircle className="size-4 text-destructive shrink-0 mt-0.5" />
-              <p className="text-sm text-destructive text-left whitespace-pre-wrap">{error}</p>
+              <AlertCircle className="size-4 shrink-0 mt-0.5 text-red-400" />
+              <p className="text-base font-semibold text-white whitespace-pre-wrap">{error}</p>
             </div>
+
+            {/* Un refus memorise ne se leve que dans les reglages du site :
+                donner le chemin exact evite de faire appuyer dans le vide. */}
+            {denied && (
+              <ol className="space-y-1.5 text-sm text-white/70 list-decimal pl-4">
+                <li>
+                  Touchez <span className="font-semibold text-white">aA</span> à gauche de
+                  l&apos;adresse, en haut de Safari.
+                </li>
+                <li>
+                  <span className="font-semibold text-white">Réglages pour ce site web</span>
+                </li>
+                <li>
+                  <span className="font-semibold text-white">Caméra</span> →{" "}
+                  <span className="font-semibold text-white">Autoriser</span>
+                </li>
+                <li>Revenez ici et touchez Réessayer.</li>
+              </ol>
+            )}
+
             <button
-              onClick={() => {
-                stopScanner();
-                setRetryCount((n) => n + 1);
-              }}
-              className="w-full rounded-lg bg-white py-2.5 text-base font-semibold text-foreground active:scale-[0.98] transition-transform"
+              onClick={handleRetry}
+              className="w-full rounded-lg bg-white py-3 text-base font-semibold text-foreground active:scale-[0.98] transition-transform"
             >
               Réessayer
             </button>
