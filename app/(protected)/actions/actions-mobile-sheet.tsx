@@ -42,7 +42,13 @@ import { useCreateStockEntry, useCreateStockExit } from "@/hooks/mutations";
 import { calculateStockScore, getStockBadgeVariant } from "@/lib/utils/stock";
 import { cn } from "@/lib/utils";
 import { useDebouncedValue } from "@/hooks/use-debounce";
-import { MobileStackScreen, InsetGroup, InsetRow, InsetField } from "./mobile-stack-screen";
+import {
+  MobileStackScreen,
+  InsetGroup,
+  InsetRow,
+  InsetField,
+  SwipeToActionRow,
+} from "./mobile-stack-screen";
 import { MobileSplash, shouldShowSplash } from "./mobile-splash";
 import {
   MobileHistorySheet,
@@ -1481,82 +1487,148 @@ export default function ActionsMobileSheet() {
                 );
               })()}
 
-            {/* ═══ CART REVIEW (exit_technician, step 3) ═══ */}
+            {/* ═══ PANIER — ce qui va etre enregistre ═══ */}
             {drawerStep === "cart" && (
-              <div className="space-y-4 pt-1">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                    {cart.length} produit{cart.length > 1 ? "s" : ""} &middot; {cartTotalItems} unit
-                    {"\u00E9"}s
-                  </p>
-                  <button
-                    onClick={() => {
-                      setDrawerStep("products");
-                      setSearchQuery("");
-                    }}
-                    className="text-sm text-primary font-medium"
-                  >
-                    + Ajouter
-                  </button>
-                </div>
-
-                <ul className="space-y-1">
-                  {cart.map((item) => (
-                    <li
-                      key={item.product.id}
-                      className="flex items-center gap-3 rounded-xl bg-muted/30 px-3 py-3"
+              <div className="space-y-5 pt-2 pb-4">
+                {/* A qui cela part. On s'apprete a engager un mouvement au nom
+                    de quelqu'un : le rappeler ici evite de valider pour le
+                    mauvais technicien apres avoir rempli le panier. */}
+                <InsetGroup header="Sortie vers">
+                  <div className="flex items-center gap-3 px-4 py-3">
+                    <span
+                      className={cn(
+                        "flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold",
+                        exitReason === "loss"
+                          ? "bg-attention-bg text-attention"
+                          : "bg-primary/10 text-primary"
+                      )}
                     >
-                      <ProductIconDisplay
-                        iconName={item.product.icon_name}
-                        iconColor={item.product.icon_color}
-                        imageUrl={item.product.image_url}
-                        size="md"
-                        className="shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-base font-medium truncate">{item.product.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          dispo {item.product.stock_current}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => updateCartQty(item.product.id, -1)}
-                          disabled={item.quantity <= 1}
-                          className="size-11 rounded-xl bg-muted/60 flex items-center justify-center active:bg-muted active:scale-95 transition-transform disabled:opacity-30"
+                      {exitReason === "loss" ? (
+                        <ArrowUpFromLine className="size-4" />
+                      ) : (
+                        `${selectedTech?.first_name?.[0] ?? ""}${selectedTech?.last_name?.[0] ?? ""}`
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-base font-medium">
+                      {exitDestination}
+                    </span>
+                  </div>
+                </InsetGroup>
+
+                {/* Le detail. Le bouton d'ajout vit dans l'en-tete du groupe :
+                    c'est la meme famille d'action que la liste elle-meme. */}
+                <div className="space-y-1.5">
+                  <div className="flex items-baseline justify-between px-1">
+                    <p className="text-sm uppercase tracking-wide text-muted-foreground">
+                      {cart.length} produit{cart.length > 1 ? "s" : ""} &middot; {cartTotalItems}{" "}
+                      unité{cartTotalItems > 1 ? "s" : ""}
+                    </p>
+                    <button
+                      onClick={() => {
+                        setDrawerStep("products");
+                        setSearchQuery("");
+                      }}
+                      className="text-base font-medium text-primary active:opacity-50"
+                    >
+                      + Ajouter
+                    </button>
+                  </div>
+
+                  <div className="overflow-hidden rounded-xl border bg-white dark:bg-card">
+                    {cart.map((item) => {
+                      const stock = item.product.stock_current;
+                      const after = stock - item.quantity;
+                      // Le stock peut avoir baisse depuis la selection : la
+                      // synchronisation temps reel le fait bouger sous nos
+                      // yeux. Mieux vaut le voir ici qu'a la validation.
+                      const excess = item.quantity > stock;
+
+                      return (
+                        <SwipeToActionRow
+                          key={item.product.id}
+                          label="Retirer"
+                          icon={<Trash2 className="size-4" />}
+                          onAction={() => removeFromCart(item.product.id)}
                         >
-                          <Minus className="size-4" />
-                        </button>
-                        <input
-                          type="number"
-                          min={1}
-                          max={item.product.stock_current}
-                          value={item.quantity}
-                          onChange={(e) =>
-                            setCartQty(
-                              item.product.id,
-                              Math.min(parseInt(e.target.value) || 1, item.product.stock_current)
-                            )
-                          }
-                          className="w-10 text-center font-heading font-bold tabular-nums text-base bg-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                        <button
-                          onClick={() => updateCartQty(item.product.id, 1)}
-                          disabled={item.quantity >= item.product.stock_current}
-                          className="size-11 rounded-xl bg-muted/60 flex items-center justify-center active:bg-muted active:scale-95 transition-transform disabled:opacity-30"
-                        >
-                          <Plus className="size-4" />
-                        </button>
-                      </div>
-                      <button
-                        onClick={() => removeFromCart(item.product.id)}
-                        className="size-9 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center active:bg-destructive/20 transition-colors"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                          <div className="flex items-center gap-3 px-4 py-3">
+                            <ProductIconDisplay
+                              iconName={item.product.icon_name}
+                              iconColor={item.product.icon_color}
+                              imageUrl={item.product.image_url}
+                              size="md"
+                              className="shrink-0"
+                            />
+
+                            {/* Le nom respire : la corbeille a laisse sa place */}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-base font-medium leading-tight line-clamp-2">
+                                {item.product.name}
+                              </p>
+                              <p
+                                className={cn(
+                                  "text-sm leading-tight",
+                                  excess ? "font-medium text-critique" : "text-muted-foreground"
+                                )}
+                              >
+                                {excess
+                                  ? `Stock insuffisant — ${stock} disponible${stock > 1 ? "s" : ""}`
+                                  : `Reste ${after} sur ${stock}`}
+                              </p>
+                            </div>
+
+                            {/* Compteur compact mais toujours a 44px de cible */}
+                            <div className="flex shrink-0 items-center gap-0.5">
+                              <button
+                                onClick={() => {
+                                  navigator.vibrate?.(8);
+                                  updateCartQty(item.product.id, -1);
+                                }}
+                                disabled={item.quantity <= 1}
+                                aria-label="Retirer une unité"
+                                className="flex size-11 items-center justify-center rounded-full active:bg-muted active:scale-95 transition-transform disabled:opacity-25"
+                              >
+                                <Minus className="size-5" />
+                              </button>
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min={1}
+                                max={stock}
+                                value={item.quantity}
+                                onChange={(e) =>
+                                  setCartQty(
+                                    item.product.id,
+                                    Math.min(parseInt(e.target.value) || 1, stock)
+                                  )
+                                }
+                                aria-label={`Quantité de ${item.product.name}`}
+                                className={cn(
+                                  "w-9 bg-transparent text-center font-heading text-xl font-bold tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                                  excess && "text-critique"
+                                )}
+                              />
+                              <button
+                                onClick={() => {
+                                  navigator.vibrate?.(8);
+                                  updateCartQty(item.product.id, 1);
+                                }}
+                                disabled={item.quantity >= stock}
+                                aria-label="Ajouter une unité"
+                                className="flex size-11 items-center justify-center rounded-full active:bg-muted active:scale-95 transition-transform disabled:opacity-25"
+                              >
+                                <Plus className="size-5" />
+                              </button>
+                            </div>
+                          </div>
+                        </SwipeToActionRow>
+                      );
+                    })}
+                  </div>
+
+                  <p className="px-1 text-sm text-muted-foreground">
+                    Glissez une ligne vers la gauche pour la retirer.
+                  </p>
+                </div>
               </div>
             )}
           </div>

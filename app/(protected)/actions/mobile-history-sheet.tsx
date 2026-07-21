@@ -1,6 +1,5 @@
 "use client";
 
-import { motion, useMotionValue, useTransform, type PanInfo } from "motion/react";
 import { ArrowDownToLine, ArrowUpFromLine, Clock, Undo2 } from "lucide-react";
 
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
@@ -12,7 +11,7 @@ import {
   isPositiveMovement,
   type StockMovement,
 } from "@/lib/supabase/queries/stock-movements";
-import { InsetGroup } from "./mobile-stack-screen";
+import { InsetGroup, SwipeToActionRow } from "./mobile-stack-screen";
 
 export interface HistoryEntry {
   /** Identifiant local (session) ou identifiant du mouvement (plus tot) */
@@ -50,43 +49,16 @@ function HistoryRow({
   onUndo: () => void;
 }) {
   const positive = isPositiveMovement(entry.movementType);
-  const x = useMotionValue(0);
-  // L'action se devoile a mesure du glissement : rien n'apparait d'un coup,
-  // on voit venir ce qui va se passer.
-  const revealOpacity = useTransform(x, [-90, -20], [1, 0]);
-
-  const handleDragEnd = (_: unknown, info: PanInfo) => {
-    if (info.offset.x < -90 || info.velocity.x < -500) {
-      navigator.vibrate?.(10);
-      onUndo();
-    }
-  };
 
   return (
-    <div className="relative overflow-hidden">
-      {entry.undoable && (
-        <motion.div
-          style={{ opacity: revealOpacity }}
-          className="absolute inset-y-0 right-0 flex w-24 items-center justify-center gap-1.5 bg-critique text-white"
-        >
-          <Undo2 className="size-4" />
-          <span className="text-sm font-semibold">Annuler</span>
-        </motion.div>
-      )}
-
-      <motion.div
-        drag={entry.undoable && !reverting ? "x" : false}
-        dragDirectionLock
-        dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={{ left: 0.8, right: 0 }}
-        dragMomentum={false}
-        onDragEnd={handleDragEnd}
-        style={{ x }}
-        className={cn(
-          "relative flex items-center gap-3 bg-white dark:bg-card px-4 py-3",
-          reverting && "opacity-40"
-        )}
-      >
+    <SwipeToActionRow
+      label="Annuler"
+      icon={<Undo2 className="size-4" />}
+      onAction={onUndo}
+      enabled={entry.undoable}
+      dimmed={reverting}
+    >
+      <div className="flex items-center gap-3 px-4 py-3">
         {/* Le sens du mouvement, avant meme de lire */}
         <span
           className={cn(
@@ -120,8 +92,8 @@ function HistoryRow({
           {positive ? "+" : "−"}
           {entry.quantity}
         </span>
-      </motion.div>
-    </div>
+      </div>
+    </SwipeToActionRow>
   );
 }
 

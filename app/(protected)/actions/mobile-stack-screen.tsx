@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
-import { AnimatePresence, motion, useReducedMotion, type PanInfo } from "motion/react";
+import {
+  AnimatePresence,
+  motion,
+  useMotionValue,
+  useReducedMotion,
+  useTransform,
+  type PanInfo,
+} from "motion/react";
 import { ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -176,6 +183,73 @@ export function InsetGroup({
       )}
       <div className="overflow-hidden rounded-xl border bg-white dark:bg-card">{children}</div>
       {footer && <p className="px-1 text-sm text-muted-foreground">{footer}</p>}
+    </div>
+  );
+}
+
+/**
+ * Ligne que l'on ecarte du doigt pour declencher une action.
+ *
+ * Sur iOS on supprime ou l'on annule en glissant : la cible devient toute la
+ * ligne au lieu d'une icone de trente pixels, le geste reste reversible tant
+ * qu'on n'a pas lache, et l'action ne prend de la place que pendant qu'on la
+ * decouvre. Un bouton permanent, lui, occupe l'espace du contenu en
+ * permanence pour un geste rare.
+ */
+export function SwipeToActionRow({
+  label,
+  icon,
+  onAction,
+  enabled = true,
+  dimmed = false,
+  children,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  onAction: () => void;
+  enabled?: boolean;
+  /** Action en cours : la ligne s'efface le temps du traitement */
+  dimmed?: boolean;
+  children: React.ReactNode;
+}) {
+  const x = useMotionValue(0);
+  // L'action se devoile a mesure du glissement : rien n'apparait d'un coup,
+  // on voit venir ce qui va se passer.
+  const revealOpacity = useTransform(x, [-90, -20], [1, 0]);
+
+  const handleDragEnd = (_: unknown, info: PanInfo) => {
+    // Sur la projection de l'elan et non la distance : un geste bref et vif
+    // doit suffire autant qu'un long glissement.
+    if (info.offset.x < -90 || info.velocity.x < -500) {
+      navigator.vibrate?.(10);
+      onAction();
+    }
+  };
+
+  return (
+    <div className="relative overflow-hidden [&+&]:border-t [&+&]:border-border/60">
+      {enabled && (
+        <motion.div
+          style={{ opacity: revealOpacity }}
+          className="absolute inset-y-0 right-0 flex w-24 items-center justify-center gap-1.5 bg-critique text-white"
+        >
+          {icon}
+          <span className="text-sm font-semibold">{label}</span>
+        </motion.div>
+      )}
+
+      <motion.div
+        drag={enabled && !dimmed ? "x" : false}
+        dragDirectionLock
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={{ left: 0.8, right: 0 }}
+        dragMomentum={false}
+        onDragEnd={handleDragEnd}
+        style={{ x }}
+        className={cn("relative bg-white dark:bg-card", dimmed && "opacity-40")}
+      >
+        {children}
+      </motion.div>
     </div>
   );
 }
