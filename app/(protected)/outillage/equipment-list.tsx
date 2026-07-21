@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQueryStates, parseAsString } from "nuqs";
-import { Wrench, AlertTriangle, Pencil } from "lucide-react";
+import { Wrench, AlertTriangle, Archive, Pencil } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/search-input";
@@ -54,9 +54,15 @@ function sortEquipmentByName(items: EquipmentProduct[]): EquipmentProduct[] {
 export default function EquipmentList() {
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
 
-  const [{ search }, setQueryStates] = useQueryStates({
+  const [{ search, outil }, setQueryStates] = useQueryStates({
     search: parseAsString.withDefault(""),
+    // ?outil=<id> ouvre directement la fiche : la page Achats renvoie ici pour
+    // un outil, sa fiche produit parlant de seuil et de reapprovisionnement.
+    outil: parseAsString.withDefault(""),
   });
+
+  // Vue « archives » : sans elle, archiver un outil etait sans retour.
+  const [showArchived, setShowArchived] = useState(false);
 
   const {
     data: equipment = [],
@@ -66,12 +72,24 @@ export default function EquipmentList() {
   } = useEquipmentProducts({
     organizationId: currentOrganization?.id,
     search: search || undefined,
+    archived: showArchived,
   });
 
   const [manageProduct, setManageProduct] = useState<EquipmentProduct | null>(null);
   const [editProduct, setEditProduct] = useState<EquipmentProduct | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [onlyAlerts, setOnlyAlerts] = useState(false);
+
+  // L'outil demande par l'URL peut ne pas etre encore charge : on attend la
+  // liste plutot que d'ouvrir une fiche vide.
+  const [openedFromUrl, setOpenedFromUrl] = useState("");
+  if (outil && outil !== openedFromUrl) {
+    const target = equipment.find((e) => e.id === outil);
+    if (target) {
+      setOpenedFromUrl(outil);
+      setManageProduct(target);
+    }
+  }
 
   const sorted = useMemo(() => {
     const list = onlyAlerts ? equipment.filter((e) => getCardAlert(e) !== "none") : equipment;
@@ -135,6 +153,20 @@ export default function EquipmentList() {
           className="bg-white dark:bg-card"
           wrapperClassName="flex-1"
         />
+
+        <button
+          type="button"
+          onClick={() => setShowArchived((v) => !v)}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full h-9 px-4 text-[13px] font-semibold transition-all select-none cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97] shrink-0",
+            showArchived
+              ? "bg-primary text-primary-foreground"
+              : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
+          )}
+        >
+          <Archive className="size-3.5" />
+          Archivés
+        </button>
 
         {totalCount > 0 && (
           <div className="flex items-center gap-4 shrink-0">
@@ -213,28 +245,43 @@ export default function EquipmentList() {
             return (
               <div
                 key={item.id}
-                className="group rounded-xl border bg-card overflow-hidden cursor-pointer transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.99]"
+                className="group rounded-xl border bg-card p-4 cursor-pointer transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.99]"
                 onClick={() => setManageProduct(item)}
               >
-                {/* Photo — repère visuel principal */}
-                <div className="relative">
-                  <ProductIconDisplay
-                    iconName={item.icon_name}
-                    iconColor={item.icon_color}
-                    imageUrl={item.image_url}
-                    size="xl"
-                    className="w-full rounded-none border-0"
-                  />
-                  {alert !== "none" && (
-                    <span
-                      className={cn(
-                        "absolute top-2 left-2 size-3 rounded-full ring-2 ring-background",
-                        alertDotClass[alert]
-                      )}
-                      title={alert === "danger" ? "Assignation > 1 an" : "Assignation > 6 mois"}
+                {/* Identite : vignette + nom + reference et fournisseur.
+                    La photo occupait toute la largeur en banniere, reléguant
+                    les informations utiles sous la ligne de flottaison. */}
+                <div className="flex items-start gap-3">
+                  <div className="relative shrink-0">
+                    <ProductIconDisplay
+                      iconName={item.icon_name}
+                      iconColor={item.icon_color}
+                      imageUrl={item.image_url}
+                      size="lg"
                     />
-                  )}
-                  {/* Modification directe, sans passer par la fenêtre de gestion */}
+                    {alert !== "none" && (
+                      <span
+                        className={cn(
+                          "absolute -top-1 -left-1 size-3 rounded-full ring-2 ring-card",
+                          alertDotClass[alert]
+                        )}
+                        title={alert === "danger" ? "Assignation > 1 an" : "Assignation > 6 mois"}
+                      />
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-[15px] leading-tight truncate group-hover:text-primary transition-colors">
+                      {item.name}
+                    </p>
+                    {/* Reference et fournisseur : le fournisseur etait saisi au
+                        formulaire sans jamais apparaitre sur la carte. */}
+                    <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                      {item.sku}
+                      {item.supplier?.name && <span> · {item.supplier.name}</span>}
+                    </p>
+                  </div>
+
                   <button
                     type="button"
                     title="Modifier cet outil"
@@ -242,41 +289,45 @@ export default function EquipmentList() {
                       e.stopPropagation();
                       setEditProduct(item);
                     }}
-                    className="absolute top-2 right-2 flex size-8 items-center justify-center rounded-lg border bg-background/95 backdrop-blur shadow-sm transition-colors hover:bg-foreground hover:text-background cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                    className="flex size-8 shrink-0 items-center justify-center rounded-lg border bg-background transition-colors hover:bg-foreground hover:text-background cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                   >
                     <Pencil className="size-3.5" />
                   </button>
                 </div>
 
-                <div className="p-4 space-y-3">
+                <div className="mt-3 space-y-3">
                   <div className="min-w-0">
-                    <p className="font-semibold text-[15px] leading-tight truncate group-hover:text-primary transition-colors">
-                      {item.name}
-                    </p>
-                    {/* Deux chiffres clés, lisibles d'un coup d'œil */}
-                    <div className="flex items-baseline gap-2.5 mt-1.5">
-                      <span className="flex items-baseline gap-1">
-                        <span
-                          className={cn(
-                            "font-heading font-bold tabular-nums text-lg leading-none",
-                            stock === 0
-                              ? "text-critique"
-                              : stock <= 2
-                                ? "text-attention"
-                                : "text-foreground"
-                          )}
-                        >
-                          {stock}
+                    {/* Chiffres cles, avec le prix unitaire desormais visible */}
+                    <div className="flex items-baseline justify-between gap-2">
+                      <div className="flex items-baseline gap-2.5">
+                        <span className="flex items-baseline gap-1">
+                          <span
+                            className={cn(
+                              "font-heading font-bold tabular-nums text-lg leading-none",
+                              stock === 0
+                                ? "text-critique"
+                                : stock <= 2
+                                  ? "text-attention"
+                                  : "text-foreground"
+                            )}
+                          >
+                            {stock}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground">dispo.</span>
                         </span>
-                        <span className="text-[11px] text-muted-foreground">dispo.</span>
-                      </span>
-                      <span className="text-foreground/20">·</span>
-                      <span className="flex items-baseline gap-1">
-                        <span className="font-heading font-bold tabular-nums text-lg leading-none">
-                          {item.total_assigned}
+                        <span className="text-foreground/20">·</span>
+                        <span className="flex items-baseline gap-1">
+                          <span className="font-heading font-bold tabular-nums text-lg leading-none">
+                            {item.total_assigned}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground">assigné</span>
                         </span>
-                        <span className="text-[11px] text-muted-foreground">assigne</span>
-                      </span>
+                      </div>
+                      {item.price != null && item.price > 0 && (
+                        <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
+                          {fmtPrice(item.price)}/u
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -355,11 +406,18 @@ export default function EquipmentList() {
       )}
 
       {/* ── Modals ── */}
+      {/* Le parametre d'URL est efface a la fermeture : sans cela, un retour
+          arriere rouvrirait la fiche. */}
       {manageProduct && (
         <EquipmentManageModal
           product={manageProduct}
           open={!!manageProduct}
-          onOpenChange={(open) => !open && setManageProduct(null)}
+          onOpenChange={(open) => {
+            if (open) return;
+            setManageProduct(null);
+            // Sans cela, un retour arriere rouvrirait la fiche indefiniment.
+            if (outil) setQueryStates({ outil: null });
+          }}
           onEdit={() => setEditProduct(manageProduct)}
         />
       )}

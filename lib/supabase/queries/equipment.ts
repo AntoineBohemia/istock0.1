@@ -51,6 +51,8 @@ export interface EquipmentProduct {
 export interface EquipmentFilters {
   organizationId?: string;
   search?: string;
+  /** Afficher les outils archives au lieu des actifs */
+  archived?: boolean;
 }
 
 /**
@@ -60,7 +62,7 @@ export async function getEquipmentProducts(
   filters: EquipmentFilters = {}
 ): Promise<EquipmentProduct[]> {
   const supabase = createClient();
-  const { organizationId, search } = filters;
+  const { organizationId, search, archived = false } = filters;
 
   let query = supabase
     .from("products")
@@ -71,8 +73,11 @@ export async function getEquipmentProducts(
     `
     )
     .eq("product_type", "equipment")
-    .is("archived_at", null)
     .order("name", { ascending: true });
+
+  // Actifs par defaut ; la vue « archives » sert a restaurer un outil retire
+  // par erreur — sans elle, l'archivage etait sans retour.
+  query = archived ? query.not("archived_at", "is", null) : query.is("archived_at", null);
 
   if (organizationId) {
     query = query.eq("organization_id", organizationId);
@@ -309,4 +314,50 @@ export async function getAvailableEquipment(organizationId: string) {
   }
 
   return data || [];
+}
+
+/** Un achat d'outil, avec sa facture si elle est rattachee */
+export interface EquipmentPurchase {
+  id: string;
+  quantity: number;
+  unit_price: number | null;
+  created_at: string | null;
+  supplier: { id: string; name: string } | null;
+  invoice: { id: string; reference: string | null } | null;
+}
+
+/**
+ * Achats d'un outil.
+ *
+ * L'historique de la fiche ne montrait que les prets et les retours : on
+ * voyait qui detenait l'outil, jamais quand il avait ete achete, a quel prix,
+ * ni avec quelle facture.
+ */
+export async function getEquipmentPurchases(productId: string): Promise<EquipmentPurchase[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("stock_movements")
+    .select(
+      `id, quantity, unit_price, created_at,
+       supplier:suppliers(id, name),
+       invoice:purchase_invoices(id, reference)`
+    )
+    .eq("product_id", productId)
+    .eq("movement_type", "entry")
+    // Les corrections ne sont pas des achats : elles annulent une saisie.
+    .is("reverses_movement_id", null)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(`Erreur lors de la recuperation des achats: ${error.message}`);
+  }
+
+  return (data ?? []).map((row) => ({
+    ...row,
+    // Supabase renvoie une relation to-one comme un tableau quand la cle
+    // etrangere n'est pas unique : on normalise.
+    supplier: Array.isArray(row.supplier) ? row.supplier[0] : row.supplier,
+    invoice: Array.isArray(row.invoice) ? row.invoice[0] : row.invoice,
+  })) as unknown as EquipmentPurchase[];
 }

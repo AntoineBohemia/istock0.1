@@ -8,6 +8,7 @@ import {
   getTechnicianEquipment,
   getAvailableEquipment,
   getEquipmentHistory,
+  getEquipmentPurchases,
   type EquipmentFilters,
 } from "@/lib/supabase/queries/equipment";
 
@@ -49,5 +50,13 @@ export function useAvailableEquipment(orgId?: string) {
     queryKey: queryKeys.equipment.available(orgId),
     queryFn: () => getAvailableEquipment(orgId!),
     enabled: !!orgId,
+  });
+}
+
+export function useEquipmentPurchases(productId?: string) {
+  return useQuery({
+    queryKey: [...queryKeys.equipment.all, "purchases", productId] as const,
+    queryFn: () => getEquipmentPurchases(productId!),
+    enabled: !!productId,
   });
 }

@@ -942,6 +942,10 @@ export type Database = {
         Args: { org_logo_url?: string; org_name: string; org_slug: string };
         Returns: Json;
       };
+      get_purchases_by_category: {
+        Args: { p_year: number; p_organization_id?: string; p_mode?: string };
+        Returns: { category_name: string; total: number; quantity: number }[];
+      };
       get_movement_type_counts: {
         Args: Record<string, never>;
         Returns: { movement_type: string; count: number }[];

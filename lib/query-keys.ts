@@ -95,7 +95,7 @@ export const queryKeys = {
     all: ["equipment"] as const,
     history: (productId: string) => [...queryKeys.equipment.all, "history", productId] as const,
     lists: () => [...queryKeys.equipment.all, "list"] as const,
-    list: (filters: { organizationId?: string; search?: string; categoryId?: string }) =>
+    list: (filters: { organizationId?: string; search?: string; archived?: boolean }) =>
       [...queryKeys.equipment.lists(), filters] as const,
     details: () => [...queryKeys.equipment.all, "detail"] as const,
     detail: (id: string) => [...queryKeys.equipment.details(), id] as const,

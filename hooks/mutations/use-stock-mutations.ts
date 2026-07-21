@@ -57,6 +57,9 @@ export function useCreateStockEntry() {
       qc.invalidateQueries({ queryKey: queryKeys.products.stats() });
       qc.invalidateQueries({ queryKey: queryKeys.movements.all });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      // L'outillage est un produit : sans cette invalidation, sa fiche garde
+      // l'ancien stock apres un achat ou un rachat.
+      qc.invalidateQueries({ queryKey: queryKeys.equipment.all });
     },
   });
 }
@@ -93,6 +96,9 @@ export function useCreateStockExit() {
       qc.invalidateQueries({ queryKey: queryKeys.products.stats() });
       qc.invalidateQueries({ queryKey: queryKeys.movements.all });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      // L'outillage est un produit : sans cette invalidation, sa fiche garde
+      // l'ancien stock apres un achat ou un rachat.
+      qc.invalidateQueries({ queryKey: queryKeys.equipment.all });
       if (params.type === "exit_technician") {
         qc.invalidateQueries({ queryKey: queryKeys.technicians.all });
       }

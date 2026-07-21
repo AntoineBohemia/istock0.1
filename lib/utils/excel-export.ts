@@ -95,8 +95,13 @@ export async function exportMovementsExcel({
   const exits = real.filter((m) => m.movement_type.startsWith("exit"));
   const unitsIn = entries.reduce((s, m) => s + m.quantity, 0);
   const unitsOut = exits.reduce((s, m) => s + m.quantity, 0);
+  // Regle metier : l'outillage figure dans les lignes mais jamais dans la
+  // valeur d'achats. Il est un investissement, pas une consommation.
   const valueIn = entries.reduce(
-    (s, m) => s + (m.unit_price ? m.quantity * Number(m.unit_price) : 0),
+    (s, m) =>
+      m.unit_price && m.product?.product_type !== "equipment"
+        ? s + m.quantity * Number(m.unit_price)
+        : s,
     0
   );
   const noPriceCount = entries.filter((m) => !m.unit_price).length;
@@ -136,7 +141,12 @@ export async function exportMovementsExcel({
 
   // ─── Lignes 6-7 : indicateurs ──────────────────────────
   const kpiCols = [1, 3, 5, 7];
-  const kpiLabels = ["Mouvements", "Unités entrées", "Unités sorties", "Valeur entrées HT"];
+  const kpiLabels = [
+    "Mouvements",
+    "Unités entrées",
+    "Unités sorties",
+    "Valeur entrées HT (hors outillage)",
+  ];
   kpiLabels.forEach((label, i) => {
     const cell = sheet.getCell(6, kpiCols[i]);
     cell.value = label;
@@ -259,6 +269,7 @@ export async function exportMovementsExcel({
   const notes = [
     "Quantité : positive pour une entrée ou une restitution d'outil, négative pour une sortie ou une assignation.",
     "Seules les entrées portent un prix unitaire ; les sorties n'ont donc pas de montant.",
+    "L'outillage figure dans les lignes mais n'entre pas dans la valeur d'achats : c'est un investissement, pas une consommation.",
     noPriceCount > 0
       ? `${noPriceCount} entrée${noPriceCount > 1 ? "s" : ""} sans prix unitaire renseigné (montant non calculé, indiqué "—").`
       : null,

@@ -11,6 +11,7 @@ import {
   getMovementsSummary,
   getYearlyEntryValuesByOrg,
   getYearlyEntryQtyByProduct,
+  getYearlyPurchases,
   getProductPriceHistory,
   type StockMovementFilters,
 } from "@/lib/supabase/queries/stock-movements";
@@ -82,5 +83,13 @@ export function useProductPriceHistory(productId: string) {
     queryFn: () => getProductPriceHistory(productId),
     enabled: !!productId,
     staleTime: STALE_TIME.SLOW,
+  });
+}
+
+export function useYearlyPurchases(year?: number) {
+  return useQuery({
+    queryKey: [...queryKeys.movements.all, "yearlyPurchases", year] as const,
+    queryFn: () => getYearlyPurchases(year),
+    staleTime: STALE_TIME.MODERATE,
   });
 }

@@ -11,19 +11,20 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, Package, ChevronDown, Building2, Check, X } from "lucide-react";
+import { ArrowUpDown, Package, ChevronDown, Building2, Check, Wrench, X } from "lucide-react";
 import { SearchInput } from "@/components/search-input";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProductWithRelations } from "@/lib/supabase/queries/products";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
-import { useProducts, useOrganizations } from "@/hooks/queries";
-import { useYearlyEntryQtyByProduct } from "@/hooks/queries/use-stock-movements";
+import { useOrganizations } from "@/hooks/queries";
+import { useYearlyPurchases } from "@/hooks/queries/use-stock-movements";
 import type { OrgEntryDetail } from "@/lib/supabase/queries/stock-movements";
 import ProductIconDisplay from "@/components/product-icon-display";
 import { TableColumnToggle } from "@/components/table-column-toggle";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { cn } from "@/lib/utils";
+import { useAchatsYear } from "./achats-year-context";
 
 // ─── Sort header button ────────────────────────────────────
 function SortHeader({
@@ -138,7 +139,9 @@ function OrgDetailCards({
 export default function AchatsList() {
   const router = useRouter();
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
-  const [sorting, setSorting] = useState<SortingState>([]);
+  // Dernier achat en tete : la question qu'on se pose en ouvrant la page est
+  // « qu'ai-je achete recemment ? », pas « quel poste pese le plus ».
+  const [sorting, setSorting] = useState<SortingState>([{ id: "lastPurchase", desc: true }]);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [columnVisibility, setColumnVisibility] = useColumnVisibility("achats");
 
@@ -155,29 +158,51 @@ export default function AchatsList() {
   };
 
   const { data: userOrgs } = useOrganizations();
-  const currentYear = new Date().getFullYear();
-  const { data: entryQtyByProduct, isLoading: isEntriesLoading } =
-    useYearlyEntryQtyByProduct(currentYear);
+  // Annee pilotee par le selecteur de la page, partagee avec les cartes.
+  const { year: currentYear } = useAchatsYear();
 
-  const { data: productsResult, isLoading } = useProducts({
-    organizationId: currentOrganization?.id,
-    search: debouncedSearch || undefined,
-  });
+  // La page part des ACHATS, plus du catalogue. Un produit archive faisait
+  // auparavant disparaitre ses achats de l'historique : 525 EUR depenses
+  // s'evaporaient, et les totaux annuels bougeaient au gre du menage dans le
+  // catalogue. Un achat est un fait date, il reste.
+  const { data: purchases = [], isLoading } = useYearlyPurchases(currentYear);
+  const isEntriesLoading = isLoading;
 
-  const allProducts = productsResult?.products || [];
+  // Les colonnes existantes attendent un produit et une table de detail :
+  // on les derive des achats plutot que de reecrire tout le tableau.
+  const entryQtyByProduct = useMemo(() => {
+    const map: Record<string, Record<string, OrgEntryDetail>> = {};
+    for (const p of purchases) map[p.product_id] = p.byOrg;
+    return map;
+  }, [purchases]);
 
-  // Only products actually purchased this year belong on the Achats page.
-  // (A product with no entry has never been bought — it would just add an empty row.)
-  // When an org filter is active, also require the entry to belong to one of those orgs.
   const products = useMemo(() => {
-    return allProducts.filter((p) => {
-      const data = entryQtyByProduct?.[p.id];
-      if (!data) return false;
-      if (!Object.values(data).some((d) => d.qty > 0)) return false;
-      if (filterOrgs.size === 0) return true;
-      return [...filterOrgs].some((orgId) => data[orgId]);
-    });
-  }, [allProducts, filterOrgs, entryQtyByProduct]);
+    const q = debouncedSearch.trim().toLowerCase();
+    return purchases
+      .filter((p) => {
+        if (filterOrgs.size > 0 && ![...filterOrgs].some((orgId) => p.byOrg[orgId])) return false;
+        if (!q) return true;
+        return (
+          p.product_name.toLowerCase().includes(q) ||
+          (p.product_sku ?? "").toLowerCase().includes(q)
+        );
+      })
+      .map(
+        (p) =>
+          ({
+            id: p.product_id,
+            name: p.product_name,
+            sku: p.product_sku,
+            image_url: p.product_image_url,
+            icon_name: p.product_icon_name,
+            icon_color: p.product_icon_color,
+            price: p.product_price,
+            product_type: p.product_type,
+            is_archived: p.is_archived,
+            last_purchase_at: p.lastPurchaseAt,
+          }) as unknown as ProductWithRelations & { is_archived: boolean }
+      );
+  }, [purchases, filterOrgs, debouncedSearch]);
 
   const orgNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -185,22 +210,22 @@ export default function AchatsList() {
     return map;
   }, [userOrgs]);
 
-  // Max values for proportional micro-bars
-  const { maxEntries, maxValue } = useMemo(() => {
-    let mE = 1;
+  // Échelle des micro-barres, calculée sur les seuls consommables : un outil
+  // coûteux écraserait sinon toutes les barres alors qu'il ne fait pas partie
+  // du total des achats.
+  const maxValue = useMemo(() => {
     let mV = 1;
     for (const p of products) {
+      if ((p as unknown as { product_type?: string }).product_type === "equipment") continue;
       const data = entryQtyByProduct?.[p.id];
       if (!data) continue;
-      const qty = Object.values(data).reduce((s, d) => s + d.qty, 0);
       const val = Object.values(data).reduce(
         (s, d) => s + d.byPrice.reduce((ps, bp) => ps + bp.unitPrice * bp.qty, 0),
         0
       );
-      if (qty > mE) mE = qty;
       if (val > mV) mV = val;
     }
-    return { maxEntries: mE, maxValue: mV };
+    return mV;
   }, [products, entryQtyByProduct]);
 
   const toggleExpand = (productId: string) => {
@@ -267,7 +292,30 @@ export default function AchatsList() {
                 size="lg"
               />
               <div className="min-w-0">
-                <div className="font-semibold text-[15px] leading-tight">{product.name}</div>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-[15px] leading-tight">{product.name}</span>
+                  {/* L'outillage figure ici a titre indicatif : il ne compte ni
+                      dans la somme des achats ni dans la valeur de stock. */}
+                  {/* Produit archive : l'achat reste dans l'historique, la
+                      fiche n'est plus au catalogue. */}
+                  {(product as unknown as { is_archived?: boolean }).is_archived && (
+                    <span
+                      className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground shrink-0"
+                      title="Produit archivé — l'achat reste dans l'historique"
+                    >
+                      Archivé
+                    </span>
+                  )}
+                  {product.product_type === "equipment" && (
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary shrink-0"
+                      title="Outillage — hors totaux d'achats et de stock"
+                    >
+                      <Wrench className="size-3" />
+                      Outillage
+                    </span>
+                  )}
+                </div>
                 {product.sku && (
                   <div className="text-xs text-muted-foreground mt-0.5 font-mono">
                     {product.sku}
@@ -304,6 +352,32 @@ export default function AchatsList() {
           );
         },
         meta: { label: "Prix HT" },
+      },
+      {
+        // Dernier achat : c'est ce qui fait remonter un produit rachete
+        // aujourd'hui, sans effacer les achats precedents (visibles au detail).
+        id: "lastPurchase",
+        accessorFn: (row) =>
+          (row as unknown as { last_purchase_at?: string }).last_purchase_at ?? "",
+        header: ({ column }) => <SortHeader label="Dernier achat" column={column} />,
+        cell: ({ row }) => {
+          const at = (row.original as unknown as { last_purchase_at?: string | null })
+            .last_purchase_at;
+          if (!at) return <span className="text-muted-foreground">—</span>;
+          const d = new Date(at);
+          return (
+            <div className="leading-tight">
+              <span className="text-[15px] tabular-nums">
+                {d.toLocaleDateString("fr-FR", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })}
+              </span>
+            </div>
+          );
+        },
+        meta: { label: "Dernier achat" },
       },
       {
         id: "entries",
@@ -397,18 +471,29 @@ export default function AchatsList() {
             0
           );
           if (value === 0) return <span className="text-muted-foreground">—</span>;
+          // Pas de barre pour l'outillage : elle exprime une part dans le total
+          // des achats, dont il est justement exclu. La montrer laisserait
+          // croire qu'il y contribue.
+          const isEquipment = row.original.product_type === "equipment";
           const pct = maxValue > 0 ? (value / maxValue) * 100 : 0;
           return (
             <div className="flex flex-col items-end gap-1 min-w-[80px]">
-              <span className="font-heading tabular-nums text-[15px] font-semibold leading-none text-foreground">
+              <span
+                className={cn(
+                  "font-heading tabular-nums text-[15px] font-semibold leading-none",
+                  isEquipment ? "text-muted-foreground" : "text-foreground"
+                )}
+              >
                 {value.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
               </span>
-              <div className="w-full h-1 rounded-full bg-foreground/[0.06] overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-foreground/20"
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
+              {!isEquipment && (
+                <div className="w-full h-1 rounded-full bg-foreground/[0.06] overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-foreground/20"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              )}
             </div>
           );
         },
@@ -605,11 +690,19 @@ export default function AchatsList() {
                 .getRowModel()
                 .rows.map((row) => {
                   const productId = row.original.id;
+                  // Un outil n'a pas de fiche produit : celle-ci parle de seuil
+                  // critique et de reapprovisionnement, notions qui ne
+                  // s'appliquent pas. On renvoie vers sa page.
+                  const isEquipment = row.original.product_type === "equipment";
                   return (
                     <tr
                       key={productId}
                       className="group border-b last:border-b-0 transition-colors hover:bg-muted/60 cursor-pointer"
-                      onClick={() => router.push(`/produits/${productId}`)}
+                      onClick={() =>
+                        router.push(
+                          isEquipment ? `/outillage?outil=${productId}` : `/produits/${productId}`
+                        )
+                      }
                     >
                       {row.getVisibleCells().map((cell) => {
                         const meta = cell.column.columnDef.meta as
@@ -680,16 +773,31 @@ export default function AchatsList() {
         </table>
       </div>
 
-      {/* Footer count */}
+      {/* Pied : produits achetes, et total consommables.
+           L'outillage figure dans le tableau mais reste hors du total, par
+           regle metier. */}
       {products.length > 0 && (
         <p className="text-muted-foreground text-sm px-1">
           <span className="font-heading font-semibold text-foreground tabular-nums">
             {table.getRowModel().rows.length}
           </span>
-          {productsResult && table.getRowModel().rows.length !== productsResult.total && (
-            <span className="tabular-nums"> sur {productsResult.total}</span>
+          {table.getRowModel().rows.length !== purchases.length && (
+            <span className="tabular-nums"> sur {purchases.length}</span>
           )}{" "}
-          produit{(productsResult?.total ?? 0) > 1 ? "s" : ""}
+          produit{purchases.length > 1 ? "s" : ""} acheté{purchases.length > 1 ? "s" : ""} en{" "}
+          {currentYear}
+          {" · "}
+          <span className="font-heading font-semibold text-foreground tabular-nums">
+            {purchases
+              .filter((p) => p.product_type === "consumable")
+              .reduce((s, p) => s + p.totalValue, 0)
+              .toLocaleString("fr-FR", {
+                style: "currency",
+                currency: "EUR",
+                maximumFractionDigits: 0,
+              })}
+          </span>{" "}
+          hors outillage
         </p>
       )}
     </div>

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Minus, Plus } from "lucide-react";
+import { Loader2, Minus, Paperclip, Plus, X } from "lucide-react";
 import { toast } from "@/lib/toast";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,8 @@ import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProducts, useOrganizations } from "@/hooks/queries";
 import { useCreateStockEntry } from "@/hooks/mutations";
 import { linkMovementToInvoice } from "@/lib/supabase/queries/stock-movements";
+import { toEntryTimestamp } from "@/lib/utils/entry-date";
+import { attachInvoiceFileToMovement } from "@/lib/supabase/queries/attach-invoice";
 import {
   getPurchaseInvoices,
   type PurchaseInvoice,
@@ -48,13 +50,21 @@ interface StockEntryModalProps {
 export default function StockEntryModal({ open, onClose, productId }: StockEntryModalProps) {
   const { currentOrganization } = useOrganizationStore();
   const { data: userOrgs } = useOrganizations();
-  const { data: productsResult } = useProducts({ organizationId: currentOrganization?.id });
+  // L'outillage s'achete comme le reste : il doit figurer dans la liste
+  // des produits, meme s'il ne comptera pas dans les totaux.
+  const { data: productsResult } = useProducts({
+    organizationId: currentOrganization?.id,
+    includeEquipment: true,
+  });
   const products = productsResult?.products || [];
   const createEntry = useCreateStockEntry();
   const isMultiOrg = (userOrgs?.length ?? 0) > 1;
   const [priceEditing, setPriceEditing] = useState(false);
   const [priceOverridden, setPriceOverridden] = useState(false);
   const [invoiceId, setInvoiceId] = useState("");
+  // Facture jointe directement en PDF, sans passer par la page Factures
+  const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
+  const invoiceInputRef = useRef<HTMLInputElement>(null);
   const [invoices, setInvoices] = useState<PurchaseInvoice[]>([]);
   const [newInvoiceOpen, setNewInvoiceOpen] = useState(false);
   const [isLinkingInvoice, setIsLinkingInvoice] = useState(false);
@@ -127,20 +137,34 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
         quantity: data.quantity,
         supplierId: selectedProduct?.supplier_id ?? undefined,
         unitPrice: price,
-        entryDate: data.entry_date ? new Date(data.entry_date).toISOString() : undefined,
+        // Date du jour => heure de validation, pas minuit.
+        entryDate: toEntryTimestamp(data.entry_date),
       },
       {
         // Le rattachement se fait après création : il a besoin de l'id du mouvement
         onSuccess: async (movement) => {
           const label = `+${data.quantity} ${selectedProduct?.name ?? "produit"} entré en stock`;
-          if (!invoiceId) {
+          if (!invoiceId && !invoiceFile) {
             toast.success(label);
             onClose();
             return;
           }
           setIsLinkingInvoice(true);
           try {
-            await linkMovementToInvoice(movement.id, invoiceId);
+            if (invoiceFile && currentOrganization?.id) {
+              // Le PDF cree la facture et la rattache en une fois
+              await attachInvoiceFileToMovement({
+                file: invoiceFile,
+                movementId: movement.id,
+                organizationId: currentOrganization.id,
+                // Le fournisseur vient du produit, comme pour le mouvement
+                supplierId: selectedProduct?.supplier_id ?? null,
+                invoiceDate: data.entry_date || null,
+                totalAmount: data.unit_price ? Number(data.unit_price) * data.quantity : null,
+              });
+            } else {
+              await linkMovementToInvoice(movement.id, invoiceId);
+            }
             toast.success(`${label} · rattaché à la facture`);
           } catch {
             toast.error("Entrée enregistrée, mais le rattachement à la facture a échoué");
@@ -383,7 +407,7 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
               />
 
               {/* Facture — une facture peut couvrir plusieurs achats */}
-              <div className="border-t px-5 py-3">
+              <div className="border-t px-5 py-3 space-y-2">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm font-medium text-foreground shrink-0">Facture</span>
                   <select
@@ -393,9 +417,12 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
                         setNewInvoiceOpen(true);
                       } else {
                         setInvoiceId(e.target.value);
+                        // Un choix dans la liste rend le PDF sans objet
+                        if (e.target.value) setInvoiceFile(null);
                       }
                     }}
-                    className="h-8 w-52 rounded-md border border-input bg-white dark:bg-card px-2 text-sm"
+                    disabled={!!invoiceFile}
+                    className="h-8 w-52 rounded-md border border-input bg-white dark:bg-card px-2 text-sm disabled:opacity-50"
                   >
                     <option value="">Aucune facture</option>
                     {invoices.map((inv) => (
@@ -406,6 +433,47 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
                     ))}
                     <option value="__new__">+ Nouvelle facture…</option>
                   </select>
+                </div>
+
+                {/* Joindre directement le PDF : la facture est creee et
+                    rattachee toute seule, sans passer par la page Factures. */}
+                <div className="flex items-center justify-end gap-2">
+                  <input
+                    ref={invoiceInputRef}
+                    type="file"
+                    accept="application/pdf,image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] ?? null;
+                      setInvoiceFile(f);
+                      if (f) setInvoiceId("");
+                    }}
+                  />
+                  {invoiceFile ? (
+                    <>
+                      <span className="text-xs truncate min-w-0">{invoiceFile.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setInvoiceFile(null);
+                          if (invoiceInputRef.current) invoiceInputRef.current.value = "";
+                        }}
+                        className="text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
+                        aria-label="Retirer la facture"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => invoiceInputRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      <Paperclip className="size-3.5" />
+                      ou joindre un PDF
+                    </button>
+                  )}
                 </div>
               </div>
 

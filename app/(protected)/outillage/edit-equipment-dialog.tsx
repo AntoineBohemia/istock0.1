@@ -9,6 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 
 import { useUpdateProduct } from "@/hooks/mutations";
+import { useSuppliers } from "@/hooks/queries";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { EquipmentProduct } from "@/lib/supabase/queries/equipment";
 import { uploadProductImage } from "@/lib/supabase/queries/products";
 import { useFileUpload } from "@/hooks/use-file-upload";
@@ -25,12 +27,15 @@ export default function EditEquipmentDialog({
   onOpenChange,
 }: EditEquipmentDialogProps) {
   const updateMutation = useUpdateProduct();
+  const { currentOrganization } = useOrganizationStore();
+  const { data: suppliers = [] } = useSuppliers(currentOrganization?.id);
 
   // Reset form when product changes (dialog opens with new product)
   const [prevProductId, setPrevProductId] = useState(product.id);
   const [name, setName] = useState(product.name);
   const [description, setDescription] = useState(product.description ?? "");
   const [price, setPrice] = useState(product.price?.toString() ?? "");
+  const [supplierId, setSupplierId] = useState(product.supplier_id ?? "");
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(
     product.image_url ?? null
   );
@@ -58,6 +63,7 @@ export default function EditEquipmentDialog({
     setName(product.name);
     setDescription(product.description ?? "");
     setPrice(product.price?.toString() ?? "");
+    setSupplierId(product.supplier_id ?? "");
     setExistingImageUrl(product.image_url ?? null);
     clearFiles();
   }
@@ -87,6 +93,7 @@ export default function EditEquipmentDialog({
           name: name.trim(),
           description: description.trim() || null,
           price: price ? parseFloat(price) : null,
+          supplier_id: supplierId || null,
           image_url: imageUrl,
         },
       },
@@ -209,6 +216,24 @@ export default function EditEquipmentDialog({
                 placeholder="0.00"
                 className="bg-white dark:bg-card"
               />
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Fournisseur
+              </label>
+              <select
+                value={supplierId}
+                onChange={(e) => setSupplierId(e.target.value)}
+                className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
+              >
+                <option value="">Aucun</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

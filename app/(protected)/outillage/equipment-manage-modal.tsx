@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, History, Minus, Pencil, Plus } from "lucide-react";
+import { ChevronDown, History, Minus, Pencil, Plus, Receipt, ShoppingCart } from "lucide-react";
 import Link from "next/link";
 import { toast } from "@/lib/toast";
 
@@ -10,10 +10,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 import { useOrganizationStore } from "@/lib/stores/organization-store";
-import { useTechnicians, useEquipmentProduct, useEquipmentHistory } from "@/hooks/queries";
+import {
+  useTechnicians,
+  useEquipmentProduct,
+  useEquipmentHistory,
+  useEquipmentPurchases,
+} from "@/hooks/queries";
 import { useAssignEquipment, useUnassignEquipment } from "@/hooks/mutations";
 import { EquipmentProduct } from "@/lib/supabase/queries/equipment";
 import ProductIconDisplay from "@/components/product-icon-display";
+import ArchiveEquipmentButton from "./archive-equipment-button";
+import StockEntryModal from "@/components/stock-entry-modal";
 import { cn } from "@/lib/utils";
 
 // ── Age helpers ──
@@ -88,6 +95,11 @@ export default function EquipmentManageModal({
   const [showAssignPicker, setShowAssignPicker] = useState(false);
   const [assignQty, setAssignQty] = useState(1);
   const [showHistory, setShowHistory] = useState(false);
+  const [showPurchases, setShowPurchases] = useState(false);
+  const [rebuyOpen, setRebuyOpen] = useState(false);
+  const { data: purchases = [], isLoading: isPurchasesLoading } = useEquipmentPurchases(
+    showPurchases ? product.id : undefined
+  );
   const { data: history = [], isLoading: isHistoryLoading } = useEquipmentHistory(
     showHistory ? product.id : undefined
   );
@@ -186,20 +198,45 @@ export default function EquipmentManageModal({
               <DialogTitle className="text-lg font-bold leading-tight truncate">
                 {p.name}
               </DialogTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">{p.sku}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {p.sku}
+                {/* Fournisseur : saisi au formulaire, il n'etait affiche nulle part */}
+                {p.supplier?.name && <span> · {p.supplier.name}</span>}
+              </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs shrink-0"
-              onClick={() => {
-                onOpenChange(false);
-                onEdit();
-              }}
-            >
-              <Pencil className="size-3.5" />
-              Modifier
-            </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Racheter : le bouton « Entree de stock » n'existait que sur la
+                  page Produits, qui n'affiche meme pas l'outillage. */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => setRebuyOpen(true)}
+              >
+                <ShoppingCart className="size-3.5" />
+                Racheter
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => {
+                  onOpenChange(false);
+                  onEdit();
+                }}
+              >
+                <Pencil className="size-3.5" />
+                Modifier
+              </Button>
+              <ArchiveEquipmentButton
+                productId={p.id}
+                productName={p.name}
+                assignedCount={p.total_assigned}
+                stockCount={stock}
+                isArchived={p.archived_at !== null}
+                onArchived={() => onOpenChange(false)}
+              />
+            </div>
           </div>
         </DialogHeader>
 
@@ -470,6 +507,85 @@ export default function EquipmentManageModal({
             )}
           </div>
 
+          {/* ── Achats — quand, a combien, chez qui, avec quelle facture ──
+               L'historique ci-dessous ne montre que les prets et les retours :
+               on ne voyait nulle part l'achat de l'outil. */}
+          <div className="mt-5 border-t pt-4">
+            <button
+              type="button"
+              onClick={() => setShowPurchases((v) => !v)}
+              className="flex w-full items-center gap-2.5 rounded-lg border bg-card px-3 py-2.5 text-left transition-colors hover:bg-muted/50 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            >
+              <span className="flex size-8 items-center justify-center rounded-full bg-foreground/[0.06] shrink-0">
+                <Receipt className="size-4" />
+              </span>
+              <span className="flex-1 min-w-0 text-sm font-semibold">Achats</span>
+              <ChevronDown
+                className={cn(
+                  "size-4 shrink-0 text-muted-foreground transition-transform duration-200",
+                  !showPurchases && "-rotate-90"
+                )}
+              />
+            </button>
+
+            {showPurchases && (
+              <div className="mt-2">
+                {isPurchasesLoading ? (
+                  <p className="text-xs text-muted-foreground py-2">Chargement…</p>
+                ) : purchases.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-2">
+                    Aucun achat enregistré. Un outil entre en stock par une entrée, avec son prix et
+                    son fournisseur.
+                  </p>
+                ) : (
+                  <div className="rounded-lg border divide-y">
+                    {purchases.map((pu) => (
+                      <div key={pu.id} className="px-3 py-2.5">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="text-[13px] tabular-nums">
+                            {pu.created_at
+                              ? new Date(pu.created_at).toLocaleDateString("fr-FR", {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  year: "numeric",
+                                })
+                              : "—"}
+                            <span className="text-muted-foreground">
+                              {" · "}
+                              {pu.quantity} unité{pu.quantity > 1 ? "s" : ""}
+                            </span>
+                          </span>
+                          <span className="font-heading text-sm font-semibold tabular-nums shrink-0">
+                            {pu.unit_price != null
+                              ? fmtPrice(Number(pu.unit_price) * pu.quantity)
+                              : "—"}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 mt-1">
+                          <span className="text-[11px] text-muted-foreground truncate">
+                            {pu.supplier?.name ?? "Fournisseur non renseigné"}
+                          </span>
+                          {pu.invoice ? (
+                            <Link
+                              href={`/factures?facture=${pu.invoice.id}`}
+                              className="text-[11px] font-medium hover:underline underline-offset-2 shrink-0"
+                            >
+                              {pu.invoice.reference || "Facture"}
+                            </Link>
+                          ) : (
+                            <span className="text-[11px] text-muted-foreground/60 shrink-0">
+                              Aucune facture
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* ── Historique — qui a eu cet outil, et quand ── */}
           <div className="mt-5 border-t pt-4">
             <button
@@ -480,12 +596,7 @@ export default function EquipmentManageModal({
               <span className="flex size-8 items-center justify-center rounded-full bg-foreground/[0.06] shrink-0">
                 <History className="size-4" />
               </span>
-              <span className="flex-1 min-w-0">
-                <span className="block text-sm font-semibold">Historique</span>
-                <span className="block text-[11px] text-muted-foreground">
-                  Qui a eu cet outil, et quand
-                </span>
-              </span>
+              <span className="flex-1 min-w-0 text-sm font-semibold">Historique</span>
               <ChevronDown
                 className={cn(
                   "size-4 shrink-0 text-muted-foreground transition-transform duration-200",
@@ -543,6 +654,9 @@ export default function EquipmentManageModal({
           </div>
         </div>
       </DialogContent>
+
+      {/* Modale d'entree prealablement pointee sur cet outil */}
+      <StockEntryModal open={rebuyOpen} onClose={() => setRebuyOpen(false)} productId={p.id} />
     </Dialog>
   );
 }

@@ -31,6 +31,8 @@ export interface StockMovement {
     sku: string;
     image_url: string | null;
     supplier_id: string | null;
+    /** L'outillage ne compte pas dans les totaux d'achats */
+    product_type?: "consumable" | "equipment";
   };
   technician?: {
     id: string;
@@ -177,7 +179,7 @@ export async function getStockMovements(
   let query = supabase.from("stock_movements").select(
     `
       *,
-      product:products(id, name, sku, image_url, supplier_id),
+      product:products(id, name, sku, image_url, supplier_id, product_type),
       technician:technicians(id, first_name, last_name),
       supplier:suppliers(id, name),
       organization:organizations(id, name),
@@ -487,8 +489,11 @@ export async function getProductMovementStats(
 }
 
 /**
- * Récupère les valeurs totales d'entrée par organisation pour une année donnée
- * Note : utilise le prix actuel du produit (pas de prix historique stocké dans stock_movements)
+ * Valeurs d'entree par societe pour une annee, et valeur du stock.
+ *
+ * Les entrees sont valorisees au prix REELLEMENT PAYE (stock_movements.unit_price),
+ * pas au tarif du jour : sans cela, une revision tarifaire reecrit les achats
+ * passes. Repli sur le prix produit pour les entrees saisies sans prix.
  */
 export async function getYearlyEntryValuesByOrg(year?: number): Promise<{
   byOrg: Record<string, number>;
@@ -503,9 +508,15 @@ export async function getYearlyEntryValuesByOrg(year?: number): Promise<{
   // 1. Entry values by org (join with products for price)
   const { data: entries, error: entriesError } = await supabase
     .from("stock_movements")
-    .select("quantity, reversed_quantity, unit_price, organization_id, product:products(price)")
+    .select(
+      "quantity, reversed_quantity, unit_price, organization_id, product:products!inner(price, product_type)"
+    )
     .eq("movement_type", "entry")
     .is("reverses_movement_id", null)
+    // Regle metier : l'outillage se voit dans les mouvements et les achats,
+    // mais n'entre jamais dans les totaux — ni somme d'achats, ni valeur de
+    // stock. C'est un investissement, pas une consommation.
+    .eq("product.product_type", "consumable")
     .gte("created_at", startOfYear)
     .lt("created_at", endOfYear);
 
@@ -528,10 +539,13 @@ export async function getYearlyEntryValuesByOrg(year?: number): Promise<{
     cumul += value;
   });
 
-  // 2. Global stock value (all orgs, current stock × current price)
+  // 2. Valeur du stock — consommables uniquement, comme l'export « etat de
+  // stock ». L'outillage y figurait, ce qui donnait deux montants differents
+  // pour la meme notion selon l'ecran consulte.
   const { data: products, error: productsError } = await supabase
     .from("products")
     .select("stock_current, price")
+    .eq("product_type", "consumable")
     .is("archived_at", null);
 
   if (productsError) {
@@ -614,7 +628,7 @@ export async function getYearlyEntryQtyByProduct(
   const { data, error } = await supabase
     .from("stock_movements")
     .select(
-      "product_id, organization_id, quantity, reversed_quantity, unit_price, supplier:suppliers(name)"
+      "product_id, organization_id, quantity, reversed_quantity, unit_price, supplier:suppliers(name), product:products(product_type)"
     )
     .eq("movement_type", "entry")
     .is("reverses_movement_id", null)
@@ -696,4 +710,175 @@ export async function getProductPriceHistory(productId: string): Promise<PriceHi
   }
 
   return data ?? [];
+}
+
+export interface CategoryBreakdownRow {
+  category_name: string;
+  total: number;
+  quantity: number;
+}
+
+/**
+ * Repartition par categorie derriere une carte de la page Achats.
+ *
+ * mode "purchases" : achats de l'annee, filtrables par societe.
+ * mode "stock"     : valeur de stock actuelle, consommables uniquement.
+ */
+export async function getPurchasesByCategory(
+  year: number,
+  organizationId?: string | null,
+  mode: "purchases" | "stock" = "purchases"
+): Promise<CategoryBreakdownRow[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase.rpc("get_purchases_by_category", {
+    p_year: year,
+    p_organization_id: organizationId ?? undefined,
+    p_mode: mode,
+  });
+
+  if (error) {
+    throw new Error(`Erreur lors de la répartition par catégorie: ${error.message}`);
+  }
+
+  // Postgres renvoie numeric et bigint en chaine : sans Number(), les tris et
+  // les totaux se feraient en comparaison de texte.
+  return (data ?? []).map((r) => ({
+    category_name: r.category_name,
+    total: Number(r.total ?? 0),
+    quantity: Number(r.quantity ?? 0),
+  }));
+}
+
+/** Un produit achete dans l'annee, vu depuis les mouvements d'entree */
+export interface YearlyPurchase {
+  product_id: string;
+  product_name: string;
+  product_sku: string | null;
+  product_image_url: string | null;
+  product_icon_name: string | null;
+  product_icon_color: string | null;
+  product_price: number | null;
+  product_type: "consumable" | "equipment";
+  /** Le produit a-t-il ete archive depuis ? L'achat reste, la fiche non. */
+  is_archived: boolean;
+  /** Detail par societe */
+  byOrg: Record<string, OrgEntryDetail>;
+  totalQty: number;
+  totalValue: number;
+  /** Date du dernier achat — sert au tri « du plus recent au plus ancien » */
+  lastPurchaseAt: string | null;
+}
+
+/**
+ * Achats de l'annee, construits sur les MOUVEMENTS et non sur le catalogue.
+ *
+ * La page Achats partait de la liste des produits, filtree sur ceux ayant eu
+ * une entree. Archiver un produit le faisait donc disparaitre de l'historique
+ * d'achats : 525 EUR depenses s'evaporaient d'un coup, et les totaux annuels
+ * changeaient au gre du menage dans le catalogue.
+ *
+ * Un achat est un fait date : il reste, meme si la fiche produit ne sert plus.
+ */
+export async function getYearlyPurchases(year?: number): Promise<YearlyPurchase[]> {
+  const supabase = createClient();
+  const targetYear = year ?? new Date().getFullYear();
+  const startOfYear = new Date(targetYear, 0, 1).toISOString();
+  const endOfYear = new Date(targetYear + 1, 0, 1).toISOString();
+
+  const { data, error } = await supabase
+    .from("stock_movements")
+    .select(
+      `product_id, organization_id, quantity, reversed_quantity, unit_price,
+       supplier:suppliers(name),
+       created_at,
+       product:products(id, name, sku, image_url, icon_name, icon_color, price, product_type, archived_at)`
+    )
+    .eq("movement_type", "entry")
+    .is("reverses_movement_id", null)
+    .gte("created_at", startOfYear)
+    .lt("created_at", endOfYear);
+
+  if (error) {
+    throw new Error(`Erreur lors de la récupération des achats: ${error.message}`);
+  }
+
+  const byProduct = new Map<string, YearlyPurchase>();
+
+  for (const m of data ?? []) {
+    const prodRel = m.product as Record<string, unknown> | Record<string, unknown>[] | null;
+    const product = (Array.isArray(prodRel) ? prodRel[0] : prodRel) as {
+      id: string;
+      name: string;
+      sku: string | null;
+      image_url: string | null;
+      icon_name: string | null;
+      icon_color: string | null;
+      price: number | null;
+      product_type: "consumable" | "equipment";
+      archived_at: string | null;
+    } | null;
+    if (!product) continue;
+
+    // Quantite nette : ce qui a ete corrige n'a pas ete achete.
+    const netQty = m.quantity - (m.reversed_quantity ?? 0);
+    if (netQty <= 0) continue;
+
+    // Prix paye, pas le tarif du jour.
+    const price = m.unit_price ?? product.price ?? 0;
+    const orgId = m.organization_id ?? "unknown";
+
+    let entry = byProduct.get(product.id);
+    if (!entry) {
+      entry = {
+        product_id: product.id,
+        product_name: product.name,
+        product_sku: product.sku,
+        product_image_url: product.image_url,
+        product_icon_name: product.icon_name,
+        product_icon_color: product.icon_color,
+        product_price: product.price,
+        product_type: product.product_type,
+        is_archived: product.archived_at !== null,
+        byOrg: {},
+        totalQty: 0,
+        totalValue: 0,
+        lastPurchaseAt: null,
+      };
+      byProduct.set(product.id, entry);
+    }
+
+    if (!entry.byOrg[orgId]) {
+      entry.byOrg[orgId] = { qty: 0, byPrice: [], suppliers: [] };
+    }
+    const org = entry.byOrg[orgId];
+    org.qty += netQty;
+
+    const existingPrice = org.byPrice.find((bp) => bp.unitPrice === price);
+    if (existingPrice) existingPrice.qty += netQty;
+    else org.byPrice.push({ unitPrice: price, qty: netQty });
+
+    const supRel = m.supplier as { name: string | null } | { name: string | null }[] | null;
+    const supplierName = Array.isArray(supRel) ? supRel[0]?.name : supRel?.name;
+    if (supplierName) {
+      const existingSup = org.suppliers.find((s) => s.name === supplierName);
+      if (existingSup) existingSup.qty += netQty;
+      else org.suppliers.push({ name: supplierName, qty: netQty });
+    }
+
+    entry.totalQty += netQty;
+    entry.totalValue += netQty * price;
+
+    // Date du dernier achat : c'est elle qui fait remonter un produit
+    // rachete aujourd'hui, sans effacer son historique.
+    if (m.created_at && (!entry.lastPurchaseAt || m.created_at > entry.lastPurchaseAt)) {
+      entry.lastPurchaseAt = m.created_at;
+    }
+  }
+
+  // Du plus recent au plus ancien : « qu'est-ce que j'ai achete en dernier ? »
+  // est la question qu'on se pose en ouvrant la page.
+  return Array.from(byProduct.values()).sort((a, b) =>
+    (b.lastPurchaseAt ?? "").localeCompare(a.lastPurchaseAt ?? "")
+  );
 }

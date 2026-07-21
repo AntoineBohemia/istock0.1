@@ -21,6 +21,8 @@ export interface Product {
   created_at: string | null;
   updated_at: string | null;
   archived_at: string | null;
+  /** "consumable" ou "equipment" — l'outillage ne compte pas dans les totaux */
+  product_type?: "consumable" | "equipment";
 }
 
 export interface ProductOrgStock {
@@ -42,6 +44,12 @@ export interface ProductFilters {
   minPrice?: number;
   maxPrice?: number;
   stockStatus?: "low" | "normal" | "high" | "all";
+  /**
+   * Inclure l'outillage. Par defaut la liste ne montre que les consommables
+   * (l'outillage a sa propre page), mais l'entree de stock et le tableau des
+   * achats doivent pouvoir le traiter.
+   */
+  includeEquipment?: boolean;
 }
 
 export interface ProductsResult {
@@ -85,7 +93,8 @@ export function generateSKU(name: string): string {
  */
 export async function getProducts(filters: ProductFilters = {}): Promise<ProductsResult> {
   const supabase = createClient();
-  const { organizationId, search, categoryId, minPrice, maxPrice, stockStatus } = filters;
+  const { organizationId, search, categoryId, minPrice, maxPrice, stockStatus, includeEquipment } =
+    filters;
 
   // Construire la requête de base
   // count: "exact" — le catalogue (53 references, environ 4 par mois) est loin
@@ -99,8 +108,11 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
       { count: "exact" }
     );
 
-  // Exclure les produits archivés et outillage (page séparée)
-  query = query.is("archived_at", null).eq("product_type", "consumable");
+  // Archives toujours exclus. Outillage exclu par defaut : il a sa page.
+  query = query.is("archived_at", null);
+  if (!includeEquipment) {
+    query = query.eq("product_type", "consumable");
+  }
 
   // Filtrer par organisation
   if (organizationId) {
@@ -259,6 +271,22 @@ export async function updateProduct(
 /**
  * Archive un produit (soft-delete)
  */
+/**
+ * Restaure un produit archive.
+ *
+ * L'archivage existait sans son inverse : un clic mettait le produit hors de
+ * portee definitivement depuis l'interface.
+ */
+export async function unarchiveProduct(id: string): Promise<void> {
+  const supabase = createClient();
+
+  const { error } = await supabase.from("products").update({ archived_at: null }).eq("id", id);
+
+  if (error) {
+    throw new Error(`Erreur lors de la restauration du produit: ${error.message}`);
+  }
+}
+
 export async function archiveProduct(id: string, organizationId?: string): Promise<void> {
   const supabase = createClient();
 
