@@ -52,6 +52,7 @@ import {
   StockMovement,
   MOVEMENT_TYPE_LABELS,
   getStockMovements,
+  isPositiveMovement,
   type MovementType,
 } from "@/lib/supabase/queries/stock-movements";
 import { toast } from "@/lib/toast";
@@ -634,7 +635,7 @@ export default function MovementsList() {
         header: ({ column }) => <SortHeader label="Qté" column={column} />,
         cell: ({ row }) => {
           const type = row.original.movement_type;
-          const isPositive = type === "entry" || type === "unassign_equipment";
+          const isPositive = isPositiveMovement(type);
           return (
             <span
               className={cn(

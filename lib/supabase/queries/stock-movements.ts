@@ -87,6 +87,20 @@ export interface StockMovementsResult {
   totalPages: number;
 }
 
+/**
+ * Un mouvement ajoute-t-il au stock central ?
+ *
+ * Le retour d'un outil realimente le stock, son assignation le vide : les
+ * deux types "equipment" ne vont pas dans le meme sens. La regle etait
+ * recopiee a trois endroits et l'un d'eux affichait un retour d'outil en
+ * negatif. Une seule source desormais.
+ */
+const POSITIVE_MOVEMENT_TYPES = new Set<string>(["entry", "unassign_equipment"]);
+
+export function isPositiveMovement(type: MovementType | string): boolean {
+  return POSITIVE_MOVEMENT_TYPES.has(type);
+}
+
 export const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
   entry: "Entrée",
   exit_technician: "Sortie technicien",

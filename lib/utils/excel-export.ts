@@ -1,6 +1,6 @@
 import type { StockAtDateRow } from "@/lib/supabase/queries/stock-at-date";
 import type { StockMovement } from "@/lib/supabase/queries/stock-movements";
-import { MOVEMENT_TYPE_LABELS } from "@/lib/supabase/queries/stock-movements";
+import { MOVEMENT_TYPE_LABELS, isPositiveMovement } from "@/lib/supabase/queries/stock-movements";
 import type { Fill, Border } from "exceljs";
 
 // ─── Helpers ──────────────────────────────────────────────
@@ -50,9 +50,6 @@ const BORDER_MEDIUM: Partial<Border> = {
 const NO_FILL: Fill = { type: "pattern", pattern: "none" };
 
 // ─── Export des mouvements ────────────────────────────────
-
-/** Types qui augmentent le stock — le signe change la lecture de la ligne */
-const POSITIVE_TYPES = new Set(["entry", "unassign_equipment"]);
 
 interface MovementsExportOptions {
   movements: StockMovement[];
@@ -199,7 +196,7 @@ export async function exportMovementsExcel({
 
   // ─── Lignes de donnees ─────────────────────────────────
   movements.forEach((m) => {
-    const isPositive = POSITIVE_TYPES.has(m.movement_type);
+    const isPositive = isPositiveMovement(m.movement_type);
     const price = m.unit_price ? Number(m.unit_price) : null;
     const amount = price ? m.quantity * price : null;
 

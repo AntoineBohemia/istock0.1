@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
+import { motion } from "motion/react";
 import { toast } from "@/lib/toast";
 import {
   Search,
@@ -41,11 +42,19 @@ import { useCreateStockEntry, useCreateStockExit } from "@/hooks/mutations";
 import { calculateStockScore, getStockBadgeVariant } from "@/lib/utils/stock";
 import { cn } from "@/lib/utils";
 import { useDebouncedValue } from "@/hooks/use-debounce";
+import { MOVEMENT_TYPE_LABELS, isPositiveMovement } from "@/lib/supabase/queries/stock-movements";
+import { MobileStackScreen, InsetGroup, InsetRow } from "./mobile-stack-screen";
+import { MobileSplash } from "./mobile-splash";
 
 const QrScannerModal = dynamic(() => import("@/components/qr-scanner-modal"), { ssr: false });
 
 // ─── Types ──────────────────────────────────────────────────
-type ActionMode = "entry" | "exit_technician" | "exit_anonymous";
+// L'ecran d'accueil ne pose qu'une question : ca rentre ou ca sort.
+// Le motif d'une sortie (technicien ou erreur de stock) se choisit ensuite ;
+// c'est lui qui determine le type de mouvement enregistre.
+type ActionMode = "entry" | "exit";
+type ExitReason = "technician" | "loss";
+type MovementKind = "entry" | "exit_technician" | "exit_anonymous" | "exit_loss";
 
 interface ConsoleProduct {
   id: string;
@@ -68,7 +77,7 @@ interface CartItem {
 
 interface SessionEntry {
   localId: string;
-  movementType: ActionMode;
+  movementType: MovementKind;
   productId: string;
   productName: string;
   quantity: number;
@@ -78,39 +87,29 @@ interface SessionEntry {
 }
 
 // ─── Constants ──────────────────────────────────────────────
-const MOVEMENT_LABELS: Record<string, string> = {
-  entry: "Entr\u00e9e",
-  exit_technician: "Sortie technicien",
-  exit_anonymous: "Sortie autre",
-};
-
 const ACTION_OPTIONS: {
   mode: ActionMode;
   label: string;
+  hint: string;
   icon: React.ElementType;
-  color: string;
-  borderColor: string;
+  accent: string;
+  tint: string;
 }[] = [
   {
     mode: "entry",
-    label: "Entr\u00e9e stock",
+    label: "Entr\u00e9e",
+    hint: "R\u00e9ception de marchandise",
     icon: ArrowDownToLine,
-    color: "text-standard",
-    borderColor: "hover:border-standard",
+    accent: "text-standard",
+    tint: "bg-standard-bg",
   },
   {
-    mode: "exit_technician",
-    label: "Sortie technicien",
-    icon: PackagePlus,
-    color: "text-primary",
-    borderColor: "hover:border-primary",
-  },
-  {
-    mode: "exit_anonymous",
-    label: "Sortie autre",
+    mode: "exit",
+    label: "Sortie",
+    hint: "Technicien ou erreur de stock",
     icon: ArrowUpFromLine,
-    color: "text-critique",
-    borderColor: "hover:border-critique",
+    accent: "text-critique",
+    tint: "bg-critique-bg",
   },
 ];
 
@@ -141,9 +140,9 @@ export default function ActionsMobileSheet() {
   const [actionMode, setActionMode] = useState<ActionMode | null>(null);
 
   // ─── Drawer inner navigation ────────────────────────────
-  // For entry/exit_anonymous: "products" → "detail"
-  // For exit_technician: "technicians" → "products" → "cart"
-  type DrawerStep = "products" | "detail" | "technicians" | "cart";
+  // Entree : "products" → "detail"
+  // Sortie : "reason" → "products" → "cart"
+  type DrawerStep = "products" | "detail" | "reason" | "cart";
   const [drawerStep, setDrawerStep] = useState<DrawerStep>("products");
 
   // ─── Search ─────────────────────────────────────────────
@@ -165,12 +164,22 @@ export default function ActionsMobileSheet() {
   const [entryDate, setEntryDate] = useState<Date>(todayDate);
   const quantityInputRef = useRef<HTMLInputElement>(null);
 
-  // ─── Technician (exit_technician) ───────────────────────
+  // ─── Destination d'une sortie ───────────────────────────
+  const [exitReason, setExitReason] = useState<ExitReason | null>(null);
   const [technicianId, setTechnicianId] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
 
+  // ─── Ecran de lancement ────────────────────────────────
+  // Une seule fois par chargement de page : les etapes se posent par-dessus
+  // l'accueil sans le remonter, revenir en arriere ne le rejoue donc pas.
+  const [splashDone, setSplashDone] = useState(false);
+
+  // ─── Historique du jour (tiroir) ───────────────────────
+  const [historyOpen, setHistoryOpen] = useState(false);
+
   // ─── QR Scanner ────────────────────────────────────────
-  const [scannerOpen, setScannerOpen] = useState(false);
+  // Plus de bouton de scan a l'accueil. Deux entrees subsistent : l'appareil
+  // photo du telephone (lien ?product=) et le scan par lot pendant une sortie.
   const [batchScanOpen, setBatchScanOpen] = useState(false);
   const [scannedProduct, setScannedProduct] = useState<ConsoleProduct | null>(null);
   const [scanActionSheetOpen, setScanActionSheetOpen] = useState(false);
@@ -216,6 +225,9 @@ export default function ActionsMobileSheet() {
   const olderMovements = (todayResult?.movements ?? []).filter(
     (m) => m.created_at && m.created_at < pageLoadTime
   );
+  // Compteur du pied d'ecran : sans lui, rien n'indique qu'il y a quelque
+  // chose derriere le bouton.
+  const todayCount = session.length + olderMovements.length;
 
   // ─── Mutations ─────────────────────────────────────────
   const createEntry = useCreateStockEntry();
@@ -229,6 +241,12 @@ export default function ActionsMobileSheet() {
   );
   const techFullName = selectedTech ? `${selectedTech.first_name} ${selectedTech.last_name}` : "";
   const cartTotalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Le motif choisi devient le type de mouvement : une seule source de verite,
+  // pour que le libelle affiche et la ligne ecrite en base ne divergent jamais.
+  const exitMovementType: MovementKind = exitReason === "loss" ? "exit_loss" : "exit_technician";
+  // Ou part le stock — sert au chip d'en-tete et au bouton de validation.
+  const exitDestination = exitReason === "loss" ? "Erreur de stock" : techFullName;
 
   const submitLabel = useMemo(() => {
     if (!actionMode) return "";
@@ -248,12 +266,11 @@ export default function ActionsMobileSheet() {
     setEntryDate(todayDate);
     setCart([]);
     setTechnicianId("");
+    setExitReason(null);
 
-    if (mode === "exit_technician") {
-      setDrawerStep("technicians");
-    } else {
-      setDrawerStep("products");
-    }
+    // Une sortie demande d'abord ou part le stock : sans cette reponse le
+    // mouvement ne peut pas etre qualifie.
+    setDrawerStep(mode === "exit" ? "reason" : "products");
     setDrawerOpen(true);
   }, []);
 
@@ -272,32 +289,9 @@ export default function ActionsMobileSheet() {
       setEntryDate(todayDate);
       setCart([]);
       setTechnicianId("");
+      setExitReason(null);
     }, 300);
   }, []);
-
-  // ─── QR Scan result handler ──────────────────────────
-  const handleScanResult = useCallback(
-    (productId: string) => {
-      setScannerOpen(false);
-      navigator.vibrate?.(10);
-      // Find the scanned product in FULL list (not search-filtered)
-      const found = allProducts.find((p) => p.id === productId);
-      if (found) {
-        setScannedProduct({
-          id: found.id,
-          name: found.name,
-          sku: found.sku,
-          stock_current: found.stock_current ?? 0,
-          stock_min: found.stock_min,
-          price: found.price ?? null,
-        });
-        setScanActionSheetOpen(true);
-      } else {
-        toast.error("Produit non reconnu dans cette organisation");
-      }
-    },
-    [allProducts]
-  );
 
   // ─── Scan action sheet choices ─────────────────────
   const handleScanAction = useCallback(
@@ -305,21 +299,23 @@ export default function ActionsMobileSheet() {
       if (!scannedProduct) return;
       setScanActionSheetOpen(false);
 
-      if (mode === "exit_technician") {
-        // Open technician selection with this product pre-queued
-        setActionMode("exit_technician");
+      if (mode === "exit") {
+        // Le produit est deja identifie : reste a savoir ou il part.
+        setActionMode("exit");
         setSearchQuery("");
         setProduct(null);
         setCart([{ product: scannedProduct, quantity: 1 }]);
         setTechnicianId("");
-        setDrawerStep("technicians");
+        setExitReason(null);
+        setDrawerStep("reason");
         setDrawerOpen(true);
       } else {
-        // Entry or exit_anonymous — go straight to detail
+        // Entree — le produit scanne suffit, on saisit directement la quantite
         setActionMode(mode);
         setSearchQuery("");
         setCart([]);
         setTechnicianId("");
+        setExitReason(null);
         setProduct(scannedProduct);
         setQuantity(1);
         setUnitPrice(scannedProduct.price != null ? scannedProduct.price.toString() : "");
@@ -391,20 +387,22 @@ export default function ActionsMobileSheet() {
     });
   }, []);
 
-  // ─── Select technician ────────────────────────────────
-  const selectTechnician = useCallback((techId: string) => {
+  // ─── Choix de la destination d'une sortie ─────────────
+  const selectExitReason = useCallback((reason: ExitReason, techId?: string) => {
     navigator.vibrate?.(10);
-    setTechnicianId(techId);
+    setExitReason(reason);
+    setTechnicianId(reason === "technician" ? (techId ?? "") : "");
     setSearchQuery("");
     setDrawerStep("products");
     setTimeout(() => searchInputRef.current?.focus(), 100);
   }, []);
 
-  // ─── Clear technician ─────────────────────────────────
-  const clearTechnician = useCallback(() => {
+  // ─── Revenir sur le choix de destination ──────────────
+  const clearExitReason = useCallback(() => {
+    setExitReason(null);
     setTechnicianId("");
     setCart([]);
-    setDrawerStep("technicians");
+    setDrawerStep("reason");
     setSearchQuery("");
   }, []);
 
@@ -446,10 +444,10 @@ export default function ActionsMobileSheet() {
       setDrawerStep("products");
       setSearchQuery("");
       setTimeout(() => searchInputRef.current?.focus(), 100);
-    } else if (drawerStep === "products" && actionMode === "exit_technician") {
-      clearTechnician();
+    } else if (drawerStep === "products" && actionMode === "exit") {
+      clearExitReason();
     }
-  }, [drawerStep, actionMode, clearTechnician]);
+  }, [drawerStep, actionMode, clearExitReason]);
 
   // ─── Submit single (entry / exit_anonymous) ───────────
   const handleSubmit = useCallback(() => {
@@ -474,7 +472,7 @@ export default function ActionsMobileSheet() {
       setSession((prev) => [
         {
           localId,
-          movementType: actionMode,
+          movementType: isEntry ? "entry" : exitMovementType,
           productId: product.id,
           productName: product.name,
           quantity,
@@ -519,7 +517,13 @@ export default function ActionsMobileSheet() {
       );
     } else {
       createExit.mutate(
-        { organizationId: orgId, productId: product.id, quantity, type: actionMode },
+        {
+          organizationId: orgId,
+          productId: product.id,
+          quantity,
+          type: exitMovementType,
+          technicianId: exitReason === "technician" ? technicianId : undefined,
+        },
         { onSuccess, onError }
       );
     }
@@ -534,11 +538,16 @@ export default function ActionsMobileSheet() {
     unitPrice,
     invoiceRef,
     entryDate,
+    exitMovementType,
+    exitReason,
+    technicianId,
   ]);
 
   // ─── Submit batch (exit_technician) ───────────────────
   const handleBatchSubmit = useCallback(async () => {
-    if (!orgId || !technicianId || cart.length === 0 || isBatchSubmitting) return;
+    if (!orgId || !exitReason || cart.length === 0 || isBatchSubmitting) return;
+    // Une sortie technicien sans technicien n'est pas tracable : on refuse.
+    if (exitReason === "technician" && !technicianId) return;
 
     for (const item of cart) {
       if (item.quantity > item.product.stock_current) {
@@ -556,19 +565,19 @@ export default function ActionsMobileSheet() {
           organizationId: orgId,
           productId: item.product.id,
           quantity: item.quantity,
-          type: "exit_technician",
-          technicianId,
+          type: exitMovementType,
+          technicianId: exitReason === "technician" ? technicianId : undefined,
         });
         const stockAfter = item.product.stock_current - item.quantity;
         setSession((prev) => [
           {
             localId: crypto.randomUUID(),
-            movementType: "exit_technician",
+            movementType: exitMovementType,
             productId: item.product.id,
             productName: item.product.name,
             quantity: item.quantity,
             stockAfter,
-            technicianName: techFullName,
+            technicianName: exitReason === "technician" ? techFullName : undefined,
             createdAt: new Date().toISOString(),
           },
           ...prev,
@@ -584,15 +593,27 @@ export default function ActionsMobileSheet() {
 
     if (successCount > 0) {
       navigator.vibrate?.(10);
+      const s = successCount > 1 ? "s" : "";
       toast.success(
-        `${successCount} produit${successCount > 1 ? "s" : ""} sorti${successCount > 1 ? "s" : ""} vers ${techFullName}`
+        exitReason === "technician"
+          ? `${successCount} produit${s} sorti${s} vers ${techFullName}`
+          : `${successCount} produit${s} retiré${s} — erreur de stock`
       );
       setCart([]);
       setSearchQuery("");
       // Drawer stays open for rapid-fire
       setTimeout(() => searchInputRef.current?.focus(), 100);
     }
-  }, [orgId, technicianId, cart, isBatchSubmitting, techFullName, createExit]);
+  }, [
+    orgId,
+    technicianId,
+    cart,
+    isBatchSubmitting,
+    techFullName,
+    createExit,
+    exitReason,
+    exitMovementType,
+  ]);
 
   // ─── Revert session entry ─────────────────────────────
   const handleRevert = useCallback(
@@ -693,244 +714,306 @@ export default function ActionsMobileSheet() {
 
   // ─── Drawer title (for accessibility) ─────────────────
   const drawerTitle = useMemo(() => {
-    if (actionMode === "entry") return "Entr\u00e9e stock";
-    if (actionMode === "exit_technician") return "Sortie technicien";
-    if (actionMode === "exit_anonymous") return "Sortie autre";
-    return "Action";
-  }, [actionMode]);
+    if (actionMode === "entry") return "Entr\u00e9e";
+    if (actionMode !== "exit") return "Action";
+    // Tant que la destination n'est pas choisie, l'annoncer serait mentir.
+    if (!exitReason) return "Sortie";
+    return exitReason === "loss" ? "Erreur de stock" : "Sortie technicien";
+  }, [actionMode, exitReason]);
+
+  // ─── Pile : peut-on remonter d'un cran ? ──────────────
+  const canGoBack =
+    drawerStep === "detail" ||
+    drawerStep === "cart" ||
+    (drawerStep === "products" && actionMode === "exit");
+
+  // ─── Barre d'action de l'etape courante ───────────────
+  // Une seule barre a la fois : l'etape decide ce qu'elle propose.
+  let stackFooter: React.ReactNode = null;
+  if (drawerStep === "detail" && product) {
+    stackFooter = (
+      <Button
+        className="w-full h-12 text-[15px] active:scale-[0.97]"
+        onClick={() => {
+          navigator.vibrate?.(10);
+          handleSubmit();
+        }}
+        disabled={
+          isSubmitting ||
+          quantity < 1 ||
+          (actionMode !== "entry" && quantity > product.stock_current)
+        }
+      >
+        {isSubmitting ? (
+          <>
+            <Loader2 className="size-4 animate-spin" /> En cours&hellip;
+          </>
+        ) : (
+          submitLabel
+        )}
+      </Button>
+    );
+  } else if (actionMode === "exit" && drawerStep === "cart" && cart.length > 0) {
+    stackFooter = (
+      <Button
+        onClick={handleBatchSubmit}
+        disabled={isSubmitting}
+        className="w-full h-12 text-[15px] active:scale-[0.97]"
+      >
+        {isBatchSubmitting ? (
+          <>
+            <Loader2 className="size-4 animate-spin" /> En cours&hellip;
+          </>
+        ) : exitReason === "loss" ? (
+          "Valider — erreur de stock"
+        ) : (
+          `Valider la sortie vers ${techFullName}`
+        )}
+      </Button>
+    );
+  } else if (actionMode === "exit" && drawerStep === "products" && cart.length > 0) {
+    stackFooter = (
+      <Button
+        onClick={() => setDrawerStep("cart")}
+        className="w-full h-12 text-[15px] active:scale-[0.97]"
+      >
+        <Package className="size-4" />
+        Voir le panier ({cart.length} produit{cart.length > 1 ? "s" : ""} &middot; {cartTotalItems}{" "}
+        unités)
+      </Button>
+    );
+  }
 
   // ═════════════════════════════════════════════════════════
   // RENDER
   // ═════════════════════════════════════════════════════════
   return (
-    <div className="pb-[calc(5rem+env(safe-area-inset-bottom))]">
-      {/* ── Main Screen (always visible) ── */}
-      <div className="space-y-6 px-1">
-        {/* Action cards — 2x2 grid with scan as primary */}
-        <div className="grid grid-cols-2 gap-2.5">
-          {/* QR Scan — primary action */}
-          <button
-            onClick={() => setScannerOpen(true)}
-            className="flex items-center gap-3 rounded-2xl bg-foreground text-background px-4 py-4 active:scale-[0.97] transition-all col-span-2"
-          >
-            <ScanLine className="size-5" />
-            <span className="font-semibold text-[15px]">Scanner un QR code</span>
-          </button>
+    <div>
+      {!splashDone && <MobileSplash onDone={() => setSplashDone(true)} />}
 
-          {/* 3 action buttons */}
-          {ACTION_OPTIONS.map(({ mode, label, icon: Icon, color }) => (
-            <button
+      {/* ═══ ETAPE 1 — le seul ecran d'accueil ═══
+          Deux choix, rien d'autre. Le scan et l'historique existent toujours
+          mais en pied d'ecran : ce sont des outils, pas des decisions, et les
+          melanger aux deux cartes ferait quatre choix au lieu de deux. */}
+      <div className="flex flex-col gap-3" style={{ minHeight: "calc(100dvh - 9rem)" }}>
+        <div className="flex-1 flex flex-col justify-center gap-3">
+          {ACTION_OPTIONS.map(({ mode, label, hint, icon: Icon, accent, tint }, i) => (
+            <motion.button
               key={mode}
               onClick={() => openDrawer(mode)}
-              className="flex items-center gap-2.5 rounded-xl border bg-white dark:bg-card px-3.5 py-3 active:scale-[0.97] transition-all"
+              // Les cartes se posent apres le lancement, dans l'ordre de
+              // lecture. Sans rebond : rien ne les a lancees.
+              initial={{ opacity: 0, y: 16 }}
+              animate={splashDone ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
+              transition={{ type: "spring", bounce: 0, duration: 0.45, delay: i * 0.07 }}
+              className="w-full flex-1 max-h-[42vh] flex flex-col items-center justify-center gap-3 rounded-3xl border bg-white dark:bg-card px-5 py-8 active:scale-[0.98] transition-transform"
             >
-              <Icon className={cn("shrink-0 size-[18px]", color)} />
-              <span className="font-medium text-[13px] text-left leading-tight">{label}</span>
-            </button>
+              <span
+                className={cn(
+                  "size-20 rounded-2xl flex items-center justify-center shrink-0",
+                  tint
+                )}
+              >
+                <Icon className={cn("size-10", accent)} />
+              </span>
+              <span className="text-center">
+                <span className="block font-heading font-semibold text-[26px] leading-none">
+                  {label}
+                </span>
+                <span className="block text-[13px] text-muted-foreground leading-tight mt-1.5">
+                  {hint}
+                </span>
+              </span>
+            </motion.button>
           ))}
         </div>
 
-        {/* ── HISTORIQUE DU JOUR (always visible) ── */}
-        <div className="space-y-3">
-          <h3 className="font-heading text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1">
-            Historique du jour
-          </h3>
-
-          {session.length === 0 && olderMovements.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              {isLoadingToday ? (
-                <div className="w-full space-y-2 px-1">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5">
-                      <Skeleton className="h-4 w-8 shrink-0" />
-                      <div className="flex-1 space-y-1.5">
-                        <Skeleton className="h-3.5 w-3/4" />
-                        <Skeleton className="h-3 w-1/2" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <>
-                  <Clock className="size-10 text-muted-foreground/20 mb-2" />
-                  <p className="text-sm text-muted-foreground">Aucun mouvement aujourd&apos;hui.</p>
-                </>
+        {/* Pied d'ecran : l'historique seul, a portee de pouce */}
+        <div className="pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
+          <button
+            onClick={() => setHistoryOpen(true)}
+            className="w-full flex items-center justify-center gap-2 rounded-2xl border bg-white dark:bg-card py-3.5 active:scale-[0.97] transition-transform"
+          >
+            <Clock className="size-[18px] text-muted-foreground" />
+            <span className="font-semibold text-[14px]">
+              Historique
+              {todayCount > 0 && (
+                <span className="text-muted-foreground font-normal"> · {todayCount}</span>
               )}
-            </div>
-          ) : (
-            <ul className="space-y-1.5">
-              {/* Session entries (current session, with undo) */}
-              {session.map((entry) => {
-                const isEntry = entry.movementType === "entry";
-                const reverting = revertingIds.has(entry.localId);
-                const time = new Date(entry.createdAt).toLocaleTimeString("fr-FR", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                });
-                return (
-                  <li
-                    key={entry.localId}
-                    className={cn(
-                      "rounded-xl border-l-2 px-3 py-2.5",
-                      isEntry
-                        ? "border-l-standard bg-standard-bg/30"
-                        : "border-l-critique bg-critique-bg/30"
-                    )}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span
-                        className={cn(
-                          "font-heading font-bold tabular-nums text-sm shrink-0",
-                          isEntry ? "text-standard" : "text-critique"
-                        )}
-                      >
-                        {isEntry ? "+" : "-"}
-                        {entry.quantity}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-medium truncate">{entry.productName}</p>
-                        <p className="text-[11px] text-muted-foreground truncate">
-                          {MOVEMENT_LABELS[entry.movementType]}
-                          {entry.technicianName && ` \u2192 ${entry.technicianName}`}
-                        </p>
-                      </div>
-                      <span className="text-[10px] font-heading tabular-nums text-muted-foreground shrink-0">
-                        {time}
-                      </span>
-                      <button
-                        onClick={() => handleRevert(entry)}
-                        disabled={reverting}
-                        className="text-[11px] text-muted-foreground active:text-foreground shrink-0 disabled:opacity-30 min-h-[44px] flex items-center px-1"
-                      >
-                        {reverting ? "\u2026" : "annuler"}
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-
-              {/* Separator if both session + older exist */}
-              {olderMovements.length > 0 && session.length > 0 && (
-                <li className="pt-2 pb-1 px-1">
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                    Plus tot
-                  </span>
-                </li>
-              )}
-
-              {/* Older movements (before page load) */}
-              {olderMovements.map((m) => {
-                const isEntry = m.movement_type === "entry";
-                const time = m.created_at
-                  ? new Date(m.created_at).toLocaleTimeString("fr-FR", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                  : "";
-                const techName = m.technician
-                  ? `${m.technician.first_name} ${m.technician.last_name}`
-                  : undefined;
-                const typeLabel =
-                  m.movement_type === "exit_anonymous"
-                    ? "Sortie autre"
-                    : (MOVEMENT_LABELS[m.movement_type] ?? m.movement_type);
-                return (
-                  <li
-                    key={m.id}
-                    className={cn(
-                      "rounded-xl border-l-2 px-3 py-2.5",
-                      isEntry
-                        ? "border-l-standard/50 bg-standard-bg/20"
-                        : "border-l-critique/50 bg-critique-bg/20"
-                    )}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span
-                        className={cn(
-                          "font-heading font-bold tabular-nums text-sm shrink-0",
-                          isEntry ? "text-standard" : "text-critique"
-                        )}
-                      >
-                        {isEntry ? "+" : "-"}
-                        {m.quantity}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-medium truncate">
-                          {m.product?.name ?? "\u2014"}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground truncate">
-                          {typeLabel}
-                          {techName && ` \u2192 ${techName}`}
-                        </p>
-                      </div>
-                      {time && (
-                        <span className="text-[10px] font-heading tabular-nums text-muted-foreground shrink-0">
-                          {time}
-                        </span>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+            </span>
+          </button>
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* DRAWER                                                 */}
-      {/* ═══════════════════════════════════════════════════════ */}
-      <Drawer
-        open={drawerOpen}
-        onOpenChange={(open) => {
-          if (!open && !batchScanOpen) closeDrawer();
-        }}
-      >
-        <DrawerContent className="max-h-[92vh] flex flex-col">
-          {/* Accessible title (visually hidden — grab handle + step label handle visual) */}
-          <DrawerTitle className="sr-only">{drawerTitle}</DrawerTitle>
-
-          {/* ── Drawer header ── */}
-          <div className="px-4 pt-3 pb-2 shrink-0">
-            <div className="flex items-center justify-between">
-              {/* Back / step label */}
-              <div className="flex items-center gap-2">
-                {(drawerStep === "detail" ||
-                  drawerStep === "cart" ||
-                  (drawerStep === "products" && actionMode === "exit_technician")) && (
-                  <button
-                    onClick={drawerGoBack}
-                    className="flex items-center gap-0.5 text-sm text-muted-foreground active:text-foreground transition-colors min-h-[44px] pr-2"
-                  >
-                    <ChevronLeft className="size-4" />
-                    Retour
-                  </button>
+      {/* ═══ HISTORIQUE DU JOUR (tiroir) ═══ */}
+      <Drawer open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DrawerContent className="max-h-[85vh] flex flex-col">
+          <DrawerTitle className="px-4 pt-3 pb-2 font-heading text-base font-semibold shrink-0">
+            Historique du jour
+          </DrawerTitle>
+          <div className="flex-1 overflow-y-auto min-h-0 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+            {session.length === 0 && olderMovements.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                {isLoadingToday ? (
+                  <div className="w-full space-y-2 px-1">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5">
+                        <Skeleton className="h-4 w-8 shrink-0" />
+                        <div className="flex-1 space-y-1.5">
+                          <Skeleton className="h-3.5 w-3/4" />
+                          <Skeleton className="h-3 w-1/2" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    <Clock className="size-10 text-muted-foreground/20 mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      Aucun mouvement aujourd&apos;hui.
+                    </p>
+                  </>
                 )}
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  {drawerTitle}
-                </p>
               </div>
-              {/* Close */}
-              <button
-                onClick={closeDrawer}
-                className="text-muted-foreground active:text-foreground min-h-[44px] min-w-[44px] flex items-center justify-center"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
+            ) : (
+              <ul className="space-y-1.5">
+                {/* Session entries (current session, with undo) */}
+                {session.map((entry) => {
+                  const isEntry = isPositiveMovement(entry.movementType);
+                  const reverting = revertingIds.has(entry.localId);
+                  const time = new Date(entry.createdAt).toLocaleTimeString("fr-FR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
+                  return (
+                    <li
+                      key={entry.localId}
+                      className={cn(
+                        "rounded-xl border-l-2 px-3 py-2.5",
+                        isEntry
+                          ? "border-l-standard bg-standard-bg/30"
+                          : "border-l-critique bg-critique-bg/30"
+                      )}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          className={cn(
+                            "font-heading font-bold tabular-nums text-sm shrink-0",
+                            isEntry ? "text-standard" : "text-critique"
+                          )}
+                        >
+                          {isEntry ? "+" : "-"}
+                          {entry.quantity}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-medium truncate">{entry.productName}</p>
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            {MOVEMENT_TYPE_LABELS[entry.movementType]}
+                            {entry.technicianName && ` \u2192 ${entry.technicianName}`}
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-heading tabular-nums text-muted-foreground shrink-0">
+                          {time}
+                        </span>
+                        <button
+                          onClick={() => handleRevert(entry)}
+                          disabled={reverting}
+                          className="text-[11px] text-muted-foreground active:text-foreground shrink-0 disabled:opacity-30 min-h-[44px] flex items-center px-1"
+                        >
+                          {reverting ? "\u2026" : "annuler"}
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
 
-            {/* Technician chip + scan button (exit_technician mode, products step) */}
-            {actionMode === "exit_technician" && drawerStep === "products" && technicianId && (
-              <div className="mt-1 flex items-center justify-between">
-                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2.5 py-0.5 text-xs font-medium">
-                  {techFullName}
-                  <button
-                    onClick={clearTechnician}
-                    className="hover:bg-primary/20 rounded-full p-0.5 -mr-0.5 min-h-[28px] min-w-[28px] flex items-center justify-center"
-                  >
-                    <X className="size-3" />
-                  </button>
-                </span>
+                {/* Separator if both session + older exist */}
+                {olderMovements.length > 0 && session.length > 0 && (
+                  <li className="pt-2 pb-1 px-1">
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Plus tot
+                    </span>
+                  </li>
+                )}
+
+                {/* Older movements (before page load) */}
+                {olderMovements.map((m) => {
+                  const isEntry = isPositiveMovement(m.movement_type);
+                  const time = m.created_at
+                    ? new Date(m.created_at).toLocaleTimeString("fr-FR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "";
+                  const techName = m.technician
+                    ? `${m.technician.first_name} ${m.technician.last_name}`
+                    : undefined;
+                  const typeLabel = MOVEMENT_TYPE_LABELS[m.movement_type] ?? m.movement_type;
+                  return (
+                    <li
+                      key={m.id}
+                      className={cn(
+                        "rounded-xl border-l-2 px-3 py-2.5",
+                        isEntry
+                          ? "border-l-standard/50 bg-standard-bg/20"
+                          : "border-l-critique/50 bg-critique-bg/20"
+                      )}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          className={cn(
+                            "font-heading font-bold tabular-nums text-sm shrink-0",
+                            isEntry ? "text-standard" : "text-critique"
+                          )}
+                        >
+                          {isEntry ? "+" : "-"}
+                          {m.quantity}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-medium truncate">
+                            {m.product?.name ?? "\u2014"}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            {typeLabel}
+                            {techName && ` \u2192 ${techName}`}
+                          </p>
+                        </div>
+                        {time && (
+                          <span className="text-[10px] font-heading tabular-nums text-muted-foreground shrink-0">
+                            {time}
+                          </span>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </DrawerContent>
+      </Drawer>
+
+      {/* ═══════════════════════════════════════════════════════ */}
+      {/* PILE D'ECRANS (etapes)                                 */}
+      {/* ═══════════════════════════════════════════════════════ */}
+      <MobileStackScreen
+        open={drawerOpen && !batchScanOpen}
+        title={drawerTitle}
+        subtitle={
+          actionMode === "exit" && exitReason && drawerStep !== "reason"
+            ? exitDestination
+            : undefined
+        }
+        onBack={canGoBack ? drawerGoBack : undefined}
+        onClose={closeDrawer}
+        footer={stackFooter}
+      >
+        <div className="flex flex-col h-full">
+          {/* ── En-tete d'etape ── */}
+          <div className="px-4 pt-3 pb-2 shrink-0">
+            {/* Le scan par lot reste accessible pendant le choix des produits */}
+            {actionMode === "exit" && drawerStep === "products" && exitReason && (
+              <div className="mb-2 flex items-center justify-end">
                 <button
                   onClick={() => setBatchScanOpen(true)}
                   className="flex items-center gap-1.5 rounded-lg bg-foreground text-background px-3.5 py-2 text-xs font-medium active:scale-[0.97] transition-all"
@@ -942,16 +1025,16 @@ export default function ActionsMobileSheet() {
             )}
 
             {/* Search input (products + technicians steps) */}
-            {(drawerStep === "products" || drawerStep === "technicians") && (
+            {(drawerStep === "products" || drawerStep === "reason") && (
               <div className="relative mt-2">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
                 <Input
                   ref={searchInputRef}
                   placeholder={
-                    drawerStep === "technicians"
+                    drawerStep === "reason"
                       ? "Rechercher un technicien\u2026"
-                      : technicianId
-                        ? `Ajouter un produit pour ${techFullName}\u2026`
+                      : exitReason
+                        ? `Ajouter un produit \u2014 ${exitDestination}\u2026`
                         : "Rechercher un produit\u2026"
                   }
                   value={searchQuery}
@@ -982,39 +1065,50 @@ export default function ActionsMobileSheet() {
 
           {/* ── Drawer body (scrollable) ── */}
           <div className="flex-1 overflow-y-auto min-h-0 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-            {/* ═══ TECHNICIAN LIST (exit_technician, step 1) ═══ */}
-            {drawerStep === "technicians" && (
-              <div className="space-y-2 pt-1">
+            {/* ═══ DESTINATION DE LA SORTIE (etape 2) ═══ */}
+            {drawerStep === "reason" && (
+              <div className="space-y-5 pt-1">
                 {filteredTechnicians.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-2">
+                  <InsetGroup header="Sortie vers un technicien">
                     {filteredTechnicians.map((t) => (
-                      <button
+                      <InsetRow
                         key={t.id}
-                        onClick={() => selectTechnician(t.id)}
-                        className={cn(
-                          "flex items-center gap-2.5 rounded-xl border bg-card transition-all active:scale-[0.97]",
-                          "hover:border-primary/40",
-                          "p-3 min-h-[56px]"
-                        )}
-                      >
-                        <div className="size-9 rounded-full bg-muted flex items-center justify-center font-semibold shrink-0 text-xs">
-                          {t.first_name[0]}
-                          {t.last_name[0]}
-                        </div>
-                        <span className="text-sm font-medium text-left leading-tight">
-                          {t.first_name} {t.last_name}
-                        </span>
-                      </button>
+                        onClick={() => selectExitReason("technician", t.id)}
+                        title={`${t.first_name} ${t.last_name}`}
+                        leading={
+                          <span className="size-9 rounded-full bg-muted flex items-center justify-center font-semibold shrink-0 text-xs">
+                            {t.first_name[0]}
+                            {t.last_name[0]}
+                          </span>
+                        }
+                      />
                     ))}
-                  </div>
+                  </InsetGroup>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
                     <PackagePlus className="size-10 text-muted-foreground/20 mb-2" />
                     <p className="text-sm text-muted-foreground">
-                      {debouncedSearch ? "Aucun technicien trouve." : "Aucun technicien."}
+                      {debouncedSearch ? "Aucun technicien trouvé." : "Aucun technicien."}
                     </p>
                   </div>
                 )}
+
+                {/* Groupe distinct : une erreur de stock n'est pas un technicien.
+                    Les melanger exposerait a en choisir une en visant un nom
+                    voisin. La recherche ne la masque pas — c'est le recours
+                    quand aucun technicien ne convient. */}
+                <InsetGroup header="Ou" footer="Sort le stock sans l'attribuer à personne.">
+                  <InsetRow
+                    onClick={() => selectExitReason("loss")}
+                    title="Erreur de stock"
+                    subtitle="Casse, perte, écart d'inventaire"
+                    leading={
+                      <span className="size-9 rounded-full bg-attention-bg flex items-center justify-center shrink-0">
+                        <ArrowUpFromLine className="size-4 text-attention" />
+                      </span>
+                    }
+                  />
+                </InsetGroup>
               </div>
             )}
 
@@ -1057,7 +1151,7 @@ export default function ActionsMobileSheet() {
                         <li key={p.id}>
                           <button
                             onClick={() =>
-                              actionMode === "exit_technician"
+                              actionMode === "exit"
                                 ? toggleProductInCart(consoleP)
                                 : selectProductSingle(consoleP)
                             }
@@ -1077,7 +1171,7 @@ export default function ActionsMobileSheet() {
                                 size="xl"
                                 className="w-full"
                               />
-                              {actionMode === "exit_technician" && inCart && (
+                              {actionMode === "exit" && inCart && (
                                 <div className="absolute top-1.5 right-1.5 size-6 rounded-full bg-primary flex items-center justify-center shadow">
                                   <Check className="size-3.5 text-primary-foreground" />
                                 </div>
@@ -1368,74 +1462,8 @@ export default function ActionsMobileSheet() {
               </div>
             )}
           </div>
-
-          {/* ── Sticky bottom button (detail + cart steps) ── */}
-          {drawerStep === "detail" && product && (
-            <div className="shrink-0 border-t bg-background px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-              <Button
-                className="w-full h-12 text-[15px] active:scale-[0.97]"
-                onClick={() => {
-                  navigator.vibrate?.(10);
-                  handleSubmit();
-                }}
-                disabled={
-                  isSubmitting ||
-                  quantity < 1 ||
-                  (actionMode !== "entry" && quantity > product.stock_current)
-                }
-                variant="default"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" /> En cours&hellip;
-                  </>
-                ) : (
-                  submitLabel
-                )}
-              </Button>
-            </div>
-          )}
-
-          {actionMode === "exit_technician" && drawerStep === "cart" && cart.length > 0 && (
-            <div className="shrink-0 border-t bg-background px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-              <Button
-                onClick={handleBatchSubmit}
-                disabled={isSubmitting || cart.length === 0}
-                className="w-full h-12 text-[15px] active:scale-[0.97]"
-              >
-                {isBatchSubmitting ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" /> En cours&hellip;
-                  </>
-                ) : (
-                  <>Valider la sortie vers {techFullName}</>
-                )}
-              </Button>
-            </div>
-          )}
-
-          {/* ── "Voir le panier" floating button (products step, tech mode) ── */}
-          {actionMode === "exit_technician" && drawerStep === "products" && cart.length > 0 && (
-            <div className="shrink-0 border-t bg-background px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-              <Button
-                onClick={() => setDrawerStep("cart")}
-                className="w-full h-12 text-[15px] active:scale-[0.97]"
-              >
-                <Package className="size-4" />
-                Voir le panier ({cart.length} produit{cart.length > 1 ? "s" : ""} &middot;{" "}
-                {cartTotalItems} unit{"\u00E9"}s)
-              </Button>
-            </div>
-          )}
-        </DrawerContent>
-      </Drawer>
-
-      {/* ── QR Scanner Modal (single) ── */}
-      <QrScannerModal
-        open={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-        onScan={handleScanResult}
-      />
+        </div>
+      </MobileStackScreen>
 
       {/* ── QR Scanner Modal (batch — tech mode) ── */}
       <QrScannerModal
@@ -1452,7 +1480,7 @@ export default function ActionsMobileSheet() {
         }}
         onScan={handleBatchScan}
         continuous
-        title={`Scanner pour ${techFullName}`}
+        title={`Scanner pour ${exitDestination}`}
         bottomContent={
           cart.length > 0 ? (
             <button
@@ -1500,36 +1528,20 @@ export default function ActionsMobileSheet() {
 
               {/* Action buttons — iOS-style list */}
               <div className="mx-4 mb-4 rounded-xl border divide-y overflow-hidden">
-                {(
-                  [
-                    {
-                      mode: "entry",
-                      label: "Entr\u00e9e stock",
-                      icon: ArrowDownToLine,
-                      color: "text-standard",
-                    },
-                    {
-                      mode: "exit_anonymous",
-                      label: "Sortie autre",
-                      icon: ArrowUpFromLine,
-                      color: "text-critique",
-                    },
-                    {
-                      mode: "exit_technician",
-                      label: "Sortie technicien",
-                      icon: PackagePlus,
-                      color: "text-primary",
-                    },
-                  ] as const
-                ).map(({ mode, label, icon: ActionIcon, color }) => (
+                {ACTION_OPTIONS.map(({ mode, label, hint, icon: ActionIcon, accent }) => (
                   <button
                     key={mode}
                     onClick={() => handleScanAction(mode)}
-                    className="w-full flex items-center gap-3 px-4 py-3.5 min-h-[48px] active:bg-muted/60 transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-3.5 min-h-[48px] text-left active:bg-muted/60 transition-colors"
                   >
-                    <ActionIcon className={cn("size-[18px] shrink-0", color)} />
-                    <span className="font-medium text-[15px]">{label}</span>
-                    <ChevronLeft className="size-4 text-muted-foreground/40 ml-auto rotate-180" />
+                    <ActionIcon className={cn("size-[18px] shrink-0", accent)} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-medium text-[15px] leading-tight">{label}</span>
+                      <span className="block text-[12px] text-muted-foreground leading-tight">
+                        {hint}
+                      </span>
+                    </span>
+                    <ChevronLeft className="size-4 text-muted-foreground/40 shrink-0 rotate-180" />
                   </button>
                 ))}
               </div>
