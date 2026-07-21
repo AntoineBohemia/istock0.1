@@ -43,7 +43,7 @@ import { calculateStockScore, getStockBadgeVariant } from "@/lib/utils/stock";
 import { cn } from "@/lib/utils";
 import { useDebouncedValue } from "@/hooks/use-debounce";
 import { MOVEMENT_TYPE_LABELS, isPositiveMovement } from "@/lib/supabase/queries/stock-movements";
-import { MobileStackScreen, InsetGroup, InsetRow } from "./mobile-stack-screen";
+import { MobileStackScreen, InsetGroup, InsetRow, InsetField } from "./mobile-stack-screen";
 import { MobileSplash } from "./mobile-splash";
 
 const QrScannerModal = dynamic(() => import("@/components/qr-scanner-modal"), { ssr: false });
@@ -204,8 +204,8 @@ export default function ActionsMobileSheet() {
   const [historyOpen, setHistoryOpen] = useState(false);
 
   // ─── QR Scanner ────────────────────────────────────────
-  // Plus de bouton de scan a l'accueil. Deux entrees subsistent : l'appareil
-  // photo du telephone (lien ?product=) et le scan par lot pendant une sortie.
+  // Le scan vit dans l'etape produits, la ou l'on designe ce qui bouge — pas
+  // a l'accueil, ou l'on n'a pas encore dit si ca rentre ou si ca sort.
   const [batchScanOpen, setBatchScanOpen] = useState(false);
   const [scannedProduct, setScannedProduct] = useState<ConsoleProduct | null>(null);
   const [scanActionSheetOpen, setScanActionSheetOpen] = useState(false);
@@ -386,6 +386,41 @@ export default function ActionsMobileSheet() {
         return [...prev, { product: consoleP, quantity: 1 }];
       });
       toast.success(found.name, { description: "Ajout\u00e9 au panier" });
+    },
+    [allProducts]
+  );
+
+  // \u2500\u2500\u2500 Scan en entree \u2014 un produit a la fois \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  // Une entree se saisit produit par produit : chacune porte son prix, sa
+  // date et sa facture. Enchainer les scans comme en sortie ferait perdre
+  // ces informations.
+  const handleEntryScan = useCallback(
+    (productId: string) => {
+      const found = allProducts.find((p) => p.id === productId);
+      if (!found) {
+        toast.error("Produit non reconnu");
+        return;
+      }
+      setBatchScanOpen(false);
+      navigator.vibrate?.(10);
+      const consoleP: ConsoleProduct = {
+        id: found.id,
+        name: found.name,
+        sku: found.sku,
+        stock_current: found.stock_current ?? 0,
+        stock_min: found.stock_min,
+        price: found.price ?? null,
+        icon_name: found.icon_name,
+        icon_color: found.icon_color,
+        image_url: found.image_url,
+        supplier_id: found.supplier_id ?? null,
+        supplier_name: found.supplier?.name ?? null,
+      };
+      setProduct(consoleP);
+      setQuantity(1);
+      setUnitPrice(consoleP.price != null ? consoleP.price.toString() : "");
+      setSearchQuery("");
+      setDrawerStep("detail");
     },
     [allProducts]
   );
@@ -779,7 +814,7 @@ export default function ActionsMobileSheet() {
   if (drawerStep === "detail" && product) {
     stackFooter = (
       <Button
-        className="w-full h-12 text-[15px] active:scale-[0.97]"
+        className="w-full h-12 text-base active:scale-[0.97]"
         onClick={() => {
           navigator.vibrate?.(10);
           handleSubmit();
@@ -804,7 +839,7 @@ export default function ActionsMobileSheet() {
       <Button
         onClick={handleBatchSubmit}
         disabled={isSubmitting}
-        className="w-full h-12 text-[15px] active:scale-[0.97]"
+        className="w-full h-12 text-base active:scale-[0.97]"
       >
         {isBatchSubmitting ? (
           <>
@@ -821,7 +856,7 @@ export default function ActionsMobileSheet() {
     stackFooter = (
       <Button
         onClick={() => setDrawerStep("cart")}
-        className="w-full h-12 text-[15px] active:scale-[0.97]"
+        className="w-full h-12 text-base active:scale-[0.97]"
       >
         <Package className="size-4" />
         Voir le panier ({cart.length} produit{cart.length > 1 ? "s" : ""} &middot; {cartTotalItems}{" "}
@@ -869,10 +904,10 @@ export default function ActionsMobileSheet() {
                 <Icon className={cn("size-10", accent)} />
               </span>
               <span className="text-center">
-                <span className="block font-heading font-semibold text-[26px] leading-none">
+                <span className="block font-heading font-semibold text-2xl leading-none">
                   {label}
                 </span>
-                <span className="block text-[13px] text-muted-foreground leading-tight mt-1.5">
+                <span className="block text-sm text-muted-foreground leading-tight mt-1.5">
                   {hint}
                 </span>
               </span>
@@ -888,7 +923,7 @@ export default function ActionsMobileSheet() {
             className="w-full flex items-center justify-center gap-2 rounded-2xl border bg-white dark:bg-card py-3.5 active:scale-[0.97] transition-transform"
           >
             <Clock className="size-[18px] text-muted-foreground" />
-            <span className="font-semibold text-[14px]">
+            <span className="font-semibold text-base">
               Historique
               {todayCount > 0 && (
                 <span className="text-muted-foreground font-normal"> · {todayCount}</span>
@@ -959,19 +994,19 @@ export default function ActionsMobileSheet() {
                           {entry.quantity}
                         </span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-medium truncate">{entry.productName}</p>
-                          <p className="text-[11px] text-muted-foreground truncate">
+                          <p className="text-sm font-medium truncate">{entry.productName}</p>
+                          <p className="text-sm text-muted-foreground truncate">
                             {MOVEMENT_TYPE_LABELS[entry.movementType]}
                             {entry.technicianName && ` \u2192 ${entry.technicianName}`}
                           </p>
                         </div>
-                        <span className="text-[10px] font-heading tabular-nums text-muted-foreground shrink-0">
+                        <span className="text-sm font-heading tabular-nums text-muted-foreground shrink-0">
                           {time}
                         </span>
                         <button
                           onClick={() => handleRevert(entry)}
                           disabled={reverting}
-                          className="text-[11px] text-muted-foreground active:text-foreground shrink-0 disabled:opacity-30 min-h-[44px] flex items-center px-1"
+                          className="text-sm text-muted-foreground active:text-foreground shrink-0 disabled:opacity-30 min-h-[44px] flex items-center px-1"
                         >
                           {reverting ? "\u2026" : "annuler"}
                         </button>
@@ -983,7 +1018,7 @@ export default function ActionsMobileSheet() {
                 {/* Separator if both session + older exist */}
                 {olderMovements.length > 0 && session.length > 0 && (
                   <li className="pt-2 pb-1 px-1">
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    <span className="text-sm uppercase tracking-wider text-muted-foreground">
                       Plus tot
                     </span>
                   </li>
@@ -1023,16 +1058,16 @@ export default function ActionsMobileSheet() {
                           {m.quantity}
                         </span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-medium truncate">
+                          <p className="text-sm font-medium truncate">
                             {m.product?.name ?? "\u2014"}
                           </p>
-                          <p className="text-[11px] text-muted-foreground truncate">
+                          <p className="text-sm text-muted-foreground truncate">
                             {typeLabel}
                             {techName && ` \u2192 ${techName}`}
                           </p>
                         </div>
                         {time && (
-                          <span className="text-[10px] font-heading tabular-nums text-muted-foreground shrink-0">
+                          <span className="text-sm font-heading tabular-nums text-muted-foreground shrink-0">
                             {time}
                           </span>
                         )}
@@ -1066,17 +1101,23 @@ export default function ActionsMobileSheet() {
         <div className="flex flex-col h-full">
           {/* ── En-tete d'etape ── */}
           <div className="px-4 pt-3 pb-2 shrink-0">
-            {/* Le scan par lot reste accessible pendant le choix des produits */}
-            {actionMode === "exit" && drawerStep === "products" && exitReason && (
-              <div className="mb-2 flex items-center justify-end">
-                <button
-                  onClick={() => setBatchScanOpen(true)}
-                  className="flex items-center gap-1.5 rounded-lg bg-foreground text-background px-3.5 py-2 text-xs font-medium active:scale-[0.97] transition-all"
-                >
-                  <ScanLine className="size-3.5" />
-                  Scanner
-                </button>
-              </div>
+            {/* Scanner — entree comme sortie. C'est le chemin le plus court
+                vers le bon produit : viser une etiquette bat toujours la
+                lecture d'une grille. Il passe donc devant la recherche, en
+                pleine largeur. */}
+            {/* Bouton teinte, pas plein : le scan designe un produit, il ne
+                valide rien. Le noir plein le mettait au meme rang que
+                "Valider la sortie" et les deux se disputaient l'ecran. La
+                teinte reste franchement visible tout en disant "action
+                secondaire". */}
+            {drawerStep === "products" && (
+              <button
+                onClick={() => setBatchScanOpen(true)}
+                className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-primary/10 border border-primary/20 text-primary py-4 active:bg-primary/20 active:scale-[0.98] transition-all"
+              >
+                <ScanLine className="size-5" />
+                <span className="font-semibold text-base">Scanner un QR code</span>
+              </button>
             )}
 
             {/* Search input (products + technicians steps) */}
@@ -1139,10 +1180,10 @@ export default function ActionsMobileSheet() {
                       <Icon className={cn("size-7", accent)} />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block font-heading font-semibold text-[19px] leading-tight">
+                      <span className="block font-heading font-semibold text-lg leading-tight">
                         {label}
                       </span>
-                      <span className="block text-[13px] text-muted-foreground leading-tight mt-0.5">
+                      <span className="block text-sm text-muted-foreground leading-tight mt-0.5">
                         {hint}
                       </span>
                     </span>
@@ -1163,7 +1204,7 @@ export default function ActionsMobileSheet() {
                         onClick={() => selectTechnician(t.id)}
                         title={`${t.first_name} ${t.last_name}`}
                         leading={
-                          <span className="size-9 rounded-full bg-muted flex items-center justify-center font-semibold shrink-0 text-xs">
+                          <span className="size-9 rounded-full bg-muted flex items-center justify-center font-semibold shrink-0 text-sm">
                             {t.first_name[0]}
                             {t.last_name[0]}
                           </span>
@@ -1172,11 +1213,27 @@ export default function ActionsMobileSheet() {
                     ))}
                   </InsetGroup>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-10 text-center">
-                    <PackagePlus className="size-10 text-muted-foreground/20 mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      {debouncedSearch ? "Aucun technicien trouvé." : "Aucun technicien."}
-                    </p>
+                  <div className="flex flex-col items-center justify-center gap-3 py-14 px-6 text-center">
+                    <PackagePlus className="size-12 text-muted-foreground/20" />
+                    {debouncedSearch ? (
+                      <>
+                        <p className="text-base font-medium">Aucun technicien ne correspond</p>
+                        <button
+                          onClick={() => setSearchQuery("")}
+                          className="text-base font-medium text-primary active:opacity-50"
+                        >
+                          Effacer la recherche
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-base font-medium">Aucun technicien</p>
+                        <p className="text-sm text-muted-foreground">
+                          Ajoutez-en depuis l&apos;ordinateur, dans Techniciens. En attendant,
+                          revenez en arrière pour déclarer une erreur de stock.
+                        </p>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -1186,14 +1243,17 @@ export default function ActionsMobileSheet() {
             {drawerStep === "products" && (
               <div className="space-y-2 pt-1">
                 {isSearching && debouncedSearch ? (
+                  // Le squelette calque la grille : annoncer une autre mise en
+                  // page ferait sauter l'ecran a l'arrivee des donnees.
                   <div className="grid grid-cols-2 gap-2.5 py-2">
                     {Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} className="rounded-xl border p-2 space-y-2">
-                        <Skeleton className="w-full aspect-square rounded-lg" />
-                        <Skeleton className="h-3.5 w-3/4" />
+                      <div key={i} className="rounded-2xl border p-2.5 space-y-2">
+                        <Skeleton className="w-full aspect-square rounded-xl" />
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-3 w-1/2" />
                         <div className="flex items-center justify-between">
                           <Skeleton className="h-5 w-8" />
-                          <Skeleton className="h-5 w-12 rounded-full" />
+                          <Skeleton className="h-5 w-14 rounded-full" />
                         </div>
                       </div>
                     ))}
@@ -1204,11 +1264,22 @@ export default function ActionsMobileSheet() {
                       const score = calculateStockScore(p.stock_current ?? 0, p.stock_min);
                       const status = getStockBadgeVariant(score);
                       const inCart = cart.some((item) => item.product.id === p.id);
+                      const stock = p.stock_current ?? 0;
+                      // Une sortie ne peut pas depasser le stock : autant le
+                      // dire ici plutot qu'a la validation, apres avoir fait
+                      // remplir un panier pour rien.
+                      const outOfStock = actionMode === "exit" && stock <= 0;
+                      // Meme jauge que sur l'ordinateur : le seuil mini vaut la
+                      // moitie de la cible, on lit d'un coup ce qui reste avant
+                      // de descendre trop bas.
+                      const target = (p.stock_min ?? 10) * 2;
+                      const pct = target > 0 ? Math.min(100, (stock / target) * 100) : 0;
+                      const cartQty = cart.find((item) => item.product.id === p.id)?.quantity ?? 0;
                       const consoleP: ConsoleProduct = {
                         id: p.id,
                         name: p.name,
                         sku: p.sku,
-                        stock_current: p.stock_current ?? 0,
+                        stock_current: stock,
                         stock_min: p.stock_min,
                         price: p.price ?? null,
                         icon_name: p.icon_name,
@@ -1217,22 +1288,25 @@ export default function ActionsMobileSheet() {
                         supplier_id: p.supplier_id,
                         supplier_name: p.supplier?.name ?? null,
                       };
+
                       return (
                         <li key={p.id}>
                           <button
+                            disabled={outOfStock}
                             onClick={() =>
                               actionMode === "exit"
                                 ? toggleProductInCart(consoleP)
                                 : selectProductSingle(consoleP)
                             }
                             className={cn(
-                              "w-full rounded-xl border p-2 flex flex-col gap-2 text-left transition-all active:scale-[0.98]",
-                              inCart && "bg-primary/5 ring-2 ring-primary/40 border-primary/30",
-                              !inCart && status === "critique" && "border-critique/30",
-                              !inCart && status === "attention" && "border-attention/30"
+                              "w-full h-full rounded-2xl border p-2.5 flex flex-col gap-2 text-left transition-colors",
+                              outOfStock ? "opacity-45" : "active:scale-[0.97]",
+                              inCart && "bg-primary/5 border-primary",
+                              !inCart && status === "critique" && "border-critique/30"
                             )}
                           >
-                            {/* Large photo — primary visual anchor on mobile */}
+                            {/* La photo reste l'ancre : on reconnait un produit
+                                avant de lire son nom. */}
                             <div className="relative w-full">
                               <ProductIconDisplay
                                 iconName={p.icon_name}
@@ -1241,30 +1315,63 @@ export default function ActionsMobileSheet() {
                                 size="xl"
                                 className="w-full"
                               />
-                              {actionMode === "exit" && inCart && (
-                                <div className="absolute top-1.5 right-1.5 size-6 rounded-full bg-primary flex items-center justify-center shadow">
-                                  <Check className="size-3.5 text-primary-foreground" />
-                                </div>
+                              {inCart && (
+                                <motion.div
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: 1 }}
+                                  transition={{ type: "spring", bounce: 0.35, duration: 0.4 }}
+                                  className="absolute top-1.5 right-1.5 size-7 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/25"
+                                >
+                                  <Check className="size-4 text-primary-foreground" />
+                                </motion.div>
+                              )}
+                              {outOfStock && (
+                                <span className="absolute inset-x-1.5 bottom-1.5 rounded-lg bg-critique/90 py-1 text-center text-sm font-semibold text-white">
+                                  Rupture
+                                </span>
                               )}
                             </div>
 
-                            {/* Name */}
-                            <p className="text-[13px] font-medium leading-tight line-clamp-2 min-h-[2.2em]">
-                              {p.name}
-                            </p>
+                            {/* Nom, puis reference et rayon */}
+                            <div className="min-w-0">
+                              <p className="text-base font-medium leading-tight line-clamp-2 min-h-[2.4em]">
+                                {p.name}
+                              </p>
+                              <p className="text-sm text-muted-foreground leading-tight truncate">
+                                {p.sku && <span className="font-mono">{p.sku}</span>}
+                                {p.sku && p.category?.name && " · "}
+                                {p.category?.name}
+                              </p>
+                            </div>
 
-                            {/* Stock + state */}
-                            <div className="flex items-center justify-between gap-1">
-                              <span
-                                className={cn(
-                                  "font-heading font-bold tabular-nums text-lg leading-none",
-                                  status === "critique" && "text-critique",
-                                  status === "attention" && "text-attention"
-                                )}
-                              >
-                                {p.stock_current ?? 0}
-                              </span>
-                              <StatusPill status={status} />
+                            {/* Etat du stock : le chiffre, son verdict, sa jauge */}
+                            <div className="mt-auto w-full space-y-1.5">
+                              <div className="flex items-center justify-between gap-1">
+                                <span
+                                  className={cn(
+                                    "font-heading font-bold tabular-nums text-xl leading-none",
+                                    inCart && "text-primary",
+                                    !inCart && status === "critique" && "text-critique",
+                                    !inCart && status === "attention" && "text-attention"
+                                  )}
+                                >
+                                  {inCart ? `×${cartQty}` : stock}
+                                </span>
+                                <StatusPill status={status} className="whitespace-nowrap" />
+                              </div>
+                              <div className="h-1 w-full rounded-full bg-foreground/[0.06] overflow-hidden">
+                                <div
+                                  className={cn(
+                                    "h-full rounded-full",
+                                    status === "critique"
+                                      ? "bg-critique/50"
+                                      : status === "attention"
+                                        ? "bg-attention/50"
+                                        : "bg-foreground/25"
+                                  )}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
                             </div>
                           </button>
                         </li>
@@ -1272,191 +1379,237 @@ export default function ActionsMobileSheet() {
                     })}
                   </ul>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <Package className="size-10 text-muted-foreground/20 mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      {debouncedSearch ? "Aucun produit trouve." : "Aucun produit."}
-                    </p>
+                  <div className="flex flex-col items-center justify-center gap-3 py-14 px-6 text-center">
+                    <Package className="size-12 text-muted-foreground/20" />
+                    {/* Un etat vide doit dire quoi faire ensuite, sinon il ne
+                        fait que constater l'echec. */}
+                    {debouncedSearch ? (
+                      <>
+                        <p className="text-base font-medium">Aucun produit ne correspond</p>
+                        <p className="text-sm text-muted-foreground">
+                          Vérifiez l&apos;orthographe, ou effacez la recherche pour revoir toute la
+                          liste.
+                        </p>
+                        <button
+                          onClick={() => setSearchQuery("")}
+                          className="mt-1 text-base font-medium text-primary active:opacity-50"
+                        >
+                          Effacer la recherche
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-base font-medium">Aucun produit</p>
+                        <p className="text-sm text-muted-foreground">
+                          Les produits se créent depuis l&apos;ordinateur, dans Produits.
+                        </p>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
             )}
 
-            {/* ═══ PRODUCT DETAIL (entry / exit_anonymous) ═══ */}
-            {drawerStep === "detail" && product && (
-              <div className="space-y-5 pt-1">
-                {/* Product header + live stock preview */}
-                {(() => {
-                  const isEntry = actionMode === "entry";
-                  const previewStock = isEntry
-                    ? product.stock_current + quantity
-                    : Math.max(0, product.stock_current - quantity);
-                  const previewScore = calculateStockScore(previewStock, product.stock_min);
-                  const previewStatus = getStockBadgeVariant(previewScore);
-                  return (
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3 min-w-0 flex-1">
-                        <ProductIconDisplay
-                          iconName={product.icon_name}
-                          iconColor={product.icon_color}
-                          imageUrl={product.image_url}
-                          size="lg"
-                          className="shrink-0"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <h2 className="font-heading text-[17px] font-semibold leading-tight">
-                            {product.name}
-                          </h2>
-                          {product.sku && (
-                            <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                              {product.sku}
-                            </p>
-                          )}
-                          {isEntry && (
-                            <p className="text-xs mt-1">
-                              <span className="text-muted-foreground">Fournisseur : </span>
-                              {product.supplier_name ? (
-                                <span className="font-medium">{product.supplier_name}</span>
-                              ) : (
-                                <span className="text-attention font-medium">aucun</span>
-                              )}
-                            </p>
-                          )}
-                        </div>
+            {/* ═══ QUANTITE — l'ecran ou l'on engage le mouvement ═══ */}
+            {drawerStep === "detail" &&
+              product &&
+              (() => {
+                const isEntry = actionMode === "entry";
+                const previewStock = isEntry
+                  ? product.stock_current + quantity
+                  : Math.max(0, product.stock_current - quantity);
+                const previewStatus = getStockBadgeVariant(
+                  calculateStockScore(previewStock, product.stock_min)
+                );
+                const max = isEntry ? Infinity : product.stock_current;
+                const priceNum = unitPrice ? parseFloat(unitPrice) : 0;
+                const isToday = entryDate.toDateString() === todayDate.toDateString();
+
+                return (
+                  <div className="space-y-6 pt-2 pb-4">
+                    {/* Identite du produit — discrete : on sait deja lequel
+                        on a choisi, elle sert a confirmer, pas a decider. */}
+                    <div className="flex items-center gap-3 px-1">
+                      <ProductIconDisplay
+                        iconName={product.icon_name}
+                        iconColor={product.icon_color}
+                        imageUrl={product.image_url}
+                        size="lg"
+                        className="shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <h2 className="font-heading text-lg font-semibold leading-tight line-clamp-2">
+                          {product.name}
+                        </h2>
+                        {product.sku && (
+                          <p className="text-sm text-muted-foreground font-mono leading-tight mt-0.5">
+                            {product.sku}
+                          </p>
+                        )}
                       </div>
-                      <div className="text-right shrink-0">
-                        <div className="flex items-baseline gap-1.5">
-                          <span className="text-sm text-muted-foreground tabular-nums">
+                    </div>
+
+                    {/* Le nombre est le sujet de l'ecran : il occupe le centre
+                        et les commandes l'encadrent, au lieu d'un champ de
+                        formulaire noye parmi les autres. */}
+                    <div className="flex items-center justify-center gap-5">
+                      <button
+                        onClick={() => {
+                          navigator.vibrate?.(8);
+                          setQuantity((q) => Math.max(1, q - 1));
+                        }}
+                        disabled={quantity <= 1}
+                        aria-label="Retirer une unité"
+                        className="size-16 rounded-full bg-muted/70 flex items-center justify-center shrink-0 active:bg-muted active:scale-95 transition-transform disabled:opacity-25"
+                      >
+                        <Minus className="size-7" />
+                      </button>
+
+                      <div className="text-center min-w-[6rem]">
+                        <Input
+                          ref={quantityInputRef}
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          max={isEntry ? undefined : product.stock_current}
+                          value={quantity}
+                          onChange={(e) =>
+                            setQuantity(Math.max(1, Math.min(parseInt(e.target.value) || 1, max)))
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              navigator.vibrate?.(10);
+                              handleSubmit();
+                            }
+                          }}
+                          className="h-auto w-full border-0 bg-transparent p-0 text-center font-heading text-6xl font-bold tabular-nums shadow-none focus-visible:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        />
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {quantity > 1 ? "unités" : "unité"}
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          navigator.vibrate?.(8);
+                          setQuantity((q) => Math.min(q + 1, max));
+                        }}
+                        disabled={!isEntry && quantity >= product.stock_current}
+                        aria-label="Ajouter une unité"
+                        className="size-16 rounded-full bg-muted/70 flex items-center justify-center shrink-0 active:bg-muted active:scale-95 transition-transform disabled:opacity-25"
+                      >
+                        <Plus className="size-7" />
+                      </button>
+                    </div>
+
+                    {/* La consequence, en clair. Elle etait tassee dans un coin
+                        alors que c'est ce que l'on verifie avant de valider. */}
+                    <InsetGroup
+                      footer={
+                        !isEntry && product.stock_current > 0
+                          ? `Disponible : ${product.stock_current}`
+                          : undefined
+                      }
+                    >
+                      <div className="flex items-center justify-between gap-3 px-4 py-3">
+                        <span className="text-base">Stock après</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-base text-muted-foreground tabular-nums">
                             {product.stock_current}
                           </span>
-                          <span className="text-muted-foreground">{"\u2192"}</span>
-                          <span
+                          <span className="text-muted-foreground">&rarr;</span>
+                          <motion.span
+                            key={previewStock}
+                            initial={{ scale: 1.18 }}
+                            animate={{ scale: 1 }}
+                            transition={{ type: "spring", bounce: 0.3, duration: 0.35 }}
                             className={cn(
-                              "font-heading font-bold text-2xl tabular-nums",
+                              "font-heading text-2xl font-bold tabular-nums leading-none",
                               previewStatus === "critique" && "text-critique",
                               previewStatus === "attention" && "text-attention"
                             )}
                           >
                             {previewStock}
-                          </span>
-                        </div>
-                        <div className="mt-0.5">
-                          <StatusPill status={previewStatus} />
+                          </motion.span>
+                          <StatusPill status={previewStatus} className="whitespace-nowrap" />
                         </div>
                       </div>
-                    </div>
-                  );
-                })()}
+                    </InsetGroup>
 
-                {/* Quantity stepper */}
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                    disabled={quantity <= 1}
-                    className="size-12 rounded-xl bg-muted/60 flex items-center justify-center active:bg-muted shrink-0 disabled:opacity-30 min-h-[44px]"
-                  >
-                    <Minus className="size-5" />
-                  </button>
-                  <Input
-                    ref={quantityInputRef}
-                    type="number"
-                    min={1}
-                    max={actionMode !== "entry" ? product.stock_current : undefined}
-                    value={quantity}
-                    onChange={(e) => {
-                      const max = actionMode !== "entry" ? product.stock_current : Infinity;
-                      setQuantity(Math.max(1, Math.min(parseInt(e.target.value) || 1, max)));
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        navigator.vibrate?.(10);
-                        handleSubmit();
-                      }
-                    }}
-                    className="flex-1 h-12 text-2xl font-heading font-bold tabular-nums text-center rounded-xl bg-white dark:bg-card [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                  <button
-                    onClick={() => {
-                      const max = actionMode !== "entry" ? product.stock_current : Infinity;
-                      setQuantity((q) => Math.min(q + 1, max));
-                    }}
-                    disabled={actionMode !== "entry" && quantity >= product.stock_current}
-                    className="size-12 rounded-xl bg-muted/60 flex items-center justify-center active:bg-muted shrink-0 disabled:opacity-30 min-h-[44px]"
-                  >
-                    <Plus className="size-5" />
-                  </button>
-                </div>
-
-                {/* Entry-only fields: price, invoice ref, date */}
-                {actionMode === "entry" && (
-                  <div className="space-y-3">
-                    <div className="relative">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min={0}
-                        placeholder="Prix HT"
-                        value={unitPrice}
-                        onChange={(e) => setUnitPrice(e.target.value)}
-                        className="w-full h-11 text-[15px] rounded-xl bg-white dark:bg-card pr-8 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
-                        {"\u20AC"}
-                      </span>
-                    </div>
-                    <Input
-                      type="text"
-                      placeholder="Réf. facture (optionnel)"
-                      value={invoiceRef}
-                      onChange={(e) => setInvoiceRef(e.target.value)}
-                      className="w-full h-11 text-[15px] rounded-xl bg-white dark:bg-card"
-                    />
-                    <DatePicker
-                      value={entryDate}
-                      onChange={(d) => setEntryDate(d ?? todayDate)}
-                      disabled={{ after: todayDate, before: ninetyDaysAgo }}
-                      placeholder="Date d'entrée"
-                      className="w-full h-11 text-[15px] rounded-xl bg-white dark:bg-card"
-                      popoverClassName="z-[60]"
-                    />
-                  </div>
-                )}
-
-                {/* Total (entry mode — always rendered to avoid layout shift) */}
-                {actionMode === "entry" && (
-                  <p
-                    className={cn(
-                      "text-right text-xs tabular-nums px-1 h-4",
-                      quantity > 1 && unitPrice && parseFloat(unitPrice) > 0
-                        ? "text-muted-foreground"
-                        : "invisible"
-                    )}
-                  >
-                    {quantity} {"\u00D7"}{" "}
-                    {(unitPrice ? parseFloat(unitPrice) : 0).toLocaleString("fr-FR", {
-                      minimumFractionDigits: 2,
-                    })}{" "}
-                    {"\u20AC"} ={" "}
-                    <span className="font-medium text-foreground">
-                      {(quantity * (unitPrice ? parseFloat(unitPrice) : 0)).toLocaleString(
-                        "fr-FR",
-                        {
-                          minimumFractionDigits: 2,
+                    {/* Achat — uniquement en entree */}
+                    {isEntry && (
+                      <InsetGroup
+                        header="Achat"
+                        footer={
+                          product.supplier_name
+                            ? `Fournisseur : ${product.supplier_name}`
+                            : "Aucun fournisseur sur cette fiche produit."
                         }
-                      )}{" "}
-                      {"\u20AC"}
-                    </span>
-                  </p>
-                )}
-              </div>
-            )}
+                      >
+                        <InsetField label="Prix unitaire" hint="HT">
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="number"
+                              inputMode="decimal"
+                              step="0.01"
+                              min={0}
+                              placeholder="0,00"
+                              value={unitPrice}
+                              onChange={(e) => setUnitPrice(e.target.value)}
+                              className="h-auto w-24 border-0 bg-transparent p-0 text-right text-base tabular-nums shadow-none focus-visible:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                            />
+                            <span className="text-base text-muted-foreground">&euro;</span>
+                          </div>
+                        </InsetField>
+
+                        <InsetField label="Facture" hint="optionnel">
+                          <Input
+                            type="text"
+                            placeholder="Référence"
+                            value={invoiceRef}
+                            onChange={(e) => setInvoiceRef(e.target.value)}
+                            className="h-auto w-full border-0 bg-transparent p-0 text-right text-base shadow-none focus-visible:ring-0"
+                          />
+                        </InsetField>
+
+                        <InsetField label="Date">
+                          <DatePicker
+                            value={entryDate}
+                            onChange={(d) => setEntryDate(d ?? todayDate)}
+                            disabled={{ after: todayDate, before: ninetyDaysAgo }}
+                            placeholder={isToday ? "Aujourd'hui" : undefined}
+                            className="h-9 w-auto border-0 bg-transparent px-0 text-base shadow-none"
+                            popoverClassName="z-[60]"
+                          />
+                        </InsetField>
+
+                        {/* Le total appartient au groupe : c'est le resultat
+                            des lignes au-dessus, pas une note de bas de page. */}
+                        <InsetField label="Total">
+                          <span
+                            className={cn(
+                              "font-heading text-lg font-semibold tabular-nums",
+                              priceNum > 0 ? "text-foreground" : "text-muted-foreground"
+                            )}
+                          >
+                            {(quantity * priceNum).toLocaleString("fr-FR", {
+                              style: "currency",
+                              currency: "EUR",
+                            })}
+                          </span>
+                        </InsetField>
+                      </InsetGroup>
+                    )}
+                  </div>
+                );
+              })()}
 
             {/* ═══ CART REVIEW (exit_technician, step 3) ═══ */}
             {drawerStep === "cart" && (
               <div className="space-y-4 pt-1">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                     {cart.length} produit{cart.length > 1 ? "s" : ""} &middot; {cartTotalItems} unit
                     {"\u00E9"}s
                   </p>
@@ -1465,7 +1618,7 @@ export default function ActionsMobileSheet() {
                       setDrawerStep("products");
                       setSearchQuery("");
                     }}
-                    className="text-xs text-primary font-medium"
+                    className="text-sm text-primary font-medium"
                   >
                     + Ajouter
                   </button>
@@ -1485,8 +1638,8 @@ export default function ActionsMobileSheet() {
                         className="shrink-0"
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-medium truncate">{item.product.name}</p>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-base font-medium truncate">{item.product.name}</p>
+                        <p className="text-sm text-muted-foreground">
                           dispo {item.product.stock_current}
                         </p>
                       </div>
@@ -1494,7 +1647,7 @@ export default function ActionsMobileSheet() {
                         <button
                           onClick={() => updateCartQty(item.product.id, -1)}
                           disabled={item.quantity <= 1}
-                          className="size-10 rounded-xl bg-muted/60 flex items-center justify-center active:bg-muted disabled:opacity-30 min-h-[44px]"
+                          className="size-11 rounded-xl bg-muted/60 flex items-center justify-center active:bg-muted active:scale-95 transition-transform disabled:opacity-30"
                         >
                           <Minus className="size-4" />
                         </button>
@@ -1514,7 +1667,7 @@ export default function ActionsMobileSheet() {
                         <button
                           onClick={() => updateCartQty(item.product.id, 1)}
                           disabled={item.quantity >= item.product.stock_current}
-                          className="size-10 rounded-xl bg-muted/60 flex items-center justify-center active:bg-muted disabled:opacity-30 min-h-[44px]"
+                          className="size-11 rounded-xl bg-muted/60 flex items-center justify-center active:bg-muted active:scale-95 transition-transform disabled:opacity-30"
                         >
                           <Plus className="size-4" />
                         </button>
@@ -1535,26 +1688,29 @@ export default function ActionsMobileSheet() {
       </MobileStackScreen>
 
       {/* ── QR Scanner Modal (batch — tech mode) ── */}
+      {/* En sortie le scan est continu : on charge un camion, article apres
+          article. En entree il rend la main aussitot, chaque reception ayant
+          son prix et sa date a saisir. */}
       <QrScannerModal
         open={batchScanOpen}
         onClose={() => {
           setBatchScanOpen(false);
           // Wait for scanner to fully unmount, then reopen drawer on cart
-          if (cart.length > 0) {
+          if (actionMode === "exit" && cart.length > 0) {
             setTimeout(() => {
               setDrawerStep("cart");
               setDrawerOpen(true);
             }, 150);
           }
         }}
-        onScan={handleBatchScan}
-        continuous
-        title={`Scanner pour ${exitDestination}`}
+        onScan={actionMode === "exit" ? handleBatchScan : handleEntryScan}
+        continuous={actionMode === "exit"}
+        title={actionMode === "exit" ? `Scanner pour ${exitDestination}` : "Scanner une entrée"}
         bottomContent={
-          cart.length > 0 ? (
+          actionMode === "exit" && cart.length > 0 ? (
             <button
               onClick={() => setBatchScanOpen(false)}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-white text-foreground py-3 font-semibold text-[15px] active:scale-[0.97] transition-all"
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-white text-foreground py-3 font-semibold text-base active:scale-[0.97] transition-all"
             >
               <Package className="size-4" />
               Voir le panier ({cart.length} produit{cart.length > 1 ? "s" : ""})
@@ -1578,9 +1734,9 @@ export default function ActionsMobileSheet() {
               {/* Product info */}
               <div className="flex items-center gap-3 mx-4 mb-3 px-1">
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-[15px] truncate">{scannedProduct.name}</p>
+                  <p className="font-semibold text-base truncate">{scannedProduct.name}</p>
                   {scannedProduct.sku && (
-                    <p className="text-xs text-muted-foreground font-mono">{scannedProduct.sku}</p>
+                    <p className="text-sm text-muted-foreground font-mono">{scannedProduct.sku}</p>
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -1605,8 +1761,8 @@ export default function ActionsMobileSheet() {
                   >
                     <ActionIcon className={cn("size-[18px] shrink-0", accent)} />
                     <span className="min-w-0 flex-1">
-                      <span className="block font-medium text-[15px] leading-tight">{label}</span>
-                      <span className="block text-[12px] text-muted-foreground leading-tight">
+                      <span className="block font-medium text-base leading-tight">{label}</span>
+                      <span className="block text-sm text-muted-foreground leading-tight">
                         {hint}
                       </span>
                     </span>

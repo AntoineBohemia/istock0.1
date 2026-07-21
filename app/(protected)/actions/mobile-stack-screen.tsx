@@ -102,7 +102,10 @@ export function MobileStackScreen({
           onDragEnd={handleDragEnd}
         >
           {/* ── Barre de navigation ── */}
-          <div className="shrink-0 border-b bg-background pt-[env(safe-area-inset-top)]">
+          {/* Couche translucide : le contenu passe dessous au lieu de s'arreter
+              sur un bandeau opaque. La barre appartient a l'ecran plutot que
+              de lui voler une bande. */}
+          <div className="shrink-0 z-10 border-b border-border/50 bg-background/80 backdrop-blur-xl backdrop-saturate-150 pt-[env(safe-area-inset-top)]">
             <div className="relative flex items-center justify-center h-11 px-2">
               {onBack ? (
                 <button
@@ -110,22 +113,20 @@ export function MobileStackScreen({
                   className="absolute left-0 flex items-center gap-0.5 h-11 pl-1 pr-3 text-primary active:opacity-50 transition-opacity"
                 >
                   <ChevronLeft className="size-6 -mr-1" />
-                  <span className="text-[17px]">Retour</span>
+                  <span className="text-lg">Retour</span>
                 </button>
               ) : null}
 
               <div className="max-w-[55%] text-center">
-                <p className="font-semibold text-[17px] leading-tight truncate">{title}</p>
+                <p className="font-semibold text-lg leading-tight truncate">{title}</p>
                 {subtitle && (
-                  <p className="text-[12px] text-muted-foreground leading-tight truncate">
-                    {subtitle}
-                  </p>
+                  <p className="text-sm text-muted-foreground leading-tight truncate">{subtitle}</p>
                 )}
               </div>
 
               <button
                 onClick={onClose}
-                className="absolute right-0 h-11 px-3 text-[17px] text-primary active:opacity-50 transition-opacity"
+                className="absolute right-0 h-11 px-3 text-lg text-primary active:opacity-50 transition-opacity"
               >
                 OK
               </button>
@@ -138,8 +139,10 @@ export function MobileStackScreen({
           <div className="flex-1 min-h-0 flex flex-col overscroll-contain">{children}</div>
 
           {/* ── Barre d'action ── */}
+          {/* Meme matiere que la barre du haut : deux couches flottantes qui
+              encadrent le contenu, et non deux bandeaux qui le rognent. */}
           {footer && (
-            <div className="shrink-0 border-t bg-background px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+            <div className="shrink-0 z-10 border-t border-border/50 bg-background/80 backdrop-blur-xl backdrop-saturate-150 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
               {footer}
             </div>
           )}
@@ -169,10 +172,38 @@ export function InsetGroup({
   return (
     <div className={cn("space-y-1.5", className)}>
       {header && (
-        <p className="px-1 text-[13px] uppercase tracking-wide text-muted-foreground">{header}</p>
+        <p className="px-1 text-sm uppercase tracking-wide text-muted-foreground">{header}</p>
       )}
       <div className="overflow-hidden rounded-xl border bg-white dark:bg-card">{children}</div>
-      {footer && <p className="px-1 text-[13px] text-muted-foreground">{footer}</p>}
+      {footer && <p className="px-1 text-sm text-muted-foreground">{footer}</p>}
+    </div>
+  );
+}
+
+/**
+ * Ligne de saisie d'une liste groupee : intitule a gauche, valeur a droite.
+ *
+ * Les champs n'avaient qu'un texte d'invite en guise d'intitule. Il disparait
+ * des qu'on tape : un ecran a moitie rempli ne dit plus ce que contiennent
+ * ses cases. L'intitule reste, la valeur se lit alignee a droite.
+ */
+export function InsetField({
+  label,
+  children,
+  hint,
+}: {
+  label: string;
+  children: React.ReactNode;
+  /** Precision sous l'intitule — « optionnel », unite, contrainte */
+  hint?: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-1.5 min-h-[52px] [&+&]:border-t [&+&]:border-border/60">
+      <span className="shrink-0">
+        <span className="block text-base leading-tight">{label}</span>
+        {hint && <span className="block text-sm text-muted-foreground leading-tight">{hint}</span>}
+      </span>
+      <div className="flex-1 min-w-0 flex justify-end">{children}</div>
     </div>
   );
 }
@@ -205,9 +236,9 @@ export function InsetRow({
     >
       {leading}
       <span className="min-w-0 flex-1">
-        <span className="block text-[17px] leading-tight truncate">{title}</span>
+        <span className="block text-lg leading-tight truncate">{title}</span>
         {subtitle && (
-          <span className="block text-[13px] text-muted-foreground leading-tight truncate">
+          <span className="block text-sm text-muted-foreground leading-tight truncate">
             {subtitle}
           </span>
         )}
