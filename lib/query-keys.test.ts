@@ -131,12 +131,6 @@ describe("queryKeys.technicians", () => {
     expect(key).toContain("t1");
   });
 
-  it("stats(orgId) starts with all prefix and includes orgId", () => {
-    const key = queryKeys.technicians.stats("org-1");
-    expect(isPrefix(queryKeys.technicians.all, key)).toBe(true);
-    expect(key).toContain("org-1");
-  });
-
   it("inventory(techId) starts with all prefix", () => {
     const key = queryKeys.technicians.inventory("t1");
     expect(isPrefix(queryKeys.technicians.all, key)).toBe(true);
@@ -190,7 +184,6 @@ describe("queryKeys.dashboard", () => {
   it("productsNeedingRestock(orgId) includes orgId", () => {
     expect(queryKeys.dashboard.productsNeedingRestock("org-1")).toContain("org-1");
   });
-
 });
 
 // ─── organizations ──────────────────────────────────────────────────

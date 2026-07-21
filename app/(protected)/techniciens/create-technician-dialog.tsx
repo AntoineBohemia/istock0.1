@@ -22,6 +22,7 @@ import TechnicianPhotoInput from "./technician-photo-input";
 import TechnicianVehicleSelect from "./technician-vehicle-select";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useOrganizations } from "@/hooks/queries";
+import { CLOTHING_SIZES_TOP, CLOTHING_SIZES_BOTTOM } from "@/lib/constants/clothing-sizes";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -33,7 +34,8 @@ const FormSchema = z.object({
   city: z.string().optional(),
   organization_id: z.string().optional(),
   tablet_ref: z.string().optional(),
-  clothing_size: z.string().optional(),
+  clothing_size_top: z.string().optional(),
+  clothing_size_bottom: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof FormSchema>;
@@ -66,7 +68,8 @@ export default function CreateTechnicianDialog({
       city: "",
       organization_id: currentOrganization?.id || "",
       tablet_ref: "",
-      clothing_size: "",
+      clothing_size_top: "",
+      clothing_size_bottom: "",
     },
   });
 
@@ -266,7 +269,7 @@ export default function CreateTechnicianDialog({
                 />
                 <FormField
                   control={form.control}
-                  name="clothing_size"
+                  name="clothing_size_top"
                   render={({ field }) => (
                     <FormItem>
                       <FormControl>
@@ -275,8 +278,31 @@ export default function CreateTechnicianDialog({
                           onChange={(e) => field.onChange(e.target.value)}
                           className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
                         >
-                          <option value="">Taille vêtement</option>
-                          {["XS", "S", "M", "L", "XL", "XXL", "3XL"].map((s) => (
+                          <option value="">Taille haut</option>
+                          {CLOTHING_SIZES_TOP.map((s) => (
+                            <option key={s} value={s}>
+                              {s}
+                            </option>
+                          ))}
+                        </select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="clothing_size_bottom"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <select
+                          value={field.value || ""}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
+                        >
+                          <option value="">Taille bas</option>
+                          {CLOTHING_SIZES_BOTTOM.map((s) => (
                             <option key={s} value={s}>
                               {s}
                             </option>

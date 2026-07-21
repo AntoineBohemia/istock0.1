@@ -1,7 +1,7 @@
 import { generateMeta } from "@/lib/utils";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { CalendarClock, Car, Mail, Package, Phone, Wrench } from "lucide-react";
+import { CalendarClock, Car, Mail, Package, Phone, Shirt, Tablet, Wrench } from "lucide-react";
 
 import { BackButton } from "@/components/back-button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -178,11 +178,13 @@ export default async function TechnicianDetailPage({
 
   return (
     <div className="space-y-6 pb-20">
-      {/* ── Hero zone ── */}
-      <div className="rounded-xl border bg-card p-6 space-y-5">
-        {/* Identity + actions */}
-        <div className="flex items-center gap-5">
-          <BackButton label="Retour aux techniciens" className="shrink-0 -ml-2" />
+      {/* Retour sur sa propre ligne : place entre l'avatar et le nom, il
+          entrait en concurrence avec l'identite du technicien. */}
+      <BackButton label="Retour aux techniciens" className="-ml-2" />
+
+      {/* ── Fiche d'identite ── */}
+      <div className="rounded-xl border bg-card p-6">
+        <div className="flex items-start gap-5">
           <Avatar className="size-14 shrink-0">
             {technician.photo_url && <AvatarImage src={technician.photo_url} />}
             <AvatarFallback className="text-lg font-bold">{initials}</AvatarFallback>
@@ -198,45 +200,78 @@ export default async function TechnicianDetailPage({
                 "Aucun rattachement"}
             </p>
 
-            {/* Contacts et vehicule : des liens, pas du texte a recopier */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm">
+            {/* Deux niveaux distincts. Avant, coordonnees, vehicule et date de
+                reappro etaient sur une seule ligne au meme gris : le seul
+                element non cliquable se confondait avec les liens. */}
+
+            {/* 1. Ce sur quoi on agit — en noir, souligne au survol */}
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mt-3 text-sm">
               {technician.phone && (
                 <a
                   href={`tel:${technician.phone.replace(/\s/g, "")}`}
-                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                  className="flex items-center gap-1.5 font-medium hover:underline underline-offset-4"
                 >
-                  <Phone className="size-3.5" />
+                  <Phone className="size-3.5 text-muted-foreground" />
                   <span className="tabular-nums">{technician.phone}</span>
                 </a>
               )}
               {technician.email && (
                 <a
                   href={`mailto:${technician.email}`}
-                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                  className="flex items-center gap-1.5 font-medium hover:underline underline-offset-4"
                 >
-                  <Mail className="size-3.5" />
+                  <Mail className="size-3.5 text-muted-foreground" />
                   {technician.email}
                 </a>
               )}
-              {technician.vehicle ? (
+              {technician.vehicle && (
                 <Link
                   href={`/vehicules/${technician.vehicle.id}`}
-                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                  className="flex items-center gap-1.5 font-medium hover:underline underline-offset-4"
                 >
-                  <Car className="size-3.5" />
+                  <Car className="size-3.5 text-muted-foreground" />
                   {/* name vaut déjà « marque modèle » : ne pas le répéter */}
                   <span>{technician.vehicle.name}</span>
-                  <span className="font-mono text-xs">{technician.vehicle.license_plate}</span>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {technician.vehicle.license_plate}
+                  </span>
                 </Link>
-              ) : (
-                <span className="flex items-center gap-1.5 text-muted-foreground">
+              )}
+            </div>
+
+            {/* 2. Ce qu'on constate — en gris, non cliquable.
+                Tablette et taille de vetement etaient saisies dans les trois
+                formulaires et affichees nulle part : 0 technicien sur 28 les
+                renseignait. Personne ne remplit un champ qu'il ne voit jamais. */}
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mt-2 text-[13px] text-muted-foreground">
+              {!technician.vehicle && (
+                <span className="flex items-center gap-1.5">
                   <Car className="size-3.5" />
                   Aucun véhicule
                 </span>
               )}
-              <span className="flex items-center gap-1.5 text-muted-foreground">
+              {technician.tablet_ref && (
+                <span className="flex items-center gap-1.5">
+                  <Tablet className="size-3.5" />
+                  {technician.tablet_ref}
+                </span>
+              )}
+              {(technician.clothing_size_top || technician.clothing_size_bottom) && (
+                <span className="flex items-center gap-1.5">
+                  <Shirt className="size-3.5" />
+                  {/* Deux systemes de mesure differents : on nomme lequel est
+                      lequel, « L / 42 » seul serait ambigu. */}
+                  {[
+                    technician.clothing_size_top && `Haut ${technician.clothing_size_top}`,
+                    technician.clothing_size_bottom && `Bas ${technician.clothing_size_bottom}`,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
+              )}
+              <span className="flex items-center gap-1.5">
                 <CalendarClock className="size-3.5" />
-                Réappro {formatDate(technician.last_restock_at)}
+                Dernier réappro {formatDate(technician.last_restock_at)}
               </span>
             </div>
           </div>

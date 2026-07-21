@@ -12,15 +12,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  ArrowUpDown,
-  ChevronLeft,
-  ChevronRight,
-  Package,
-  Phone,
-  Plus,
-  UserPlus,
-} from "lucide-react";
+import { ArrowUpDown, ChevronLeft, ChevronRight, Package, Plus, UserPlus } from "lucide-react";
 import { SearchInput } from "@/components/search-input";
 import { QueryError } from "@/components/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -79,20 +71,19 @@ function daysSince(dateString: string | null): number | null {
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
 
-function restockLabel(days: number | null): string {
-  if (days === null) return "Jamais";
-  if (days === 0) return "Aujourd'hui";
-  if (days === 1) return "Hier";
-  return `il y a ${days}j`;
-}
-
-/** Date et heure exactes du dernier réappro */
-function restockDateTime(dateString: string | null): string | null {
+/** Date du dernier réappro, sur la première ligne */
+function restockDate(dateString: string | null): string | null {
   if (!dateString) return null;
-  return new Date(dateString).toLocaleString("fr-FR", {
+  return new Date(dateString).toLocaleDateString("fr-FR", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+  });
+}
+
+/** Heure du dernier réappro, en dessous — remplace « il y a 3j » */
+function restockTime(dateString: string): string {
+  return new Date(dateString).toLocaleTimeString("fr-FR", {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -146,6 +137,7 @@ export default function TechniciansList() {
         tech.email ?? "",
         tech.city ?? "",
         tech.organization_name ?? "",
+        tech.tablet_ref ?? "",
         vehicle?.name ?? "",
         vehicle?.license_plate ?? "",
       ]
@@ -203,13 +195,16 @@ export default function TechniciansList() {
       },
       header: ({ column }) => <SortHeader label="Réappro" column={column} />,
       cell: ({ row }) => {
-        const days = daysSince(row.original.last_restock_at);
-        const label = restockLabel(days);
-        const exact = restockDateTime(row.original.last_restock_at);
+        const at = row.original.last_restock_at;
         return (
           <div className="flex flex-col gap-0.5">
-            <span className="text-sm text-foreground tabular-nums">{exact ?? "Jamais"}</span>
-            {exact && <span className="text-xs text-muted-foreground">{label}</span>}
+            {/* 15px comme toutes les cellules de texte du tableau */}
+            <span className="text-[15px] text-foreground tabular-nums">
+              {restockDate(at) ?? "Jamais"}
+            </span>
+            {at && (
+              <span className="text-xs text-muted-foreground tabular-nums">{restockTime(at)}</span>
+            )}
           </div>
         );
       },
@@ -306,17 +301,14 @@ export default function TechniciansList() {
       accessorKey: "phone",
       meta: { label: "Téléphone" },
       header: ({ column }) => <SortHeader label="Téléphone" column={column} />,
-      // Cliquable : depuis la liste, le geste utile est d'appeler, pas de lire.
-      // L'icone rend l'action lisible — un numero souligne au survol seulement
-      // ne se distingue pas du texte tant qu'on ne le survole pas.
+      // Cliquable : depuis la liste, le geste utile est d'appeler, pas de lire
       cell: ({ row }) =>
         row.original.phone ? (
           <a
             href={`tel:${row.original.phone.replace(/\s/g, "")}`}
             onClick={(e) => e.stopPropagation()}
-            className="inline-flex items-center gap-1.5 text-[15px] tabular-nums hover:underline underline-offset-2"
+            className="text-[15px] tabular-nums hover:underline underline-offset-2"
           >
-            <Phone className="size-3.5 text-muted-foreground shrink-0" />
             {row.original.phone}
           </a>
         ) : (
@@ -336,6 +328,18 @@ export default function TechniciansList() {
           >
             {row.original.email}
           </a>
+        ) : (
+          <span className="text-[15px] text-muted-foreground">—</span>
+        ),
+    },
+    {
+      accessorKey: "tablet_ref",
+      meta: { label: "Réf. tablette" },
+      header: ({ column }) => <SortHeader label="Réf. tablette" column={column} />,
+      cell: ({ row }) =>
+        row.original.tablet_ref ? (
+          // En chasse fixe comme les plaques : c'est une reference materielle
+          <span className="text-[15px] font-mono">{row.original.tablet_ref}</span>
         ) : (
           <span className="text-[15px] text-muted-foreground">—</span>
         ),
@@ -501,7 +505,7 @@ export default function TechniciansList() {
           </div>
         </div>
       ) : (
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="rounded-xl border bg-card overflow-x-auto">
           <table className="w-full">
             <thead>
               {table.getHeaderGroups().map((headerGroup) => (

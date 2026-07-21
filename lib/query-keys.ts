@@ -45,7 +45,6 @@ export const queryKeys = {
     list: (orgId?: string, year?: number) =>
       [...queryKeys.technicians.all, "list", orgId, year] as const,
     detail: (id: string) => [...queryKeys.technicians.all, "detail", id] as const,
-    stats: (orgId: string) => [...queryKeys.technicians.all, "stats", orgId] as const,
     inventory: (techId: string) => [...queryKeys.technicians.all, "inventory", techId] as const,
     history: (techId: string) => [...queryKeys.technicians.all, "history", techId] as const,
     movements: (techId: string) => [...queryKeys.technicians.all, "movements", techId] as const,

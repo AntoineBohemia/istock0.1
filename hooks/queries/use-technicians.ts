@@ -6,7 +6,6 @@ import { STALE_TIME } from "@/lib/query-stale-times";
 import {
   getTechnicians,
   getTechnician,
-  getTechniciansStats,
   getTechnicianStockMovements,
   getTechnicianEvolutionData,
   getTechnicianYearlyTotals,
@@ -25,15 +24,6 @@ export function useTechnician(id: string) {
     queryKey: queryKeys.technicians.detail(id),
     queryFn: () => getTechnician(id),
     enabled: !!id,
-  });
-}
-
-export function useTechniciansStats(orgId: string) {
-  return useQuery({
-    queryKey: queryKeys.technicians.stats(orgId),
-    queryFn: () => getTechniciansStats(orgId),
-    enabled: !!orgId,
-    staleTime: STALE_TIME.MODERATE,
   });
 }
 

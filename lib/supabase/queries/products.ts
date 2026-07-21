@@ -88,10 +88,15 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
   const { organizationId, search, categoryId, minPrice, maxPrice, stockStatus } = filters;
 
   // Construire la requête de base
+  // count: "exact" — le catalogue (53 references, environ 4 par mois) est loin
+  // du plafond de 1000 lignes de Supabase, mais un total tire de data.length
+  // vaudrait la limite le jour ou elle serait atteinte, sans rien signaler.
+  // Ici le compte vient du serveur : une troncature deviendrait visible.
   let query = supabase
     .from("products")
     .select(
-      "*, category:categories(*), supplier:suppliers(*), product_organization_stock(organization_id, stock_current, organization:organizations(name))"
+      "*, category:categories(*), supplier:suppliers(*), product_organization_stock(organization_id, stock_current, organization:organizations(name))",
+      { count: "exact" }
     );
 
   // Exclure les produits archivés et outillage (page séparée)
@@ -124,7 +129,7 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
 
   query = query.order("created_at", { ascending: false });
 
-  const { data, error } = await query;
+  const { data, error, count } = await query;
 
   if (error) {
     throw new Error(`Erreur lors de la récupération des produits: ${error.message}`);
@@ -141,7 +146,9 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
 
   return {
     products,
-    total: products.length,
+    // Le filtre « stock bas » s'applique apres coup : dans ce cas seul le
+    // tableau filtre fait foi, le compte serveur porterait sur l'avant-filtre.
+    total: stockStatus && stockStatus !== "all" ? products.length : (count ?? products.length),
   };
 }
 

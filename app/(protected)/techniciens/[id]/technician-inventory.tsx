@@ -66,20 +66,22 @@ function CompareSelector({
         type="button"
         onClick={() => setOpen(!open)}
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-lg border bg-white dark:bg-card px-3 h-9 text-sm transition-colors",
+          // Le bouton etait gris sur blanc, au meme niveau qu'un champ de
+          // saisie : rien n'indiquait une action possible.
+          "inline-flex items-center gap-1.5 rounded-lg px-3.5 h-9 text-sm font-medium transition-all shrink-0 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97]",
           compared.length > 0
-            ? "border-foreground text-foreground"
-            : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+            ? "bg-primary text-primary-foreground"
+            : "bg-foreground/[0.06] text-foreground hover:bg-foreground/[0.10]"
         )}
       >
-        <Users className="size-3.5" />
+        <Users className="size-4" />
         Comparer
         {compared.length > 0 && (
-          <span className="bg-foreground text-background rounded-full size-5 text-xs flex items-center justify-center font-semibold">
+          <span className="bg-primary-foreground text-primary rounded-full size-5 text-xs flex items-center justify-center font-bold tabular-nums">
             {compared.length}
           </span>
         )}
-        <ChevronDown className="size-3.5" />
+        <ChevronDown className={cn("size-3.5 transition-transform", open && "rotate-180")} />
       </button>
 
       {open && (
@@ -216,17 +218,21 @@ export default function TechnicianInventory({
       </div>
 
       {/* Compared chips */}
+      {/* Techniciens compares : le libelle « Comparé à » nomme ce que sont ces
+          pastilles, sans quoi elles flottent sous la recherche sans contexte. */}
       {isComparing && (
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-medium text-muted-foreground shrink-0">Comparé à</span>
           {compared.map((c) => (
             <button
               key={c.id}
               type="button"
               onClick={() => toggleCompare(c)}
-              className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted/80 transition-colors"
+              title={`Retirer ${c.name} de la comparaison`}
+              className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 pl-3 pr-2 py-1 text-[13px] font-semibold text-foreground hover:bg-primary/20 transition-colors cursor-pointer"
             >
               {c.name}
-              <X className="size-3 text-muted-foreground" />
+              <X className="size-3.5 text-muted-foreground" />
             </button>
           ))}
         </div>
@@ -314,7 +320,10 @@ export default function TechnicianInventory({
 function ComparedColumnHeader({ tech }: { tech: ComparedTechnician }) {
   return (
     <th className="h-11 px-5 text-left min-w-[80px]">
-      <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
+      {/* Le nom du technicien compare etait a 50 % d'opacite, moins lisible
+          que les en-tetes triables a cote. C'est pourtant lui qui dit a qui
+          on se compare. */}
+      <span className="text-xs font-semibold uppercase tracking-wider text-foreground">
         {tech.name}
       </span>
     </th>

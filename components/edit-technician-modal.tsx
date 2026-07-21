@@ -9,8 +9,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 
 import { useOrganizationStore } from "@/lib/stores/organization-store";
-import { useOrganizations } from "@/hooks/queries";
+import { useOrganizations, useVehicles } from "@/hooks/queries";
 import { useUpdateTechnician } from "@/hooks/mutations";
+import { setTechnicianVehicle } from "@/lib/supabase/queries/vehicles";
+import TechnicianVehicleSelect from "@/app/(protected)/techniciens/technician-vehicle-select";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
+import { CLOTHING_SIZES_TOP, CLOTHING_SIZES_BOTTOM } from "@/lib/constants/clothing-sizes";
 
 interface TechnicianData {
   id: string;
@@ -21,10 +26,8 @@ interface TechnicianData {
   city: string | null;
   organization_id: string | null;
   tablet_ref: string | null;
-  clothing_size: string | null;
-  vehicle_plate: string | null;
-  vehicle_brand: string | null;
-  vehicle_model: string | null;
+  clothing_size_top: string | null;
+  clothing_size_bottom: string | null;
 }
 
 interface EditTechnicianModalProps {
@@ -32,8 +35,6 @@ interface EditTechnicianModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
-const CLOTHING_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "3XL"];
 
 export default function EditTechnicianModal({
   technician,
@@ -43,6 +44,7 @@ export default function EditTechnicianModal({
   const { currentOrganization } = useOrganizationStore();
   const { data: userOrgs } = useOrganizations();
   const updateMutation = useUpdateTechnician();
+  const queryClient = useQueryClient();
   const isMultiOrg = (userOrgs?.length ?? 0) > 1;
 
   const [prevId, setPrevId] = useState(technician.id);
@@ -53,10 +55,18 @@ export default function EditTechnicianModal({
   const [city, setCity] = useState(technician.city ?? "");
   const [organizationId, setOrganizationId] = useState(technician.organization_id ?? "");
   const [tabletRef, setTabletRef] = useState(technician.tablet_ref ?? "");
-  const [clothingSize, setClothingSize] = useState(technician.clothing_size ?? "");
-  const [vehiclePlate, setVehiclePlate] = useState(technician.vehicle_plate ?? "");
-  const [vehicleBrand, setVehicleBrand] = useState(technician.vehicle_brand ?? "");
-  const [vehicleModel, setVehicleModel] = useState(technician.vehicle_model ?? "");
+  const [clothingSizeTop, setClothingSizeTop] = useState(technician.clothing_size_top ?? "");
+  const [clothingSizeBottom, setClothingSizeBottom] = useState(
+    technician.clothing_size_bottom ?? ""
+  );
+
+  // Vehicule actuel deduit de la table vehicles, sans le copier dans un etat :
+  // la liste arrive de facon asynchrone et un setState dans un effet
+  // ecraserait un choix deja fait par l'utilisateur.
+  const { data: vehicles = [] } = useVehicles(currentOrganization?.id);
+  const currentVehicleId = vehicles.find((v) => v.technician_id === technician.id)?.id ?? "";
+  const [vehicleChoice, setVehicleChoice] = useState<string | null>(null);
+  const vehicleId = vehicleChoice ?? currentVehicleId;
 
   if (technician.id !== prevId) {
     setPrevId(technician.id);
@@ -67,10 +77,9 @@ export default function EditTechnicianModal({
     setCity(technician.city ?? "");
     setOrganizationId(technician.organization_id ?? "");
     setTabletRef(technician.tablet_ref ?? "");
-    setClothingSize(technician.clothing_size ?? "");
-    setVehiclePlate(technician.vehicle_plate ?? "");
-    setVehicleBrand(technician.vehicle_brand ?? "");
-    setVehicleModel(technician.vehicle_model ?? "");
+    setClothingSizeTop(technician.clothing_size_top ?? "");
+    setClothingSizeBottom(technician.clothing_size_bottom ?? "");
+    setVehicleChoice(null);
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -88,14 +97,20 @@ export default function EditTechnicianModal({
           city: city.trim() || null,
           organization_id: organizationId || currentOrganization?.id || undefined,
           tablet_ref: tabletRef.trim() || null,
-          clothing_size: clothingSize || null,
-          vehicle_plate: vehiclePlate.trim() || null,
-          vehicle_brand: vehicleBrand.trim() || null,
-          vehicle_model: vehicleModel.trim() || null,
+          clothing_size_top: clothingSizeTop || null,
+          clothing_size_bottom: clothingSizeBottom || null,
         },
       },
       {
-        onSuccess: () => {
+        onSuccess: async () => {
+          // Le vehicule vit sur vehicles.technician_id : il se met a jour
+          // apres le technicien, en liberant l'ancien avant d'affecter le neuf.
+          try {
+            await setTechnicianVehicle(technician.id, vehicleId || null, currentVehicleId || null);
+            queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all });
+          } catch {
+            toast.error("Technicien modifié, mais le véhicule n'a pas pu être affecté");
+          }
           toast.success("Technicien modifie");
           onOpenChange(false);
         },
@@ -194,41 +209,14 @@ export default function EditTechnicianModal({
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                  Plaque vehicule
-                </label>
-                <Input
-                  value={vehiclePlate}
-                  onChange={(e) => setVehiclePlate(e.target.value)}
-                  placeholder="AB-123-CD"
-                  className="bg-white dark:bg-card font-mono uppercase"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                  Marque
-                </label>
-                <Input
-                  value={vehicleBrand}
-                  onChange={(e) => setVehicleBrand(e.target.value)}
-                  placeholder="Renault"
-                  className="bg-white dark:bg-card"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                  Modèle
-                </label>
-                <Input
-                  value={vehicleModel}
-                  onChange={(e) => setVehicleModel(e.target.value)}
-                  placeholder="Kangoo"
-                  className="bg-white dark:bg-card"
-                />
-              </div>
-            </div>
+            {/* On affecte un vehicule existant au lieu d'en saisir les
+                caracteristiques : la table vehicles est la source de verite. */}
+            <TechnicianVehicleSelect
+              technicianId={technician.id}
+              value={vehicleId}
+              onChange={setVehicleChoice}
+              disabled={updateMutation.isPending}
+            />
 
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -244,15 +232,32 @@ export default function EditTechnicianModal({
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                  Taille vetement
+                  Taille haut
                 </label>
                 <select
-                  value={clothingSize}
-                  onChange={(e) => setClothingSize(e.target.value)}
+                  value={clothingSizeTop}
+                  onChange={(e) => setClothingSizeTop(e.target.value)}
                   className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
                 >
                   <option value="">—</option>
-                  {CLOTHING_SIZES.map((s) => (
+                  {CLOTHING_SIZES_TOP.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                  Taille bas
+                </label>
+                <select
+                  value={clothingSizeBottom}
+                  onChange={(e) => setClothingSizeBottom(e.target.value)}
+                  className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
+                >
+                  <option value="">—</option>
+                  {CLOTHING_SIZES_BOTTOM.map((s) => (
                     <option key={s} value={s}>
                       {s}
                     </option>

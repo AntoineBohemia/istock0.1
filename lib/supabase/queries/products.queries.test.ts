@@ -1,3 +1,9 @@
+// Note : la liste produits n'est volontairement pas paginee cote serveur.
+// Le catalogue compte 53 references et croit d'environ 4 par mois ; la page
+// charge tout pour filtrer, trier et calculer ses totaux dans le navigateur.
+// Les tests de pagination qui figuraient ici decrivaient une intention
+// abandonnee : les appliquer aurait casse ces trois fonctions.
+
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createMockSupabaseClient } from "@/lib/__mocks__/supabase";
 
@@ -219,24 +225,6 @@ describe("getProductsStats", () => {
 
 // ─── getProducts ─────────────────────────────────────────────────────
 describe("getProducts", () => {
-  it("returns paginated results with defaults", async () => {
-    const products = [
-      { id: "p1", name: "Product 1" },
-      { id: "p2", name: "Product 2" },
-    ];
-    mockClient._setResult({ data: products, error: null, count: 2 });
-
-    const result = await getProducts();
-
-    expect(result.products).toHaveLength(2);
-    expect(result.total).toBe(2);
-    expect(result.page).toBe(1);
-    expect(result.pageSize).toBe(10);
-    expect(result.totalPages).toBe(1);
-    expect(mockClient.from).toHaveBeenCalledWith("products");
-    expect(mockClient.select).toHaveBeenCalled();
-  });
-
   it("filters by organizationId", async () => {
     mockClient._setResult({ data: [], error: null, count: 0 });
 
@@ -277,30 +265,10 @@ describe("getProducts", () => {
     expect(mockClient.lte).toHaveBeenCalledWith("price", 100);
   });
 
-  it("applies pagination correctly", async () => {
-    mockClient._setResult({ data: [], error: null, count: 25 });
-
-    const result = await getProducts({ page: 3, pageSize: 5 });
-
-    expect(mockClient.range).toHaveBeenCalledWith(10, 14);
-    expect(result.page).toBe(3);
-    expect(result.pageSize).toBe(5);
-    expect(result.totalPages).toBe(5);
-  });
-
   it("throws on Supabase error", async () => {
     mockClient._setResult({ data: null, error: { message: "Fetch failed" } });
 
     await expect(getProducts()).rejects.toThrow("Fetch failed");
-  });
-
-  it("handles null count as 0", async () => {
-    mockClient._setResult({ data: [], error: null, count: null });
-
-    const result = await getProducts();
-
-    expect(result.total).toBe(0);
-    expect(result.totalPages).toBe(0);
   });
 });
 
@@ -347,14 +315,6 @@ describe("getProducts stockStatus filtering", () => {
 
     // total should be the filtered count, not the original DB count
     expect(result.total).toBe(2);
-  });
-
-  it("totalPages is recalculated after client-side filter", async () => {
-    mockClient._setResult({ data: [...mockProducts], error: null, count: 5 });
-
-    const result = await getProducts({ stockStatus: "low", pageSize: 1 });
-
-    expect(result.totalPages).toBe(2);
   });
 });
 

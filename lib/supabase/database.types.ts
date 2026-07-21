@@ -659,7 +659,8 @@ export type Database = {
         Row: {
           archived_at: string | null;
           city: string | null;
-          clothing_size: string | null;
+          clothing_size_top: string | null;
+          clothing_size_bottom: string | null;
           created_at: string | null;
           email: string | null;
           first_name: string;
@@ -670,14 +671,12 @@ export type Database = {
           photo_url: string | null;
           supplier_id: string | null;
           tablet_ref: string | null;
-          vehicle_brand: string | null;
-          vehicle_model: string | null;
-          vehicle_plate: string | null;
         };
         Insert: {
           archived_at?: string | null;
           city?: string | null;
-          clothing_size?: string | null;
+          clothing_size_top?: string | null;
+          clothing_size_bottom?: string | null;
           created_at?: string | null;
           email?: string | null;
           first_name: string;
@@ -688,14 +687,12 @@ export type Database = {
           photo_url?: string | null;
           supplier_id?: string | null;
           tablet_ref?: string | null;
-          vehicle_brand?: string | null;
-          vehicle_model?: string | null;
-          vehicle_plate?: string | null;
         };
         Update: {
           archived_at?: string | null;
           city?: string | null;
-          clothing_size?: string | null;
+          clothing_size_top?: string | null;
+          clothing_size_bottom?: string | null;
           created_at?: string | null;
           email?: string | null;
           first_name?: string;
@@ -706,9 +703,6 @@ export type Database = {
           photo_url?: string | null;
           supplier_id?: string | null;
           tablet_ref?: string | null;
-          vehicle_brand?: string | null;
-          vehicle_model?: string | null;
-          vehicle_plate?: string | null;
         };
         Relationships: [
           {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Wrench, icons } from "lucide-react";
+import { Minus, Plus, Wrench, icons } from "lucide-react";
 import { toast } from "@/lib/toast";
 
 import Image from "next/image";
@@ -109,10 +109,24 @@ export default function TechnicianEquipment({
 
   const [search, setSearch] = useState("");
   const [assigningProduct, setAssigningProduct] = useState("");
+  const [assignQty, setAssignQty] = useState(1);
+  /** Quantite a rendre, par assignation (defaut : tout ce qu'il detient) */
+  const [returnQty, setReturnQty] = useState<Record<string, number>>({});
 
+  // La reference doit etre cherchable comme le nom : c'est souvent elle
+  // qu'on a sous les yeux sur l'etiquette de l'outil.
   const filtered = search
-    ? equipment.filter((a) => a.product?.name.toLowerCase().includes(search.toLowerCase()))
+    ? equipment.filter((a) => {
+        const q = search.toLowerCase();
+        return (
+          a.product?.name.toLowerCase().includes(q) || a.product?.sku?.toLowerCase().includes(q)
+        );
+      })
     : equipment;
+
+  // Stock disponible de l'outil selectionne, pour borner le pas de quantite
+  const selectedAvailable = availableEquipment.find((p) => p.id === assigningProduct);
+  const maxAssignable = selectedAvailable?.stock_current ?? 1;
 
   const totalValue = useMemo(
     () => equipment.reduce((sum, a) => sum + (a.product?.price ?? 0) * a.quantity, 0),
@@ -123,29 +137,43 @@ export default function TechnicianEquipment({
 
   const handleAssign = () => {
     if (!assigningProduct || !currentOrganization?.id) return;
+    const qty = Math.min(Math.max(1, assignQty), maxAssignable);
     assignMutation.mutate(
       {
         organizationId: currentOrganization.id,
         productId: assigningProduct,
         technicianId,
-        quantity: 1,
+        quantity: qty,
       },
       {
         onSuccess: () => {
-          toast.success("Outil assigne");
+          toast.success(`${qty} outil${qty > 1 ? "s" : ""} assigné${qty > 1 ? "s" : ""}`);
           setAssigningProduct("");
+          setAssignQty(1);
         },
         onError: (err) => toast.error(err instanceof Error ? err.message : "Erreur"),
       }
     );
   };
 
-  const handleUnassign = (productId: string, productName: string) => {
+  const handleUnassign = (
+    assignmentId: string,
+    productId: string,
+    productName: string,
+    quantity: number
+  ) => {
     if (!currentOrganization?.id) return;
     unassignMutation.mutate(
-      { organizationId: currentOrganization.id, productId, technicianId, quantity: 1 },
+      { organizationId: currentOrganization.id, productId, technicianId, quantity },
       {
-        onSuccess: () => toast.success(`${productName} recupere`),
+        onSuccess: () => {
+          setReturnQty((prev) => {
+            const next = { ...prev };
+            delete next[assignmentId];
+            return next;
+          });
+          toast.success(`${quantity} × ${productName} récupéré`);
+        },
         onError: (err) => toast.error(err instanceof Error ? err.message : "Erreur"),
       }
     );
@@ -155,8 +183,10 @@ export default function TechnicianEquipment({
     return (
       <div className="space-y-4">
         <Skeleton className="h-9 w-full rounded-md" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {[...Array(4)].map((_, i) => (
+        {/* Meme nombre de colonnes que la grille reelle, sinon la mise en page
+            saute quand les donnees arrivent. */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[...Array(6)].map((_, i) => (
             <div key={i} className="rounded-xl border bg-card p-4 space-y-3">
               <div className="flex items-start gap-3">
                 <Skeleton className="size-9 rounded-lg" />
@@ -175,13 +205,20 @@ export default function TechnicianEquipment({
 
   return (
     <div className="space-y-4">
-      {/* ── Assign bar ── */}
-      {availableEquipment.length > 0 && (
-        <div className="flex gap-2">
+      {/* ── Assignation ──
+           Le bloc entier disparaissait quand aucun outil n'avait de stock :
+           on ne savait pas si la fonction manquait ou si rien n'etait
+           disponible. Il reste visible, desactive, avec sa raison. */}
+      <div className="rounded-xl border bg-muted/30 p-3">
+        <div className="flex flex-wrap items-center gap-2">
           <select
             value={assigningProduct}
-            onChange={(e) => setAssigningProduct(e.target.value)}
-            className="border-input bg-white dark:bg-card text-sm flex h-9 flex-1 rounded-md border px-3 py-1.5 outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
+            onChange={(e) => {
+              setAssigningProduct(e.target.value);
+              setAssignQty(1);
+            }}
+            disabled={availableEquipment.length === 0}
+            className="border-input bg-white dark:bg-card text-sm flex h-9 flex-1 min-w-[180px] rounded-md border px-3 py-1.5 outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px] disabled:opacity-50"
           >
             <option value="">Assigner un outil…</option>
             {availableEquipment.map((p) => (
@@ -190,6 +227,30 @@ export default function TechnicianEquipment({
               </option>
             ))}
           </select>
+
+          {/* Quantite : elle etait figee a 1, il fallait repeter l'operation */}
+          <div className="flex items-center rounded-md border bg-white dark:bg-card h-9">
+            <button
+              type="button"
+              disabled={!assigningProduct || assignQty <= 1}
+              onClick={() => setAssignQty((q) => Math.max(1, q - 1))}
+              className="px-2.5 h-full text-muted-foreground hover:text-foreground disabled:opacity-30 cursor-pointer"
+              aria-label="Diminuer la quantité"
+            >
+              <Minus className="size-3.5" />
+            </button>
+            <span className="w-8 text-center text-sm font-semibold tabular-nums">{assignQty}</span>
+            <button
+              type="button"
+              disabled={!assigningProduct || assignQty >= maxAssignable}
+              onClick={() => setAssignQty((q) => Math.min(maxAssignable, q + 1))}
+              className="px-2.5 h-full text-muted-foreground hover:text-foreground disabled:opacity-30 cursor-pointer"
+              aria-label="Augmenter la quantité"
+            >
+              <Plus className="size-3.5" />
+            </button>
+          </div>
+
           <Button
             size="sm"
             className="h-9"
@@ -199,7 +260,10 @@ export default function TechnicianEquipment({
             Assigner
           </Button>
         </div>
-      )}
+        {availableEquipment.length === 0 && (
+          <p className="text-xs text-muted-foreground mt-2">Aucun outil disponible en stock.</p>
+        )}
+      </div>
 
       {/* ── Recherche + total sur une ligne ──
            La recherche etait masquee sous 6 outils : elle apparaissait et
@@ -272,12 +336,72 @@ export default function TechnicianEquipment({
                     variant="outline"
                     size="sm"
                     className="h-7 px-2.5 text-xs shrink-0 text-destructive border-destructive/30 hover:bg-destructive/10 hover:border-destructive/50"
-                    onClick={() => handleUnassign(product.id, product.name)}
+                    onClick={() =>
+                      handleUnassign(
+                        assignment.id,
+                        product.id,
+                        product.name,
+                        returnQty[assignment.id] ?? assignment.quantity
+                      )
+                    }
                     disabled={unassignMutation.isPending}
                   >
                     Retirer
                   </Button>
                 </div>
+
+                {/* Quantite a rendre — uniquement s'il en detient plusieurs.
+                    « Retirer » ne reprenait qu'une unite sur les 3 detenues,
+                    sans le dire : il fallait cliquer trois fois. */}
+                {assignment.quantity > 1 && (
+                  <div className="flex items-center gap-2 mt-3">
+                    <span className="text-[11px] text-muted-foreground">Rendre</span>
+                    <div className="flex items-center rounded-md border bg-background h-7">
+                      <button
+                        type="button"
+                        disabled={(returnQty[assignment.id] ?? assignment.quantity) <= 1}
+                        onClick={() =>
+                          setReturnQty((prev) => ({
+                            ...prev,
+                            [assignment.id]: Math.max(
+                              1,
+                              (prev[assignment.id] ?? assignment.quantity) - 1
+                            ),
+                          }))
+                        }
+                        className="px-2 h-full text-muted-foreground hover:text-foreground disabled:opacity-30 cursor-pointer"
+                        aria-label="Diminuer la quantité à rendre"
+                      >
+                        <Minus className="size-3" />
+                      </button>
+                      <span className="w-7 text-center text-xs font-semibold tabular-nums">
+                        {returnQty[assignment.id] ?? assignment.quantity}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={
+                          (returnQty[assignment.id] ?? assignment.quantity) >= assignment.quantity
+                        }
+                        onClick={() =>
+                          setReturnQty((prev) => ({
+                            ...prev,
+                            [assignment.id]: Math.min(
+                              assignment.quantity,
+                              (prev[assignment.id] ?? assignment.quantity) + 1
+                            ),
+                          }))
+                        }
+                        className="px-2 h-full text-muted-foreground hover:text-foreground disabled:opacity-30 cursor-pointer"
+                        aria-label="Augmenter la quantité à rendre"
+                      >
+                        <Plus className="size-3" />
+                      </button>
+                    </div>
+                    <span className="text-[11px] text-muted-foreground">
+                      sur {assignment.quantity}
+                    </span>
+                  </div>
+                )}
 
                 {/* Depuis quand il l'a — l'information manquait completement,
                     alors qu'elle figure deja sur la page Outillage. */}

@@ -31,7 +31,6 @@ vi.mock("@/lib/supabase/queries/inventory", () => ({
 vi.mock("@/lib/supabase/queries/technicians", () => ({
   getTechnicians: vi.fn().mockResolvedValue([]),
   getTechnician: vi.fn().mockResolvedValue(null),
-  getTechniciansStats: vi.fn().mockResolvedValue({}),
   getTechnicianInventoryHistory: vi.fn().mockResolvedValue([]),
   getTechnicianStockMovements: vi.fn().mockResolvedValue([]),
 }));
@@ -69,7 +68,6 @@ import { getAvailableProductsForRestock } from "@/lib/supabase/queries/inventory
 import {
   getTechnicians,
   getTechnician,
-  getTechniciansStats,
   getTechnicianInventoryHistory,
   getTechnicianStockMovements,
 } from "@/lib/supabase/queries/technicians";
@@ -100,13 +98,7 @@ import {
   useMovementsSummary,
 } from "./use-stock-movements";
 import { useAvailableProductsForRestock } from "./use-inventory";
-import {
-  useTechnicians,
-  useTechnician,
-  useTechniciansStats,
-  useTechnicianHistory,
-  useTechnicianMovements,
-} from "./use-technicians";
+import { useTechnicians, useTechnician, useTechnicianMovements } from "./use-technicians";
 import { useCategories, useCategoriesTree, useCategory } from "./use-categories";
 import {
   useOrganizations,
@@ -345,50 +337,6 @@ describe("useTechnician", () => {
 
     await waitFor(() => expect(true).toBe(true));
     expect(getTechnician).not.toHaveBeenCalled();
-  });
-});
-
-// ─── useTechniciansStats ────────────────────────────────────────────
-describe("useTechniciansStats", () => {
-  it("calls getTechniciansStats with orgId", async () => {
-    const wrapper = createWrapper();
-
-    renderHook(() => useTechniciansStats("org-1"), { wrapper });
-
-    await waitFor(() => {
-      expect(getTechniciansStats).toHaveBeenCalledWith("org-1");
-    });
-  });
-
-  it("does not call when orgId is empty", async () => {
-    const wrapper = createWrapper();
-
-    renderHook(() => useTechniciansStats(""), { wrapper });
-
-    await waitFor(() => expect(true).toBe(true));
-    expect(getTechniciansStats).not.toHaveBeenCalled();
-  });
-});
-
-// ─── useTechnicianHistory ───────────────────────────────────────────
-describe("useTechnicianHistory", () => {
-  it("calls getTechnicianInventoryHistory with techId", async () => {
-    const wrapper = createWrapper();
-
-    renderHook(() => useTechnicianHistory("t1"), { wrapper });
-
-    await waitFor(() => {
-      expect(getTechnicianInventoryHistory).toHaveBeenCalledWith("t1");
-    });
-  });
-
-  it("does not call when techId is empty", async () => {
-    const wrapper = createWrapper();
-
-    renderHook(() => useTechnicianHistory(""), { wrapper });
-
-    await waitFor(() => expect(true).toBe(true));
-    expect(getTechnicianInventoryHistory).not.toHaveBeenCalled();
   });
 });
 

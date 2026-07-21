@@ -10,10 +10,8 @@ export interface Technician {
   photo_url: string | null;
   supplier_id: string | null;
   tablet_ref: string | null;
-  clothing_size: string | null;
-  vehicle_plate: string | null;
-  vehicle_brand: string | null;
-  vehicle_model: string | null;
+  clothing_size_top: string | null;
+  clothing_size_bottom: string | null;
   organization_id: string | null;
   created_at: string | null;
   archived_at: string | null;
@@ -70,10 +68,8 @@ export interface CreateTechnicianData {
   city?: string | null;
   photo_url?: string | null;
   tablet_ref?: string | null;
-  clothing_size?: string | null;
-  vehicle_plate?: string | null;
-  vehicle_brand?: string | null;
-  vehicle_model?: string | null;
+  clothing_size_top?: string | null;
+  clothing_size_bottom?: string | null;
 }
 
 export type UpdateTechnicianData = Partial<CreateTechnicianData>;
@@ -181,10 +177,8 @@ export async function createTechnician(data: CreateTechnicianData): Promise<Tech
       city: data.city || null,
       photo_url: data.photo_url || null,
       tablet_ref: data.tablet_ref || null,
-      clothing_size: data.clothing_size || null,
-      vehicle_plate: data.vehicle_plate || null,
-      vehicle_brand: data.vehicle_brand || null,
-      vehicle_model: data.vehicle_model || null,
+      clothing_size_top: data.clothing_size_top || null,
+      clothing_size_bottom: data.clothing_size_bottom || null,
     })
     .select()
     .single();
@@ -219,10 +213,10 @@ export async function updateTechnician(
   if (data.photo_url !== undefined) updateData.photo_url = data.photo_url || null;
   if (data.organization_id !== undefined) updateData.organization_id = data.organization_id || null;
   if (data.tablet_ref !== undefined) updateData.tablet_ref = data.tablet_ref || null;
-  if (data.clothing_size !== undefined) updateData.clothing_size = data.clothing_size || null;
-  if (data.vehicle_plate !== undefined) updateData.vehicle_plate = data.vehicle_plate || null;
-  if (data.vehicle_brand !== undefined) updateData.vehicle_brand = data.vehicle_brand || null;
-  if (data.vehicle_model !== undefined) updateData.vehicle_model = data.vehicle_model || null;
+  if (data.clothing_size_top !== undefined)
+    updateData.clothing_size_top = data.clothing_size_top || null;
+  if (data.clothing_size_bottom !== undefined)
+    updateData.clothing_size_bottom = data.clothing_size_bottom || null;
 
   let query = supabase.from("technicians").update(updateData).eq("id", id);
 
@@ -443,94 +437,6 @@ export async function getTechnicianEvolutionData(
     ...item,
     product: Array.isArray(item.product) ? item.product[0] : item.product,
   })) as TechnicianEvolutionMovement[];
-}
-
-export interface TechniciansStats {
-  totalTechnicians: number;
-  emptyInventory: number;
-  totalItems: number;
-  recentRestocks: number;
-}
-
-/**
- * Récupère les statistiques des techniciens
- */
-export async function getTechniciansStats(organizationId: string): Promise<TechniciansStats> {
-  const supabase = createClient();
-
-  // Récupérer tous les techniciens (non archivés)
-  const { data: technicians, error: techError } = await supabase
-    .from("technicians")
-    .select("id")
-    .eq("organization_id", organizationId)
-    .is("archived_at", null);
-
-  if (techError) {
-    throw new Error(`Erreur lors de la récupération des techniciens: ${techError.message}`);
-  }
-
-  const technicianIds = technicians?.map((t) => t.id) || [];
-  const totalTechnicians = technicianIds.length;
-
-  if (totalTechnicians === 0) {
-    return {
-      totalTechnicians: 0,
-      emptyInventory: 0,
-      totalItems: 0,
-      recentRestocks: 0,
-    };
-  }
-
-  // Récupérer l'inventaire pour calculer les items totaux et inventaires vides
-  const { data: inventoryData, error: invError } = await supabase
-    .from("technician_inventory")
-    .select("technician_id, quantity")
-    .in("technician_id", technicianIds);
-
-  if (invError) {
-    throw new Error(`Erreur lors de la récupération de l'inventaire: ${invError.message}`);
-  }
-
-  // Calculer les items par technicien
-  const inventoryByTechnician: Record<string, number> = {};
-  let totalItems = 0;
-  inventoryData?.forEach((item) => {
-    if (!inventoryByTechnician[item.technician_id]) {
-      inventoryByTechnician[item.technician_id] = 0;
-    }
-    inventoryByTechnician[item.technician_id] += item.quantity;
-    totalItems += item.quantity;
-  });
-
-  // Techniciens avec inventaire vide
-  const emptyInventory = technicianIds.filter(
-    (id) => !inventoryByTechnician[id] || inventoryByTechnician[id] === 0
-  ).length;
-
-  // Restocks récents (14 derniers jours)
-  const fourteenDaysAgo = new Date();
-  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-
-  const { data: recentRestocksData, error: restockError } = await supabase
-    .from("stock_movements")
-    .select("technician_id")
-    .eq("movement_type", "exit_technician")
-    .in("technician_id", technicianIds)
-    .gte("created_at", fourteenDaysAgo.toISOString());
-
-  if (restockError) {
-    throw new Error(`Erreur lors de la récupération des restocks: ${restockError.message}`);
-  }
-
-  // Compter les techniciens uniques restockés
-  const uniqueRestockedTechnicians = new Set(recentRestocksData?.map((r) => r.technician_id) || []);
-
-  return {
-    totalTechnicians,
-    emptyInventory,
-    totalItems,
-    recentRestocks: uniqueRestockedTechnicians.size,
-  };
 }
 
 /**

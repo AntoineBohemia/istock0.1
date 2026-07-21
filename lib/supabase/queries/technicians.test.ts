@@ -8,7 +8,6 @@ vi.mock("@/lib/supabase/client", () => ({
 
 import {
   getTechnicians,
-  getTechniciansStats,
   getTechnician,
   createTechnician,
   updateTechnician,
@@ -101,71 +100,6 @@ describe("getTechnicians", () => {
   });
 });
 
-// ─── getTechniciansStats ────────────────────────────────────────────
-describe("getTechniciansStats", () => {
-  it("returns zero stats when no technicians exist", async () => {
-    mockClient._setResult({ data: [], error: null });
-
-    const stats = await getTechniciansStats("org-1");
-    expect(stats).toEqual({
-      totalTechnicians: 0,
-      emptyInventory: 0,
-      totalItems: 0,
-      recentRestocks: 0,
-    });
-  });
-
-  it("counts empty inventories and total items", async () => {
-    const originalThen = mockClient.then;
-    let callCount = 0;
-
-    mockClient.then = (resolve: any, reject?: any) => {
-      callCount++;
-      if (callCount === 1) {
-        // Get technicians
-        return Promise.resolve({
-          data: [{ id: "t1" }, { id: "t2" }, { id: "t3" }],
-          error: null,
-        }).then(resolve, reject);
-      }
-      if (callCount === 2) {
-        // Get inventory
-        return Promise.resolve({
-          data: [
-            { technician_id: "t1", quantity: 10 },
-            { technician_id: "t1", quantity: 5 },
-            // t2 has no inventory, t3 has no inventory
-          ],
-          error: null,
-        }).then(resolve, reject);
-      }
-      if (callCount === 3) {
-        // Recent restocks
-        return Promise.resolve({
-          data: [{ technician_id: "t1" }],
-          error: null,
-        }).then(resolve, reject);
-      }
-      return Promise.resolve({ data: null, error: null }).then(resolve, reject);
-    };
-
-    try {
-      const stats = await getTechniciansStats("org-1");
-      expect(stats.totalTechnicians).toBe(3);
-      expect(stats.emptyInventory).toBe(2); // t2 and t3
-      expect(stats.totalItems).toBe(15);
-      expect(stats.recentRestocks).toBe(1);
-    } finally {
-      mockClient.then = originalThen;
-    }
-  });
-
-  it("throws on Supabase error", async () => {
-    mockClient._setResult({ data: null, error: { message: "Query failed" } });
-    await expect(getTechniciansStats("org-1")).rejects.toThrow("Query failed");
-  });
-});
-
 // ─── createTechnician ────────────────────────────────────────────────
 describe("createTechnician", () => {
   it("creates a technician with all fields", async () => {
@@ -197,6 +131,11 @@ describe("createTechnician", () => {
       email: "jean@test.com",
       phone: "0612345678",
       city: "Paris",
+      // Champs non fournis : createTechnician les insere explicitement a null
+      photo_url: null,
+      tablet_ref: null,
+      clothing_size_top: null,
+      clothing_size_bottom: null,
     });
     expect(result).toEqual(techData);
   });
@@ -218,6 +157,10 @@ describe("createTechnician", () => {
       email: "jean@test.com",
       phone: null,
       city: null,
+      photo_url: null,
+      tablet_ref: null,
+      clothing_size_top: null,
+      clothing_size_bottom: null,
     });
   });
 

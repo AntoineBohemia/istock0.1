@@ -14,10 +14,8 @@ interface TechnicianData {
   city: string | null;
   organization_id: string | null;
   tablet_ref: string | null;
-  clothing_size: string | null;
-  vehicle_plate: string | null;
-  vehicle_brand: string | null;
-  vehicle_model: string | null;
+  clothing_size_top: string | null;
+  clothing_size_bottom: string | null;
 }
 
 export default function EditTechnicianButton({ technician }: { technician: TechnicianData }) {

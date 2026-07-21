@@ -21,7 +21,6 @@ import {
   Download,
   Truck,
   HardHat,
-  Check,
   X,
 } from "lucide-react";
 
@@ -65,6 +64,7 @@ import {
 } from "@/hooks/queries";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import ProductIconDisplay from "@/components/product-icon-display";
+import { FilterChip } from "@/components/filter-chip";
 import { TableColumnToggle } from "@/components/table-column-toggle";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { cn } from "@/lib/utils";
@@ -345,9 +345,8 @@ export default function MovementsList() {
     from: startOfYear(new Date()),
     to: new Date(),
   }));
-  const [orgPickerOpen, setOrgPickerOpen] = useState(false);
-  const [supplierPickerOpen, setSupplierPickerOpen] = useState(false);
-  const [techPickerOpen, setTechPickerOpen] = useState(false);
+  // FilterChip gere lui-meme son ouverture : les trois etats de popover
+  // qui vivaient ici n'ont plus d'objet.
   const [filterTypes, setFilterTypes] = useState<Set<string>>(new Set());
   const [filterOrgs, setFilterOrgs] = useState<Set<string>>(new Set());
   const [filterSuppliers, setFilterSuppliers] = useState<Set<string>>(new Set());
@@ -427,10 +426,9 @@ export default function MovementsList() {
   // User's organizations (for filter)
   const { data: userOrgs } = useOrganizations();
 
-  const { availableOrgs, orgNameById } = useMemo(() => {
+  const { availableOrgs } = useMemo(() => {
     const orgs = (userOrgs ?? []).map((o) => ({ id: o.id, name: o.name }));
-    const map = new Map(orgs.map((o) => [o.id, o.name]));
-    return { availableOrgs: orgs, orgNameById: map };
+    return { availableOrgs: orgs };
   }, [userOrgs]);
 
   // Helper to toggle a value in a Set (immutable)
@@ -788,273 +786,48 @@ export default function MovementsList() {
 
         <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
 
-        {availableOrgs.length > 0 && (
-          <Popover open={orgPickerOpen} onOpenChange={setOrgPickerOpen}>
-            <PopoverTrigger
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full h-9 px-4 text-[13px] font-semibold transition-all select-none cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97]",
-                filterOrgs.size > 0
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
-              )}
-            >
-              <Building2 className="size-3" />
-              Entreprise
-              {filterOrgs.size > 0 && (
-                <>
-                  <span className="opacity-80 tabular-nums font-heading">{filterOrgs.size}</span>
-                  <span
-                    role="button"
-                    className="ml-0.5 rounded-full hover:bg-white/20 p-0.5 -mr-1"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      startTransition(() => setFilterOrgs(new Set()));
-                    }}
-                  >
-                    <X className="size-3" />
-                  </span>
-                </>
-              )}
-            </PopoverTrigger>
-            <PopoverContent
-              align="start"
-              className="w-auto min-w-[180px] p-1 rounded-xl overflow-hidden"
-            >
-              <div className="flex flex-col gap-0.5 max-h-[280px] overflow-y-auto">
-                {availableOrgs.map((sup) => {
-                  const selected = filterOrgs.has(sup.id);
-                  return (
-                    <button
-                      key={sup.id}
-                      type="button"
-                      className={cn(
-                        "flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-lg transition-colors",
-                        selected
-                          ? "bg-primary/10 text-foreground font-medium"
-                          : "text-foreground/70 hover:bg-muted hover:text-foreground"
-                      )}
-                      onClick={() => {
-                        startTransition(() => setFilterOrgs((prev) => toggleSet(prev, sup.id)));
-                      }}
-                    >
-                      <span
-                        className={cn(
-                          "size-3.5 flex items-center justify-center",
-                          !selected && "opacity-0"
-                        )}
-                      >
-                        <Check className="size-3.5" />
-                      </span>
-                      {sup.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </PopoverContent>
-          </Popover>
-        )}
+        <FilterChip
+          label="Entreprise"
+          icon={Building2}
+          options={availableOrgs.map((o) => ({ id: o.id, label: o.name }))}
+          selected={filterOrgs}
+          onToggle={(id) => startTransition(() => setFilterOrgs((prev) => toggleSet(prev, id)))}
+          onClear={() => startTransition(() => setFilterOrgs(new Set()))}
+        />
 
-        {availableSuppliers.length > 0 && (
-          <Popover open={supplierPickerOpen} onOpenChange={setSupplierPickerOpen}>
-            <PopoverTrigger
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full h-9 px-4 text-[13px] font-semibold transition-all select-none cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97]",
-                filterSuppliers.size > 0
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
-              )}
-            >
-              <Truck className="size-3" />
-              Fournisseur
-              {filterSuppliers.size > 0 && (
-                <>
-                  <span className="opacity-80 tabular-nums font-heading">
-                    {filterSuppliers.size}
-                  </span>
-                  <span
-                    role="button"
-                    className="ml-0.5 rounded-full hover:bg-white/20 p-0.5 -mr-1"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      startTransition(() => setFilterSuppliers(new Set()));
-                    }}
-                  >
-                    <X className="size-3" />
-                  </span>
-                </>
-              )}
-            </PopoverTrigger>
-            <PopoverContent
-              align="start"
-              className="w-auto min-w-[180px] p-1 rounded-xl overflow-hidden"
-            >
-              <div className="flex flex-col gap-0.5 max-h-[280px] overflow-y-auto">
-                {availableSuppliers.map((sup) => {
-                  const selected = filterSuppliers.has(sup.id);
-                  return (
-                    <button
-                      key={sup.id}
-                      type="button"
-                      className={cn(
-                        "flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-lg transition-colors",
-                        selected
-                          ? "bg-primary/10 text-foreground font-medium"
-                          : "text-foreground/70 hover:bg-muted hover:text-foreground"
-                      )}
-                      onClick={() => {
-                        startTransition(() =>
-                          setFilterSuppliers((prev) => toggleSet(prev, sup.id))
-                        );
-                      }}
-                    >
-                      <span
-                        className={cn(
-                          "size-3.5 flex items-center justify-center",
-                          !selected && "opacity-0"
-                        )}
-                      >
-                        <Check className="size-3.5" />
-                      </span>
-                      {sup.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </PopoverContent>
-          </Popover>
-        )}
+        <FilterChip
+          label="Fournisseur"
+          icon={Truck}
+          options={availableSuppliers.map((s) => ({ id: s.id, label: s.name }))}
+          selected={filterSuppliers}
+          onToggle={(id) =>
+            startTransition(() => setFilterSuppliers((prev) => toggleSet(prev, id)))
+          }
+          onClear={() => startTransition(() => setFilterSuppliers(new Set()))}
+        />
 
-        {availableTechs.length > 0 && (
-          <Popover open={techPickerOpen} onOpenChange={setTechPickerOpen}>
-            <PopoverTrigger
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full h-9 px-4 text-[13px] font-semibold transition-all select-none cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97]",
-                filterTechs.size > 0
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
-              )}
-            >
-              <HardHat className="size-3" />
-              Technicien
-              {filterTechs.size > 0 && (
-                <>
-                  <span className="opacity-80 tabular-nums font-heading">{filterTechs.size}</span>
-                  <span
-                    role="button"
-                    className="ml-0.5 rounded-full hover:bg-white/20 p-0.5 -mr-1"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      startTransition(() => setFilterTechs(new Set()));
-                    }}
-                  >
-                    <X className="size-3" />
-                  </span>
-                </>
-              )}
-            </PopoverTrigger>
-            <PopoverContent
-              align="start"
-              className="w-auto min-w-[180px] p-1 rounded-xl overflow-hidden"
-            >
-              <div className="flex flex-col gap-0.5 max-h-[280px] overflow-y-auto">
-                {availableTechs.map((tech) => {
-                  const selected = filterTechs.has(tech.id);
-                  return (
-                    <button
-                      key={tech.id}
-                      type="button"
-                      className={cn(
-                        "flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-lg transition-colors",
-                        selected
-                          ? "bg-primary/10 text-foreground font-medium"
-                          : "text-foreground/70 hover:bg-muted hover:text-foreground"
-                      )}
-                      onClick={() => {
-                        startTransition(() => setFilterTechs((prev) => toggleSet(prev, tech.id)));
-                      }}
-                    >
-                      <span
-                        className={cn(
-                          "size-3.5 flex items-center justify-center",
-                          !selected && "opacity-0"
-                        )}
-                      >
-                        <Check className="size-3.5" />
-                      </span>
-                      {tech.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </PopoverContent>
-          </Popover>
-        )}
+        <FilterChip
+          label="Technicien"
+          icon={HardHat}
+          options={availableTechs.map((t) => ({ id: t.id, label: t.name }))}
+          selected={filterTechs}
+          onToggle={(id) => startTransition(() => setFilterTechs((prev) => toggleSet(prev, id)))}
+          onClear={() => startTransition(() => setFilterTechs(new Set()))}
+        />
 
-        <Popover>
-          <PopoverTrigger
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full h-9 px-4 text-[13px] font-semibold transition-all select-none cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97]",
-              filterTypes.size > 0
-                ? "bg-primary text-primary-foreground"
-                : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
-            )}
-          >
-            <History className="size-3" />
-            Type
-            {filterTypes.size > 0 && (
-              <>
-                <span className="opacity-80 tabular-nums font-heading">{filterTypes.size}</span>
-                <span
-                  role="button"
-                  className="ml-0.5 rounded-full hover:bg-white/20 p-0.5 -mr-1"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    startTransition(() => setFilterTypes(new Set()));
-                  }}
-                >
-                  <X className="size-3" />
-                </span>
-              </>
-            )}
-          </PopoverTrigger>
-          <PopoverContent
-            align="start"
-            className="w-auto min-w-[200px] p-1 rounded-xl overflow-hidden"
-          >
-            <div className="flex flex-col gap-0.5 max-h-[280px] overflow-y-auto">
-              {TYPE_FILTER_OPTIONS.filter((o) => o.value !== "all").map((opt) => {
-                const selected = filterTypes.has(opt.value);
-                const count = typeCounts[opt.value] || 0;
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    className={cn(
-                      "flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-lg transition-colors",
-                      selected
-                        ? "bg-primary/10 text-foreground font-medium"
-                        : "text-foreground/70 hover:bg-muted hover:text-foreground"
-                    )}
-                    onClick={() => {
-                      startTransition(() => setFilterTypes((prev) => toggleSet(prev, opt.value)));
-                    }}
-                  >
-                    <span
-                      className={cn(
-                        "size-3.5 flex items-center justify-center",
-                        !selected && "opacity-0"
-                      )}
-                    >
-                      <Check className="size-3.5" />
-                    </span>
-                    <span className="flex-1">{opt.label}</span>
-                    <span className="text-[11px] tabular-nums text-muted-foreground">{count}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </PopoverContent>
-        </Popover>
+        <FilterChip
+          label="Type"
+          icon={History}
+          hideWhenEmpty={false}
+          options={TYPE_FILTER_OPTIONS.filter((o) => o.value !== "all").map((o) => ({
+            id: o.value,
+            label: o.label,
+            count: typeCounts[o.value] || 0,
+          }))}
+          selected={filterTypes}
+          onToggle={(id) => startTransition(() => setFilterTypes((prev) => toggleSet(prev, id)))}
+          onClear={() => startTransition(() => setFilterTypes(new Set()))}
+        />
 
         {/* Repousse a droite : les filtres se choisissent, les colonnes se
             reglent une fois — ce n'est pas au meme niveau d'usage. */}
@@ -1062,7 +835,7 @@ export default function MovementsList() {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="rounded-xl border bg-card overflow-x-auto">
         <table className="w-full">
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (

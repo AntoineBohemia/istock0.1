@@ -339,7 +339,7 @@ export default function ProductList() {
             <Skeleton key={i} className="h-7 w-20 rounded-full" />
           ))}
         </div>
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="rounded-xl border bg-card overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b">
