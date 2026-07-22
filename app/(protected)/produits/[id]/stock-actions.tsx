@@ -24,14 +24,15 @@ export default function StockActions({ productId }: StockActionsProps) {
 
   return (
     <>
+      {/* Même ordre que la liste produits : entrée puis sortie. */}
       <div className="flex gap-2">
-        <Button variant="outline" onClick={() => setExitOpen(true)}>
-          <ArrowUpFromLine className="size-4" />
-          Sortie de stock
-        </Button>
         <Button onClick={() => setEntryOpen(true)}>
           <ArrowDownToLine className="size-4" />
           Entrer en stock
+        </Button>
+        <Button variant="outline" onClick={() => setExitOpen(true)}>
+          <ArrowUpFromLine className="size-4" />
+          Sortie de stock
         </Button>
       </div>
 

@@ -364,19 +364,32 @@ export async function updateProduct(
 export async function unarchiveProduct(id: string): Promise<void> {
   const supabase = createClient();
 
-  const { error } = await supabase.from("products").update({ archived_at: null }).eq("id", id);
+  // Le motif décrit une sortie du catalogue : il n'a plus de sens sur un
+  // produit qui y revient, et le garder ferait mentir le prochain archivage.
+  const { error } = await supabase
+    .from("products")
+    .update({ archived_at: null, archive_reason: null })
+    .eq("id", id);
 
   if (error) {
     throw new Error(`Erreur lors de la restauration du produit: ${error.message}`);
   }
 }
 
-export async function archiveProduct(id: string, organizationId?: string): Promise<void> {
+export async function archiveProduct(
+  id: string,
+  options?: { reason?: string; organizationId?: string }
+): Promise<void> {
   const supabase = createClient();
+
+  const { reason, organizationId } = options ?? {};
 
   let query = supabase
     .from("products")
-    .update({ archived_at: new Date().toISOString() })
+    .update({
+      archived_at: new Date().toISOString(),
+      archive_reason: reason?.trim() || null,
+    })
     .eq("id", id);
 
   if (organizationId) {
