@@ -4,15 +4,8 @@ import { startTransition, useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useDebouncedValue } from "@/hooks/use-debounce";
+import { ColumnDef, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import {
-  ColumnDef,
-  SortingState,
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import {
-  ArrowUpDown,
   History,
   CalendarDays,
   Building2,
@@ -75,34 +68,26 @@ import { cn } from "@/lib/utils";
 const fmtPrice = (n: number) =>
   n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
-// ─── Sort header button ────────────────────────────────────
-function SortHeader({
-  label,
-  column,
-  className,
-}: {
-  label: string;
-  column: { toggleSorting: (asc: boolean) => void; getIsSorted: () => false | "asc" | "desc" };
-  className?: string;
-}) {
-  const sorted = column.getIsSorted();
+/**
+ * Intitule de colonne, sans tri.
+ *
+ * Le tableau etait triable colonne par colonne. Un journal se lit dans
+ * l'ordre chronologique : le trier par quantite ou par montant en fait une
+ * liste de valeurs qui ne raconte plus rien, et seules quatre colonnes sur
+ * huit etaient triables — les autres portaient un intitule inerte d'aspect
+ * identique. L'ordre est desormais fixe, du plus recent au plus ancien, et
+ * le filtrage repond aux questions que le tri servait a poser.
+ */
+function ColHeader({ label, className }: { label: string; className?: string }) {
   return (
-    <button
-      type="button"
-      onClick={() => column.toggleSorting(sorted === "asc")}
+    <span
       className={cn(
-        "inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/50 hover:text-foreground transition-colors select-none",
+        "inline-flex items-center text-xs font-semibold uppercase tracking-wider text-foreground/50 select-none",
         className
       )}
     >
       {label}
-      <ArrowUpDown
-        className={cn(
-          "size-3 transition-colors",
-          sorted ? "text-foreground" : "text-foreground/25"
-        )}
-      />
-    </button>
+    </span>
   );
 }
 
@@ -343,7 +328,6 @@ const TYPE_FILTER_OPTIONS: { value: string; label: string }[] = [
 // ─── Main component ────────────────────────────────────────
 export default function MovementsList() {
   const router = useRouter();
-  const [sorting, setSorting] = useState<SortingState>([{ id: "created_at", desc: true }]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => ({
     from: startOfYear(new Date()),
     to: new Date(),
@@ -375,14 +359,9 @@ export default function MovementsList() {
       supplierIds: filterSuppliers.size > 0 ? Array.from(filterSuppliers) : undefined,
       technicianIds: filterTechs.size > 0 ? Array.from(filterTechs) : undefined,
       search: debouncedSearch || undefined,
-      // Le tri part au serveur : seules les colonnes de stock_movements sont
-      // triables, les colonnes de tables liees n'ont pas de bouton de tri.
-      sortBy: (sorting[0]?.id ?? "created_at") as
-        | "created_at"
-        | "movement_type"
-        | "quantity"
-        | "total_value",
-      sortDir: (sorting[0]?.desc ?? true) ? ("desc" as const) : ("asc" as const),
+      // Ordre fixe : un journal se lit du plus recent au plus ancien.
+      sortBy: "created_at" as const,
+      sortDir: "desc" as const,
       startDate: dateRange?.from ? startOfDay(dateRange.from).toISOString() : undefined,
       endDate: dateRange?.to
         ? endOfDay(dateRange.to).toISOString()
@@ -392,16 +371,7 @@ export default function MovementsList() {
       page,
       pageSize: PAGE_SIZE,
     }),
-    [
-      filterTypes,
-      filterOrgs,
-      filterSuppliers,
-      filterTechs,
-      debouncedSearch,
-      dateRange,
-      sorting,
-      page,
-    ]
+    [filterTypes, filterOrgs, filterSuppliers, filterTechs, debouncedSearch, dateRange, page]
   );
 
   const { data: movementsResult, isLoading, isError, refetch } = useStockMovements(serverFilters);
@@ -538,7 +508,7 @@ export default function MovementsList() {
       {
         accessorKey: "created_at",
         meta: { label: "Date" },
-        header: ({ column }) => <SortHeader label="Date" column={column} />,
+        header: () => <ColHeader label="Date" />,
         cell: ({ row }) => {
           const date = new Date(row.original.created_at ?? Date.now());
           return (
@@ -554,7 +524,7 @@ export default function MovementsList() {
       {
         accessorKey: "movement_type",
         meta: { label: "Type" },
-        header: ({ column }) => <SortHeader label="Type" column={column} />,
+        header: () => <ColHeader label="Type" />,
         cell: ({ row }) => <MovementTypePill type={row.original.movement_type} />,
       },
       {
@@ -632,7 +602,7 @@ export default function MovementsList() {
       },
       {
         accessorKey: "quantity",
-        header: ({ column }) => <SortHeader label="Qté" column={column} />,
+        header: () => <ColHeader label="Qté" />,
         cell: ({ row }) => {
           const type = row.original.movement_type;
           const isPositive = isPositiveMovement(type);
@@ -655,7 +625,7 @@ export default function MovementsList() {
         // d'entrees : aucune colonne ne les montrait.
         id: "total_value",
         accessorFn: (row) => (row.unit_price ? row.quantity * Number(row.unit_price) : 0),
-        header: ({ column }) => <SortHeader label="Montant" column={column} />,
+        header: () => <ColHeader label="Montant" />,
         cell: ({ row }) => {
           const price = row.original.unit_price;
           if (!price) return <span className="text-muted-foreground">—</span>;
@@ -735,17 +705,15 @@ export default function MovementsList() {
     []
   );
 
-  // Pas de getSortedRowModel : le tri se fait au serveur. Le conserver aurait
-  // reordonne les 50 lignes de la page courante en laissant croire a un
-  // classement sur les 871 mouvements.
+  // Ni tri client ni tri serveur pilote par l'entete : l'ordre du journal est
+  // fixe. getSortedRowModel reordonnerait de toute facon les seules 50 lignes
+  // de la page courante, en laissant croire a un classement sur l'ensemble.
   const table = useReactTable({
     data: movements,
     columns,
-    manualSorting: true,
-    onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
-    state: { sorting, columnVisibility },
+    state: { columnVisibility },
   });
 
   if (isLoading && movements.length === 0) {
