@@ -16,7 +16,6 @@ import ProductIconDisplay from "@/components/product-icon-display";
 import StockActions from "./stock-actions";
 import RecentMovements from "./recent-movements";
 import PriceHistory from "./price-history";
-import StockEvolutionChart from "./stock-evolution-chart";
 
 const ProductQRCode = dynamic(() => import("@/components/product-qr-code"));
 
@@ -438,10 +437,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               </div>
             </div>
           </div>
-
-          {/* Évolution du stock — placée avant l'historique des prix : la
-              courbe donne le contexte que les listes détaillent ensuite. */}
-          <StockEvolutionChart productId={id} />
 
           {/* Historique des prix */}
           <PriceHistory productId={id} />

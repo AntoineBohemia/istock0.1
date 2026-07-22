@@ -3,6 +3,7 @@
 import { TrendingDown, TrendingUp } from "lucide-react";
 
 import { useProductPurchasePrices } from "@/hooks/queries/use-stock-movements";
+import type { PurchasePriceEntry } from "@/lib/supabase/queries/stock-movements";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -15,16 +16,63 @@ const fmtDate = (iso: string) =>
     year: "numeric",
   });
 
+/** Une periode pendant laquelle le produit a ete paye au meme prix. */
+interface PricePeriod {
+  price: number;
+  supplierNames: string[];
+  from: string;
+  to: string;
+  purchases: number;
+}
+
 /**
- * Prix d'achat du produit, achat par achat.
+ * Regroupe les achats consecutifs au meme prix.
+ *
+ * La liste des achats un par un fait doublon avec le journal des mouvements,
+ * juste en dessous. Ce qu'on veut savoir ici est autre chose : a combien on
+ * l'a paye pendant une periode, puis pendant la suivante. Seuls les
+ * changements de prix comptent.
+ *
+ * Les achats arrivent du plus recent au plus ancien ; les periodes sortent
+ * dans le meme ordre.
+ */
+function groupByPrice(rows: PurchasePriceEntry[]): PricePeriod[] {
+  const periods: PricePeriod[] = [];
+
+  for (const row of rows) {
+    const current = periods[periods.length - 1];
+    // Comparaison au centime : deux achats a 12,50 appartiennent a la meme
+    // periode meme si la base les stocke avec des decimales differentes.
+    const samePrice = current && Math.abs(current.price - row.price) < 0.005;
+
+    if (samePrice) {
+      // La liste descend dans le temps : chaque nouvel achat recule le debut.
+      current.from = row.purchased_at;
+      current.purchases += 1;
+      if (row.supplier_name && !current.supplierNames.includes(row.supplier_name)) {
+        current.supplierNames.push(row.supplier_name);
+      }
+    } else {
+      periods.push({
+        price: row.price,
+        supplierNames: row.supplier_name ? [row.supplier_name] : [],
+        from: row.purchased_at,
+        to: row.purchased_at,
+        purchases: 1,
+      });
+    }
+  }
+
+  return periods;
+}
+
+/**
+ * Evolution du prix d'achat.
  *
  * Le bloc listait l'historique du prix catalogue et disparaissait entierement
  * tant qu'il n'y avait qu'un seul prix — donc la plupart du temps. Il ne
  * disait pas non plus chez qui le produit avait ete achete, alors que c'est
  * la question : a combien je l'ai, et par quel fournisseur.
- *
- * La source est desormais les entrees de stock, qui portent le prix paye et
- * le fournisseur. Une ligne par achat.
  */
 export default function PriceHistory({ productId }: { productId: string }) {
   const { data: purchases, isLoading } = useProductPurchasePrices(productId);
@@ -49,8 +97,8 @@ export default function PriceHistory({ productId }: { productId: string }) {
 
   // Le bloc reste visible meme sans achat : son absence laissait croire que la
   // fonction n'existait pas, alors qu'il n'y avait simplement rien a montrer.
-  const rows = purchases ?? [];
-  const prices = rows.map((r) => r.price);
+  const periods = groupByPrice(purchases ?? []);
+  const prices = periods.map((p) => p.price);
   const min = prices.length ? Math.min(...prices) : 0;
   const max = prices.length ? Math.max(...prices) : 0;
 
@@ -62,48 +110,53 @@ export default function PriceHistory({ productId }: { productId: string }) {
         </p>
         {/* L'ecart entre le meilleur et le pire prix se lit d'un coup — c'est
             lui qui declenche une negociation ou un changement de fournisseur. */}
-        {rows.length > 1 && min !== max && (
+        {periods.length > 1 && min !== max && (
           <p className="text-xs text-muted-foreground tabular-nums">
             de {fmt(min)} à {fmt(max)}
           </p>
         )}
       </div>
 
-      {rows.length === 0 ? (
+      {periods.length === 0 ? (
         <p className="px-5 pb-4 text-sm text-muted-foreground">
           Aucun achat enregistré avec un prix. Renseignez le prix unitaire lors d&apos;une entrée de
           stock pour suivre son évolution.
         </p>
       ) : (
         <div className="divide-y">
-          {rows.map((row, i) => {
-            // Comparaison a l'achat precedent : la liste est du plus recent au
-            // plus ancien, le precedent est donc la ligne suivante.
-            const prev = rows[i + 1];
-            const diff = prev ? row.price - prev.price : 0;
+          {periods.map((period, i) => {
+            // Comparaison a la periode precedente : la liste descend dans le
+            // temps, la precedente est donc la ligne suivante.
+            const prev = periods[i + 1];
+            const diff = prev ? period.price - prev.price : 0;
             const isUp = diff > 0.005;
             const isDown = diff < -0.005;
-            const isBest = rows.length > 1 && min !== max && row.price === min;
+            const isCurrent = i === 0;
+            const sameDay = period.from === period.to;
 
             return (
-              <div key={row.id} className="flex items-center justify-between gap-3 px-5 py-3">
+              <div
+                key={`${period.price}-${period.to}`}
+                className="flex items-center justify-between gap-3 px-5 py-3"
+              >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">
-                    {row.supplier_name ?? "Fournisseur non renseigné"}
+                  {/* La periode d'abord : c'est « depuis quand je paie ce
+                      prix » qui interesse, le fournisseur vient ensuite. */}
+                  <p className="text-sm font-medium tabular-nums">
+                    {isCurrent
+                      ? `Depuis le ${fmtDate(period.from)}`
+                      : sameDay
+                        ? fmtDate(period.from)
+                        : `Du ${fmtDate(period.from)} au ${fmtDate(period.to)}`}
                   </p>
-                  <p className="text-xs text-muted-foreground tabular-nums">
-                    {fmtDate(row.purchased_at)} · {row.quantity} unité
-                    {row.quantity > 1 ? "s" : ""}
-                    {row.organization_name ? ` · ${row.organization_name}` : ""}
+                  <p className="truncate text-xs text-muted-foreground">
+                    {period.supplierNames.length
+                      ? period.supplierNames.join(" · ")
+                      : "Fournisseur non renseigné"}
                   </p>
                 </div>
 
                 <div className="flex shrink-0 items-center gap-2">
-                  {isBest && (
-                    <span className="rounded-full bg-standard-bg px-2 py-0.5 text-[11px] font-medium text-standard">
-                      Meilleur prix
-                    </span>
-                  )}
                   {prev && (isUp || isDown) && (
                     <span
                       className={cn(
@@ -121,7 +174,7 @@ export default function PriceHistory({ productId }: { productId: string }) {
                     </span>
                   )}
                   <span className="font-heading text-base font-semibold tabular-nums">
-                    {fmt(row.price)}
+                    {fmt(period.price)}
                   </span>
                 </div>
               </div>
