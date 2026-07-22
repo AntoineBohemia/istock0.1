@@ -12,8 +12,9 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, ChevronLeft, ChevronRight, Package, Plus, UserPlus } from "lucide-react";
+import { ArrowUp, Building2, ChevronLeft, ChevronRight, Plus, UserPlus } from "lucide-react";
 import { SearchInput } from "@/components/search-input";
+import { FilterChip } from "@/components/filter-chip";
 import { QueryError } from "@/components/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -23,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { TechnicianWithInventory } from "@/lib/supabase/queries/technicians";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import Link from "next/link";
-import { useTechnicians, useVehicles } from "@/hooks/queries";
+import { useTechnicians, useVehicles, useOrganizations } from "@/hooks/queries";
 import { TableColumnToggle } from "@/components/table-column-toggle";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { cn } from "@/lib/utils";
@@ -54,12 +55,17 @@ function SortHeader({
       )}
     >
       {label}
-      <ArrowUpDown
-        className={cn(
-          "size-3 transition-colors",
-          sorted ? "text-foreground" : "text-foreground/25"
-        )}
-      />
+      {/* Comme sur la page Produits : la fleche ne parait que sur la colonne
+          triee, et indique le sens. Une fleche grise sur chaque en-tete
+          annonce une possibilite, pas un etat. */}
+      {sorted && (
+        <ArrowUp
+          className={cn(
+            "size-3 text-foreground transition-transform",
+            sorted === "desc" && "rotate-180"
+          )}
+        />
+      )}
     </button>
   );
 }
@@ -110,8 +116,19 @@ export default function TechniciansList() {
   });
   const setSearchQuery = (value: string) => setFilters({ search: value || null });
   const debouncedSearch = useDebouncedValue(searchQuery, 300);
+  const [filterOrgs, setFilterOrgs] = useState<Set<string>>(new Set());
   const [restockTechId, setRestockTechId] = useState<string | null>(null);
+
+  const toggleSet = (prev: Set<string>, value: string) => {
+    const next = new Set(prev);
+    if (next.has(value)) next.delete(value);
+    else next.add(value);
+    return next;
+  };
   const [createOpen, setCreateOpen] = useState(false);
+
+  const { data: userOrgs } = useOrganizations();
+  const isMultiOrg = (userOrgs?.length ?? 0) > 1;
 
   // Véhicule assigné : source de vérité = la table vehicles, pas les anciennes
   // colonnes vehicle_* des techniciens.
@@ -127,9 +144,13 @@ export default function TechniciansList() {
   // Recherche elargie : les colonnes affichees doivent toutes etre cherchables,
   // sinon on cherche « Kangoo » ou un numero et la liste repond vide.
   const filteredData = useMemo(() => {
-    if (!debouncedSearch) return technicians;
+    let base = technicians;
+    if (filterOrgs.size > 0) {
+      base = base.filter((t) => t.organization_id && filterOrgs.has(t.organization_id));
+    }
+    if (!debouncedSearch) return base;
     const q = debouncedSearch.toLowerCase();
-    return technicians.filter((tech) => {
+    return base.filter((tech) => {
       const vehicle = vehicleByTechnician.get(tech.id);
       return [
         `${tech.first_name} ${tech.last_name}`,
@@ -145,7 +166,7 @@ export default function TechniciansList() {
         .toLowerCase()
         .includes(q);
     });
-  }, [technicians, debouncedSearch, vehicleByTechnician]);
+  }, [technicians, debouncedSearch, vehicleByTechnician, filterOrgs]);
 
   // La cle de stockage change : la liste couvre desormais toutes les societes,
   // et la colonne qui les distingue etait masquee par defaut. Garder l'ancienne
@@ -454,16 +475,32 @@ export default function TechniciansList() {
 
   return (
     <div className="space-y-3">
-      {/* Search + year selector + column toggle */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      {/* Barre d'outils alignee sur celle des produits : meme largeur de
+          recherche, memes pastilles de filtre, reglages pousses a droite.
+          Les deux pages faisaient autrement, sans raison. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
         <SearchInput
           value={searchQuery}
           onChange={setSearchQuery}
-          placeholder="Rechercher un technicien..."
-          className="bg-white dark:bg-card"
-          wrapperClassName="flex-1"
+          placeholder="Rechercher…"
+          className="bg-white dark:bg-card h-9"
+          wrapperClassName="w-full sm:w-52 shrink-0"
         />
-        <div className="flex items-center gap-1">
+
+        {/* La liste couvre toutes les societes du compte : ce filtre sert a
+            la reduire a l'une d'elles, pas a en cacher une par defaut. */}
+        {isMultiOrg && (
+          <FilterChip
+            label="Société"
+            icon={Building2}
+            options={(userOrgs ?? []).map((o) => ({ id: o.id, label: o.name }))}
+            selected={filterOrgs}
+            onToggle={(id) => setFilterOrgs((prev) => toggleSet(prev, id))}
+            onClear={() => setFilterOrgs(new Set())}
+          />
+        )}
+
+        <div className="flex items-center gap-1 ml-auto">
           <Button
             variant="ghost"
             size="icon"
