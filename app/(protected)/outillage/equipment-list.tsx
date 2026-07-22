@@ -349,117 +349,132 @@ export default function EquipmentList() {
                   )}
                 </div>
 
-                {/* La date d'archivage, en clair. « Archivé » seul laisse la
-                    question ouverte : depuis quand, et pourquoi — le motif se
-                    lit en ouvrant la fiche. */}
-                {isArchived && (
-                  <div className="mt-3 flex items-center gap-1.5 rounded-lg bg-foreground/[0.05] px-2.5 py-1.5">
-                    <Archive className="size-3 shrink-0 text-muted-foreground" />
-                    <span className="truncate text-[11px] font-medium text-muted-foreground">
+                {/* ── Carte archivée : la cause, à la place des chiffres ──
+                    « 3 disponibles · 0 assigné » sur une fiche retirée du
+                    catalogue ne répond à aucune question : ces unités ne sont
+                    ni à sortir ni à prêter. Ce qu'on vient chercher ici, c'est
+                    pourquoi l'outil a quitté le parc.
+
+                    Un outil ne peut d'ailleurs pas être archivé tant qu'un
+                    technicien le détient : la ligne « assigné » y vaut zéro par
+                    construction. */}
+                {isArchived ? (
+                  <div className="mt-3">
+                    <p className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+                      <Archive className="size-3 shrink-0" />
                       Archivé le{" "}
                       {new Date(item.archived_at!).toLocaleDateString("fr-FR", {
                         day: "2-digit",
                         month: "2-digit",
                         year: "numeric",
                       })}
-                    </span>
+                    </p>
+                    {item.archive_reason ? (
+                      <p className="mt-1.5 line-clamp-3 text-sm leading-snug">
+                        {item.archive_reason}
+                      </p>
+                    ) : (
+                      <p className="mt-1.5 text-sm italic text-muted-foreground/70">
+                        Aucun motif renseigné
+                      </p>
+                    )}
                   </div>
-                )}
-
-                <div className="mt-3 space-y-3">
-                  <div className="min-w-0">
-                    {/* Chiffres cles, avec le prix unitaire desormais visible */}
-                    <div className="flex items-baseline justify-between gap-2">
-                      <div className="flex items-baseline gap-2.5">
-                        <span className="flex items-baseline gap-1">
-                          <span
-                            className={cn(
-                              "font-heading font-bold tabular-nums text-lg leading-none",
-                              stock === 0
-                                ? "text-critique"
-                                : stock <= 2
-                                  ? "text-attention"
-                                  : "text-foreground"
-                            )}
-                          >
-                            {stock}
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    <div className="min-w-0">
+                      {/* Chiffres cles, avec le prix unitaire desormais visible */}
+                      <div className="flex items-baseline justify-between gap-2">
+                        <div className="flex items-baseline gap-2.5">
+                          <span className="flex items-baseline gap-1">
+                            <span
+                              className={cn(
+                                "font-heading font-bold tabular-nums text-lg leading-none",
+                                stock === 0
+                                  ? "text-critique"
+                                  : stock <= 2
+                                    ? "text-attention"
+                                    : "text-foreground"
+                              )}
+                            >
+                              {stock}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground">dispo.</span>
                           </span>
-                          <span className="text-[11px] text-muted-foreground">dispo.</span>
-                        </span>
-                        <span className="text-foreground/20">·</span>
-                        <span className="flex items-baseline gap-1">
-                          <span className="font-heading font-bold tabular-nums text-lg leading-none">
-                            {item.total_assigned}
+                          <span className="text-foreground/20">·</span>
+                          <span className="flex items-baseline gap-1">
+                            <span className="font-heading font-bold tabular-nums text-lg leading-none">
+                              {item.total_assigned}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground">assigné</span>
                           </span>
-                          <span className="text-[11px] text-muted-foreground">assigné</span>
-                        </span>
+                        </div>
+                        {item.price != null && item.price > 0 && (
+                          <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
+                            {fmtPrice(item.price)}/u
+                          </span>
+                        )}
                       </div>
-                      {item.price != null && item.price > 0 && (
-                        <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
-                          {fmtPrice(item.price)}/u
+                    </div>
+
+                    {/* Répartition stock / assigné */}
+                    {total > 0 && (
+                      <div className="h-1.5 rounded-full bg-foreground/[0.06] overflow-hidden">
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all",
+                            stock === 0 ? "bg-attention/60" : "bg-foreground/25"
+                          )}
+                          style={{ width: `${Math.round((item.total_assigned / total) * 100)}%` }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Détenteurs — qui a l'outil, lisible sans ouvrir la carte */}
+                    <div className="flex items-center justify-between gap-2 border-t pt-2.5">
+                      {shown.length > 0 ? (
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <div className="flex items-center -space-x-1.5 shrink-0">
+                            {shown.map((a) => {
+                              const tech = a.technician;
+                              if (!tech) return null;
+                              const initials = `${tech.first_name.charAt(0)}${tech.last_name.charAt(0)}`;
+                              return (
+                                <Avatar
+                                  key={a.id}
+                                  className="size-7 border-2 border-card"
+                                  title={`${tech.first_name} ${tech.last_name} (x${a.quantity})`}
+                                >
+                                  {tech.photo_url && <AvatarImage src={tech.photo_url} />}
+                                  <AvatarFallback className="text-[9px] font-semibold">
+                                    {initials}
+                                  </AvatarFallback>
+                                </Avatar>
+                              );
+                            })}
+                            {remaining > 0 && (
+                              <div className="flex size-7 items-center justify-center rounded-full border-2 border-card bg-muted text-[9px] font-semibold">
+                                +{remaining}
+                              </div>
+                            )}
+                          </div>
+                          {/* Un seul détenteur : on le nomme. Sinon, on compte. */}
+                          <span className="text-[11px] text-muted-foreground truncate">
+                            {item.assignments.length === 1 && shown[0]?.technician
+                              ? `${shown[0].technician.first_name} ${shown[0].technician.last_name.charAt(0)}.`
+                              : `${item.assignments.length} techniciens`}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">Non assigne</span>
+                      )}
+                      {itemValue > 0 && (
+                        <span className="text-xs font-medium tabular-nums">
+                          {fmtPrice(itemValue)}
                         </span>
                       )}
                     </div>
                   </div>
-
-                  {/* Répartition stock / assigné */}
-                  {total > 0 && (
-                    <div className="h-1.5 rounded-full bg-foreground/[0.06] overflow-hidden">
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-all",
-                          stock === 0 ? "bg-attention/60" : "bg-foreground/25"
-                        )}
-                        style={{ width: `${Math.round((item.total_assigned / total) * 100)}%` }}
-                      />
-                    </div>
-                  )}
-
-                  {/* Détenteurs — qui a l'outil, lisible sans ouvrir la carte */}
-                  <div className="flex items-center justify-between gap-2 border-t pt-2.5">
-                    {shown.length > 0 ? (
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <div className="flex items-center -space-x-1.5 shrink-0">
-                          {shown.map((a) => {
-                            const tech = a.technician;
-                            if (!tech) return null;
-                            const initials = `${tech.first_name.charAt(0)}${tech.last_name.charAt(0)}`;
-                            return (
-                              <Avatar
-                                key={a.id}
-                                className="size-7 border-2 border-card"
-                                title={`${tech.first_name} ${tech.last_name} (x${a.quantity})`}
-                              >
-                                {tech.photo_url && <AvatarImage src={tech.photo_url} />}
-                                <AvatarFallback className="text-[9px] font-semibold">
-                                  {initials}
-                                </AvatarFallback>
-                              </Avatar>
-                            );
-                          })}
-                          {remaining > 0 && (
-                            <div className="flex size-7 items-center justify-center rounded-full border-2 border-card bg-muted text-[9px] font-semibold">
-                              +{remaining}
-                            </div>
-                          )}
-                        </div>
-                        {/* Un seul détenteur : on le nomme. Sinon, on compte. */}
-                        <span className="text-[11px] text-muted-foreground truncate">
-                          {item.assignments.length === 1 && shown[0]?.technician
-                            ? `${shown[0].technician.first_name} ${shown[0].technician.last_name.charAt(0)}.`
-                            : `${item.assignments.length} techniciens`}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-[11px] text-muted-foreground">Non assigne</span>
-                    )}
-                    {itemValue > 0 && (
-                      <span className="text-xs font-medium tabular-nums">
-                        {fmtPrice(itemValue)}
-                      </span>
-                    )}
-                  </div>
-                </div>
+                )}
               </div>
             );
           })}
