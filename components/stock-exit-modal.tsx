@@ -217,7 +217,7 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
                       )}
                     >
                       <AlertTriangle className="size-3.5" />
-                      Erreur stock
+                      Perte ou erreur
                     </button>
                   </div>
                 </FormItem>

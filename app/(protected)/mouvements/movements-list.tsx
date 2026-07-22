@@ -321,7 +321,7 @@ const TYPE_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: "all", label: "Tous" },
   { value: "entry", label: "Entrées" },
   { value: "exit_technician", label: "Sortie technicien" },
-  { value: "exit_anonymous", label: "Erreur stock" },
+  { value: "exit_anonymous", label: "Perte ou erreur" },
   { value: "assign_equipment", label: "Assignation outil" },
   { value: "unassign_equipment", label: "Retour outil" },
 ];
@@ -526,7 +526,24 @@ export default function MovementsList() {
         accessorKey: "movement_type",
         meta: { label: "Type" },
         header: () => <ColHeader label="Type" />,
-        cell: ({ row }) => <MovementTypePill type={row.original.movement_type} />,
+        // Le motif tient sous la pastille plutôt que dans une colonne à lui.
+        // Isolé, il obligeait à faire l'aller-retour entre deux colonnes pour
+        // reconstituer une phrase — « Perte » d'un côté, « cassée sur le
+        // chantier » de l'autre — et restait vide sur la plupart des lignes.
+        // Ici, il achève le type au lieu de le compléter.
+        cell: ({ row }) => (
+          <div className="min-w-0">
+            <MovementTypePill type={row.original.movement_type} />
+            {row.original.note && (
+              <p
+                className="mt-1 max-w-[220px] truncate text-[13px] text-muted-foreground"
+                title={row.original.note}
+              >
+                {row.original.note}
+              </p>
+            )}
+          </div>
+        ),
       },
       {
         // Un mouvement de correction ressemble a un mouvement ordinaire :
@@ -711,24 +728,6 @@ export default function MovementsList() {
           const reference = row.original.invoice_reference;
           if (!reference) return <span className="text-muted-foreground">—</span>;
           return <span className="text-[15px]">{reference}</span>;
-        },
-      },
-      {
-        // Le motif d'une sortie. Le type dit « Erreur stock », jamais pourquoi
-        // — cassé, perdu, volé. Colonne masquable comme les autres : elle ne
-        // concerne qu'une partie des lignes.
-        id: "note",
-        meta: { label: "Motif" },
-        accessorFn: (row) => row.note ?? "",
-        header: () => <ColHeader label="Motif" />,
-        cell: ({ row }) => {
-          const note = row.original.note;
-          if (!note) return <span className="text-muted-foreground">—</span>;
-          return (
-            <span className="block max-w-[220px] truncate text-[15px]" title={note}>
-              {note}
-            </span>
-          );
         },
       },
     ],

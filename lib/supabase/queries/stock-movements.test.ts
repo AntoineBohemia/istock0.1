@@ -17,7 +17,7 @@ describe("MOVEMENT_TYPE_LABELS", () => {
     // exit_loss n'est plus distingue d'exit_anonymous : meme libelle, meme
     // couleur, et le filtre de la page Mouvements ne le propose pas. Aucun
     // mouvement de ce type n'existe en base.
-    expect(MOVEMENT_TYPE_LABELS.exit_anonymous).toBe("Erreur stock");
-    expect(MOVEMENT_TYPE_LABELS.exit_loss).toBe("Erreur stock");
+    expect(MOVEMENT_TYPE_LABELS.exit_anonymous).toBe("Perte ou erreur");
+    expect(MOVEMENT_TYPE_LABELS.exit_loss).toBe("Perte ou erreur");
   });
 });

@@ -109,11 +109,19 @@ export function isPositiveMovement(type: MovementType | string): boolean {
   return POSITIVE_MOVEMENT_TYPES.has(type);
 }
 
+/**
+ * Ce que chaque type raconte, en clair.
+ *
+ * « Erreur stock » nommait autrefois toute sortie sans technicien. Le libelle
+ * etait faux des qu'on declarait un outil casse ou vole : rien n'avait ete mal
+ * compte, quelque chose avait disparu. « Perte ou erreur » couvre les deux, et
+ * le motif du mouvement dit lequel des deux.
+ */
 export const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
   entry: "Entrée",
   exit_technician: "Sortie technicien",
-  exit_anonymous: "Erreur stock",
-  exit_loss: "Erreur stock",
+  exit_anonymous: "Perte ou erreur",
+  exit_loss: "Perte ou erreur",
   assign_equipment: "Assignation outil",
   unassign_equipment: "Retour outil",
 };

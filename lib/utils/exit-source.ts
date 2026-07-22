@@ -55,3 +55,42 @@ export function pickExitSource(orgStock: OrgStock[], quantity: number): OrgStock
 export function maxSingleOrgStock(orgStock: OrgStock[]): number {
   return orgStock.reduce((max, o) => Math.max(max, o.stock), 0);
 }
+
+/** Ce qu'une societe donnee perd dans une declaration de perte. */
+export interface LossAllocation {
+  id: string;
+  name: string;
+  quantity: number;
+}
+
+/**
+ * Repartit une perte entre les societes, la moins fournie d'abord.
+ *
+ * Une sortie ordinaire ne se decoupe pas : elle sert un technicien, et le
+ * produit vient d'un seul stock. Une perte, elle, constate — deux echelles
+ * cassees peuvent tres bien etre une de chaque societe. Refuser de repartir
+ * obligerait alors a saisir deux declarations pour un seul accident.
+ *
+ * L'ordre reste celui de la regle maison : on vide d'abord le petit stock.
+ *
+ * Renvoie une liste vide si les societes ne detiennent pas la quantite
+ * demandee — mieux vaut ne rien ecrire qu'ecrire a moitie.
+ */
+export function allocateLoss(orgStock: OrgStock[], quantity: number): LossAllocation[] {
+  const held = orgStock
+    .filter((o) => o.stock > 0)
+    .sort((a, b) => a.stock - b.stock || a.name.localeCompare(b.name, "fr"));
+
+  const total = held.reduce((s, o) => s + o.stock, 0);
+  if (quantity <= 0 || quantity > total) return [];
+
+  const allocation: LossAllocation[] = [];
+  let left = quantity;
+  for (const org of held) {
+    if (left <= 0) break;
+    const take = Math.min(org.stock, left);
+    allocation.push({ id: org.id, name: org.name, quantity: take });
+    left -= take;
+  }
+  return allocation;
+}

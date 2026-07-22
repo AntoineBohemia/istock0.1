@@ -36,7 +36,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { useQueryClient } from "@tanstack/react-query";
 import ProductIconDisplay from "@/components/product-icon-display";
 import ArchiveEquipmentButton from "./archive-equipment-button";
-import RetireEquipmentUnitsButton from "./retire-equipment-units-button";
+import DeclareLossButton from "./declare-loss-button";
 import StockEntryModal from "@/components/stock-entry-modal";
 import { cn } from "@/lib/utils";
 
@@ -319,29 +319,37 @@ export default function EquipmentManageModal({
               </Button>
             </>
           )}
-          {/* Retirer quelques exemplaires n'est pas archiver la reference :
-              l'un sort deux outils casses, l'autre sort les quinze du
-              catalogue. Les deux gestes voisinent ici, nommes distinctement. */}
-          {!p.archived_at && (
-            <RetireEquipmentUnitsButton
+          {/* Un seul geste pour un outil cassé, perdu ou volé. « Retirer » et
+              « Archiver » se partageaient cette situation sans que rien ne dise
+              lequel prendre : leur différence tenait en un mot — une partie du
+              stock, ou tout — et ce mot n'était écrit nulle part. La question
+              est désormais posée dans la fenêtre, pas dans le choix du bouton. */}
+          {!p.archived_at && stock > 0 && (
+            <DeclareLossButton
               productId={p.id}
               productName={p.name}
               availableStock={stock}
               orgStock={p.product_organization_stock ?? []}
+              onDone={() => onOpenChange(false)}
             />
           )}
-          {/* Poussé à droite : archiver ne se range pas avec les gestes du
-              quotidien, on ne doit pas le rencontrer en visant « Modifier ». */}
+
+          {/* Archiver reste, pour le cas qui n'est pas une perte : une
+              référence à stock nul qu'on ne rachètera plus. Tant qu'il reste
+              des exemplaires, c'est « Déclarer une perte » qui s'en charge —
+              deux chemins vers le même résultat, c'était le désordre d'avant. */}
           <span className="ml-auto">
-            <ArchiveEquipmentButton
-              productId={p.id}
-              productName={p.name}
-              assignedCount={p.total_assigned}
-              stockCount={stock}
-              orgStock={p.product_organization_stock ?? []}
-              isArchived={p.archived_at !== null}
-              onArchived={() => onOpenChange(false)}
-            />
+            {(p.archived_at !== null || stock === 0) && (
+              <ArchiveEquipmentButton
+                productId={p.id}
+                productName={p.name}
+                assignedCount={p.total_assigned}
+                stockCount={stock}
+                orgStock={p.product_organization_stock ?? []}
+                isArchived={p.archived_at !== null}
+                onArchived={() => onOpenChange(false)}
+              />
+            )}
           </span>
         </div>
 

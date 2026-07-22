@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { maxSingleOrgStock, pickExitSource } from "./exit-source";
+import { allocateLoss, maxSingleOrgStock, pickExitSource } from "./exit-source";
 
 const smpr = (stock: number) => ({ id: "smpr", name: "SMPR", stock });
 const seiren = (stock: number) => ({ id: "seiren", name: "SEIREN", stock });
@@ -44,5 +44,40 @@ describe("maxSingleOrgStock", () => {
   it("retient le plus gros stock, jamais le cumul", () => {
     expect(maxSingleOrgStock([smpr(4), seiren(12)])).toBe(12);
     expect(maxSingleOrgStock([])).toBe(0);
+  });
+});
+
+describe("allocateLoss", () => {
+  it("prend d'abord chez la société la moins fournie", () => {
+    expect(allocateLoss([smpr(4), seiren(12)], 3)).toEqual([
+      { id: "smpr", name: "SMPR", quantity: 3 },
+    ]);
+  });
+
+  it("déborde sur la suivante quand la première ne suffit pas", () => {
+    // Une perte constate un accident : deux échelles cassées peuvent être une
+    // de chaque société. Refuser de répartir obligerait à saisir deux fois.
+    expect(allocateLoss([smpr(4), seiren(12)], 6)).toEqual([
+      { id: "smpr", name: "SMPR", quantity: 4 },
+      { id: "seiren", name: "SEIREN", quantity: 2 },
+    ]);
+  });
+
+  it("vide tout le monde quand on perd la totalité", () => {
+    const all = allocateLoss([smpr(4), seiren(12)], 16);
+    expect(all.reduce((s, a) => s + a.quantity, 0)).toBe(16);
+    expect(all).toHaveLength(2);
+  });
+
+  it("ignore une société à zéro", () => {
+    expect(allocateLoss([smpr(0), seiren(5)], 2)).toEqual([
+      { id: "seiren", name: "SEIREN", quantity: 2 },
+    ]);
+  });
+
+  it("n'écrit rien plutôt qu'à moitié quand la quantité dépasse le stock", () => {
+    expect(allocateLoss([smpr(4), seiren(2)], 10)).toEqual([]);
+    expect(allocateLoss([], 1)).toEqual([]);
+    expect(allocateLoss([smpr(4)], 0)).toEqual([]);
   });
 });
