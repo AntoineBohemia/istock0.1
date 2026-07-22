@@ -92,9 +92,19 @@ export default function EquipmentList() {
   }
 
   const sorted = useMemo(() => {
-    const list = onlyAlerts ? equipment.filter((e) => getCardAlert(e) !== "none") : equipment;
+    // Le filtre « alertes » ne s'applique jamais aux archives.
+    //
+    // Une alerte se declenche sur une assignation ancienne, or un outil ne peut
+    // pas etre archive tant qu'un technicien le detient : aucune fiche archivee
+    // n'en porte, par construction. Laisser le filtre actif vidait donc la vue
+    // — et comme la pastille « N alertes » ne s'affiche que si le compte est
+    // superieur a zero, elle disparaissait en meme temps : le filtre restait
+    // actif sans plus aucun moyen de le voir ni de le lever. La liste semblait
+    // simplement vide, et l'archivage semblait ne pas avoir fonctionne.
+    const list =
+      onlyAlerts && !showArchived ? equipment.filter((e) => getCardAlert(e) !== "none") : equipment;
     return sortEquipmentByName(list);
-  }, [equipment, onlyAlerts]);
+  }, [equipment, onlyAlerts, showArchived]);
 
   // ── Fleet stats ──
   const stats = useMemo(() => {
@@ -156,7 +166,12 @@ export default function EquipmentList() {
 
         <button
           type="button"
-          onClick={() => setShowArchived((v) => !v)}
+          onClick={() => {
+            setShowArchived((v) => !v);
+            // Aucun filtre ne survit au changement de vue : on ne doit pas
+            // arriver dans les archives avec une restriction posee ailleurs.
+            setOnlyAlerts(false);
+          }}
           className={cn(
             "inline-flex items-center gap-1.5 rounded-full h-9 px-4 text-[13px] font-semibold transition-all select-none cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97] shrink-0",
             showArchived
@@ -248,15 +263,26 @@ export default function EquipmentList() {
             </Button>
           </div>
         </div>
-      ) : totalCount === 0 ? (
+      ) : sorted.length === 0 ? (
+        // `sorted` et non `totalCount` : une liste vidée par un filtre, et non
+        // par la requête, ne déclenchait aucun de ces états. La grille se
+        // rendait sans une seule carte et sans un mot — une zone blanche, qui
+        // se lit comme un écran cassé plutôt que comme un filtre trop étroit.
         <div className="rounded-xl border bg-card">
           <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
             <div className="flex size-12 items-center justify-center rounded-2xl bg-muted mb-3">
               <Wrench className="size-5 text-muted-foreground" />
             </div>
             <p className="text-muted-foreground text-sm">
-              Aucun outil ne correspond à cette recherche.
+              {search
+                ? "Aucun outil ne correspond à cette recherche."
+                : "Aucun outil ne correspond aux filtres actifs."}
             </p>
+            {onlyAlerts && (
+              <Button variant="outline" className="mt-4" onClick={() => setOnlyAlerts(false)}>
+                Retirer le filtre « alertes »
+              </Button>
+            )}
           </div>
         </div>
       ) : (
