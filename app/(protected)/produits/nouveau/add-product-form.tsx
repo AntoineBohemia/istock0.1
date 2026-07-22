@@ -34,6 +34,9 @@ import AddNewSupplier from "@/components/add-new-supplier";
 import { Category } from "@/lib/supabase/queries/categories";
 import { Supplier } from "@/lib/supabase/queries/suppliers";
 import { uploadProductImage } from "@/lib/supabase/queries/products";
+import { createEntry } from "@/lib/supabase/queries/stock-movements";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { ProductFormSchema, type ProductFormValues } from "@/lib/schemas/product-schema";
 import { useCategories, useSuppliers } from "@/hooks/queries";
@@ -59,6 +62,7 @@ interface AddProductFormProps {
 export default function AddProductForm({ mode = "create", initialData }: AddProductFormProps) {
   const router = useRouter();
   const { currentOrganization } = useOrganizationStore();
+  const queryClient = useQueryClient();
   const { data: categories = [], isPending: isLoadingCategories } = useCategories(
     currentOrganization?.id
   );
@@ -172,9 +176,39 @@ export default function AddProductForm({ mode = "create", initialData }: AddProd
           }
         );
       } else {
+        const initialStock = data.stock_current ? parseInt(data.stock_current) : 0;
+
         createProductMutation.mutate(productData, {
-          onSuccess: () => {
-            toast.success("Produit créé");
+          onSuccess: async (product: { id: string }) => {
+            // Le stock de depart passe par un mouvement d'entree, jamais par
+            // une ecriture directe : c'est lui qui alimente le stock de la
+            // societe et qui laisse une trace datee. Sans cela le produit
+            // naissait avec un total global que personne ne detenait.
+            if (initialStock > 0) {
+              try {
+                await createEntry(
+                  currentOrganization.id,
+                  product.id,
+                  initialStock,
+                  data.supplier_id || undefined,
+                  data.price ? parseFloat(data.price) : undefined
+                );
+                queryClient.invalidateQueries({ queryKey: queryKeys.movements.all });
+              } catch (err) {
+                // Le produit existe : on le dit plutot que de laisser croire
+                // que le stock a ete enregistre.
+                toast.error(
+                  err instanceof Error
+                    ? `Produit créé, mais le stock initial a échoué : ${err.message}`
+                    : "Produit créé, mais le stock initial a échoué"
+                );
+                router.push("/produits");
+                return;
+              }
+            }
+            toast.success(
+              initialStock > 0 ? `Produit créé · ${initialStock} en stock` : "Produit créé"
+            );
             router.push("/produits");
           },
           onError: (error) => {

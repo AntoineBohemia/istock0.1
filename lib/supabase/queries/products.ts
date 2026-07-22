@@ -93,6 +93,12 @@ export interface CreateProductData {
   image_url?: string | null;
   product_url?: string | null;
   price?: number | null;
+  /**
+   * Ignore a la creation : le stock ne s'ecrit que par un mouvement d'entree.
+   * Conserve pour ne pas casser les appelants, mais sans effet.
+   *
+   * @deprecated Enregistrer une entree apres la creation.
+   */
   stock_current?: number;
   stock_min?: number;
   category_id?: string | null;
@@ -275,7 +281,17 @@ export async function createProduct(data: CreateProductData): Promise<Product> {
     image_url: data.image_url || null,
     product_url: data.product_url || null,
     price: data.price ?? null,
-    stock_current: data.stock_current ?? 0,
+    // Toujours zero. Un stock ne s'ecrit que par un mouvement d'entree, qui
+    // seul alimente aussi product_organization_stock.
+    //
+    // Ecrire une quantite ici creait un produit dont le total global etait
+    // renseigne alors qu'aucune societe n'en detenait rien et qu'aucun
+    // mouvement ne l'expliquait. C'est l'origine des 25 unites fantomes de
+    // « Test Peinture iStock » : 37 au cache, 12 chez les societes.
+    //
+    // L'appelant qui veut un stock de depart enregistre une entree apres la
+    // creation — c'est deja ce que fait la creation d'outillage.
+    stock_current: 0,
     stock_min: data.stock_min ?? 10,
     category_id: data.category_id || null,
     supplier_id: data.supplier_id || null,

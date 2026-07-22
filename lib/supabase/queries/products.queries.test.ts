@@ -78,6 +78,22 @@ describe("createProduct", () => {
     expect(insertCall.sku).toBe("CUSTOM-SKU");
   });
 
+  // Un stock ne s'ecrit que par un mouvement d'entree. Ecrire une quantite a
+  // la creation donnait un produit dont le total global etait renseigne sans
+  // qu'aucune societe n'en detienne rien ni qu'aucun mouvement l'explique —
+  // l'origine des 25 unites fantomes de « Test Peinture iStock ».
+  it("cree toujours le produit a stock zero, meme si une quantite est fournie", async () => {
+    mockClient._setResult({ data: { id: "prod-x" }, error: null });
+
+    await createProduct({
+      organization_id: "org-1",
+      name: "Peinture",
+      stock_current: 25,
+    });
+
+    expect(mockClient.insert.mock.calls[0][0].stock_current).toBe(0);
+  });
+
   it("preserves price=0 correctly (uses ?? instead of ||)", async () => {
     mockClient._setResult({ data: { id: "prod-4" }, error: null });
 
@@ -139,7 +155,8 @@ describe("createProduct", () => {
     expect(insertCall.sku).toBe("FULL-001");
     expect(insertCall.description).toBe("A detailed description");
     expect(insertCall.price).toBe(49.99);
-    expect(insertCall.stock_current).toBe(25);
+    // Le stock fourni est volontairement ignore : voir le test dedie.
+    expect(insertCall.stock_current).toBe(0);
     expect(insertCall.stock_min).toBe(5);
     expect(insertCall.category_id).toBe("cat-1");
     expect(insertCall.supplier_id).toBe("sup-1");
