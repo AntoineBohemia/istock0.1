@@ -293,7 +293,15 @@ export default function EquipmentList() {
                     La photo occupait toute la largeur en banniere, reléguant
                     les informations utiles sous la ligne de flottaison. */}
                 <div className="flex items-start gap-3">
-                  <div className="relative shrink-0">
+                  <div
+                    className={cn(
+                      "relative shrink-0",
+                      // La vignette en niveaux de gris : c'est ce qui se voit en
+                      // premier sur une grille, avant tout texte. Un outil hors
+                      // service se reconnaît alors sans rien lire.
+                      isArchived && "opacity-60 grayscale"
+                    )}
+                  >
                     <ProductIconDisplay
                       iconName={item.icon_name}
                       iconColor={item.icon_color}
@@ -360,24 +368,44 @@ export default function EquipmentList() {
                     construction. */}
                 {isArchived ? (
                   <div className="mt-3">
-                    <p className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-                      <Archive className="size-3 shrink-0" />
-                      Archivé le{" "}
-                      {new Date(item.archived_at!).toLocaleDateString("fr-FR", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                      })}
-                    </p>
+                    {/* Le motif est le contenu de cette carte, pas une note en
+                        bas : c'est la seule chose qu'on vient y lire. Il occupe
+                        donc le corps du texte courant, entre guillemets — ce
+                        sont les mots de celui qui a archivé, pas un libellé de
+                        l'application. */}
                     {item.archive_reason ? (
-                      <p className="mt-1.5 line-clamp-3 text-sm leading-snug">
-                        {item.archive_reason}
+                      <p className="line-clamp-3 text-sm leading-snug text-foreground/80">
+                        &laquo;&nbsp;{item.archive_reason}&nbsp;&raquo;
                       </p>
                     ) : (
-                      <p className="mt-1.5 text-sm italic text-muted-foreground/70">
+                      <p className="text-sm italic text-muted-foreground/70">
                         Aucun motif renseigné
                       </p>
                     )}
+
+                    {/* Pied : quand, et combien s'il y en avait plusieurs.
+                        Un outil s'archive à l'unité dans l'immense majorité des
+                        cas — écrire « 1 exemplaire » partout ne ferait
+                        qu'ajouter du bruit là où le nombre ne dit rien. Il
+                        n'apparaît qu'à partir de deux. */}
+                    <div className="mt-3 flex items-center justify-between gap-2 border-t pt-2.5">
+                      <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground tabular-nums">
+                        <Archive className="size-3 shrink-0" />
+                        {new Date(item.archived_at!).toLocaleDateString("fr-FR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        })}
+                      </span>
+                      {stock > 1 && (
+                        <span
+                          className="shrink-0 text-[11px] font-medium tabular-nums text-muted-foreground"
+                          title="Exemplaires encore comptés sur cette fiche"
+                        >
+                          {stock} exemplaires
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div className="mt-3 space-y-3">
