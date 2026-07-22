@@ -330,18 +330,27 @@ export async function exportMovementsExcel({
 
 interface ExportOptions {
   data: StockAtDateRow[];
-  year: number;
-  startLabel: string; // "1er janvier 2026"
-  endLabel: string; // "17 juillet 2026"
+  /** Jour arrete, deja formate : « 30 juin 2026 » */
+  dateLabel: string;
+  /** Jour arrete, pour le nom du fichier : « 2026-06-30 » */
+  dateSlug: string;
   orgScope: string; // "SMPR, SEIREN" or "SMPR"
   isFiltered: boolean; // true if single org selected
 }
 
+/**
+ * Etat de stock a un jour donne.
+ *
+ * Le fichier ne porte qu'un seul chiffre de stock : celui du jour demande. Il
+ * en affichait deux — le stock reconstitue a la date et le stock d'aujourd'hui,
+ * plus leur ecart — ce qui obligeait a se demander, colonne par colonne, lequel
+ * repondait a la question posee. Les totaux, la valeur et les statuts se lisent
+ * desormais tous sur la meme date.
+ */
 export async function exportStockAtDateExcel({
   data,
-  year,
-  startLabel,
-  endLabel,
+  dateLabel,
+  dateSlug,
   orgScope,
   isFiltered,
 }: ExportOptions): Promise<void> {
@@ -350,7 +359,7 @@ export async function exportStockAtDateExcel({
   workbook.creator = "iStock";
   workbook.created = new Date();
 
-  const sheet = workbook.addWorksheet(`Stock ${year}`);
+  const sheet = workbook.addWorksheet(`Stock au ${dateSlug}`);
 
   // ─── Computed KPIs ─────────────────────────────────────
   const totalRefs = data.length;
@@ -361,33 +370,34 @@ export async function exportStockAtDateExcel({
   const bonCount = totalRefs - critiqueCount - attentionCount;
   const totalValueAtDate = data.reduce((s, r) => s + r.stock_at_date * (r.price_at_date ?? 0), 0);
   const totalUnitsAtDate = data.reduce((s, r) => s + r.stock_at_date, 0);
-  const totalUnitsCurrent = data.reduce((s, r) => s + r.stock_current, 0);
   const noPriceCount = data.filter((r) => !r.price_at_date || r.price_at_date <= 0).length;
 
   const fmt = (n: number) => n.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
 
   // ─── ROW 1: Title ─────────────────────────────────────
-  sheet.mergeCells("A1:K1");
+  sheet.mergeCells("A1:I1");
   sheet.getCell("A1").value = "ÉTAT DE STOCK";
   sheet.getCell("A1").font = { ...FONT, bold: true, size: 18, color: { argb: COLORS.black } };
   sheet.getCell("A1").alignment = { vertical: "middle" };
   sheet.getRow(1).height = 30;
 
-  // ─── ROW 2: Date range ────────────────────────────────
-  sheet.mergeCells("A2:K2");
-  sheet.getCell("A2").value = `Période : du ${startLabel} au ${endLabel}`;
+  // ─── ROW 2: Date arretee ──────────────────────────────
+  // Un jour, pas une periode : le fichier photographie un etat, il ne resume
+  // pas un intervalle.
+  sheet.mergeCells("A2:I2");
+  sheet.getCell("A2").value = `Stock arrêté au ${dateLabel}`;
   sheet.getCell("A2").font = { ...FONT, size: 10, color: { argb: COLORS.darkGray } };
   sheet.getRow(2).height = 18;
 
   // ─── ROW 3: Org scope ─────────────────────────────────
-  sheet.mergeCells("A3:K3");
+  sheet.mergeCells("A3:I3");
   const orgLabel = isFiltered ? "Société" : "Sociétés";
   sheet.getCell("A3").value = `${orgLabel} : ${orgScope}`;
   sheet.getCell("A3").font = { ...FONT, size: 10, color: { argb: COLORS.darkGray } };
   sheet.getRow(3).height = 18;
 
   // ─── ROW 4: Scope ─────────────────────────────────────
-  sheet.mergeCells("A4:K4");
+  sheet.mergeCells("A4:I4");
   sheet.getCell("A4").value =
     "Périmètre : produits consommables actifs (hors outillage et archives)";
   sheet.getCell("A4").font = { ...FONT, size: 9, italic: true, color: { argb: COLORS.midGray } };
@@ -397,15 +407,8 @@ export async function exportStockAtDateExcel({
   sheet.getRow(5).height = 6;
 
   // ─── ROWS 6–7: KPI labels + values ────────────────────
-  const kpiCols = [1, 3, 5, 7, 9, 11];
-  const kpiLabels = [
-    "Références",
-    "Unités à date",
-    "Valeur stock HT",
-    "Critique",
-    "Attention",
-    "Bon",
-  ];
+  const kpiCols = [1, 3, 5, 7, 8, 9];
+  const kpiLabels = ["Références", "Unités", "Valeur stock HT", "Critique", "Attention", "Bon"];
   kpiLabels.forEach((label, i) => {
     const cell = sheet.getCell(6, kpiCols[i]);
     cell.value = label;
@@ -441,15 +444,14 @@ export async function exportStockAtDateExcel({
   sheet.getRow(8).height = 12;
 
   // ─── ROW 9: Table headers ────────────────────────────
-  const stockColHeader = `Stock au ${endLabel}`;
+  // Une seule colonne de stock : celle du jour demande. La date est deja dite
+  // en en-tete, la repeter dans l'intitule de colonne n'ajoutait rien.
   const headers = [
     "Produit",
     "Référence",
     "Catégorie",
     "Fournisseur",
-    stockColHeader,
-    "Stock actuel",
-    "Var. vs actuel",
+    "Stock",
     "Stock min",
     "Statut",
     "Prix unit. HT",
@@ -481,7 +483,6 @@ export async function exportStockAtDateExcel({
   };
 
   data.forEach((row) => {
-    const delta = row.stock_current - row.stock_at_date;
     const status = getStatus(row.stock_at_date, row.stock_min);
     const price = row.price_at_date && row.price_at_date > 0 ? row.price_at_date : null;
     const value = price ? row.stock_at_date * price : null;
@@ -492,8 +493,6 @@ export async function exportStockAtDateExcel({
       dash(row.category_name),
       dash(row.supplier_name),
       row.stock_at_date,
-      row.stock_current,
-      delta,
       row.stock_min,
       status,
       priceOrDash(price),
@@ -514,29 +513,17 @@ export async function exportStockAtDateExcel({
     [1, 2, 3, 4].forEach((col) => {
       dataRow.getCell(col).alignment = { vertical: "middle", horizontal: "left" };
     });
-    [5, 6, 7, 8, 10, 11].forEach((col) => {
+    [5, 6, 8, 9].forEach((col) => {
       dataRow.getCell(col).alignment = { vertical: "middle", horizontal: "right" };
     });
 
     // Status
     const sc = statusStyles[status];
     if (sc) {
-      const statusCell = dataRow.getCell(9);
+      const statusCell = dataRow.getCell(7);
       statusCell.font = { ...FONT, bold: true, size: 9, color: { argb: sc.fg } };
       statusCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: sc.bg } };
       statusCell.alignment = { horizontal: "center", vertical: "middle" };
-    }
-
-    // Variation with explicit sign
-    const deltaCell = dataRow.getCell(7);
-    if (delta > 0) {
-      deltaCell.value = `+${delta}`;
-      deltaCell.font = { ...FONT, color: { argb: COLORS.bon } };
-    } else if (delta < 0) {
-      deltaCell.font = { ...FONT, color: { argb: COLORS.critique } };
-    } else {
-      deltaCell.value = "—";
-      deltaCell.font = { ...FONT, color: { argb: COLORS.midGray } };
     }
   });
 
@@ -548,8 +535,6 @@ export async function exportStockAtDateExcel({
     "",
     "",
     totalUnitsAtDate,
-    totalUnitsCurrent,
-    totalUnitsCurrent - totalUnitsAtDate,
     "",
     "",
     "",
@@ -561,25 +546,16 @@ export async function exportStockAtDateExcel({
     cell.border = { top: BORDER_MEDIUM };
     cell.alignment = { vertical: "middle" };
   });
-  [5, 6, 7, 11].forEach((col) => {
+  [5, 9].forEach((col) => {
     totalRow.getCell(col).alignment = { vertical: "middle", horizontal: "right" };
   });
-  // Delta total with sign
-  const totalDelta = totalUnitsCurrent - totalUnitsAtDate;
-  const totalDeltaCell = totalRow.getCell(7);
-  if (totalDelta > 0) {
-    totalDeltaCell.value = `+${totalDelta}`;
-    totalDeltaCell.font = { ...FONT, bold: true, size: 11, color: { argb: COLORS.bon } };
-  } else if (totalDelta < 0) {
-    totalDeltaCell.font = { ...FONT, bold: true, size: 11, color: { argb: COLORS.critique } };
-  }
 
   // ─── Notes ─────────────────────────────────────────────
   sheet.addRow([]);
   const noteStartRow = sheet.lastRow!.number + 1;
 
   const notes = [
-    `Méthode de calcul : stock reconstitué par cumul des mouvements (entrées − sorties) du ${startLabel} au ${endLabel}.`,
+    `Méthode de calcul : stock reconstitué par cumul de tous les mouvements (entrées − sorties) enregistrés jusqu'au ${dateLabel} inclus.`,
     `Seuils : Critique = stock < stock min | Attention = stock min ≤ stock ≤ stock min × 1,25 | Bon = stock > stock min × 1,25.`,
     noPriceCount > 0
       ? `${noPriceCount} produit${noPriceCount > 1 ? "s" : ""} sans prix unitaire renseigné (valeur non calculée, indiquée "—").`
@@ -588,7 +564,7 @@ export async function exportStockAtDateExcel({
 
   notes.forEach((note, i) => {
     const r = sheet.getRow(noteStartRow + i);
-    sheet.mergeCells(`A${noteStartRow + i}:K${noteStartRow + i}`);
+    sheet.mergeCells(`A${noteStartRow + i}:I${noteStartRow + i}`);
     r.getCell(1).value = note;
     r.getCell(1).font = { ...FONT, size: 8, italic: true, color: { argb: COLORS.midGray } };
     r.height = 14;
@@ -596,13 +572,13 @@ export async function exportStockAtDateExcel({
 
   // ─── Footer ────────────────────────────────────────────
   const footerRowNum = noteStartRow + notes.length + 1;
-  sheet.mergeCells(`A${footerRowNum}:K${footerRowNum}`);
+  sheet.mergeCells(`A${footerRowNum}:I${footerRowNum}`);
   const footerCell = sheet.getCell(footerRowNum, 1);
   footerCell.value = `Généré par iStock le ${new Date().toLocaleDateString("fr-FR")} à ${new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
   footerCell.font = { ...FONT, size: 8, italic: true, color: { argb: COLORS.midGray } };
 
   // ─── Column widths ────────────────────────────────────
-  const widths = [32, 18, 20, 22, 20, 14, 14, 12, 12, 16, 20];
+  const widths = [32, 18, 20, 22, 12, 12, 14, 16, 20];
   widths.forEach((w, i) => {
     sheet.getColumn(i + 1).width = w;
   });
@@ -610,14 +586,13 @@ export async function exportStockAtDateExcel({
   // ─── Number formats ───────────────────────────────────
   sheet.getColumn(5).numFmt = "#,##0";
   sheet.getColumn(6).numFmt = "#,##0";
-  sheet.getColumn(8).numFmt = "#,##0";
-  sheet.getColumn(10).numFmt = '#,##0.00\\ "€"';
-  sheet.getColumn(11).numFmt = '#,##0.00\\ "€"';
+  sheet.getColumn(8).numFmt = '#,##0.00\\ "€"';
+  sheet.getColumn(9).numFmt = '#,##0.00\\ "€"';
 
   // ─── Auto-filter ──────────────────────────────────────
   sheet.autoFilter = {
     from: { row: 9, column: 1 },
-    to: { row: 9 + data.length, column: 11 },
+    to: { row: 9 + data.length, column: 9 },
   };
 
   // ─── Print setup ──────────────────────────────────────
@@ -644,7 +619,7 @@ export async function exportStockAtDateExcel({
     .replace(/[^a-z0-9]/g, "-")
     .replace(/-+/g, "-")
     .replace(/-$/, "");
-  link.download = `etat-stock-${year}-${safeOrg}.xlsx`;
+  link.download = `etat-stock-${dateSlug}-${safeOrg}.xlsx`;
 
   document.body.appendChild(link);
   link.click();

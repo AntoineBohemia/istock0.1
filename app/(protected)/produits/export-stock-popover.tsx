@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, FileDown, Loader2 } from "lucide-react";
+import { FileDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { getStockAtDate } from "@/lib/supabase/queries/stock-at-date";
 import { exportStockAtDateExcel } from "@/lib/utils/excel-export";
@@ -28,29 +29,40 @@ function formatDateFR(date: Date): string {
   });
 }
 
+/** Jour local au format ISO court, sans passer par UTC qui decalerait la date. */
+function dateSlugOf(date: Date): string {
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 export default function ExportStockPopover({
   organizationId,
   organizations = [],
   isMultiOrg,
 }: ExportStockPopoverProps) {
-  const currentYear = new Date().getFullYear();
-  const [year, setYear] = useState(currentYear);
+  const today = new Date();
+  // Cinq ans en arriere : au-dela, l'historique des mouvements ne couvre plus
+  // la periode et le stock reconstitue serait faux sans le dire.
+  const earliest = new Date(today.getFullYear() - 5, 0, 1);
+
+  const [date, setDate] = useState<Date>(today);
   const [filterOrgId, setFilterOrgId] = useState<string>("");
   const [exporting, setExporting] = useState(false);
   const [open, setOpen] = useState(false);
 
-  const canGoBack = year > currentYear - 5;
-  const canGoForward = year < currentYear;
+  const dateLabel = formatDateFR(date);
 
-  const isCurrentYear = year === currentYear;
-
-  const startDate = new Date(year, 0, 1);
-  const endDate = isCurrentYear ? new Date() : new Date(year, 11, 31, 23, 59, 59, 999);
-
-  const startLabel = formatDateFR(startDate);
-  const endLabel = formatDateFR(endDate);
-
-  const targetDate = endDate.toISOString();
+  // Fin de journee : un export « au 30 juin » doit contenir les mouvements du
+  // 30 juin. Arreter a minuit les perdrait tous.
+  const targetDate = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    23,
+    59,
+    59,
+    999
+  ).toISOString();
 
   // Org scope: list all org names or the filtered one
   const filteredOrg = filterOrgId ? organizations.find((o) => o.id === filterOrgId) : null;
@@ -65,15 +77,14 @@ export default function ExportStockPopover({
       const data = await getStockAtDate(organizationId, targetDate, filterOrgId || null);
 
       if (data.length === 0) {
-        toast.error("Aucun produit à exporter pour cette période.");
+        toast.error("Aucun produit à exporter à cette date.");
         return;
       }
 
       await exportStockAtDateExcel({
         data,
-        year,
-        startLabel,
-        endLabel,
+        dateLabel,
+        dateSlug: dateSlugOf(date),
         orgScope,
         isFiltered: !!filterOrgId,
       });
@@ -92,34 +103,22 @@ export default function ExportStockPopover({
       <PopoverTrigger asChild>
         <Button variant="outline">Export stock</Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[280px] p-4 rounded-xl">
+      <PopoverContent align="end" className="w-[300px] p-4 rounded-xl">
         <div className="space-y-4">
-          {/* Year selector */}
+          {/* Date arretee — n'importe quel jour, pas seulement une fin d'annee.
+              Un inventaire se justifie a une date precise : cloture, audit,
+              passage d'expert-comptable. */}
           <div>
-            <label className="text-xs font-medium text-muted-foreground">Année civile</label>
-            <div className="flex items-center justify-center gap-1 mt-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8"
-                disabled={!canGoBack}
-                onClick={() => setYear((y) => y - 1)}
-              >
-                <ChevronLeft className="size-4" />
-              </Button>
-              <span className="font-heading text-lg font-bold tabular-nums min-w-[4ch] text-center">
-                {year}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8"
-                disabled={!canGoForward}
-                onClick={() => setYear((y) => y + 1)}
-              >
-                <ChevronRight className="size-4" />
-              </Button>
-            </div>
+            <label className="text-xs font-medium text-muted-foreground">Stock au jour</label>
+            <DatePicker
+              value={date}
+              onChange={(d) => setDate(d ?? today)}
+              disabled={{ after: today, before: earliest }}
+              className="mt-1 w-full"
+              // Le calendrier s'ouvre dans un portail : sans niveau explicite,
+              // il passait sous le popover qui le contient.
+              popoverClassName="z-[60]"
+            />
           </div>
 
           {/* Org filter */}
@@ -144,9 +143,10 @@ export default function ExportStockPopover({
             </div>
           )}
 
-          {/* Date info */}
+          {/* Ce que contiendra le fichier, en une phrase : le stock d'un jour,
+              et un seul chiffre par produit. */}
           <p className="text-xs text-muted-foreground text-center">
-            Du {startLabel} au {endLabel}
+            Stock de chaque produit au {dateLabel}
           </p>
 
           {/* Export button */}
