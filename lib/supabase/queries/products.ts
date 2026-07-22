@@ -35,6 +35,15 @@ export interface ProductWithRelations extends Product {
   category?: Category | null;
   supplier?: Supplier | null;
   product_organization_stock?: ProductOrgStock[];
+  /**
+   * Total toutes societes confondues.
+   *
+   * `stock_current` porte le stock de la societe consultee ; ce champ garde le
+   * cumul pour les rares ecrans qui l'assument (valeur du patrimoine, achats
+   * consolides). Absent quand aucune societe n'est precisee — `stock_current`
+   * vaut alors deja le total.
+   */
+  stock_all_organizations?: number;
 }
 
 export interface ProductFilters {
@@ -114,10 +123,15 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
     query = query.eq("product_type", "consumable");
   }
 
-  // Filtrer par organisation
-  if (organizationId) {
-    query = query.eq("organization_id", organizationId);
-  }
+  // Le catalogue est commun aux societes du compte : la meme peinture sert a
+  // SMPR comme a SEIREN, seul le stock est tenu separement. On ne filtre donc
+  // plus sur products.organization_id, qui ne designe que la societe ayant
+  // cree la fiche — filtrer dessus rendait le catalogue vide pour toute
+  // societe n'ayant jamais cree de produit. La RLS limite deja la visibilite
+  // aux societes de l'utilisateur.
+  //
+  // `organizationId` sert desormais a choisir QUEL stock est expose, plus
+  // bas, et non quelles fiches sont visibles.
 
   // Appliquer les filtres
   if (search) {
@@ -149,7 +163,36 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
 
   let products = (data as ProductWithRelations[]) || [];
 
+  // Le stock expose est celui de la societe consultee.
+  //
+  // `products.stock_current` est un cache du total toutes societes. Une
+  // trentaine d'ecrans le lisent pour afficher « le stock » : ils montraient
+  // donc 1830 unites a SEIREN qui n'en detient que 44, et les seuils, scores,
+  // alertes de rupture et valeurs en euros en decoulaient tous. Substituer ici
+  // les corrige d'un seul coup.
+  //
+  // L'outillage est laisse tel quel : il est volontairement hors ventilation
+  // par societe (migration 20260721900000), ses lignes par societe ont ete
+  // supprimees et le remplacer le mettrait a zero.
+  if (organizationId) {
+    products = products.map((p) => {
+      if (p.product_type === "equipment") return p;
+      const own = p.product_organization_stock?.find(
+        (pos) => pos.organization_id === organizationId
+      );
+      return {
+        ...p,
+        stock_current: own?.stock_current ?? 0,
+        // Le total reste accessible aux ecrans qui l'assument, plutot que de
+        // les obliger a resommer la ventilation.
+        stock_all_organizations: p.stock_current ?? 0,
+      };
+    });
+  }
+
   // Apply stock status filter client-side (column-to-column comparison)
+  // Applique apres la substitution : un « stock bas » se juge sur le stock de
+  // la societe, pas sur le total.
   if (stockStatus && stockStatus !== "all") {
     if (stockStatus === "low") {
       products = products.filter((p) => (p.stock_current ?? 0) <= (p.stock_min ?? 0));

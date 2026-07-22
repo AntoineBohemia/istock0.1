@@ -252,18 +252,18 @@ export default function ActionsMobileSheet() {
   const [isBatchSubmitting, setIsBatchSubmitting] = useState(false);
 
   // ─── Data ───────────────────────────────────────────────
-  // Le catalogue est commun aux societes : la meme peinture existe pour SMPR
-  // comme pour SEIREN, seul le stock est tenu separement dans
-  // product_organization_stock. La societe choisie a l'entree dit donc ou le
-  // stock atterrit, pas quels produits sont proposes — filtrer la liste
-  // dessus la viderait pour toute societe qui n'est pas proprietaire des
-  // fiches.
+  // Le catalogue est commun aux societes ; `organizationId` designe celle dont
+  // le stock est affiche. Une entree montre donc le stock de la societe qui va
+  // recevoir la marchandise, une sortie celui de la societe courante — c'est
+  // dans celle-la qu'on puise.
+  const stockOrgId = actionMode === "entry" ? (entryOrgId ?? orgId) : orgId;
+
   const { data: productsResult, isLoading: isSearching } = useProducts({
-    organizationId: orgId,
+    organizationId: stockOrgId,
     search: debouncedSearch || undefined,
   });
   // Full product list (no search filter) — used for QR scan lookup
-  const { data: allProductsResult } = useProducts({ organizationId: orgId });
+  const { data: allProductsResult } = useProducts({ organizationId: stockOrgId });
   const allProducts = useMemo(() => allProductsResult?.products ?? [], [allProductsResult]);
 
   const { data: techniciansData = [] } = useTechnicians(orgId);

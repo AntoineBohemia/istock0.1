@@ -178,12 +178,12 @@ export default function ProductList() {
       cell: ({ row }) => {
         const product = row.original;
 
-        // If org filter is active, show that org's stock
-        const singleOrg = filterOrgs.size === 1 ? [...filterOrgs][0] : null;
-        const displayStock = singleOrg
-          ? (product.product_organization_stock?.find((pos) => pos.organization_id === singleOrg)
-              ?.stock_current ?? 0)
-          : (product.stock_current ?? 0);
+        // `stock_current` porte deja le stock de la societe consultee : la
+        // requete le substitue a la source. Cette colonne refaisait le calcul
+        // a partir du filtre manuel « Societe », qui n'etait pas branche sur
+        // le selecteur de societe — et la colonne Statut, elle, ne le refaisait
+        // pas : les deux se contredisaient a l'ecran.
+        const displayStock = product.stock_current ?? 0;
 
         const score = calculateStockScore(displayStock, product.stock_min);
         const min = product.stock_min ?? 10;
@@ -214,7 +214,11 @@ export default function ProductList() {
                 />
               </div>
             )}
-            {isMultiOrg && !singleOrg && (
+            {/* Ventilation toujours visible : le gros chiffre est celui de la
+                societe consultee, cette ligne dit qui detient quoi. Elle etait
+                masquee des qu'un filtre societe etait actif, c'est-a-dire
+                justement quand la comparaison est utile. */}
+            {isMultiOrg && product.product_type !== "equipment" && (
               <p className="text-[10px] text-muted-foreground tabular-nums">
                 {(userOrgs ?? [])
                   .map((org) => {

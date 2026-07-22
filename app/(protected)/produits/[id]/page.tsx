@@ -6,7 +6,9 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { CURRENT_ORG_COOKIE } from "@/lib/stores/organization-store";
 import { calculateStockScore, getStockBadgeVariant, getStockScoreColor } from "@/lib/utils/stock";
 import dynamic from "next/dynamic";
 import ArchiveProductButton from "./archive-product-button";
@@ -69,6 +71,21 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
   const isMultiOrg = userOrgs.length > 1;
   const orgStocks = product.product_organization_stock ?? [];
+
+  // Stock de la societe consultee, et non le total toutes societes.
+  //
+  // Cette page etant rendue cote serveur, elle ignorait quelle societe etait
+  // selectionnee : le grand chiffre, la jauge, le seuil, la valeur en euros,
+  // l'alerte de rupture et la quantite suggeree au fournisseur portaient tous
+  // sur le cumul. Un produit epuise chez SEIREN s'affichait donc « Bon » grace
+  // au stock de SMPR. L'outillage reste au total, il n'est pas ventile.
+  const currentOrgId = (await cookies()).get(CURRENT_ORG_COOKIE)?.value;
+  if (currentOrgId && product.product_type !== "equipment") {
+    product.stock_current =
+      orgStocks.find((s: { organization_id: string }) => s.organization_id === currentOrgId)
+        ?.stock_current ?? 0;
+  }
+  const currentOrgName = userOrgs.find((o) => o.id === currentOrgId)?.name ?? null;
   const allOrgStocks = isMultiOrg
     ? userOrgs.map((org) => {
         const pos = orgStocks.find((s: any) => s.organization_id === org.id);
@@ -172,7 +189,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                   {product.stock_current ?? 0}
                 </span>
                 <p className="text-xs text-muted-foreground mt-1.5 tabular-nums">
-                  en stock
+                  {/* Nommer la societe : sans elle, rien ne distingue ce
+                      chiffre d'un total toutes societes — c'est precisement
+                      la confusion qu'il fallait lever. */}
+                  {currentOrgName ? `en stock chez ${currentOrgName}` : "en stock"}
                   {minStock > 0 && (
                     <>
                       {" · seuil critique "}

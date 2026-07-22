@@ -225,12 +225,79 @@ describe("getProductsStats", () => {
 
 // ─── getProducts ─────────────────────────────────────────────────────
 describe("getProducts", () => {
-  it("filters by organizationId", async () => {
+  // Le catalogue est commun aux societes du compte : organizationId choisit
+  // quel stock est expose, pas quelles fiches sont visibles. Filtrer les
+  // lignes dessus rendait le catalogue vide pour toute societe n'ayant jamais
+  // cree de produit.
+  it("ne filtre pas les fiches par organizationId", async () => {
     mockClient._setResult({ data: [], error: null, count: 0 });
 
     await getProducts({ organizationId: "org-1" });
 
-    expect(mockClient.eq).toHaveBeenCalledWith("organization_id", "org-1");
+    expect(mockClient.eq).not.toHaveBeenCalledWith("organization_id", "org-1");
+  });
+
+  it("expose le stock de la societe demandee, pas le total", async () => {
+    mockClient._setResult({
+      data: [
+        {
+          id: "p1",
+          product_type: "consumable",
+          stock_current: 1830, // cache toutes societes
+          product_organization_stock: [
+            { organization_id: "org-1", stock_current: 44 },
+            { organization_id: "org-2", stock_current: 1786 },
+          ],
+        },
+      ],
+      error: null,
+      count: 1,
+    });
+
+    const { products } = await getProducts({ organizationId: "org-1" });
+
+    expect(products[0].stock_current).toBe(44);
+    expect(products[0].stock_all_organizations).toBe(1830);
+  });
+
+  it("expose zero quand la societe ne detient rien", async () => {
+    mockClient._setResult({
+      data: [
+        {
+          id: "p1",
+          product_type: "consumable",
+          stock_current: 1786,
+          product_organization_stock: [{ organization_id: "org-2", stock_current: 1786 }],
+        },
+      ],
+      error: null,
+      count: 1,
+    });
+
+    const { products } = await getProducts({ organizationId: "org-1" });
+
+    expect(products[0].stock_current).toBe(0);
+  });
+
+  // L'outillage est volontairement hors ventilation par societe : ses lignes
+  // par societe ont ete supprimees, substituer le mettrait a zero.
+  it("laisse le stock de l'outillage au total", async () => {
+    mockClient._setResult({
+      data: [
+        {
+          id: "e1",
+          product_type: "equipment",
+          stock_current: 6,
+          product_organization_stock: [],
+        },
+      ],
+      error: null,
+      count: 1,
+    });
+
+    const { products } = await getProducts({ organizationId: "org-1", includeEquipment: true });
+
+    expect(products[0].stock_current).toBe(6);
   });
 
   it("filters by search term", async () => {

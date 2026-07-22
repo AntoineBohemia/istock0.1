@@ -41,7 +41,17 @@ describe("useCreateStockEntry", () => {
       });
     });
 
-    expect(mockCreateEntry).toHaveBeenCalledWith("org-1", "p1", 10);
+    // Fournisseur, prix, reference de facture et date ont ete ajoutes apres
+    // l'ecriture du test ; ils arrivent indefinis quand on ne les passe pas.
+    expect(mockCreateEntry).toHaveBeenCalledWith(
+      "org-1",
+      "p1",
+      10,
+      undefined,
+      undefined,
+      undefined,
+      undefined
+    );
   });
 
   it("performs optimistic update: +quantity on product detail", async () => {
@@ -149,14 +159,8 @@ describe("useCreateStockExit", () => {
       });
     });
 
-    expect(mockCreateExit).toHaveBeenCalledWith(
-      "org-1",
-      "p1",
-      3,
-      "exit_anonymous",
-      undefined,
-      undefined
-    );
+    // Cinq arguments : un sixieme figurait ici, disparu de la signature.
+    expect(mockCreateExit).toHaveBeenCalledWith("org-1", "p1", 3, "exit_anonymous", undefined);
   });
 
   it("performs optimistic update: -quantity on product detail", async () => {

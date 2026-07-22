@@ -22,8 +22,11 @@ describe("calculateStockScore", () => {
     expect(calculateStockScore(5, 5)).toBe(25);
   });
 
-  it("returns 25 when stock is below min but > 0", () => {
-    expect(calculateStockScore(3, 5)).toBe(25);
+  // Le seuil est libelle « seuil critique » dans l'interface : passer dessous
+  // est critique, pas une simple alerte. Ces tests decrivaient un modele de
+  // score anterieur, jamais mis a jour quand l'implementation a change.
+  it("retourne 0 (critique) sous le seuil", () => {
+    expect(calculateStockScore(3, 5)).toBe(0);
   });
 
   it("returns 75 when stock is above min", () => {
@@ -36,8 +39,8 @@ describe("calculateStockScore", () => {
 
   // ── NULL handling ──────────────────────────────────────────────────
   it("uses default MIN when min is null", () => {
-    // null min → STOCK_DEFAULTS.MIN (10), stock=5 → 25 (below min)
-    expect(calculateStockScore(5, null)).toBe(25);
+    // null min → STOCK_DEFAULTS.MIN (10), stock=5 → sous le seuil → 0
+    expect(calculateStockScore(5, null)).toBe(0);
   });
 
   it("uses default MIN when min is null — above min", () => {
@@ -59,8 +62,9 @@ describe("getStockScoreColor", () => {
     expect(getStockScoreColor(0)).toBe("text-critique");
   });
 
-  it("returns critique color for score below 30", () => {
-    expect(getStockScoreColor(25)).toBe("text-critique");
+  // Le score 25 est le niveau « attention » : seul 0 est critique.
+  it("returns critique color for score 0", () => {
+    expect(getStockScoreColor(0)).toBe("text-critique");
   });
 
   it("returns attention color for score between 30 and 59", () => {
@@ -91,9 +95,8 @@ describe("getStockScoreBgColor", () => {
 
 // ─── getStockStatus ─────────────────────────────────────────────────
 describe("getStockStatus", () => {
-  it("returns Critique for score below 30", () => {
+  it("returns Critique for score 0", () => {
     expect(getStockStatus(0)).toBe("Critique");
-    expect(getStockStatus(25)).toBe("Critique");
   });
 
   it("returns Attention for score between 30 and 59", () => {
@@ -109,9 +112,8 @@ describe("getStockStatus", () => {
 
 // ─── getStockBadgeVariant ───────────────────────────────────────────
 describe("getStockBadgeVariant", () => {
-  it("returns critique for score below 30", () => {
+  it("returns critique for score 0", () => {
     expect(getStockBadgeVariant(0)).toBe("critique");
-    expect(getStockBadgeVariant(25)).toBe("critique");
   });
 
   it("returns attention for score between 30 and 59", () => {

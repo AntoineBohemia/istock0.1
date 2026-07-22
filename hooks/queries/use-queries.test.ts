@@ -198,13 +198,16 @@ describe("useStockMovements", () => {
     });
   });
 
-  it("does not call getStockMovements without organizationId", async () => {
+  // La requete n'est plus conditionnee a une societe : le journal des
+  // mouvements se consulte volontairement toutes societes confondues, avec une
+  // colonne Societe et un filtre dedie. Le cloisonnement est assure par la
+  // RLS, pas par un garde cote client.
+  it("interroge getStockMovements meme sans organizationId", async () => {
     const wrapper = createWrapper();
 
     renderHook(() => useStockMovements({}), { wrapper });
 
-    await waitFor(() => expect(true).toBe(true));
-    expect(getStockMovements).not.toHaveBeenCalled();
+    await waitFor(() => expect(getStockMovements).toHaveBeenCalledWith({}));
   });
 });
 
@@ -304,7 +307,8 @@ describe("useTechnicians", () => {
     renderHook(() => useTechnicians("org-1"), { wrapper });
 
     await waitFor(() => {
-      expect(getTechnicians).toHaveBeenCalledWith("org-1");
+      // Le second parametre `year` a ete ajoute apres l'ecriture du test.
+      expect(getTechnicians).toHaveBeenCalledWith("org-1", undefined);
     });
   });
 
