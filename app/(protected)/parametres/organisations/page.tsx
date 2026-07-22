@@ -60,6 +60,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 import { useOrganizationStore, Organization } from "@/lib/stores/organization-store";
+import { organizationLogo } from "@/lib/utils/org-logo";
 import { useOrganizations } from "@/hooks/queries";
 import {
   useCreateOrganization,
@@ -68,10 +69,6 @@ import {
   useUploadOrganizationLogo,
   useLeaveOrganization,
 } from "@/hooks/mutations";
-
-interface OrganizationWithMeta extends Organization {
-  memberCount?: number;
-}
 
 export default function OrganizationsPage() {
   const { currentOrganization, setOrganizations, setCurrentOrganization } = useOrganizationStore();
@@ -147,6 +144,10 @@ export default function OrganizationsPage() {
     setIsDeleteDialogOpen(true);
   };
 
+  // Le slug ne se saisit plus : c'est un identifiant technique, derive du nom.
+  // Le demander revenait a faire remplir une donnee que l'utilisateur ne
+  // choisit pas vraiment et dont il ignore l'usage — et le laisser modifiable
+  // exposait a casser les references qui s'y appuient.
   const handleNameChange = (value: string) => {
     setOrgName(value);
     if (!editingOrg) {
@@ -363,7 +364,6 @@ export default function OrganizationsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Organisation</TableHead>
-                <TableHead>Slug</TableHead>
                 <TableHead>Rôle</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
@@ -389,9 +389,19 @@ export default function OrganizationsPage() {
                     <TableRow key={org.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
+                          {/* organizationLogo sert les copies detourees et
+                              carrees : le fichier envoye pour SMPR porte une
+                              large marge blanche, et SEIREN n'en avait aucun.
+                              Lire logo_url directement donnait un disque
+                              minuscule d'un cote, une icone generique de
+                              l'autre. */}
                           <Avatar className="size-10">
-                            {org.logo_url ? (
-                              <AvatarImage src={org.logo_url} alt={org.name} />
+                            {organizationLogo(org) ? (
+                              <AvatarImage
+                                src={organizationLogo(org)!}
+                                alt={org.name}
+                                className="object-contain"
+                              />
                             ) : null}
                             <AvatarFallback>
                               <Building2 className="size-5" />
@@ -408,9 +418,6 @@ export default function OrganizationsPage() {
                             </div>
                           </div>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <code className="rounded bg-muted px-2 py-1 text-sm">{org.slug}</code>
                       </TableCell>
                       <TableCell>
                         <Badge variant={isOwner ? "default" : "secondary"} className="gap-1">
@@ -552,19 +559,6 @@ export default function OrganizationsPage() {
                 placeholder="Ex: Mon Entreprise"
                 disabled={isSubmitting}
               />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="slug">Slug (identifiant unique)</Label>
-              <Input
-                id="slug"
-                value={orgSlug}
-                onChange={(e) => setOrgSlug(e.target.value)}
-                placeholder="mon-entreprise"
-                disabled={isSubmitting}
-              />
-              <p className="text-xs text-muted-foreground">
-                Utilisé dans les URLs. Lettres minuscules, chiffres et tirets uniquement.
-              </p>
             </div>
           </div>
           <DialogFooter>
