@@ -12,14 +12,13 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import {
-  ArrowUpDown,
+  ArrowUp,
   ArrowDownToLine,
   ArrowUpFromLine,
   Package,
-  Building2,
+  Truck,
+  Activity,
   Tag,
-  Check,
-  X,
   Plus,
 } from "lucide-react";
 import Link from "next/link";
@@ -30,9 +29,9 @@ import { QueryError } from "@/components/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
 import StockEntryModal from "@/components/stock-entry-modal";
 import StockExitModal from "@/components/stock-exit-modal";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import ReorderRecapModal, { computeReorderList } from "@/components/reorder-recap-modal";
 import ExportStockPopover from "./export-stock-popover";
+import { FilterChip } from "@/components/filter-chip";
 
 import { ProductWithRelations } from "@/lib/supabase/queries/products";
 import { calculateStockScore, getStockScoreColor, getStockBadgeVariant } from "@/lib/utils/stock";
@@ -45,6 +44,13 @@ import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { cn } from "@/lib/utils";
 
 const fmtPrice = (n: number) => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+
+/** Les trois etats de stock, dans l'ordre ou l'on s'en preoccupe. */
+const STATUS_OPTIONS = [
+  { id: "critique", label: "Critique" },
+  { id: "attention", label: "Attention" },
+  { id: "standard", label: "Bon" },
+];
 
 // ─── Sort header button ────────────────────────────────────
 function SortHeader({
@@ -67,12 +73,19 @@ function SortHeader({
       )}
     >
       {label}
-      <ArrowUpDown
-        className={cn(
-          "size-3 transition-colors",
-          sorted ? "text-foreground" : "text-foreground/25"
-        )}
-      />
+      {/* La fleche n'apparait que sur la colonne effectivement triee. En
+          permanence sur chaque en-tete, six fleches grises encombraient la
+          ligne sans rien dire — elles signalaient une possibilite, pas un
+          etat. Ici elle porte une information : c'est par la que le tableau
+          est trie, et dans quel sens. */}
+      {sorted && (
+        <ArrowUp
+          className={cn(
+            "size-3 text-foreground transition-transform",
+            sorted === "desc" && "rotate-180"
+          )}
+        />
+      )}
     </button>
   );
 }
@@ -93,7 +106,8 @@ export default function ProductList() {
 
   // Multi-select filters
   const [filterCategories, setFilterCategories] = useState<Set<string>>(new Set());
-  const [filterOrgs, setFilterOrgs] = useState<Set<string>>(new Set());
+  const [filterSuppliers, setFilterSuppliers] = useState<Set<string>>(new Set());
+  const [filterStatuses, setFilterStatuses] = useState<Set<string>>(new Set());
 
   const searchQuery = filters.search;
   const setSearchQuery = (value: string) => setFilters({ search: value });
@@ -129,7 +143,26 @@ export default function ProductList() {
     search: debouncedSearch || undefined,
   });
 
-  const allProducts = productsResult?.products || [];
+  // Memoise : sans cela le `|| []` cree un tableau neuf a chaque rendu, et
+  // tous les useMemo qui en dependent se recalculent pour rien.
+  const allProducts = useMemo(() => productsResult?.products ?? [], [productsResult]);
+
+  // Options des filtres, tirees du catalogue charge : on ne propose que des
+  // valeurs qui existent, plutot qu'une liste ou la moitie ne donne rien.
+  const categoryOptions = useMemo(
+    () => categories.map((c) => ({ id: c.id, label: c.name })),
+    [categories]
+  );
+
+  const supplierOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const p of allProducts) {
+      if (p.supplier?.id) seen.set(p.supplier.id, p.supplier.name);
+    }
+    return [...seen.entries()]
+      .map(([id, label]) => ({ id, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, "fr"));
+  }, [allProducts]);
 
   // Client-side multi-select filtering
   const products = useMemo(() => {
@@ -137,15 +170,27 @@ export default function ProductList() {
     if (filterCategories.size > 0) {
       result = result.filter((p) => p.category_id && filterCategories.has(p.category_id));
     }
-    if (filterOrgs.size > 0) {
+    if (filterSuppliers.size > 0) {
+      result = result.filter((p) => p.supplier_id && filterSuppliers.has(p.supplier_id));
+    }
+    if (filterStatuses.size > 0) {
+      // Le statut se recalcule a la volee : il derive du stock et du seuil,
+      // il n'existe pas comme colonne. Le filtrer en base demanderait de
+      // reproduire le calcul en SQL, avec le risque qu'il diverge.
       result = result.filter((p) =>
-        p.product_organization_stock?.some(
-          (pos) => filterOrgs.has(pos.organization_id) && pos.stock_current > 0
-        )
+        filterStatuses.has(getStockBadgeVariant(calculateStockScore(p.stock_current, p.stock_min)))
       );
     }
     return result;
-  }, [allProducts, filterCategories, filterOrgs]);
+  }, [allProducts, filterCategories, filterSuppliers, filterStatuses]);
+
+  // Un seul point de verite : ajouter un filtre sans mettre a jour l'etat vide
+  // afficherait « ajoutez vos produits » alors qu'un filtre masque tout.
+  const hasActiveFilter =
+    Boolean(searchQuery) ||
+    filterCategories.size > 0 ||
+    filterSuppliers.size > 0 ||
+    filterStatuses.size > 0;
 
   const [columnVisibility, setColumnVisibility] = useColumnVisibility("produits");
 
@@ -438,135 +483,35 @@ export default function ProductList() {
         />
 
         <div className="flex items-center gap-2 flex-wrap">
-          {isMultiOrg && (
-            <Popover>
-              <PopoverTrigger
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full h-9 px-4 text-[13px] font-semibold transition-all select-none cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97]",
-                  filterOrgs.size > 0
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
-                )}
-              >
-                <Building2 className="size-3" />
-                Societe
-                {filterOrgs.size > 0 && (
-                  <>
-                    <span className="opacity-80 tabular-nums font-heading">{filterOrgs.size}</span>
-                    <span
-                      role="button"
-                      className="ml-0.5 rounded-full hover:bg-white/20 p-0.5 -mr-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setFilterOrgs(new Set());
-                      }}
-                    >
-                      <X className="size-3" />
-                    </span>
-                  </>
-                )}
-              </PopoverTrigger>
-              <PopoverContent
-                align="start"
-                className="w-auto min-w-[180px] p-1 rounded-xl overflow-hidden"
-              >
-                <div className="flex flex-col gap-0.5 max-h-[280px] overflow-y-auto">
-                  {userOrgs?.map((org) => {
-                    const selected = filterOrgs.has(org.id);
-                    return (
-                      <button
-                        key={org.id}
-                        type="button"
-                        className={cn(
-                          "flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-lg transition-colors",
-                          selected
-                            ? "bg-primary/10 text-foreground font-medium"
-                            : "text-foreground/70 hover:bg-muted hover:text-foreground"
-                        )}
-                        onClick={() => setFilterOrgs((prev) => toggleSet(prev, org.id))}
-                      >
-                        <span
-                          className={cn(
-                            "size-3.5 flex items-center justify-center",
-                            !selected && "opacity-0"
-                          )}
-                        >
-                          <Check className="size-3.5" />
-                        </span>
-                        {org.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </PopoverContent>
-            </Popover>
-          )}
-
-          {categories.length > 0 && (
-            <Popover>
-              <PopoverTrigger
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full h-9 px-4 text-[13px] font-semibold transition-all select-none cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97]",
-                  filterCategories.size > 0
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
-                )}
-              >
-                <Tag className="size-3" />
-                Categorie
-                {filterCategories.size > 0 && (
-                  <>
-                    <span className="opacity-80 tabular-nums font-heading">
-                      {filterCategories.size}
-                    </span>
-                    <span
-                      role="button"
-                      className="ml-0.5 rounded-full hover:bg-white/20 p-0.5 -mr-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setFilterCategories(new Set());
-                      }}
-                    >
-                      <X className="size-3" />
-                    </span>
-                  </>
-                )}
-              </PopoverTrigger>
-              <PopoverContent
-                align="start"
-                className="w-auto min-w-[180px] p-1 rounded-xl overflow-hidden"
-              >
-                <div className="flex flex-col gap-0.5 max-h-[280px] overflow-y-auto">
-                  {categories.map((cat) => {
-                    const selected = filterCategories.has(cat.id);
-                    return (
-                      <button
-                        key={cat.id}
-                        type="button"
-                        className={cn(
-                          "flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-lg transition-colors",
-                          selected
-                            ? "bg-primary/10 text-foreground font-medium"
-                            : "text-foreground/70 hover:bg-muted hover:text-foreground"
-                        )}
-                        onClick={() => setFilterCategories((prev) => toggleSet(prev, cat.id))}
-                      >
-                        <span
-                          className={cn(
-                            "size-3.5 flex items-center justify-center",
-                            !selected && "opacity-0"
-                          )}
-                        >
-                          <Check className="size-3.5" />
-                        </span>
-                        {cat.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </PopoverContent>
-            </Popover>
-          )}
+          {/* Trois filtres, un seul composant. Les popovers etaient recopies
+              a l'identique : le filtre « Societe » a ete retire (le catalogue
+              est commun, filtrer dessus n'apprenait rien), et fournisseur et
+              statut manquaient alors qu'ils portent les questions courantes —
+              qui fournit quoi, et qu'est-ce qui est critique. */}
+          <FilterChip
+            label="Catégorie"
+            icon={Tag}
+            options={categoryOptions}
+            selected={filterCategories}
+            onToggle={(id) => setFilterCategories((prev) => toggleSet(prev, id))}
+            onClear={() => setFilterCategories(new Set())}
+          />
+          <FilterChip
+            label="Fournisseur"
+            icon={Truck}
+            options={supplierOptions}
+            selected={filterSuppliers}
+            onToggle={(id) => setFilterSuppliers((prev) => toggleSet(prev, id))}
+            onClear={() => setFilterSuppliers(new Set())}
+          />
+          <FilterChip
+            label="Statut"
+            icon={Activity}
+            options={STATUS_OPTIONS}
+            selected={filterStatuses}
+            onToggle={(id) => setFilterStatuses((prev) => toggleSet(prev, id))}
+            onClear={() => setFilterStatuses(new Set())}
+          />
         </div>
 
         <div className="ml-auto shrink-0">
@@ -637,11 +582,11 @@ export default function ProductList() {
                     </div>
                     <h3 className="text-lg font-semibold">Aucun produit</h3>
                     <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-                      {searchQuery || filterCategories.size > 0 || filterOrgs.size > 0
+                      {hasActiveFilter
                         ? "Aucun produit ne correspond à cette recherche."
                         : "Ajoutez vos produits pour commencer à gérer votre stock."}
                     </p>
-                    {!searchQuery && filterCategories.size === 0 && filterOrgs.size === 0 && (
+                    {!hasActiveFilter && (
                       <Button asChild className="mt-5">
                         <Link href="/produits/nouveau">Ajouter un produit</Link>
                       </Button>
