@@ -1099,7 +1099,14 @@ export default function ActionsMobileSheet() {
       >
         <div className="flex flex-col h-full">
           {/* ── En-tete d'etape ── */}
-          <div className="px-4 pt-3 pb-2 shrink-0">
+          {/* Masque hors des etapes qui le remplissent : vide, il volait une
+              bande de vingt pixels aux ecrans qui doivent tenir sans defiler. */}
+          <div
+            className={cn(
+              "px-4 pt-3 pb-2 shrink-0",
+              drawerStep !== "products" && drawerStep !== "technicians" && "hidden"
+            )}
+          >
             {/* Scanner — entree comme sortie. C'est le chemin le plus court
                 vers le bon produit : viser une etiquette bat toujours la
                 lecture d'une grille. Il passe donc devant la recherche, en
@@ -1158,14 +1165,23 @@ export default function ActionsMobileSheet() {
           </div>
 
           {/* ── Drawer body ── */}
-          {/* L'etape « nature » remplit l'ecran sans defiler, comme l'accueil ;
-              les autres ont des listes qui peuvent depasser. */}
+          {/* Les etapes a contenu ferme — nature, societe, quantite — remplissent
+              l'ecran sans defiler, comme l'accueil : ce qu'on doit lire avant de
+              valider ne se cache pas sous le pli. Seules les listes, dont on ne
+              connait pas la longueur, defilent. */}
           <div
             className={cn(
               "flex-1 min-h-0 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]",
               drawerStep === "reason" || drawerStep === "organization"
                 ? "flex flex-col overflow-hidden overscroll-none"
-                : "overflow-y-auto"
+                : // La quantite tient dans l'ecran par construction : rien n'y
+                  // defile. Le defilement reste malgre tout autorise, sans
+                  // rebond, pour le seul cas ou la hauteur disponible fond —
+                  // le clavier numerique qui s'ouvre sur le prix. L'interdire
+                  // rendrait alors les champs du bas inatteignables.
+                  drawerStep === "detail"
+                  ? "flex flex-col overflow-y-auto overscroll-none"
+                  : "overflow-y-auto"
             )}
           >
             {/* ═══ SOCIETE QUI RECOIT L'ENTREE ═══
@@ -1453,10 +1469,13 @@ export default function ActionsMobileSheet() {
                 const isToday = entryDate.toDateString() === todayDate.toDateString();
 
                 return (
-                  <div className="space-y-6 pt-2 pb-4">
+                  // Colonne pleine hauteur : les blocs a hauteur fixe se posent,
+                  // le compteur absorbe ce qui reste. L'ecran tient donc sur un
+                  // grand telephone comme sur un petit, sans jamais defiler.
+                  <div className="flex flex-1 min-h-0 flex-col gap-3 pt-2 pb-2">
                     {/* Identite du produit — discrete : on sait deja lequel
                         on a choisi, elle sert a confirmer, pas a decider. */}
-                    <div className="flex items-center gap-3 px-1">
+                    <div className="flex shrink-0 items-center gap-3 px-1">
                       <ProductIconDisplay
                         iconName={product.icon_name}
                         iconColor={product.icon_color}
@@ -1478,8 +1497,12 @@ export default function ActionsMobileSheet() {
 
                     {/* Le nombre est le sujet de l'ecran : il occupe le centre
                         et les commandes l'encadrent, au lieu d'un champ de
-                        formulaire noye parmi les autres. */}
-                    <div className="flex items-center justify-center gap-5">
+                        formulaire noye parmi les autres.
+
+                        C'est aussi lui qui respire : sur un grand ecran il
+                        s'etale, sur un petit il se resserre — plutot que de
+                        pousser le formulaire d'achat hors du cadre. */}
+                    <div className="flex flex-1 min-h-0 items-center justify-center gap-5">
                       <button
                         onClick={() => {
                           navigator.vibrate?.(8);
@@ -1487,9 +1510,9 @@ export default function ActionsMobileSheet() {
                         }}
                         disabled={quantity <= 1}
                         aria-label="Retirer une unité"
-                        className="size-16 rounded-full bg-muted/70 flex items-center justify-center shrink-0 active:bg-muted active:scale-95 transition-transform disabled:opacity-25"
+                        className="size-16 [@media(max-height:720px)]:size-[3.25rem] rounded-full bg-muted/70 flex items-center justify-center shrink-0 active:bg-muted active:scale-95 transition-transform disabled:opacity-25"
                       >
-                        <Minus className="size-7" />
+                        <Minus className="size-7 [@media(max-height:720px)]:size-6" />
                       </button>
 
                       <div className="text-center min-w-[6rem]">
@@ -1510,7 +1533,7 @@ export default function ActionsMobileSheet() {
                               handleSubmit();
                             }
                           }}
-                          className="h-auto w-full border-0 bg-transparent p-0 text-center font-heading text-6xl font-bold tabular-nums shadow-none focus-visible:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          className="h-auto w-full border-0 bg-transparent p-0 text-center font-heading text-6xl [@media(max-height:720px)]:text-5xl font-bold tabular-nums shadow-none focus-visible:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         />
                         <p className="text-sm text-muted-foreground mt-1">
                           {quantity > 1 ? "unités" : "unité"}
@@ -1524,15 +1547,16 @@ export default function ActionsMobileSheet() {
                         }}
                         disabled={!isEntry && quantity >= product.stock_current}
                         aria-label="Ajouter une unité"
-                        className="size-16 rounded-full bg-muted/70 flex items-center justify-center shrink-0 active:bg-muted active:scale-95 transition-transform disabled:opacity-25"
+                        className="size-16 [@media(max-height:720px)]:size-[3.25rem] rounded-full bg-muted/70 flex items-center justify-center shrink-0 active:bg-muted active:scale-95 transition-transform disabled:opacity-25"
                       >
-                        <Plus className="size-7" />
+                        <Plus className="size-7 [@media(max-height:720px)]:size-6" />
                       </button>
                     </div>
 
                     {/* La consequence, en clair. Elle etait tassee dans un coin
                         alors que c'est ce que l'on verifie avant de valider. */}
                     <InsetGroup
+                      className="shrink-0"
                       footer={
                         !isEntry && product.stock_current > 0
                           ? `Disponible : ${product.stock_current}`
@@ -1591,6 +1615,7 @@ export default function ActionsMobileSheet() {
                     {/* Achat — uniquement en entree */}
                     {isEntry && (
                       <InsetGroup
+                        className="shrink-0"
                         header="Achat"
                         footer={
                           product.supplier_name
