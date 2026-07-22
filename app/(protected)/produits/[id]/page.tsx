@@ -6,9 +6,7 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { notFound } from "next/navigation";
-import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import { CURRENT_ORG_COOKIE } from "@/lib/stores/organization-store";
 import { calculateStockScore, getStockBadgeVariant, getStockScoreColor } from "@/lib/utils/stock";
 import dynamic from "next/dynamic";
 import ArchiveProductButton from "./archive-product-button";
@@ -85,20 +83,18 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     0
   );
 
-  // Stock de la societe consultee, et non le total toutes societes.
+  // Le grand chiffre est le total toutes societes, annonce comme tel.
   //
-  // Cette page etant rendue cote serveur, elle ignorait quelle societe etait
-  // selectionnee : le grand chiffre, la jauge, le seuil, la valeur en euros,
-  // l'alerte de rupture et la quantite suggeree au fournisseur portaient tous
-  // sur le cumul. Un produit epuise chez SEIREN s'affichait donc « Bon » grace
-  // au stock de SMPR. L'outillage reste au total, il n'est pas ventile.
-  const currentOrgId = (await cookies()).get(CURRENT_ORG_COOKIE)?.value;
-  if (currentOrgId && product.product_type !== "equipment") {
-    product.stock_current =
-      orgStocks.find((s: { organization_id: string }) => s.organization_id === currentOrgId)
-        ?.stock_current ?? 0;
-  }
-  const currentOrgName = userOrgs.find((o) => o.id === currentOrgId)?.name ?? null;
+  // Il a brievement dependu d'un cookie reflet de la societe selectionnee.
+  // Mauvaise idee : cette page est rendue cote serveur, donc au premier
+  // affichage le cookie n'est pas encore ecrit et le nombre pouvait etre faux
+  // jusqu'a une navigation. Un chiffre parfois juste est pire qu'un chiffre
+  // toujours vrai.
+  //
+  // La page produit est une fiche de catalogue, pas un ecran d'operation :
+  // elle montre le total, et la repartition juste en dessous dit qui detient
+  // quoi. Les ecrans qui servent a agir — la console mobile, la liste
+  // produits — portent, eux, le stock de la societe consultee.
   const allOrgStocks: OrgStockRow[] = isMultiOrg
     ? userOrgs.map((org) => {
         const pos = orgStocks.find(
@@ -207,7 +203,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                   {/* Nommer la societe : sans elle, rien ne distingue ce
                       chiffre d'un total toutes societes — c'est precisement
                       la confusion qu'il fallait lever. */}
-                  {currentOrgName ? `en stock chez ${currentOrgName}` : "en stock"}
+                  {isMultiOrg ? "en stock, toutes sociétés" : "en stock"}
                   {minStock > 0 && (
                     <>
                       {" · seuil critique "}
@@ -237,27 +233,16 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                     .slice()
                     .sort((a: OrgStockRow, b: OrgStockRow) => b.stock_current - a.stock_current)
                     .map((pos: OrgStockRow) => {
-                      const isCurrent = pos.organization_id === currentOrgId;
                       const share =
                         totalAllOrgs > 0 ? Math.round((pos.stock_current / totalAllOrgs) * 100) : 0;
                       return (
                         <div
                           key={pos.organization_id}
-                          className={cn(
-                            "rounded-lg border px-3.5 py-3",
-                            isCurrent ? "border-foreground/25 bg-foreground/[0.03]" : "bg-card"
-                          )}
+                          className="rounded-lg border bg-card px-3.5 py-3"
                         >
-                          <div className="flex items-baseline justify-between gap-2">
-                            <span className="truncate text-sm font-medium">
-                              {pos.organization?.name ?? "—"}
-                            </span>
-                            {isCurrent && (
-                              <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground">
-                                Société actuelle
-                              </span>
-                            )}
-                          </div>
+                          <span className="block truncate text-sm font-medium">
+                            {pos.organization?.name ?? "—"}
+                          </span>
                           <div className="mt-1.5 flex items-baseline gap-2">
                             <span
                               className={cn(
@@ -273,10 +258,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                           </div>
                           <div className="mt-2 h-1 overflow-hidden rounded-full bg-foreground/[0.06]">
                             <div
-                              className={cn(
-                                "h-full rounded-full",
-                                isCurrent ? "bg-foreground/40" : "bg-foreground/20"
-                              )}
+                              className="h-full rounded-full bg-foreground/25"
                               style={{ width: `${share}%` }}
                             />
                           </div>

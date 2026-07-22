@@ -46,27 +46,15 @@ const organizationStore: StateCreator<OrganizationStore, [], [["zustand/persist"
     }),
 });
 
-/**
- * Nom du cookie qui reflete la societe courante.
- *
- * Le store vit dans localStorage, que le serveur ne voit pas : les pages
- * rendues cote serveur — la fiche produit, par exemple — ignoraient donc
- * completement quelle societe etait selectionnee et affichaient le stock
- * toutes societes confondues. Ce cookie leur donne la reponse.
- *
- * Volontairement lisible par le navigateur (pas httpOnly) : c'est le client
- * qui l'ecrit, et il ne contient qu'un identifiant de societe deja connu de
- * l'utilisateur. Les droits restent appliques par la RLS, jamais par ce
- * cookie.
- */
-export const CURRENT_ORG_COOKIE = "istock-current-org";
-
-function syncOrgCookie(orgId: string | null) {
-  if (typeof document === "undefined") return;
-  const base = `${CURRENT_ORG_COOKIE}=${orgId ?? ""}; path=/; SameSite=Lax`;
-  document.cookie = orgId ? `${base}; max-age=${60 * 60 * 24 * 365}` : `${base}; max-age=0`;
-}
-
+// Note : un cookie reflet de la societe courante a existe ici, pour permettre
+// aux pages rendues cote serveur de connaitre la selection. Il a ete retire.
+// Le serveur rend la page avant que le navigateur n'ecrive le cookie : au
+// premier affichage la valeur etait absente, et le chiffre affiche faux
+// jusqu'a une navigation. Un chiffre parfois juste est pire qu'un chiffre
+// franchement global.
+//
+// Les ecrans qui doivent connaitre la societe la lisent depuis ce store, cote
+// client. Les pages serveur affichent des totaux, annonces comme tels.
 export const useOrganizationStore = create<OrganizationStore>()(
   persist(organizationStore, {
     name: "organization-storage",
@@ -74,20 +62,8 @@ export const useOrganizationStore = create<OrganizationStore>()(
     partialize: (state) => ({
       currentOrganization: state.currentOrganization,
     }),
-    // Au retour sur le site, le cookie peut avoir expire alors que
-    // localStorage a survecu : on le reecrit depuis l'etat restaure.
-    onRehydrateStorage: () => (state) => {
-      syncOrgCookie(state?.currentOrganization?.id ?? null);
-    },
   })
 );
-
-// Toute ecriture de la societe courante met le cookie a jour. S'abonner au
-// store plutot que modifier chaque appelant : un nouveau point de changement
-// serait sinon oublie, et le serveur repartirait sur une societe perimee.
-useOrganizationStore.subscribe((state) => {
-  syncOrgCookie(state.currentOrganization?.id ?? null);
-});
 
 // Helpers de permissions
 export function canInvite(role: string): boolean {
