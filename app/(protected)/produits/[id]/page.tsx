@@ -63,6 +63,13 @@ async function getUserOrgs() {
   });
 }
 
+/** Une ligne de la repartition : ce qu'une societe detient de ce produit. */
+type OrgStockRow = {
+  organization_id: string;
+  stock_current: number;
+  organization?: { name: string } | null;
+};
+
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const [product, userOrgs] = await Promise.all([getProduct(id), getUserOrgs()]);
@@ -71,6 +78,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
   const isMultiOrg = userOrgs.length > 1;
   const orgStocks = product.product_organization_stock ?? [];
+  // Total toutes societes : sert a calculer les parts. Il ne peut plus etre
+  // lu sur product.stock_current, qui porte desormais le stock de la societe
+  // consultee.
+  const totalAllOrgs = orgStocks.reduce(
+    (sum: number, s: { stock_current: number }) => sum + (s.stock_current ?? 0),
+    0
+  );
 
   // Stock de la societe consultee, et non le total toutes societes.
   //
@@ -86,16 +100,18 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         ?.stock_current ?? 0;
   }
   const currentOrgName = userOrgs.find((o) => o.id === currentOrgId)?.name ?? null;
-  const allOrgStocks = isMultiOrg
+  const allOrgStocks: OrgStockRow[] = isMultiOrg
     ? userOrgs.map((org) => {
-        const pos = orgStocks.find((s: any) => s.organization_id === org.id);
+        const pos = orgStocks.find(
+          (s: { organization_id: string }) => s.organization_id === org.id
+        );
         return {
           organization_id: org.id,
           stock_current: pos?.stock_current ?? 0,
           organization: { name: org.name },
         };
       })
-    : orgStocks;
+    : (orgStocks as OrgStockRow[]);
 
   const stockScore = calculateStockScore(product.stock_current, product.stock_min);
   const stockBadgeVariant = getStockBadgeVariant(stockScore);
@@ -200,25 +216,77 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                     </>
                   )}
                 </p>
-                {/* Répartition par organisation — toutes affichées, 0 compris */}
-                {isMultiOrg && (
-                  <div className="flex items-center gap-3 mt-3">
-                    {allOrgStocks
-                      .sort((a: any, b: any) => b.stock_current - a.stock_current)
-                      .map((pos: any) => (
-                        <span
-                          key={pos.organization_id}
-                          className="text-xs text-muted-foreground tabular-nums"
-                        >
-                          <span className="font-medium text-foreground">{pos.stock_current}</span>{" "}
-                          {pos.organization?.name ?? "—"}
-                        </span>
-                      ))}
-                  </div>
-                )}
               </div>
               <StockActions productId={id} />
             </div>
+
+            {/* ── Répartition entre sociétés ──
+                Elle tenait en une ligne de petits caractères gris, alors que
+                c'est la question qu'on se pose en arrivant : qui detient quoi.
+                Chaque societe a desormais son bloc, avec sa part visible ;
+                celle que l'on consulte est marquee, pour qu'on ne confonde
+                pas le grand chiffre du dessus avec un total.
+                Les zeros sont affiches : savoir qu'une societe n'a rien est
+                une information, pas un vide. */}
+            {isMultiOrg && product.product_type !== "equipment" && (
+              <div className="mt-5 border-t pt-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Répartition
+                </p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {allOrgStocks
+                    .slice()
+                    .sort((a: OrgStockRow, b: OrgStockRow) => b.stock_current - a.stock_current)
+                    .map((pos: OrgStockRow) => {
+                      const isCurrent = pos.organization_id === currentOrgId;
+                      const share =
+                        totalAllOrgs > 0 ? Math.round((pos.stock_current / totalAllOrgs) * 100) : 0;
+                      return (
+                        <div
+                          key={pos.organization_id}
+                          className={cn(
+                            "rounded-lg border px-3.5 py-3",
+                            isCurrent ? "border-foreground/25 bg-foreground/[0.03]" : "bg-card"
+                          )}
+                        >
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="truncate text-sm font-medium">
+                              {pos.organization?.name ?? "—"}
+                            </span>
+                            {isCurrent && (
+                              <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground">
+                                Société actuelle
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-1.5 flex items-baseline gap-2">
+                            <span
+                              className={cn(
+                                "font-heading text-2xl font-bold tabular-nums leading-none",
+                                pos.stock_current === 0 && "text-muted-foreground"
+                              )}
+                            >
+                              {pos.stock_current}
+                            </span>
+                            <span className="text-xs tabular-nums text-muted-foreground">
+                              {share} %
+                            </span>
+                          </div>
+                          <div className="mt-2 h-1 overflow-hidden rounded-full bg-foreground/[0.06]">
+                            <div
+                              className={cn(
+                                "h-full rounded-full",
+                                isCurrent ? "bg-foreground/40" : "bg-foreground/20"
+                              )}
+                              style={{ width: `${share}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
 
             {/* Jauge — situe le stock par rapport au seuil critique */}
             {minStock > 0 && (
