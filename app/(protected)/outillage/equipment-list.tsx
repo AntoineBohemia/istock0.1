@@ -281,10 +281,11 @@ export default function EquipmentList() {
                 className={cn(
                   "group rounded-xl border p-4 cursor-pointer transition-all active:scale-[0.99]",
                   isArchived
-                    ? // Fond neutre et trait discontinu : la fiche existe, elle
-                      // n'est plus au catalogue. Le pointillé dit « retiré »
-                      // sans avoir à l'écrire deux fois.
-                      "border-dashed bg-muted/30 hover:border-foreground/30 hover:bg-muted/50"
+                    ? // Même fond et même trait que les autres : une fiche
+                      // archivée reste une fiche, pas un brouillon. Ce qui la
+                      // distingue est dit franchement — une pastille et un
+                      // motif — plutôt que suggéré par de l'effacement.
+                      "bg-card hover:border-foreground/30 hover:shadow-md"
                     : "bg-card hover:border-primary/40 hover:shadow-md"
                 )}
                 onClick={() => setManageProduct(item)}
@@ -293,15 +294,7 @@ export default function EquipmentList() {
                     La photo occupait toute la largeur en banniere, reléguant
                     les informations utiles sous la ligne de flottaison. */}
                 <div className="flex items-start gap-3">
-                  <div
-                    className={cn(
-                      "relative shrink-0",
-                      // La vignette en niveaux de gris : c'est ce qui se voit en
-                      // premier sur une grille, avant tout texte. Un outil hors
-                      // service se reconnaît alors sans rien lire.
-                      isArchived && "opacity-60 grayscale"
-                    )}
-                  >
+                  <div className="relative shrink-0">
                     <ProductIconDisplay
                       iconName={item.icon_name}
                       iconColor={item.icon_color}
@@ -326,7 +319,7 @@ export default function EquipmentList() {
                     <p
                       className={cn(
                         "truncate text-[15px] font-semibold leading-tight transition-colors",
-                        isArchived ? "text-muted-foreground" : "group-hover:text-primary"
+                        !isArchived && "group-hover:text-primary"
                       )}
                     >
                       {item.name}
@@ -338,6 +331,17 @@ export default function EquipmentList() {
                       {item.supplier?.name && <span> · {item.supplier.name}</span>}
                     </p>
                   </div>
+
+                  {/* La marque, franche : un aplat sombre, en capitales. Le
+                      gris et le pointillé disaient « éteint » plutôt que
+                      « retiré » — ils affadissaient la carte au lieu de la
+                      qualifier. Un signe net coûte moins à lire et laisse le
+                      reste de la carte vivre. */}
+                  {isArchived && (
+                    <span className="shrink-0 rounded-full bg-foreground px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-background">
+                      Archivé
+                    </span>
+                  )}
 
                   {/* Modifier une fiche retirée du catalogue est un geste sans
                       objet : le seul qui vaille est de la restaurer, depuis la
@@ -368,17 +372,17 @@ export default function EquipmentList() {
                     construction. */}
                 {isArchived ? (
                   <div className="mt-3">
-                    {/* Le motif est le contenu de cette carte, pas une note en
-                        bas : c'est la seule chose qu'on vient y lire. Il occupe
-                        donc le corps du texte courant, entre guillemets — ce
-                        sont les mots de celui qui a archivé, pas un libellé de
-                        l'application. */}
+                    {/* Le motif est le contenu de cette carte : c'est la seule
+                        chose qu'on vient y lire. Il est donc posé sur sa propre
+                        surface, tenue par un filet à gauche — la forme d'une
+                        citation. Ce sont les mots de celui qui a archivé, ils
+                        méritent mieux qu'une ligne de légende. */}
                     {item.archive_reason ? (
-                      <p className="line-clamp-3 text-sm leading-snug text-foreground/80">
-                        &laquo;&nbsp;{item.archive_reason}&nbsp;&raquo;
+                      <p className="line-clamp-3 rounded-r-lg border-l-2 border-foreground/25 bg-foreground/[0.04] py-2 pl-2.5 pr-2 text-sm leading-snug">
+                        {item.archive_reason}
                       </p>
                     ) : (
-                      <p className="text-sm italic text-muted-foreground/70">
+                      <p className="rounded-r-lg border-l-2 border-foreground/10 bg-foreground/[0.02] py-2 pl-2.5 pr-2 text-sm italic text-muted-foreground">
                         Aucun motif renseigné
                       </p>
                     )}
