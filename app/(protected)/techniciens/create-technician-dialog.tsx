@@ -229,6 +229,16 @@ export default function CreateTechnicianDialog({
                   name="organization_id"
                   render={({ field }) => (
                     <FormItem>
+                      {/* Intitule visible, contrairement aux autres champs qui
+                          se contentent d'un texte d'invite : celui-ci est
+                          pre-rempli avec la societe courante, donc l'invite
+                          « Organisation » n'apparait jamais. On lisait « SMPR »
+                          sans savoir de quoi il s'agissait — et c'est pourtant
+                          la societe a laquelle le technicien sera rattache
+                          definitivement. */}
+                      <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                        Société de rattachement
+                      </label>
                       <FormControl>
                         <select
                           value={field.value || ""}
@@ -236,7 +246,7 @@ export default function CreateTechnicianDialog({
                           className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
                         >
                           <option value="" disabled>
-                            Organisation
+                            Choisir une société
                           </option>
                           {userOrgs?.map((o) => (
                             <option key={o.id} value={o.id}>

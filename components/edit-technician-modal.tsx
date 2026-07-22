@@ -192,8 +192,10 @@ export default function EditTechnicianModal({
 
             {isMultiOrg && (
               <div>
+                {/* Meme intitule qu'a la creation : « Organisation » d'un cote
+                    et « Societe » de l'autre laissait croire a deux notions. */}
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                  Organisation
+                  Société de rattachement
                 </label>
                 <select
                   value={organizationId}
