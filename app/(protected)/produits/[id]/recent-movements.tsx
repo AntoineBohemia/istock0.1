@@ -11,22 +11,26 @@ interface RecentMovementsProps {
 
 const fmtPrice = (n: number) => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 
-function formatRelativeTime(dateStr: string): string {
+/**
+ * Date d'un mouvement, en clair.
+ *
+ * L'affichage etait relatif — « il y a 3j », « hier », une heure seule pour la
+ * journee en cours. Pratique pour juger de la fraicheur, inutilisable pour
+ * tout le reste : on ne peut ni rapprocher une ligne d'une facture, ni la
+ * citer, ni comparer deux mouvements sans compter sur ses doigts. Et la meme
+ * ligne changeait de libelle d'un jour a l'autre.
+ *
+ * L'annee est omise quand c'est l'annee en cours : elle n'apprend rien et
+ * allonge chaque ligne.
+ */
+function formatMovementDate(dateStr: string): string {
   const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return "à l'instant";
-  if (diffMins < 60) return `il y a ${diffMins} min`;
-  if (diffHours < 24) {
-    return date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-  }
-  if (diffDays === 1) return "hier";
-  if (diffDays < 7) return `il y a ${diffDays}j`;
-  return date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  const sameYear = date.getFullYear() === new Date().getFullYear();
+  return date.toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
 }
 
 export default function RecentMovements({ productId }: RecentMovementsProps) {
@@ -126,7 +130,7 @@ export default function RecentMovements({ productId }: RecentMovementsProps) {
 
                     {/* Date */}
                     <td className="px-5 py-3 whitespace-nowrap text-xs text-muted-foreground tabular-nums">
-                      {m.created_at ? formatRelativeTime(m.created_at) : ""}
+                      {m.created_at ? formatMovementDate(m.created_at) : ""}
                     </td>
                   </tr>
                 );
