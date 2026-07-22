@@ -24,7 +24,6 @@ const WATCHED: { table: string; invalidates: readonly (readonly string[])[] }[] 
       queryKeys.dashboard.all,
       queryKeys.technicians.all,
       queryKeys.equipment.all,
-      queryKeys.purchaseInvoices.all,
     ],
   },
   {
@@ -43,10 +42,6 @@ const WATCHED: { table: string; invalidates: readonly (readonly string[])[] }[] 
   {
     table: "equipment_assignments",
     invalidates: [queryKeys.equipment.all, queryKeys.technicians.all],
-  },
-  {
-    table: "purchase_invoices",
-    invalidates: [queryKeys.purchaseInvoices.all, queryKeys.movements.all],
   },
 ];
 

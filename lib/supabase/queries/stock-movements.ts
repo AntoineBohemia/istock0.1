@@ -18,9 +18,8 @@ export interface StockMovement {
   supplier_id: string | null;
   organization_id: string | null;
   unit_price: number | null;
+  /** Numero de facture saisi a l'entree : une note, pas un objet a part */
   invoice_reference?: string | null;
-  /** Facture d'achat qui couvre ce mouvement (une facture → plusieurs achats) */
-  invoice_id?: string | null;
   reverses_movement_id?: string | null;
   /** Quantite deja corrigee sur ce mouvement (quantite reelle = quantity - reversed_quantity) */
   reversed_quantity?: number;
@@ -46,11 +45,6 @@ export interface StockMovement {
   organization?: {
     id: string;
     name: string;
-  } | null;
-  /** Facture d'achat rattachee, pour les entrees */
-  invoice?: {
-    id: string;
-    reference: string | null;
   } | null;
 }
 
@@ -196,8 +190,7 @@ export async function getStockMovements(
       product:products(id, name, sku, image_url, supplier_id, product_type),
       technician:technicians(id, first_name, last_name),
       supplier:suppliers(id, name),
-      organization:organizations(id, name),
-      invoice:purchase_invoices(id, reference)
+      organization:organizations(id, name)
     `,
     { count: "exact" }
   );
@@ -358,25 +351,6 @@ export async function getProductEntries(productId: string, year: number): Promis
   }
 
   return (data || []) as unknown as StockMovement[];
-}
-
-/**
- * Rattache un achat (mouvement d'entrée) à une facture existante.
- */
-export async function linkMovementToInvoice(
-  movementId: string,
-  invoiceId: string | null
-): Promise<void> {
-  const supabase = createClient();
-
-  const { error } = await supabase
-    .from("stock_movements")
-    .update({ invoice_id: invoiceId })
-    .eq("id", movementId);
-
-  if (error) {
-    throw new Error(`Erreur lors du rattachement à la facture: ${error.message}`);
-  }
 }
 
 /**

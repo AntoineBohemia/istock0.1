@@ -11,12 +11,6 @@ export const queryKeys = {
     stats: (orgId?: string) => [...queryKeys.products.all, "stats", orgId] as const,
   },
 
-  purchaseInvoices: {
-    all: ["purchase-invoices"] as const,
-    list: (orgId?: string) => [...queryKeys.purchaseInvoices.all, "list", orgId] as const,
-    detail: (id: string) => [...queryKeys.purchaseInvoices.all, "detail", id] as const,
-  },
-
   categories: {
     all: ["categories"] as const,
     list: (orgId?: string) => [...queryKeys.categories.all, "list", orgId] as const,
@@ -81,7 +75,6 @@ export const queryKeys = {
     list: (orgId?: string) => [...queryKeys.suppliers.all, "list", orgId] as const,
     withProducts: (orgId: string) => [...queryKeys.suppliers.all, "withProducts", orgId] as const,
     withStats: (orgId: string) => [...queryKeys.suppliers.all, "withStats", orgId] as const,
-    invoices: (supplierId: string) => [...queryKeys.suppliers.all, "invoices", supplierId] as const,
     detail: (id: string) => [...queryKeys.suppliers.all, "detail", id] as const,
   },
 
@@ -119,5 +112,11 @@ export const queryKeys = {
     detail: (id: string) => [...queryKeys.vehicles.details(), id] as const,
     documents: (vehicleId: string, type?: string) =>
       [...queryKeys.vehicles.all, "documents", vehicleId, type] as const,
+    /** Periodes de detention d'un vehicule */
+    assignments: (vehicleId: string) =>
+      [...queryKeys.vehicles.all, "assignments", vehicleId] as const,
+    /** Vehicules qu'un technicien a detenus, dans le temps */
+    technicianHistory: (technicianId: string) =>
+      [...queryKeys.vehicles.all, "technician-history", technicianId] as const,
   },
 };

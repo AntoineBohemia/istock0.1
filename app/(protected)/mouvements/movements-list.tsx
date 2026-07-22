@@ -677,28 +677,21 @@ export default function MovementsList() {
         },
       },
       {
-        // La facture rattachee n'apparaissait ni ici ni sur la fiche : la
-        // relation n'etait consultable que depuis la page Factures.
+        // Le numero saisi a l'entree, tel quel. Il n'y a plus de facture a
+        // ouvrir : la colonne n'est plus un lien, juste une reference qu'on
+        // retrouve pour rapprocher un achat de son document papier.
         id: "invoice",
-        meta: { label: "Facture" },
-        accessorFn: (row) => row.invoice?.reference ?? "",
+        meta: { label: "N° facture" },
+        accessorFn: (row) => row.invoice_reference ?? "",
         header: () => (
           <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
-            Facture
+            N° facture
           </span>
         ),
         cell: ({ row }) => {
-          const invoice = row.original.invoice;
-          if (!invoice) return <span className="text-muted-foreground">—</span>;
-          return (
-            <Link
-              href={`/factures?facture=${invoice.id}`}
-              onClick={(e) => e.stopPropagation()}
-              className="text-[15px] hover:underline underline-offset-2"
-            >
-              {invoice.reference || "Sans réf."}
-            </Link>
-          );
+          const reference = row.original.invoice_reference;
+          if (!reference) return <span className="text-muted-foreground">—</span>;
+          return <span className="text-[15px]">{reference}</span>;
         },
       },
     ],

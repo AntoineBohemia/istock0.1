@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { AlertCircle, ImageIcon, Loader2, Paperclip, X } from "lucide-react";
+import { AlertCircle, ImageIcon, Loader2, X } from "lucide-react";
 import { toast } from "@/lib/toast";
 
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,6 @@ import { useSuppliers } from "@/hooks/queries";
 import { generateSKU, uploadProductImage } from "@/lib/supabase/queries/products";
 import { createEntry } from "@/lib/supabase/queries/stock-movements";
 import { toEntryTimestamp } from "@/lib/utils/entry-date";
-import { attachInvoiceFileToMovement } from "@/lib/supabase/queries/attach-invoice";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { useFileUpload } from "@/hooks/use-file-upload";
@@ -38,9 +37,8 @@ export default function CreateEquipmentDialog({ open, onOpenChange }: CreateEqui
   const [supplierId, setSupplierId] = useState("");
   // Date de l'achat : par defaut aujourd'hui, modifiable si on saisit apres coup
   const [entryDate, setEntryDate] = useState("");
-  // Facture d'achat : on part du PDF, la facture est creee a la volee.
-  const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
-  const invoiceInputRef = useRef<HTMLInputElement>(null);
+  // Numero de facture : une note portee par l'entree en stock.
+  const [invoiceRef, setInvoiceRef] = useState("");
   const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
 
@@ -68,7 +66,7 @@ export default function CreateEquipmentDialog({ open, onOpenChange }: CreateEqui
     setPrice("");
     setSupplierId("");
     setEntryDate("");
-    setInvoiceFile(null);
+    setInvoiceRef("");
     clearFiles();
   }
   if (open !== prevOpen) setPrevOpen(open);
@@ -112,34 +110,17 @@ export default function CreateEquipmentDialog({ open, onOpenChange }: CreateEqui
         onSuccess: async (product: { id: string }) => {
           if (stockCurrent > 0) {
             try {
-              const movement = await createEntry(
+              await createEntry(
                 currentOrganization.id,
                 product.id,
                 stockCurrent,
                 supplierId || undefined,
                 price ? parseFloat(price) : undefined,
-                undefined,
+                invoiceRef || undefined,
                 toEntryTimestamp(entryDate)
               );
-              if (invoiceFile && movement?.id) {
-                try {
-                  await attachInvoiceFileToMovement({
-                    file: invoiceFile,
-                    movementId: movement.id,
-                    organizationId: currentOrganization.id,
-                    supplierId: supplierId || null,
-                    invoiceDate: entryDate || null,
-                    totalAmount: price ? parseFloat(price) * stockCurrent : null,
-                  });
-                } catch {
-                  // L'outil et son entree existent : on ne les perd pas pour
-                  // un envoi de fichier rate.
-                  toast.error("Outil créé, mais la facture n'a pas pu être jointe");
-                }
-              }
               queryClient.invalidateQueries({ queryKey: queryKeys.equipment.all });
               queryClient.invalidateQueries({ queryKey: queryKeys.movements.all });
-              queryClient.invalidateQueries({ queryKey: queryKeys.purchaseInvoices.all });
             } catch (err) {
               // L'outil existe deja : on le dit plutot que de laisser croire
               // que tout s'est bien passe.
@@ -293,45 +274,18 @@ export default function CreateEquipmentDialog({ open, onOpenChange }: CreateEqui
 
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Facture d&apos;achat
+                N&deg; de facture
               </label>
-              {/* Le PDF suffit : la facture est créée et rattachée toute seule.
-                  Passer d'abord par la page Factures était un détour. */}
-              <div className="flex items-center gap-2">
-                <input
-                  ref={invoiceInputRef}
-                  type="file"
-                  accept="application/pdf,image/*"
-                  className="hidden"
-                  onChange={(e) => setInvoiceFile(e.target.files?.[0] ?? null)}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9 shrink-0"
-                  onClick={() => invoiceInputRef.current?.click()}
-                >
-                  <Paperclip className="mr-2 size-3.5" />
-                  {invoiceFile ? "Remplacer" : "Joindre un PDF"}
-                </Button>
-                {invoiceFile && (
-                  <>
-                    <span className="text-xs truncate min-w-0 flex-1">{invoiceFile.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setInvoiceFile(null);
-                        if (invoiceInputRef.current) invoiceInputRef.current.value = "";
-                      }}
-                      className="text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
-                      aria-label="Retirer la facture"
-                    >
-                      <X className="size-3.5" />
-                    </button>
-                  </>
-                )}
-              </div>
+              {/* Le numero seul, porte par l'entree en stock. Le PDF joint et
+                  la page Factures ont ete retires : ce qu'on cherche plus tard,
+                  c'est le numero a cote de l'achat. */}
+              <Input
+                type="text"
+                value={invoiceRef}
+                onChange={(e) => setInvoiceRef(e.target.value)}
+                placeholder="Optionnel"
+                className="bg-white dark:bg-card"
+              />
             </div>
           </div>
 

@@ -6,7 +6,6 @@ const PROTECTED_ROUTES = [
   "/achats",
   "/calendar",
   "/actions",
-  "/factures",
   "/fournisseurs",
   "/onboarding-flow",
   "/mouvements",

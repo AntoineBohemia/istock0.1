@@ -59,11 +59,6 @@ export const page_routes: PageRoutesType[] = [
         href: "/achats",
         icon: "ShoppingCart",
       },
-      {
-        title: "Factures",
-        href: "/factures",
-        icon: "ReceiptText",
-      },
     ],
   },
 ];

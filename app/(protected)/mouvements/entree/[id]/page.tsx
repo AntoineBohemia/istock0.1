@@ -36,8 +36,7 @@ async function getMovement(id: string) {
       *,
       product:products(id, name, sku, image_url, price, stock_current),
       supplier:suppliers(id, name, website_url),
-      organization:organizations(id, name),
-      invoice:purchase_invoices(id, reference, invoice_date)
+      organization:organizations(id, name)
     `
     )
     .eq("id", id)
@@ -60,18 +59,8 @@ async function getMovement(id: string) {
   const product = Array.isArray(movement.product) ? movement.product[0] : movement.product;
   const orgRaw = (movement as Record<string, unknown>).organization;
   const organization = (Array.isArray(orgRaw) ? orgRaw[0] : orgRaw) as { name: string } | null;
-  // Supabase renvoie une relation to-one comme un tableau quand la cle
-  // etrangere n'est pas declaree unique : on normalise.
-  const invoiceRaw = (movement as Record<string, unknown>).invoice;
-  const invoice = (Array.isArray(invoiceRaw) ? invoiceRaw[0] : invoiceRaw) as {
-    id: string;
-    reference: string | null;
-    invoice_date: string | null;
-  } | null;
-
-  return { ...movement, product, invoice, organization, alreadyReversed } as typeof movement & {
+  return { ...movement, product, organization, alreadyReversed } as typeof movement & {
     product: typeof product;
-    invoice: typeof invoice;
     organization: typeof organization;
     invoice_reference: string | null;
     alreadyReversed: number;
@@ -208,38 +197,16 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
             </span>
             <span className="font-medium">{movement.supplier?.name || "Non spécifié"}</span>
           </div>
-          {/* Facture rattachee : la relation existait en base et n'etait
-              consultable que depuis la page Factures, jamais depuis le
-              mouvement. Le lien manquait dans ce sens. */}
-          {movement.invoice ? (
+          {/* Le numero saisi a l'entree, tel quel. Il n'y a plus de facture a
+              rattacher : ce champ est la seule trace du document d'achat. */}
+          {movement.invoice_reference && (
             <div className="flex justify-between px-5 py-2.5">
               <span className="text-muted-foreground flex items-center gap-1.5">
                 <File06 className="size-3.5" />
-                Facture
+                N&deg; de facture
               </span>
-              <Link
-                href={`/factures?facture=${movement.invoice.id}`}
-                className="font-medium hover:underline underline-offset-4"
-              >
-                {movement.invoice.reference || "Sans référence"}
-                {movement.invoice.invoice_date && (
-                  <span className="text-muted-foreground font-normal">
-                    {" · "}
-                    {new Date(movement.invoice.invoice_date).toLocaleDateString("fr-FR")}
-                  </span>
-                )}
-              </Link>
+              <span className="font-medium">{movement.invoice_reference}</span>
             </div>
-          ) : (
-            movement.invoice_reference && (
-              <div className="flex justify-between px-5 py-2.5">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <File06 className="size-3.5" />
-                  Réf. facture
-                </span>
-                <span className="font-medium">{movement.invoice_reference}</span>
-              </div>
-            )
           )}
         </div>
       </div>

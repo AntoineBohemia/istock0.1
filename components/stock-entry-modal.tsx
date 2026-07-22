@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Minus, Paperclip, Plus, X } from "lucide-react";
+import { Loader2, Minus, Plus } from "lucide-react";
 import { toast } from "@/lib/toast";
 
 import { Button } from "@/components/ui/button";
@@ -15,14 +15,7 @@ import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProducts, useOrganizations } from "@/hooks/queries";
 import { activeOrganizations } from "@/lib/supabase/queries/organizations";
 import { useCreateStockEntry } from "@/hooks/mutations";
-import { linkMovementToInvoice } from "@/lib/supabase/queries/stock-movements";
 import { toEntryTimestamp } from "@/lib/utils/entry-date";
-import { attachInvoiceFileToMovement } from "@/lib/supabase/queries/attach-invoice";
-import {
-  getPurchaseInvoices,
-  type PurchaseInvoice,
-} from "@/lib/supabase/queries/purchase-invoices";
-import NewInvoiceDialog from "@/components/new-invoice-dialog";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -37,6 +30,7 @@ const EntrySchema = z.object({
   product_id: z.string().min(1, "Sélectionnez un produit"),
   quantity: z.number().min(1, "Minimum 1"),
   unit_price: z.string().optional(),
+  invoice_reference: z.string().optional(),
   entry_date: z.string().optional(),
 });
 
@@ -64,14 +58,6 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
   const isMultiOrg = (userOrgs?.length ?? 0) > 1;
   const [priceEditing, setPriceEditing] = useState(false);
   const [priceOverridden, setPriceOverridden] = useState(false);
-  const [invoiceId, setInvoiceId] = useState("");
-  // Facture jointe directement en PDF, sans passer par la page Factures
-  const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
-  const invoiceInputRef = useRef<HTMLInputElement>(null);
-  const [invoices, setInvoices] = useState<PurchaseInvoice[]>([]);
-  const [newInvoiceOpen, setNewInvoiceOpen] = useState(false);
-  const [isLinkingInvoice, setIsLinkingInvoice] = useState(false);
-
   const form = useForm<EntryValues>({
     resolver: zodResolver(EntrySchema),
     defaultValues: {
@@ -79,6 +65,7 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
       product_id: productId || "",
       quantity: 1,
       unit_price: "",
+      invoice_reference: "",
     },
   });
 
@@ -93,31 +80,16 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
     if (open) {
       setPriceEditing(false);
       setPriceOverridden(false);
-      setInvoiceId("");
       form.reset({
         organization_id: isMultiOrg ? "" : (userOrgs?.[0]?.id ?? ""),
         product_id: productId || "",
         quantity: 1,
         unit_price: "",
+        invoice_reference: "",
         entry_date: "",
       });
     }
   }, [open]);
-
-  // Factures disponibles pour rattacher cet achat
-  const reloadInvoices = async () => {
-    if (!currentOrganization?.id) return;
-    try {
-      setInvoices(await getPurchaseInvoices(currentOrganization.id));
-    } catch {
-      // La liste reste vide : on peut toujours créer une facture à la volée
-    }
-  };
-
-  useEffect(() => {
-    if (open) reloadInvoices();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, currentOrganization?.id]);
 
   const defaultPrice = selectedProduct?.price ?? null;
 
@@ -140,41 +112,16 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
         quantity: data.quantity,
         supplierId: selectedProduct?.supplier_id ?? undefined,
         unitPrice: price,
+        // Le numero de facture voyage avec le mouvement : c'est une note portee
+        // par l'achat, plus un objet a classer ailleurs.
+        invoiceReference: data.invoice_reference || undefined,
         // Date du jour => heure de validation, pas minuit.
         entryDate: toEntryTimestamp(data.entry_date),
       },
       {
-        // Le rattachement se fait après création : il a besoin de l'id du mouvement
-        onSuccess: async (movement) => {
-          const label = `+${data.quantity} ${selectedProduct?.name ?? "produit"} entré en stock`;
-          if (!invoiceId && !invoiceFile) {
-            toast.success(label);
-            onClose();
-            return;
-          }
-          setIsLinkingInvoice(true);
-          try {
-            if (invoiceFile && currentOrganization?.id) {
-              // Le PDF cree la facture et la rattache en une fois
-              await attachInvoiceFileToMovement({
-                file: invoiceFile,
-                movementId: movement.id,
-                organizationId: currentOrganization.id,
-                // Le fournisseur vient du produit, comme pour le mouvement
-                supplierId: selectedProduct?.supplier_id ?? null,
-                invoiceDate: data.entry_date || null,
-                totalAmount: data.unit_price ? Number(data.unit_price) * data.quantity : null,
-              });
-            } else {
-              await linkMovementToInvoice(movement.id, invoiceId);
-            }
-            toast.success(`${label} · rattaché à la facture`);
-          } catch {
-            toast.error("Entrée enregistrée, mais le rattachement à la facture a échoué");
-          } finally {
-            setIsLinkingInvoice(false);
-            onClose();
-          }
+        onSuccess: () => {
+          toast.success(`+${data.quantity} ${selectedProduct?.name ?? "produit"} entré en stock`);
+          onClose();
         },
         onError: (err) => {
           toast.error(err instanceof Error ? err.message : "Erreur");
@@ -185,9 +132,7 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
 
   return (
     <>
-      {/* La modale s'efface pendant la création de facture pour éviter
-          l'empilement — la saisie en cours est conservée. */}
-      <Dialog open={open && !newInvoiceOpen} onOpenChange={(o) => !o && onClose()}>
+      <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
         <DialogContent className="max-w-sm gap-0 p-0">
           <DialogHeader className="px-5 pt-5 pb-3">
             <DialogTitle className="text-base font-semibold">Entrée de stock</DialogTitle>
@@ -409,76 +354,33 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
                 )}
               />
 
-              {/* Facture — une facture peut couvrir plusieurs achats */}
-              <div className="border-t px-5 py-3 space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-medium text-foreground shrink-0">Facture</span>
-                  <select
-                    value={invoiceId}
-                    onChange={(e) => {
-                      if (e.target.value === "__new__") {
-                        setNewInvoiceOpen(true);
-                      } else {
-                        setInvoiceId(e.target.value);
-                        // Un choix dans la liste rend le PDF sans objet
-                        if (e.target.value) setInvoiceFile(null);
-                      }
-                    }}
-                    disabled={!!invoiceFile}
-                    className="h-8 w-52 rounded-md border border-input bg-white dark:bg-card px-2 text-sm disabled:opacity-50"
-                  >
-                    <option value="">Aucune facture</option>
-                    {invoices.map((inv) => (
-                      <option key={inv.id} value={inv.id}>
-                        {inv.reference}
-                        {inv.supplier?.name ? ` — ${inv.supplier.name}` : ""}
-                      </option>
-                    ))}
-                    <option value="__new__">+ Nouvelle facture…</option>
-                  </select>
-                </div>
+              {/* N° de facture — une note portée par l'entrée.
 
-                {/* Joindre directement le PDF : la facture est creee et
-                    rattachee toute seule, sans passer par la page Factures. */}
-                <div className="flex items-center justify-end gap-2">
-                  <input
-                    ref={invoiceInputRef}
-                    type="file"
-                    accept="application/pdf,image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0] ?? null;
-                      setInvoiceFile(f);
-                      if (f) setInvoiceId("");
-                    }}
-                  />
-                  {invoiceFile ? (
-                    <>
-                      <span className="text-xs truncate min-w-0">{invoiceFile.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setInvoiceFile(null);
-                          if (invoiceInputRef.current) invoiceInputRef.current.value = "";
-                        }}
-                        className="text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
-                        aria-label="Retirer la facture"
-                      >
-                        <X className="size-3.5" />
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => invoiceInputRef.current?.click()}
-                      className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-                    >
-                      <Paperclip className="size-3.5" />
-                      ou joindre un PDF
-                    </button>
-                  )}
-                </div>
-              </div>
+                  Le rattachement d'un PDF et la page Factures ont été retirés :
+                  ce qu'on veut retrouver plus tard, c'est le numéro à côté de
+                  l'achat, pas un classeur à tenir en parallèle. */}
+              <FormField
+                control={form.control}
+                name="invoice_reference"
+                render={({ field }) => (
+                  <FormItem className="border-t px-5 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="shrink-0 text-sm font-medium text-foreground">
+                        N° de facture
+                      </span>
+                      <FormControl>
+                        <Input
+                          type="text"
+                          placeholder="Optionnel"
+                          className="h-8 w-52 bg-white text-right text-sm dark:bg-card"
+                          {...field}
+                        />
+                      </FormControl>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               {/* Date d'entrée */}
               <FormField
@@ -512,34 +414,17 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
               <div className="px-5 pt-2 pb-5">
                 <Button
                   type="submit"
-                  disabled={createEntry.isPending || isLinkingInvoice}
+                  disabled={createEntry.isPending}
                   className="w-full h-10 rounded-lg"
                 >
-                  {(createEntry.isPending || isLinkingInvoice) && (
-                    <Loader2 className="size-4 animate-spin" />
-                  )}
-                  {isLinkingInvoice ? "Rattachement à la facture…" : "Entrer en stock"}
+                  {createEntry.isPending && <Loader2 className="size-4 animate-spin" />}
+                  Entrer en stock
                 </Button>
               </div>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
-
-      {/* Hors de la modale d'entrée : elle s'ouvre seule, sans superposition */}
-      {currentOrganization?.id && (
-        <NewInvoiceDialog
-          open={newInvoiceOpen}
-          onOpenChange={setNewInvoiceOpen}
-          organizationId={currentOrganization.id}
-          defaultSupplierId={selectedProduct?.supplier_id}
-          onCreated={(invoice) => {
-            // La nouvelle facture devient celle sélectionnée
-            setInvoices((prev) => [invoice, ...prev]);
-            setInvoiceId(invoice.id);
-          }}
-        />
-      )}
     </>
   );
 }

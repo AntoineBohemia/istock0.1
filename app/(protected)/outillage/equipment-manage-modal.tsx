@@ -1,7 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, History, Minus, Pencil, Plus, Receipt, ShoppingCart } from "lucide-react";
+import {
+  Archive,
+  ChevronDown,
+  History,
+  Minus,
+  Pencil,
+  Plus,
+  Receipt,
+  ShoppingCart,
+} from "lucide-react";
 import Link from "next/link";
 import { toast } from "@/lib/toast";
 
@@ -239,6 +248,24 @@ export default function EquipmentManageModal({
             </div>
           </div>
         </DialogHeader>
+
+        {/* ── Motif d'archivage ──
+            Un motif qu'on ne peut pas relire ne sert a rien : il apparait ici
+            des que l'outil est sorti du catalogue. */}
+        {p.archived_at && p.archive_reason && (
+          <div className="mx-5 mt-4 rounded-lg border border-attention/30 bg-attention-bg/30 px-3 py-2.5">
+            <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              <Archive className="size-3" />
+              Archivé —{" "}
+              {new Date(p.archived_at).toLocaleDateString("fr-FR", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
+            </p>
+            <p className="mt-1 text-sm whitespace-pre-line">{p.archive_reason}</p>
+          </div>
+        )}
 
         {/* ── Chiffres clés ── */}
         <div className="px-5 py-3">
@@ -565,16 +592,15 @@ export default function EquipmentManageModal({
                           <span className="text-[11px] text-muted-foreground truncate">
                             {pu.supplier?.name ?? "Fournisseur non renseigné"}
                           </span>
-                          {pu.invoice ? (
-                            <Link
-                              href={`/factures?facture=${pu.invoice.id}`}
-                              className="text-[11px] font-medium hover:underline underline-offset-2 shrink-0"
-                            >
-                              {pu.invoice.reference || "Facture"}
-                            </Link>
+                          {/* Le numero saisi a l'achat. Plus de facture a
+                              ouvrir : la reference se lit sur place. */}
+                          {pu.invoice_reference ? (
+                            <span className="text-[11px] font-medium shrink-0">
+                              {pu.invoice_reference}
+                            </span>
                           ) : (
                             <span className="text-[11px] text-muted-foreground/60 shrink-0">
-                              Aucune facture
+                              Sans n&deg; de facture
                             </span>
                           )}
                         </div>

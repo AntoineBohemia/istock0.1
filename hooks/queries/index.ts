@@ -8,4 +8,3 @@ export * from "./use-organizations";
 export * from "./use-inventory";
 export * from "./use-equipment";
 export * from "./use-vehicles";
-export * from "./use-purchase-invoices";

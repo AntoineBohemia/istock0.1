@@ -37,15 +37,6 @@ export interface SupplierStats {
 
 export interface SupplierWithStats extends SupplierWithProducts, SupplierStats {}
 
-/** Facture d'achat rattachee a un fournisseur */
-export interface SupplierInvoice {
-  id: string;
-  reference: string | null;
-  invoice_date: string | null;
-  total_amount: number | null;
-  file_path: string | null;
-}
-
 /**
  * Récupère tous les fournisseurs
  */
@@ -139,25 +130,6 @@ export async function getSuppliersWithStats(organizationId: string): Promise<Sup
       invoice_count: 0,
     }),
   }));
-}
-
-/**
- * Factures d'achat d'un fournisseur, la plus récente en premier
- */
-export async function getSupplierInvoices(supplierId: string): Promise<SupplierInvoice[]> {
-  const supabase = createClient();
-
-  const { data, error } = await supabase
-    .from("purchase_invoices")
-    .select("id, reference, invoice_date, total_amount, file_path")
-    .eq("supplier_id", supplierId)
-    .order("invoice_date", { ascending: false });
-
-  if (error) {
-    throw new Error(`Erreur lors de la récupération des factures: ${error.message}`);
-  }
-
-  return (data ?? []) as SupplierInvoice[];
 }
 
 /**

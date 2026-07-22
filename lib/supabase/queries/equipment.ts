@@ -42,6 +42,8 @@ export interface EquipmentProduct {
   created_at: string | null;
   updated_at: string | null;
   archived_at: string | null;
+  /** Motif saisi a l'archivage. Null tant que l'outil est au catalogue. */
+  archive_reason: string | null;
   product_type: "equipment";
   supplier?: { id: string; name: string } | null;
   assignments: EquipmentAssignment[];
@@ -316,14 +318,14 @@ export async function getAvailableEquipment(organizationId: string) {
   return data || [];
 }
 
-/** Un achat d'outil, avec sa facture si elle est rattachee */
+/** Un achat d'outil */
 export interface EquipmentPurchase {
   id: string;
   quantity: number;
   unit_price: number | null;
   created_at: string | null;
   supplier: { id: string; name: string } | null;
-  invoice: { id: string; reference: string | null } | null;
+  invoice_reference: string | null;
 }
 
 /**
@@ -339,9 +341,8 @@ export async function getEquipmentPurchases(productId: string): Promise<Equipmen
   const { data, error } = await supabase
     .from("stock_movements")
     .select(
-      `id, quantity, unit_price, created_at,
-       supplier:suppliers(id, name),
-       invoice:purchase_invoices(id, reference)`
+      `id, quantity, unit_price, created_at, invoice_reference,
+       supplier:suppliers(id, name)`
     )
     .eq("product_id", productId)
     .eq("movement_type", "entry")
@@ -358,6 +359,5 @@ export async function getEquipmentPurchases(productId: string): Promise<Equipmen
     // Supabase renvoie une relation to-one comme un tableau quand la cle
     // etrangere n'est pas unique : on normalise.
     supplier: Array.isArray(row.supplier) ? row.supplier[0] : row.supplier,
-    invoice: Array.isArray(row.invoice) ? row.invoice[0] : row.invoice,
   })) as unknown as EquipmentPurchase[];
 }

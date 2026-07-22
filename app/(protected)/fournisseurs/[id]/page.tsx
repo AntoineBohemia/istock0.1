@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
-  FileText,
   Globe,
   Mail,
   Package,
@@ -29,11 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  useSupplier,
-  useSupplierInvoices,
-  useSuppliersWithStats,
-} from "@/hooks/queries/use-suppliers";
+import { useSupplier, useSuppliersWithStats } from "@/hooks/queries/use-suppliers";
 import { useDeleteSupplier } from "@/hooks/mutations";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { formatPhone, phoneHref } from "@/lib/utils/phone";
@@ -54,7 +49,6 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
   const orgId = useOrganizationStore((s) => s.currentOrganization?.id);
 
   const { data: supplier, isLoading } = useSupplier(id);
-  const { data: invoices = [] } = useSupplierInvoices(id);
   // Meme requete que la liste : le cache est partage, pas de second appel
   // quand on arrive depuis la page Fournisseurs.
   const { data: allStats = [] } = useSuppliersWithStats(orgId);
@@ -301,57 +295,6 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
                 </Link>
               );
             })}
-          </div>
-        )}
-      </div>
-
-      {/* Factures */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="font-heading font-semibold text-sm">Factures</h2>
-          {invoices.length > 0 && (
-            <Link
-              href="/factures"
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Toutes les factures
-            </Link>
-          )}
-        </div>
-        {invoices.length === 0 ? (
-          <div className="rounded-xl border bg-card px-4 py-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              Aucune facture enregistrée pour ce fournisseur.
-            </p>
-          </div>
-        ) : (
-          <div className="rounded-xl border bg-card divide-y">
-            {invoices.map((invoice) => (
-              <Link
-                key={invoice.id}
-                href="/factures"
-                className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors"
-              >
-                <span className="flex items-center gap-2 min-w-0">
-                  <FileText className="size-3.5 text-muted-foreground shrink-0" />
-                  <span className="text-sm font-medium truncate">
-                    {invoice.reference || "Sans référence"}
-                  </span>
-                </span>
-                <div className="flex items-center gap-3 shrink-0 text-sm">
-                  {invoice.invoice_date && (
-                    <span className="text-muted-foreground tabular-nums">
-                      {fmtDate(invoice.invoice_date)}
-                    </span>
-                  )}
-                  {invoice.total_amount !== null && (
-                    <span className="font-heading font-bold tabular-nums">
-                      {fmtPrice(invoice.total_amount)}
-                    </span>
-                  )}
-                </div>
-              </Link>
-            ))}
           </div>
         )}
       </div>
