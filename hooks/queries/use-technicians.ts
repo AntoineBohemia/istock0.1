@@ -11,10 +11,22 @@ import {
   getTechnicianYearlyTotals,
 } from "@/lib/supabase/queries/technicians";
 
+/**
+ * Techniciens de toutes les societes du compte.
+ *
+ * `orgId` ne filtre plus : il conditionne seulement le declenchement de la
+ * requete, le temps que la societe courante soit connue. Le RPC recoit NULL
+ * et renvoie donc tout le monde.
+ *
+ * Filtrer sur la societe courante rendait invisibles les techniciens des
+ * autres societes — celui de SEIREN n'apparaissait jamais depuis SMPR, et
+ * rien ne signalait son existence. L'application se consulte d'un bloc ; ce
+ * sont les ecrans d'action qui ciblent une societe.
+ */
 export function useTechnicians(orgId?: string, year?: number) {
   return useQuery({
-    queryKey: queryKeys.technicians.list(orgId, year),
-    queryFn: () => getTechnicians(orgId, year),
+    queryKey: queryKeys.technicians.list(undefined, year),
+    queryFn: () => getTechnicians(undefined, year),
     enabled: !!orgId,
   });
 }

@@ -147,8 +147,11 @@ export default function TechniciansList() {
     });
   }, [technicians, debouncedSearch, vehicleByTechnician]);
 
-  const [columnVisibility, setColumnVisibility] = useColumnVisibility("techniciens", {
-    organization: false,
+  // La cle de stockage change : la liste couvre desormais toutes les societes,
+  // et la colonne qui les distingue etait masquee par defaut. Garder l'ancienne
+  // cle aurait conserve ce masquage dans les navigateurs qui l'avaient deja
+  // enregistre — la colonne serait restee invisible malgre ce changement.
+  const [columnVisibility, setColumnVisibility] = useColumnVisibility("techniciens-v2", {
     email: false,
   });
 

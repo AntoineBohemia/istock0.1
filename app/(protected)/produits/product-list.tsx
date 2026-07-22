@@ -16,6 +16,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Package,
+  Building2,
   Truck,
   Activity,
   Tag,
@@ -108,6 +109,7 @@ export default function ProductList() {
   const [filterCategories, setFilterCategories] = useState<Set<string>>(new Set());
   const [filterSuppliers, setFilterSuppliers] = useState<Set<string>>(new Set());
   const [filterStatuses, setFilterStatuses] = useState<Set<string>>(new Set());
+  const [filterOrgs, setFilterOrgs] = useState<Set<string>>(new Set());
 
   const searchQuery = filters.search;
   const setSearchQuery = (value: string) => setFilters({ search: value });
@@ -173,6 +175,15 @@ export default function ProductList() {
     if (filterSuppliers.size > 0) {
       result = result.filter((p) => p.supplier_id && filterSuppliers.has(p.supplier_id));
     }
+    if (filterOrgs.size > 0) {
+      // « Detenu par » : on garde les produits dont au moins une des societes
+      // cochees possede du stock.
+      result = result.filter((p) =>
+        p.product_organization_stock?.some(
+          (pos) => filterOrgs.has(pos.organization_id) && pos.stock_current > 0
+        )
+      );
+    }
     if (filterStatuses.size > 0) {
       // Le statut se recalcule a la volee : il derive du stock et du seuil,
       // il n'existe pas comme colonne. Le filtrer en base demanderait de
@@ -182,7 +193,7 @@ export default function ProductList() {
       );
     }
     return result;
-  }, [allProducts, filterCategories, filterSuppliers, filterStatuses]);
+  }, [allProducts, filterCategories, filterSuppliers, filterStatuses, filterOrgs]);
 
   // Un seul point de verite : ajouter un filtre sans mettre a jour l'etat vide
   // afficherait « ajoutez vos produits » alors qu'un filtre masque tout.
@@ -190,7 +201,8 @@ export default function ProductList() {
     Boolean(searchQuery) ||
     filterCategories.size > 0 ||
     filterSuppliers.size > 0 ||
-    filterStatuses.size > 0;
+    filterStatuses.size > 0 ||
+    filterOrgs.size > 0;
 
   const [columnVisibility, setColumnVisibility] = useColumnVisibility("produits");
 
@@ -512,6 +524,20 @@ export default function ProductList() {
             onToggle={(id) => setFilterStatuses((prev) => toggleSet(prev, id))}
             onClear={() => setFilterStatuses(new Set())}
           />
+          {/* Societe : la liste montre toujours les deux, ce filtre sert a
+              repondre a « qu'est-ce que SEIREN detient reellement ? ». Il ne
+              cache rien par defaut — c'est un outil de reduction, pas un
+              cloisonnement. */}
+          {isMultiOrg && (
+            <FilterChip
+              label="Société"
+              icon={Building2}
+              options={(userOrgs ?? []).map((o) => ({ id: o.id, label: o.name }))}
+              selected={filterOrgs}
+              onToggle={(id) => setFilterOrgs((prev) => toggleSet(prev, id))}
+              onClear={() => setFilterOrgs(new Set())}
+            />
+          )}
         </div>
 
         <div className="ml-auto shrink-0">

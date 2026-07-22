@@ -307,8 +307,10 @@ describe("useTechnicians", () => {
     renderHook(() => useTechnicians("org-1"), { wrapper });
 
     await waitFor(() => {
-      // Le second parametre `year` a ete ajoute apres l'ecriture du test.
-      expect(getTechnicians).toHaveBeenCalledWith("org-1", undefined);
+      // La societe ne filtre plus : elle conditionne seulement le
+      // declenchement de la requete. Filtrer dessus rendait invisibles les
+      // techniciens des autres societes du compte.
+      expect(getTechnicians).toHaveBeenCalledWith(undefined, undefined);
     });
   });
 
