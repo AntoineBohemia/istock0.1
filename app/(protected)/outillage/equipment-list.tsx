@@ -170,10 +170,18 @@ export default function EquipmentList() {
 
         {totalCount > 0 && (
           <div className="flex items-center gap-4 shrink-0">
+            {/* En vue « Archivés », ce total ne compte pas le parc en service :
+                l'annoncer comme « unités » tout court le ferait passer pour le
+                stock courant, alors qu'il porte sur des fiches retirées. */}
             <span className="flex items-center gap-2 text-sm">
-              <Wrench className="size-4 text-muted-foreground" />
+              {showArchived ? (
+                <Archive className="size-4 text-muted-foreground" />
+              ) : (
+                <Wrench className="size-4 text-muted-foreground" />
+              )}
               <span>
-                <span className="font-semibold tabular-nums">{stats.totalUnits}</span> unites
+                <span className="font-semibold tabular-nums">{stats.totalUnits}</span>{" "}
+                {showArchived ? "unités archivées" : "unités"}
                 {stats.totalValue > 0 && (
                   <span className="text-muted-foreground tabular-nums">
                     {" · "}
@@ -205,7 +213,26 @@ export default function EquipmentList() {
       </div>
 
       {/* ── Cards ── */}
-      {totalCount === 0 && !search ? (
+      {totalCount === 0 && !search && showArchived ? (
+        // Un état vide doit parler de l'endroit où l'on se trouve. Celui-ci
+        // proposait « Ajoutez un outil » dans la vue des archives, ce qui
+        // n'avait aucun rapport avec ce qu'on venait y chercher.
+        <div className="rounded-xl border bg-card">
+          <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+            <div className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-muted">
+              <Archive className="size-5 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold">Aucun outil archivé</h3>
+            <p className="mt-1 max-w-xs text-sm text-muted-foreground">
+              Les outils retirés du catalogue apparaîtront ici, avec leur motif. Ils restent
+              restaurables.
+            </p>
+            <Button variant="outline" className="mt-5" onClick={() => setShowArchived(false)}>
+              Revenir aux outils en service
+            </Button>
+          </div>
+        </div>
+      ) : totalCount === 0 && !search ? (
         <div className="rounded-xl border bg-card overflow-hidden">
           <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
             <div className="flex size-16 items-center justify-center rounded-2xl bg-muted mb-4">
@@ -242,10 +269,24 @@ export default function EquipmentList() {
             const shown = item.assignments.slice(0, 4);
             const remaining = item.assignments.length - shown.length;
 
+            // Un outil archivé n'est pas un outil en service : sa carte était
+            // pourtant la même, au pixel près. On basculait sur « Archivés » et
+            // la grille se contentait de changer de contenu — rien ne disait
+            // qu'on regardait des fiches sorties du catalogue.
+            const isArchived = item.archived_at !== null;
+
             return (
               <div
                 key={item.id}
-                className="group rounded-xl border bg-card p-4 cursor-pointer transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.99]"
+                className={cn(
+                  "group rounded-xl border p-4 cursor-pointer transition-all active:scale-[0.99]",
+                  isArchived
+                    ? // Fond neutre et trait discontinu : la fiche existe, elle
+                      // n'est plus au catalogue. Le pointillé dit « retiré »
+                      // sans avoir à l'écrire deux fois.
+                      "border-dashed bg-muted/30 hover:border-foreground/30 hover:bg-muted/50"
+                    : "bg-card hover:border-primary/40 hover:shadow-md"
+                )}
                 onClick={() => setManageProduct(item)}
               >
                 {/* Identite : vignette + nom + reference et fournisseur.
@@ -259,7 +300,10 @@ export default function EquipmentList() {
                       imageUrl={item.image_url}
                       size="lg"
                     />
-                    {alert !== "none" && (
+                    {/* L'alerte d'ancienneté ne concerne que les outils en
+                        service : relancer un technicien sur une fiche retirée
+                        du catalogue n'a pas de sens. */}
+                    {alert !== "none" && !isArchived && (
                       <span
                         className={cn(
                           "absolute -top-1 -left-1 size-3 rounded-full ring-2 ring-card",
@@ -271,29 +315,56 @@ export default function EquipmentList() {
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-[15px] leading-tight truncate group-hover:text-primary transition-colors">
+                    <p
+                      className={cn(
+                        "truncate text-[15px] font-semibold leading-tight transition-colors",
+                        isArchived ? "text-muted-foreground" : "group-hover:text-primary"
+                      )}
+                    >
                       {item.name}
                     </p>
                     {/* Reference et fournisseur : le fournisseur etait saisi au
                         formulaire sans jamais apparaitre sur la carte. */}
-                    <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                    <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
                       {item.sku}
                       {item.supplier?.name && <span> · {item.supplier.name}</span>}
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    title="Modifier cet outil"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditProduct(item);
-                    }}
-                    className="flex size-8 shrink-0 items-center justify-center rounded-lg border bg-background transition-colors hover:bg-foreground hover:text-background cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                  >
-                    <Pencil className="size-3.5" />
-                  </button>
+                  {/* Modifier une fiche retirée du catalogue est un geste sans
+                      objet : le seul qui vaille est de la restaurer, depuis la
+                      fenêtre de l'outil. */}
+                  {!isArchived && (
+                    <button
+                      type="button"
+                      title="Modifier cet outil"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditProduct(item);
+                      }}
+                      className="flex size-8 shrink-0 items-center justify-center rounded-lg border bg-background transition-colors hover:bg-foreground hover:text-background cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                    >
+                      <Pencil className="size-3.5" />
+                    </button>
+                  )}
                 </div>
+
+                {/* La date d'archivage, en clair. « Archivé » seul laisse la
+                    question ouverte : depuis quand, et pourquoi — le motif se
+                    lit en ouvrant la fiche. */}
+                {isArchived && (
+                  <div className="mt-3 flex items-center gap-1.5 rounded-lg bg-foreground/[0.05] px-2.5 py-1.5">
+                    <Archive className="size-3 shrink-0 text-muted-foreground" />
+                    <span className="truncate text-[11px] font-medium text-muted-foreground">
+                      Archivé le{" "}
+                      {new Date(item.archived_at!).toLocaleDateString("fr-FR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      })}
+                    </span>
+                  </div>
+                )}
 
                 <div className="mt-3 space-y-3">
                   <div className="min-w-0">

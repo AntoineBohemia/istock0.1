@@ -257,29 +257,68 @@ export default function EquipmentManageModal({
           </div>
         </DialogHeader>
 
+        {/* ── Motif d'archivage ──
+            Un motif qu'on ne peut pas relire ne sert a rien : il apparait ici
+            des que l'outil est sorti du catalogue. */}
+        {p.archived_at && (
+          <div className="mx-5 mt-4 rounded-lg border border-attention/30 bg-attention-bg/30 px-3 py-2.5">
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <Archive className="size-3" />
+              Archivé —{" "}
+              {new Date(p.archived_at).toLocaleDateString("fr-FR", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
+            </p>
+            {p.archive_reason ? (
+              <p className="mt-1 whitespace-pre-line text-sm">{p.archive_reason}</p>
+            ) : (
+              // Le dire plutot que de laisser un cadre vide, qui se lirait
+              // comme un defaut d affichage.
+              <p className="mt-1 text-sm text-muted-foreground">
+                Aucun motif renseigne — archive avant que la question ne soit posee.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* ── Actions ──
             Toutes de même poids : aucune n'est le geste principal de cet
             écran — celui-là, « assigner », vit dans la liste des détenteurs,
             à l'endroit où l'on regarde qui détient quoi. */}
         <div className="flex flex-wrap items-center gap-2 px-5 pt-4">
-          {/* Racheter : le bouton « Entree de stock » n'existait que sur la
-              page Produits, qui n'affiche meme pas l'outillage. */}
-          <Button variant="outline" size="sm" className="h-8" onClick={() => setRebuyOpen(true)}>
-            <ShoppingCart className="size-3.5" />
-            Racheter
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8"
-            onClick={() => {
-              onOpenChange(false);
-              onEdit();
-            }}
-          >
-            <Pencil className="size-3.5" />
-            Modifier
-          </Button>
+          {/* Sur une fiche archivée, ces gestes n'ont plus d'objet : racheter
+              une référence qu'on vient de retirer du catalogue, ou en corriger
+              le libellé, revient à la maintenir en service à moitié. Le seul
+              geste qui vaille est de la restaurer — ou de la laisser. */}
+          {!p.archived_at && (
+            <>
+              {/* Racheter : le bouton « Entree de stock » n'existait que sur la
+                  page Produits, qui n'affiche meme pas l'outillage. */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8"
+                onClick={() => setRebuyOpen(true)}
+              >
+                <ShoppingCart className="size-3.5" />
+                Racheter
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8"
+                onClick={() => {
+                  onOpenChange(false);
+                  onEdit();
+                }}
+              >
+                <Pencil className="size-3.5" />
+                Modifier
+              </Button>
+            </>
+          )}
           {/* Retirer quelques exemplaires n'est pas archiver la reference :
               l'un sort deux outils casses, l'autre sort les quinze du
               catalogue. Les deux gestes voisinent ici, nommes distinctement. */}
@@ -304,24 +343,6 @@ export default function EquipmentManageModal({
             />
           </span>
         </div>
-
-        {/* ── Motif d'archivage ──
-            Un motif qu'on ne peut pas relire ne sert a rien : il apparait ici
-            des que l'outil est sorti du catalogue. */}
-        {p.archived_at && p.archive_reason && (
-          <div className="mx-5 mt-4 rounded-lg border border-attention/30 bg-attention-bg/30 px-3 py-2.5">
-            <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              <Archive className="size-3" />
-              Archivé —{" "}
-              {new Date(p.archived_at).toLocaleDateString("fr-FR", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })}
-            </p>
-            <p className="mt-1 text-sm whitespace-pre-line">{p.archive_reason}</p>
-          </div>
-        )}
 
         {/* ── Chiffres clés ──
             Trois nombres de même taille se lisaient comme une grille inerte, où
