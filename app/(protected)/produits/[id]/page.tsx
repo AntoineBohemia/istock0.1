@@ -1,6 +1,6 @@
 import { generateMeta, cn } from "@/lib/utils";
 
-import { AlertTriangle, ExternalLink, Mail, Phone } from "lucide-react";
+import { AlertTriangle, Archive, ExternalLink, Mail, Phone } from "lucide-react";
 
 import { StatusPill } from "@/components/ui/status-pill";
 import { Button } from "@/components/ui/button";
@@ -178,10 +178,43 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         actions={
           <>
             <EditProductButton productId={id} />
-            <ArchiveProductButton productId={id} productName={product.name} />
+            <ArchiveProductButton
+              productId={id}
+              productName={product.name}
+              stockCount={currentStock}
+            />
           </>
         }
       />
+
+      {/* ── Fiche archivée ──
+          La date et le motif existaient en base sans etre affiches nulle part :
+          on voyait qu'un produit avait disparu du catalogue, jamais pourquoi. */}
+      {product.archived_at && (
+        <div className="rounded-xl border border-attention/30 bg-attention-bg px-5 py-4">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-attention">
+            <Archive className="size-3.5" />
+            Archivé le{" "}
+            {new Date(product.archived_at).toLocaleDateString("fr-FR", {
+              day: "2-digit",
+              month: "long",
+              year: "numeric",
+            })}
+          </p>
+          {product.archive_reason ? (
+            <p className="mt-1 text-sm whitespace-pre-line">{product.archive_reason}</p>
+          ) : (
+            <p className="mt-1 text-sm text-muted-foreground">
+              Aucun motif renseigné — cette fiche a été archivée avant que le motif ne soit demandé.
+            </p>
+          )}
+          {currentStock > 0 && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              {currentStock} unité{currentStock > 1 ? "s" : ""} restent comptées en stock.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* ── Content ── */}
       <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
