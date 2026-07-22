@@ -39,6 +39,7 @@ import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProducts, useTechnicians, useStockMovements } from "@/hooks/queries";
 import { useCreateStockEntry, useCreateStockExit } from "@/hooks/mutations";
 import { calculateStockScore, getStockBadgeVariant } from "@/lib/utils/stock";
+import { maxSingleOrgStock, pickExitSource, type OrgStock } from "@/lib/utils/exit-source";
 import { cn } from "@/lib/utils";
 import { useDebouncedValue } from "@/hooks/use-debounce";
 import {
@@ -87,11 +88,31 @@ interface ConsoleProduct {
    * qu'une commande.
    */
   other_org_stock?: { name: string; stock: number }[];
+  /**
+   * Ce que detient chaque societe, sans interpretation.
+   *
+   * C'est de la que se deduit, en sortie, la societe debitee : celle qui en a
+   * le moins. Le calcul depend de la quantite demandee, qui change encore a
+   * l'ecran suivant — on transporte donc la matiere brute plutot qu'un choix
+   * fige au moment ou le produit a ete touche.
+   */
+  org_stock?: OrgStock[];
 }
 
 interface CartItem {
   product: ConsoleProduct;
   quantity: number;
+}
+
+/**
+ * Plus grande quantite sortable en une fois.
+ *
+ * Le cumul des deux societes ne fait pas une quantite sortable : une sortie
+ * vient d'une seule societe. Le plafond est donc le stock de la mieux fournie.
+ * L'outillage, qui n'a pas de ventilation par societe, garde son stock global.
+ */
+function exitCeiling(p: ConsoleProduct): number {
+  return p.org_stock && p.org_stock.length > 0 ? maxSingleOrgStock(p.org_stock) : p.stock_current;
 }
 
 interface SessionEntry {
@@ -267,12 +288,20 @@ export default function ActionsMobileSheet() {
   // dans celle-la qu'on puise.
   const stockOrgId = actionMode === "entry" ? (entryOrgId ?? orgId) : orgId;
 
+  // Une sortie n'est plus rattachee a la societe affichee : elle puise chez
+  // celle qui en a le moins, produit par produit. Le stock montre dans la liste
+  // est donc le cumul — filtrer sur une societe masquerait des produits
+  // parfaitement sortables, et afficherait « rupture » sur un produit dont
+  // l'autre societe detient douze unites.
+  const stockScope = actionMode === "exit" ? "all" : "organization";
+
   const { data: productsResult, isLoading: isSearching } = useProducts({
     organizationId: stockOrgId,
+    stockScope,
     search: debouncedSearch || undefined,
   });
   // Full product list (no search filter) — used for QR scan lookup
-  const { data: allProductsResult } = useProducts({ organizationId: stockOrgId });
+  const { data: allProductsResult } = useProducts({ organizationId: stockOrgId, stockScope });
   const allProducts = useMemo(() => allProductsResult?.products ?? [], [allProductsResult]);
 
   const { data: techniciansData = [] } = useTechnicians(orgId);
@@ -339,6 +368,35 @@ export default function ActionsMobileSheet() {
           stock: x.stock_current,
         })),
     [stockOrgId, organizations]
+  );
+
+  // Ventilation nommee, limitee aux societes de l'application : la base garde
+  // des lignes d'organisations de test qui n'apparaissent nulle part ailleurs,
+  // et elles ne doivent pas pouvoir etre designees comme source d'une sortie.
+  const orgStockOf = useCallback(
+    (pos?: { organization_id: string; stock_current: number }[] | null): OrgStock[] =>
+      organizations.flatMap((org) => {
+        const row = (pos ?? []).find((x) => x.organization_id === org.id);
+        return row ? [{ id: org.id, name: org.name, stock: row.stock_current }] : [];
+      }),
+    [organizations]
+  );
+
+  /**
+   * Societe debitee par une sortie.
+   *
+   * L'outillage n'a pas de ventilation par societe (elle a ete supprimee : il
+   * se suit globalement). Sans ligne a comparer, la regle du « moins fourni »
+   * n'a pas de sens et l'on retombe sur la societe courante, comme avant.
+   */
+  const exitSourceFor = useCallback(
+    (p: ConsoleProduct, qty: number) => {
+      const picked = pickExitSource(p.org_stock ?? [], qty);
+      if (picked) return picked;
+      const fallback = organizations.find((o) => o.id === orgId);
+      return fallback ? { id: fallback.id, name: fallback.name, stock: p.stock_current } : null;
+    },
+    [organizations, orgId]
   );
 
   // ─── Mutations ─────────────────────────────────────────
@@ -479,6 +537,10 @@ export default function ActionsMobileSheet() {
         stock_min: found.stock_min,
         price: found.price ?? null,
         supplier_id: found.supplier_id ?? null,
+        // Sans la ventilation, un produit scanne ne saurait pas de quelle
+        // societe il sort : il retomberait sur la societe courante alors que
+        // le meme produit choisi dans la liste partirait de l'autre.
+        org_stock: orgStockOf(found.product_organization_stock),
       };
       // Add to cart or increment qty
       setCart((prev) => {
@@ -486,7 +548,7 @@ export default function ActionsMobileSheet() {
         if (existing) {
           return prev.map((item) =>
             item.product.id === consoleP.id
-              ? { ...item, quantity: Math.min(item.quantity + 1, item.product.stock_current) }
+              ? { ...item, quantity: Math.min(item.quantity + 1, exitCeiling(item.product)) }
               : item
           );
         }
@@ -494,7 +556,7 @@ export default function ActionsMobileSheet() {
       });
       toast.success(found.name, { description: "Ajout\u00e9 au panier" });
     },
-    [allProducts]
+    [allProducts, orgStockOf]
   );
 
   // \u2500\u2500\u2500 Scan en entree \u2014 un produit a la fois \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
@@ -523,6 +585,7 @@ export default function ActionsMobileSheet() {
         supplier_id: found.supplier_id ?? null,
         supplier_name: found.supplier?.name ?? null,
         other_org_stock: otherOrgStock(found.product_organization_stock),
+        org_stock: orgStockOf(found.product_organization_stock),
       };
       setProduct(consoleP);
       setQuantity(1);
@@ -530,7 +593,7 @@ export default function ActionsMobileSheet() {
       setSearchQuery("");
       setDrawerStep("detail");
     },
-    [allProducts]
+    [allProducts, otherOrgStock, orgStockOf]
   );
 
   // ─── Select product (entry / exit_anonymous) ──────────
@@ -591,7 +654,7 @@ export default function ActionsMobileSheet() {
     setCart((prev) =>
       prev.map((item) => {
         if (item.product.id !== productId) return item;
-        const newQty = Math.max(1, Math.min(item.quantity + delta, item.product.stock_current));
+        const newQty = Math.max(1, Math.min(item.quantity + delta, exitCeiling(item.product)));
         return { ...item, quantity: newQty };
       })
     );
@@ -601,7 +664,7 @@ export default function ActionsMobileSheet() {
     setCart((prev) =>
       prev.map((item) => {
         if (item.product.id !== productId) return item;
-        const newQty = Math.max(1, Math.min(qty, item.product.stock_current));
+        const newQty = Math.max(1, Math.min(qty, exitCeiling(item.product)));
         return { ...item, quantity: newQty };
       })
     );
@@ -648,25 +711,44 @@ export default function ActionsMobileSheet() {
     if (quantity < 1) return;
 
     const isEntry = actionMode === "entry";
-    // Une entree va dans la societe choisie a l'etape precedente, une sortie
-    // dans la societe courante. Se tromper fausserait deux stocks a la fois :
-    // celui qui recoit et celui qui aurait du recevoir.
-    const writeOrgId = isEntry ? entryOrgId : orgId;
-    if (!writeOrgId) return;
-
-    if (!isEntry && quantity > product.stock_current) {
-      toast.error(`Stock insuffisant - disponible : ${product.stock_current}`);
+    // Une entree va dans la societe choisie a l'etape precedente. Une sortie
+    // puise chez celle qui en a le moins — le choix se refait ici avec la
+    // quantite finale, qui a pu changer depuis l'ouverture de l'ecran.
+    const source = isEntry ? null : exitSourceFor(product, quantity);
+    const writeOrgId = isEntry ? entryOrgId : source?.id;
+    if (!writeOrgId) {
+      if (!isEntry) toast.error(`Aucun stock disponible pour ${product.name}`);
       return;
     }
 
-    const stockAfter = isEntry
-      ? product.stock_current + quantity
-      : product.stock_current - quantity;
+    if (!isEntry && source && quantity > source.stock) {
+      toast.error(`Stock insuffisant chez ${source.name} — disponible : ${source.stock}`);
+      return;
+    }
+
+    // Le stock annonce apres coup est celui de la societe debitee, pas le
+    // cumul : c'est lui qui a bouge.
+    const sourceStock = source?.stock ?? product.stock_current;
+    const stockAfter = isEntry ? product.stock_current + quantity : sourceStock - quantity;
     const localId = crypto.randomUUID();
 
     const onSuccess = () => {
       navigator.vibrate?.(10);
-      setProduct((prev) => (prev ? { ...prev, stock_current: stockAfter } : prev));
+      setProduct((prev) => {
+        if (!prev) return prev;
+        // En sortie, `stock_current` porte le cumul : il baisse de la quantite
+        // sortie, tandis que `stockAfter` ne concerne que la societe debitee.
+        const nextTotal = isEntry ? stockAfter : prev.stock_current - quantity;
+        return {
+          ...prev,
+          stock_current: nextTotal,
+          org_stock: prev.org_stock?.map((o) =>
+            o.id === writeOrgId
+              ? { ...o, stock: isEntry ? o.stock + quantity : o.stock - quantity }
+              : o
+          ),
+        };
+      });
       setSession((prev) => [
         {
           localId,
@@ -681,7 +763,14 @@ export default function ActionsMobileSheet() {
         ...prev,
       ]);
       const sign = isEntry ? "+" : "-";
-      toast.success(`${sign}${quantity} ${product.name} - ${stockAfter} en stock`);
+      // La societe est nommee en sortie : l'utilisateur ne l'a pas choisie,
+      // c'est la regle qui l'a designee. Ne pas la dire laisserait un doute
+      // sur le stock qui vient de bouger.
+      toast.success(
+        source
+          ? `${sign}${quantity} ${product.name} — ${source.name} : ${stockAfter} en stock`
+          : `${sign}${quantity} ${product.name} - ${stockAfter} en stock`
+      );
       setQuantity(1);
       setInvoiceRef("");
       setEntryDate(todayDate);
@@ -739,6 +828,7 @@ export default function ActionsMobileSheet() {
     exitMovementType,
     exitReason,
     technicianId,
+    exitSourceFor,
     // Sans cette dependance, une entree validee apres un changement de
     // societe serait ecrite dans la precedente.
     entryOrgId,
@@ -750,31 +840,43 @@ export default function ActionsMobileSheet() {
     // Une sortie technicien sans technicien n'est pas tracable : on refuse.
     if (exitReason === "technician" && !technicianId) return;
 
+    // La societe se decide ligne par ligne : dans un meme panier, un produit
+    // peut venir de SMPR et le suivant de SEIREN. Le controle passe donc par
+    // la source retenue, pas par le cumul — lequel laisserait valider dix
+    // unites reparties six et quatre, qu'aucune societe ne peut fournir.
+    const sources = new Map<string, { id: string; name: string; stock: number }>();
     for (const item of cart) {
-      if (item.quantity > item.product.stock_current) {
-        toast.error(`Stock insuffisant pour ${item.product.name}`);
+      const source = exitSourceFor(item.product, item.quantity);
+      if (!source) {
+        toast.error(`Aucun stock disponible pour ${item.product.name}`);
         return;
       }
+      if (item.quantity > source.stock) {
+        toast.error(`${item.product.name} : ${source.name} n'en a que ${source.stock}`);
+        return;
+      }
+      sources.set(item.product.id, source);
     }
 
     setIsBatchSubmitting(true);
 
     let successCount = 0;
     for (const item of cart) {
+      const source = sources.get(item.product.id)!;
       try {
         await createExit.mutateAsync({
-          organizationId: orgId,
+          organizationId: source.id,
           productId: item.product.id,
           quantity: item.quantity,
           type: exitMovementType,
           technicianId: exitReason === "technician" ? technicianId : undefined,
         });
-        const stockAfter = item.product.stock_current - item.quantity;
+        const stockAfter = source.stock - item.quantity;
         setSession((prev) => [
           {
             localId: crypto.randomUUID(),
             movementType: exitMovementType,
-            organizationId: orgId,
+            organizationId: source.id,
             productId: item.product.id,
             productName: item.product.name,
             quantity: item.quantity,
@@ -814,6 +916,7 @@ export default function ActionsMobileSheet() {
     createExit,
     exitReason,
     exitMovementType,
+    exitSourceFor,
   ]);
 
   // ─── Revert session entry ─────────────────────────────
@@ -948,7 +1051,7 @@ export default function ActionsMobileSheet() {
         disabled={
           isSubmitting ||
           quantity < 1 ||
-          (actionMode !== "entry" && quantity > product.stock_current)
+          (actionMode !== "entry" && quantity > exitCeiling(product))
         }
       >
         {isSubmitting ? (
@@ -1343,6 +1446,7 @@ export default function ActionsMobileSheet() {
                         supplier_id: p.supplier_id,
                         supplier_name: p.supplier?.name ?? null,
                         other_org_stock: otherOrgStock(p.product_organization_stock),
+                        org_stock: orgStockOf(p.product_organization_stock),
                       };
 
                       return (
@@ -1458,13 +1562,23 @@ export default function ActionsMobileSheet() {
               product &&
               (() => {
                 const isEntry = actionMode === "entry";
+                // La societe debitee se recalcule a chaque unite : passer de 4 a
+                // 8 peut faire basculer la sortie de SMPR vers SEIREN, et
+                // l'ecran doit le dire au moment ou cela arrive.
+                const source = isEntry ? null : exitSourceFor(product, quantity);
+                const sourceStock = source?.stock ?? product.stock_current;
                 const previewStock = isEntry
                   ? product.stock_current + quantity
-                  : Math.max(0, product.stock_current - quantity);
+                  : Math.max(0, sourceStock - quantity);
                 const previewStatus = getStockBadgeVariant(
                   calculateStockScore(previewStock, product.stock_min)
                 );
-                const max = isEntry ? Infinity : product.stock_current;
+                const max = isEntry ? Infinity : exitCeiling(product);
+                // Ce que gardent les autres societes, une fois la source mise
+                // de cote — en entree, tout ce qui n'est pas la societe qui recoit.
+                const elsewhere = isEntry
+                  ? (product.other_org_stock ?? [])
+                  : (product.org_stock ?? []).filter((o) => o.id !== source?.id && o.stock > 0);
                 const priceNum = unitPrice ? parseFloat(unitPrice) : 0;
                 const isToday = entryDate.toDateString() === todayDate.toDateString();
 
@@ -1521,7 +1635,7 @@ export default function ActionsMobileSheet() {
                           type="number"
                           inputMode="numeric"
                           min={1}
-                          max={isEntry ? undefined : product.stock_current}
+                          max={isEntry ? undefined : max}
                           value={quantity}
                           onChange={(e) =>
                             setQuantity(Math.max(1, Math.min(parseInt(e.target.value) || 1, max)))
@@ -1545,7 +1659,7 @@ export default function ActionsMobileSheet() {
                           navigator.vibrate?.(8);
                           setQuantity((q) => Math.min(q + 1, max));
                         }}
-                        disabled={!isEntry && quantity >= product.stock_current}
+                        disabled={!isEntry && quantity >= max}
                         aria-label="Ajouter une unité"
                         className="size-16 [@media(max-height:720px)]:size-[3.25rem] rounded-full bg-muted/70 flex items-center justify-center shrink-0 active:bg-muted active:scale-95 transition-transform disabled:opacity-25"
                       >
@@ -1558,21 +1672,38 @@ export default function ActionsMobileSheet() {
                     <InsetGroup
                       className="shrink-0"
                       footer={
-                        !isEntry && product.stock_current > 0
-                          ? `Disponible : ${product.stock_current}`
+                        !isEntry && source
+                          ? "On puise chez la société qui en a le moins."
                           : undefined
                       }
                     >
+                      {/* Qui est debite. L'utilisateur ne l'a pas choisi : la
+                          regle l'a designe. Le taire reviendrait a modifier un
+                          stock sans dire lequel. */}
+                      {!isEntry && source && (
+                        <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
+                          <span className="text-base">Sortie de</span>
+                          <span className="flex items-baseline gap-2">
+                            <span className="font-heading text-lg font-semibold">
+                              {source.name}
+                            </span>
+                            <span className="text-sm text-muted-foreground tabular-nums">
+                              {source.stock} en stock
+                            </span>
+                          </span>
+                        </div>
+                      )}
+
                       {/* « Ailleurs » et non « disponible » : ce stock existe
                           mais n'est pas mobilisable dans ce mouvement — une
-                          sortie ne puise que dans la societe choisie. Le dire
+                          sortie ne puise que dans une seule societe. Le dire
                           oriente vers un transfert quand le stock local est
                           court, sans laisser croire qu'on peut le prendre. */}
-                      {(product.other_org_stock?.length ?? 0) > 0 && (
+                      {elsewhere.length > 0 && (
                         <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
                           <span className="text-sm text-muted-foreground">Ailleurs</span>
                           <span className="flex items-baseline gap-3">
-                            {product.other_org_stock?.map((o) => (
+                            {elsewhere.map((o) => (
                               <span key={o.name} className="flex items-baseline gap-1.5">
                                 <span className="text-sm text-muted-foreground">{o.name}</span>
                                 {/* Le chiffre reprend le poids du reste de
@@ -1588,10 +1719,16 @@ export default function ActionsMobileSheet() {
                         </div>
                       )}
                       <div className="flex items-center justify-between gap-3 px-4 py-3">
-                        <span className="text-base">Stock après</span>
+                        {/* En sortie, l'avant et l'apres portent sur la seule
+                            societe debitee : afficher le cumul a gauche et le
+                            reste d'une societe a droite ferait une soustraction
+                            fausse sous les yeux de l'utilisateur. */}
+                        <span className="text-base">
+                          {isEntry || !source ? "Stock après" : `Stock ${source.name} après`}
+                        </span>
                         <div className="flex items-center gap-2">
                           <span className="text-base text-muted-foreground tabular-nums">
-                            {product.stock_current}
+                            {isEntry ? product.stock_current : sourceStock}
                           </span>
                           <span className="text-muted-foreground">&rarr;</span>
                           <motion.span
@@ -1730,7 +1867,12 @@ export default function ActionsMobileSheet() {
 
                   <div className="overflow-hidden rounded-xl border bg-white dark:bg-card">
                     {cart.map((item) => {
-                      const stock = item.product.stock_current;
+                      // Chaque ligne a sa propre societe source : le panier
+                      // peut melanger un produit pris chez SMPR et le suivant
+                      // chez SEIREN. Le stock affiche est donc celui de la
+                      // societe qui fournira cette ligne, pas un cumul.
+                      const lineSource = exitSourceFor(item.product, item.quantity);
+                      const stock = lineSource?.stock ?? item.product.stock_current;
                       const after = stock - item.quantity;
                       // Le stock peut avoir baisse depuis la selection : la
                       // synchronisation temps reel le fait bouger sous nos
@@ -1766,7 +1908,9 @@ export default function ActionsMobileSheet() {
                               >
                                 {excess
                                   ? `Stock insuffisant — ${stock} disponible${stock > 1 ? "s" : ""}`
-                                  : `Reste ${after} sur ${stock}`}
+                                  : lineSource
+                                    ? `${lineSource.name} · reste ${after} sur ${stock}`
+                                    : `Reste ${after} sur ${stock}`}
                               </p>
                             </div>
 
