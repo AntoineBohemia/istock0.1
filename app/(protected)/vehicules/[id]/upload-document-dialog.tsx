@@ -40,6 +40,11 @@ export default function UploadDocumentDialog({
   documentType,
 }: UploadDocumentDialogProps) {
   const uploadMutation = useUploadVehicleDocument();
+  // Une photo n'a ni nom a saisir ni periode de validite : elle vaut par son
+  // image et par sa date d'ajout, que la base horodate seule. Demander un
+  // « nom du document » et deux dates de validite pour une photo, c'est trois
+  // champs a franchir pour une action qui en demande zero.
+  const isPhoto = documentType === "photo";
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [prevOpen, setPrevOpen] = useState(open);
@@ -91,7 +96,7 @@ export default function UploadDocumentDialog({
       },
       {
         onSuccess: () => {
-          toast.success("Document ajouté");
+          toast.success(isPhoto ? "Photo ajoutée" : "Document ajouté");
           onOpenChange(false);
         },
         onError: (err) => {
@@ -113,7 +118,7 @@ export default function UploadDocumentDialog({
             {/* File drop zone */}
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Fichier *
+                {isPhoto ? "Photo *" : "Fichier *"}
               </label>
               {file ? (
                 <div className="flex items-center gap-2 rounded-lg border bg-muted/30 p-2.5">
@@ -150,7 +155,12 @@ export default function UploadDocumentDialog({
                     ref={fileInputRef}
                     type="file"
                     className="sr-only"
-                    accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx"
+                    // Une photo ne peut pas etre un PDF ni un tableur : le
+                    // selecteur ne doit pas les proposer, et l'appareil photo
+                    // s'ouvre directement sur telephone.
+                    accept={
+                      isPhoto ? "image/*" : ".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx"
+                    }
                     onChange={(e) => handleFileSelect(e.target.files?.[0] ?? null)}
                   />
                   <FileUp className="size-5 text-muted-foreground/60 mb-1.5" />
@@ -162,44 +172,48 @@ export default function UploadDocumentDialog({
             </div>
 
             {/* Label */}
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Nom du document *
-              </label>
-              <Input
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder="Ex: Contrat Lease 2026"
-                required
-                className="bg-white dark:bg-card"
-              />
-            </div>
+            {!isPhoto && (
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                  Nom du document *
+                </label>
+                <Input
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                  placeholder="Ex: Contrat Lease 2026"
+                  required
+                  className="bg-white dark:bg-card"
+                />
+              </div>
+            )}
 
             {/* Dates */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                  Début validité
-                </label>
-                <Input
-                  type="date"
-                  value={validFrom}
-                  onChange={(e) => setValidFrom(e.target.value)}
-                  className="bg-white dark:bg-card"
-                />
+            {!isPhoto && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                    Début validité
+                  </label>
+                  <Input
+                    type="date"
+                    value={validFrom}
+                    onChange={(e) => setValidFrom(e.target.value)}
+                    className="bg-white dark:bg-card"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                    Fin validité
+                  </label>
+                  <Input
+                    type="date"
+                    value={validUntil}
+                    onChange={(e) => setValidUntil(e.target.value)}
+                    className="bg-white dark:bg-card"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                  Fin validité
-                </label>
-                <Input
-                  type="date"
-                  value={validUntil}
-                  onChange={(e) => setValidUntil(e.target.value)}
-                  className="bg-white dark:bg-card"
-                />
-              </div>
-            </div>
+            )}
           </div>
 
           <div className="flex items-center gap-3 px-5 py-4 border-t">
@@ -219,7 +233,7 @@ export default function UploadDocumentDialog({
               className="h-10"
             >
               {uploadMutation.isPending && <Loader2 className="size-4 animate-spin" />}
-              Enregistrer
+              {isPhoto ? "Ajouter la photo" : "Enregistrer"}
             </Button>
           </div>
         </form>
