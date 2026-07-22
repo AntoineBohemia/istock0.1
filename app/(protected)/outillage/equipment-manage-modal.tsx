@@ -229,9 +229,13 @@ export default function EquipmentManageModal({
           en dehors ferment la fenêtre, comme partout ailleurs. */}
       <DialogContent
         showCloseButton={false}
-        className="max-w-md gap-0 p-0 flex flex-col max-h-[85vh]"
+        className="max-w-lg gap-0 p-0 flex flex-col max-h-[85vh]"
       >
-        {/* ── Header ── */}
+        {/* ── En-tête : l'identité seule ──
+            Les quatre actions se pressaient ici, à droite du nom, dans une
+            fenêtre trop étroite pour les tenir : elles se disputaient la place
+            avec le titre et se lisaient comme une barre d'outils sans ordre.
+            Elles ont maintenant leur propre rangée, sous l'identité. */}
         <DialogHeader className="px-5 pt-5 pb-0">
           <div className="flex items-start gap-3">
             <ProductIconDisplay
@@ -241,69 +245,72 @@ export default function EquipmentManageModal({
               size="lg"
             />
             <div className="min-w-0 flex-1">
-              <DialogTitle className="text-lg font-bold leading-tight truncate">
+              <DialogTitle className="font-heading text-xl font-bold leading-tight">
                 {p.name}
               </DialogTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <p className="mt-0.5 truncate text-sm text-muted-foreground">
                 {p.sku}
                 {/* Fournisseur : saisi au formulaire, il n'etait affiche nulle part */}
                 {p.supplier?.name && <span> · {p.supplier.name}</span>}
               </p>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {/* Racheter : le bouton « Entree de stock » n'existait que sur la
-                  page Produits, qui n'affiche meme pas l'outillage. */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs"
-                onClick={() => setRebuyOpen(true)}
-              >
-                <ShoppingCart className="size-3.5" />
-                Racheter
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs"
-                onClick={() => {
-                  onOpenChange(false);
-                  onEdit();
-                }}
-              >
-                <Pencil className="size-3.5" />
-                Modifier
-              </Button>
-              {/* Retirer quelques exemplaires n'est pas archiver la
-                  reference : l'un sort deux outils casses, l'autre sort les
-                  quinze du catalogue. Les deux gestes voisinent ici, nommes
-                  distinctement. */}
-              {!p.archived_at && (
-                <RetireEquipmentUnitsButton
-                  productId={p.id}
-                  productName={p.name}
-                  availableStock={stock}
-                  orgStock={p.product_organization_stock ?? []}
-                />
-              )}
-              <ArchiveEquipmentButton
-                productId={p.id}
-                productName={p.name}
-                assignedCount={p.total_assigned}
-                stockCount={stock}
-                isArchived={p.archived_at !== null}
-                onArchived={() => onOpenChange(false)}
-              />
-            </div>
           </div>
         </DialogHeader>
+
+        {/* ── Actions ──
+            Toutes de même poids : aucune n'est le geste principal de cet
+            écran — celui-là, « assigner », vit dans la liste des détenteurs,
+            à l'endroit où l'on regarde qui détient quoi. */}
+        <div className="flex flex-wrap items-center gap-2 px-5 pt-4">
+          {/* Racheter : le bouton « Entree de stock » n'existait que sur la
+              page Produits, qui n'affiche meme pas l'outillage. */}
+          <Button variant="outline" size="sm" className="h-8" onClick={() => setRebuyOpen(true)}>
+            <ShoppingCart className="size-3.5" />
+            Racheter
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8"
+            onClick={() => {
+              onOpenChange(false);
+              onEdit();
+            }}
+          >
+            <Pencil className="size-3.5" />
+            Modifier
+          </Button>
+          {/* Retirer quelques exemplaires n'est pas archiver la reference :
+              l'un sort deux outils casses, l'autre sort les quinze du
+              catalogue. Les deux gestes voisinent ici, nommes distinctement. */}
+          {!p.archived_at && (
+            <RetireEquipmentUnitsButton
+              productId={p.id}
+              productName={p.name}
+              availableStock={stock}
+              orgStock={p.product_organization_stock ?? []}
+            />
+          )}
+          {/* Poussé à droite : archiver ne se range pas avec les gestes du
+              quotidien, on ne doit pas le rencontrer en visant « Modifier ». */}
+          <span className="ml-auto">
+            <ArchiveEquipmentButton
+              productId={p.id}
+              productName={p.name}
+              assignedCount={p.total_assigned}
+              stockCount={stock}
+              isArchived={p.archived_at !== null}
+              onArchived={() => onOpenChange(false)}
+            />
+          </span>
+        </div>
 
         {/* ── Motif d'archivage ──
             Un motif qu'on ne peut pas relire ne sert a rien : il apparait ici
             des que l'outil est sorti du catalogue. */}
         {p.archived_at && p.archive_reason && (
           <div className="mx-5 mt-4 rounded-lg border border-attention/30 bg-attention-bg/30 px-3 py-2.5">
-            <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               <Archive className="size-3" />
               Archivé —{" "}
               {new Date(p.archived_at).toLocaleDateString("fr-FR", {
@@ -316,65 +323,78 @@ export default function EquipmentManageModal({
           </div>
         )}
 
-        {/* ── Chiffres clés ── */}
-        <div className="px-5 py-3">
-          <div className="grid grid-cols-3 gap-2 rounded-lg border bg-muted/30 p-3">
-            <div>
+        {/* ── Chiffres clés ──
+            Trois nombres de même taille se lisaient comme une grille inerte, où
+            rien ne disait lequel répond à la question qu'on se pose en ouvrant
+            la fiche. « Disponible » commande tout le reste — c'est lui qui dit
+            si l'on peut assigner — il porte donc seul le grand corps ; les deux
+            autres l'accompagnent. */}
+        <div className="px-5 py-4">
+          <div className="flex items-stretch gap-4 rounded-xl border bg-muted/30 px-4 py-3.5">
+            <div className="min-w-0">
               <p
                 className={cn(
-                  "font-heading text-2xl font-bold tabular-nums leading-none",
+                  "font-heading text-4xl font-bold tabular-nums leading-none",
                   stock === 0 ? "text-attention" : "text-foreground"
                 )}
               >
                 {stock}
               </p>
-              <p className="text-[11px] text-muted-foreground mt-1">
+              <p className="mt-1.5 text-sm text-muted-foreground">
                 disponible{stock > 1 ? "s" : ""}
               </p>
             </div>
-            <div>
-              <p className="font-heading text-2xl font-bold tabular-nums leading-none">
-                {product.total_assigned}
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                assigne{product.total_assigned > 1 ? "s" : ""}
-              </p>
-            </div>
-            <div>
-              <p className="font-heading text-2xl font-bold tabular-nums leading-none">
-                {totalUnits}
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                au total{totalValue > 0 ? ` · ${fmtPrice(totalValue)}` : ""}
-              </p>
+
+            <div className="w-px shrink-0 bg-border" />
+
+            <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-sm text-muted-foreground">Chez les techniciens</span>
+                <span className="font-heading text-lg font-semibold tabular-nums">
+                  {p.total_assigned}
+                </span>
+              </div>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-sm text-muted-foreground">Parc total</span>
+                <span className="font-heading text-lg font-semibold tabular-nums">
+                  {totalUnits}
+                  {totalValue > 0 && (
+                    <span className="ml-1.5 text-sm font-normal text-muted-foreground">
+                      {fmtPrice(totalValue)}
+                    </span>
+                  )}
+                </span>
+              </div>
             </div>
           </div>
 
           {/* Description — saisie dans le formulaire, elle n'était affichée nulle part */}
           {p.description && (
-            <div className="mt-3">
-              <p className="text-xs font-medium text-muted-foreground mb-1">Description</p>
-              <p className="text-sm text-foreground whitespace-pre-line">{p.description}</p>
-            </div>
+            <p className="mt-3 text-sm whitespace-pre-line text-muted-foreground">
+              {p.description}
+            </p>
           )}
         </div>
 
         {/* ── Content ── */}
         <div className="flex-1 overflow-y-auto border-t px-5 py-3">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-foreground/40">
-              Detenteurs
+          {/* Un intitulé de section à dix pixels ne se lit pas : il se devine.
+              Même corps que les autres titres de la fiche, accentué comme le
+              reste de l'application. */}
+          <div className="mb-2 flex items-baseline justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground/50">
+              Détenteurs
             </p>
             {holders.length > 0 && (
-              <span className="text-[10px] text-muted-foreground tabular-nums">
+              <span className="text-sm text-muted-foreground tabular-nums">
                 {holders.length} technicien{holders.length > 1 ? "s" : ""}
               </span>
             )}
           </div>
 
           {holders.length === 0 && !showAssignPicker && (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              Aucun technicien ne detient cet outil
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              Aucun technicien ne détient cet outil
             </p>
           )}
 
@@ -399,7 +419,7 @@ export default function EquipmentManageModal({
                 <div key={a.id} className="flex items-center gap-2.5 py-3">
                   <Avatar className="size-8 shrink-0 bg-foreground/[0.08]">
                     {tech.photo_url && <AvatarImage src={tech.photo_url} />}
-                    <AvatarFallback className="text-[10px] font-semibold bg-foreground/[0.08] text-foreground/70">
+                    <AvatarFallback className="bg-foreground/[0.08] text-[11px] font-semibold text-foreground/70">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
@@ -407,12 +427,12 @@ export default function EquipmentManageModal({
                   <div className="flex-1 min-w-0">
                     <Link
                       href={`/techniciens/${tech.id}`}
-                      className="text-sm font-medium hover:underline truncate block"
+                      className="block truncate text-[15px] font-medium hover:underline"
                     >
                       {fullName}
                     </Link>
                     <span
-                      className={cn("text-[11px] tabular-nums", durationColor)}
+                      className={cn("text-sm tabular-nums", durationColor)}
                       title={`Assigné depuis ${formatDuration(a.days)}`}
                     >
                       {formatAssignedAt(a.assigned_at)}
@@ -436,7 +456,7 @@ export default function EquipmentManageModal({
                       >
                         <Minus className="size-3" />
                       </button>
-                      <span className="w-10 text-center text-xs tabular-nums">
+                      <span className="w-12 text-center text-sm tabular-nums">
                         <span className="font-bold">{toReturn}</span>
                         <span className="text-muted-foreground">/{a.quantity}</span>
                       </span>
@@ -456,7 +476,7 @@ export default function EquipmentManageModal({
                       </button>
                     </div>
                   ) : (
-                    <span className="text-xs text-muted-foreground tabular-nums shrink-0">×1</span>
+                    <span className="shrink-0 text-sm text-muted-foreground tabular-nums">×1</span>
                   )}
 
                   <Button
@@ -492,7 +512,7 @@ export default function EquipmentManageModal({
 
                   {/* Quantité à assigner — plafonnée au stock disponible */}
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium">Quantité</span>
+                    <span className="text-sm font-medium">Quantité</span>
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
@@ -515,7 +535,7 @@ export default function EquipmentManageModal({
                       >
                         <Plus className="size-3.5" />
                       </button>
-                      <span className="text-[11px] text-muted-foreground tabular-nums ml-1">
+                      <span className="text-sm text-muted-foreground tabular-nums ml-1">
                         / {stock}
                       </span>
                     </div>
@@ -607,9 +627,9 @@ export default function EquipmentManageModal({
             {showPurchases && (
               <div className="mt-2">
                 {isPurchasesLoading ? (
-                  <p className="text-xs text-muted-foreground py-2">Chargement…</p>
+                  <p className="py-2 text-sm text-muted-foreground">Chargement…</p>
                 ) : purchases.length === 0 ? (
-                  <p className="text-xs text-muted-foreground py-2">
+                  <p className="py-2 text-sm text-muted-foreground">
                     Aucun achat enregistré. Un outil entre en stock par une entrée, avec son prix et
                     son fournisseur.
                   </p>
@@ -618,7 +638,7 @@ export default function EquipmentManageModal({
                     {purchases.map((pu) => (
                       <div key={pu.id} className="px-3 py-2.5">
                         <div className="flex items-baseline justify-between gap-2">
-                          <span className="text-[13px] tabular-nums">
+                          <span className="text-sm tabular-nums">
                             {pu.created_at
                               ? new Date(pu.created_at).toLocaleDateString("fr-FR", {
                                   day: "2-digit",
@@ -638,17 +658,17 @@ export default function EquipmentManageModal({
                           </span>
                         </div>
                         <div className="flex items-center justify-between gap-2 mt-1">
-                          <span className="text-[11px] text-muted-foreground truncate">
+                          <span className="text-sm text-muted-foreground truncate">
                             {pu.supplier?.name ?? "Fournisseur non renseigné"}
                           </span>
                           {/* Le numero saisi a l'achat. Plus de facture a
                               ouvrir : la reference se lit sur place. */}
                           {pu.invoice_reference ? (
-                            <span className="text-[11px] font-medium shrink-0">
+                            <span className="text-sm font-medium shrink-0">
                               {pu.invoice_reference}
                             </span>
                           ) : (
-                            <span className="text-[11px] text-muted-foreground/60 shrink-0">
+                            <span className="text-sm text-muted-foreground/60 shrink-0">
                               Sans n&deg; de facture
                             </span>
                           )}
@@ -659,15 +679,13 @@ export default function EquipmentManageModal({
                             lignes, chacune avec la sienne : c'est ce qui
                             permet de lire « SMPR en a pris 2, SEIREN 1 ». */}
                         <div className="mt-1.5 flex items-center gap-2">
-                          <span className="text-[11px] text-muted-foreground shrink-0">
-                            Payé par
-                          </span>
+                          <span className="text-sm text-muted-foreground shrink-0">Payé par</span>
                           {userOrgs.length > 1 ? (
                             <select
                               value={pu.organization_id ?? ""}
                               disabled={movingOrgFor === pu.id}
                               onChange={(e) => changePurchaseOrg(pu.id, e.target.value)}
-                              className="border-input bg-white dark:bg-card h-7 rounded-md border px-2 text-[11px] font-medium outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px] disabled:opacity-50"
+                              className="border-input bg-white dark:bg-card h-7 rounded-md border px-2 text-sm font-medium outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px] disabled:opacity-50"
                             >
                               {!pu.organization_id && <option value="">Non renseignée</option>}
                               {userOrgs.map((org) => (
@@ -677,12 +695,12 @@ export default function EquipmentManageModal({
                               ))}
                             </select>
                           ) : (
-                            <span className="text-[11px] font-medium">
+                            <span className="text-sm font-medium">
                               {pu.organization?.name ?? "Non renseignée"}
                             </span>
                           )}
                           {movingOrgFor === pu.id && (
-                            <span className="text-[11px] text-muted-foreground">
+                            <span className="text-sm text-muted-foreground">
                               Enregistrement&hellip;
                             </span>
                           )}
@@ -717,9 +735,9 @@ export default function EquipmentManageModal({
             {showHistory && (
               <div className="mt-2">
                 {isHistoryLoading ? (
-                  <p className="text-xs text-muted-foreground py-2">Chargement…</p>
+                  <p className="py-2 text-sm text-muted-foreground">Chargement…</p>
                 ) : history.length === 0 ? (
-                  <p className="text-xs text-muted-foreground py-2">
+                  <p className="py-2 text-sm text-muted-foreground">
                     Aucun mouvement enregistré pour cet outil.
                   </p>
                 ) : (
@@ -730,7 +748,7 @@ export default function EquipmentManageModal({
                         <li key={h.id} className="flex items-center gap-2 px-3 py-2">
                           <span
                             className={cn(
-                              "flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
+                              "flex size-6 shrink-0 items-center justify-center rounded-full text-sm font-bold",
                               isOut
                                 ? "bg-attention/15 text-attention"
                                 : "bg-standard/15 text-standard"
@@ -739,7 +757,7 @@ export default function EquipmentManageModal({
                           >
                             {isOut ? "↑" : "↓"}
                           </span>
-                          <span className="text-xs flex-1 min-w-0 truncate">
+                          <span className="min-w-0 flex-1 truncate text-sm">
                             <span className="font-medium">
                               {h.technician
                                 ? `${h.technician.first_name} ${h.technician.last_name}`
@@ -750,7 +768,7 @@ export default function EquipmentManageModal({
                             </span>
                             <span className="font-medium tabular-nums">{h.quantity}</span>
                           </span>
-                          <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
+                          <span className="text-sm text-muted-foreground tabular-nums shrink-0">
                             {h.created_at ? formatAssignedAt(h.created_at) : "—"}
                           </span>
                         </li>
