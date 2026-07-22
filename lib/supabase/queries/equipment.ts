@@ -72,7 +72,7 @@ export async function getEquipmentProducts(
   filters: EquipmentFilters = {}
 ): Promise<EquipmentProduct[]> {
   const supabase = createClient();
-  const { organizationId, search, archived = false } = filters;
+  const { search, archived = false } = filters;
 
   let query = supabase
     .from("products")
@@ -89,9 +89,15 @@ export async function getEquipmentProducts(
   // par erreur — sans elle, l'archivage etait sans retour.
   query = archived ? query.not("archived_at", "is", null) : query.is("archived_at", null);
 
-  if (organizationId) {
-    query = query.eq("organization_id", organizationId);
-  }
+  // Pas de filtre sur organization_id : le catalogue est commun aux deux
+  // societes, seul le stock leur appartient. Cette colonne ne dit que qui a
+  // saisi la fiche — s'en servir pour filtrer coupait le catalogue en deux et
+  // faisait disparaitre de la vue « Archives » sept outils bien archives, au
+  // seul motif qu'ils avaient ete crees depuis l'autre societe. Le RLS borne
+  // deja la lecture aux societes de l'utilisateur.
+  //
+  // organizationId reste dans les filtres : il conditionne le declenchement de
+  // la requete (le `enabled` du hook), il ne la restreint plus.
   if (search) {
     query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%`);
   }
@@ -314,7 +320,8 @@ export async function getAvailableEquipment(organizationId: string) {
   const { data, error } = await supabase
     .from("products")
     .select("id, name, sku, icon_name, icon_color, image_url, stock_current")
-    .eq("organization_id", organizationId)
+    // Meme raison : un outil reste assignable quelle que soit la societe qui
+    // l'a saisi.
     .eq("product_type", "equipment")
     .is("archived_at", null)
     .gt("stock_current", 0)

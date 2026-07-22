@@ -16,11 +16,7 @@ export function createMockSupabaseClient() {
 
   const client: Record<string, any> = {
     // ── Control ───────────────────────────────────────────────────
-    _setResult(result: {
-      data?: unknown;
-      error?: unknown;
-      count?: number | null;
-    }) {
+    _setResult(result: { data?: unknown; error?: unknown; count?: number | null }) {
       _result = {
         data: result.data ?? null,
         error: result.error ?? null,
@@ -68,6 +64,10 @@ export function createMockSupabaseClient() {
     lte: vi.fn(() => client),
     in: vi.fn(() => client),
     is: vi.fn(() => client),
+    // `.not(...)` manquait : toute requete l'utilisant — la vue des outils
+    // archives, par exemple — echouait dans les tests sur un « not is not a
+    // function », donc restait non testee.
+    not: vi.fn(() => client),
     or: vi.fn(() => client),
     order: vi.fn(() => client),
     limit: vi.fn(() => client),
