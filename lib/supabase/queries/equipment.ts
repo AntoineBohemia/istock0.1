@@ -49,6 +49,14 @@ export interface EquipmentProduct {
   assignments: EquipmentAssignment[];
   total_assigned: number;
   /**
+   * Unites perdues depuis le premier achat : casse, vol, disparition.
+   *
+   * La fiche montrait les achats sans jamais montrer l'autre moitie de
+   * l'equation. On decidait un rachat sur « on en a achete quinze », sans
+   * savoir qu'on en avait perdu huit — le chiffre qui dit si le modele tient.
+   */
+  total_lost?: number;
+  /**
    * Ce que detient chaque societe.
    *
    * Necessaire pour retirer des unites : une sortie puise dans une seule
@@ -187,11 +195,25 @@ export async function getEquipmentProduct(id: string): Promise<EquipmentProduct 
     technician: Array.isArray(a.technician) ? a.technician[0] : a.technician,
   })) as EquipmentAssignment[];
 
+  // Pertes cumulees. Requete separee : une jointure les aurait multipliees par
+  // le nombre d'assignations.
+  const { data: losses } = await supabase
+    .from("stock_movements")
+    .select("quantity, reversed_quantity")
+    .eq("product_id", id)
+    .in("movement_type", ["exit_anonymous", "exit_loss"])
+    .is("reverses_movement_id", null);
+
   return {
     ...product,
     supplier: Array.isArray(product.supplier) ? product.supplier[0] : product.supplier,
     assignments: normalizedAssignments,
     total_assigned: normalizedAssignments.reduce((sum, a) => sum + a.quantity, 0),
+    // Net des corrections : une perte annulee n'en est plus une.
+    total_lost: (losses ?? []).reduce(
+      (sum, m) => sum + (m.quantity - (m.reversed_quantity ?? 0)),
+      0
+    ),
   } as EquipmentProduct;
 }
 
@@ -224,10 +246,12 @@ export async function getTechnicianEquipment(technicianId: string): Promise<Equi
 
 export interface EquipmentHistoryEntry {
   id: string;
-  movement_type: "assign_equipment" | "unassign_equipment";
+  movement_type: "assign_equipment" | "unassign_equipment" | "exit_anonymous" | "exit_loss";
   quantity: number;
   created_at: string | null;
   technician: { id: string; first_name: string; last_name: string } | null;
+  /** Motif d'une perte : casse, vol, disparition. Vide pour un pret. */
+  note: string | null;
 }
 
 /**
@@ -244,10 +268,15 @@ export async function getEquipmentHistory(
   const { data, error } = await supabase
     .from("stock_movements")
     .select(
-      "id, movement_type, quantity, created_at, technician:technicians(id, first_name, last_name)"
+      "id, movement_type, quantity, created_at, note, technician:technicians(id, first_name, last_name)"
     )
     .eq("product_id", productId)
-    .in("movement_type", ["assign_equipment", "unassign_equipment"])
+    // Les pertes font partie de la vie de l'outil au meme titre que les prets :
+    // les ecarter laissait une frise ou l'outil partait et revenait sans jamais
+    // disparaitre, alors que c'est souvent ainsi qu'il finit.
+    .in("movement_type", ["assign_equipment", "unassign_equipment", "exit_anonymous", "exit_loss"])
+    // Une correction annule une ligne : la montrer ferait compter deux fois.
+    .is("reverses_movement_id", null)
     .order("created_at", { ascending: false })
     .limit(limit);
 

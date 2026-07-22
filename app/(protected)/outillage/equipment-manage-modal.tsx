@@ -160,6 +160,12 @@ export default function EquipmentManageModal({
   const totalUnits = stock + p.total_assigned;
   const totalValue = (p.price ?? 0) * totalUnits;
 
+  // Part des pertes sur tout ce qui a été acheté — ce qu'on possède encore
+  // plus ce qu'on a perdu. La rapporter au seul parc restant donnerait des
+  // pourcentages au-delà de cent le jour où l'on perd plus qu'on ne détient.
+  const lost = p.total_lost ?? 0;
+  const lossShare = lost > 0 ? Math.round((lost / (totalUnits + lost)) * 100) : 0;
+
   // Assign entry point is always shown; disabled with a reason when it can't be used
   const canAssign = stock > 0 && activeTechs.length > 0;
   const assignDisabledReason =
@@ -395,6 +401,23 @@ export default function EquipmentManageModal({
                   )}
                 </span>
               </div>
+
+              {/* Ce qu'on a perdu, en face de ce qu'on possède encore.
+                  C'est le chiffre qui répond à « est-ce qu'on rachète ce
+                  modèle ? » — un outil cassé huit fois sur quinze n'est pas le
+                  bon. Il ne s'affiche que s'il y a eu des pertes : une ligne
+                  « 0 perdu » sur chaque fiche ne dirait rien. */}
+              {lost > 0 && (
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-sm text-muted-foreground">Perdus</span>
+                  <span className="font-heading text-lg font-semibold tabular-nums text-critique">
+                    {lost}
+                    <span className="ml-1.5 text-sm font-normal text-muted-foreground">
+                      {lossShare}% des achats
+                    </span>
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -743,7 +766,12 @@ export default function EquipmentManageModal({
             )}
           </div>
 
-          {/* ── Historique — qui a eu cet outil, et quand ── */}
+          {/* ── Historique — la vie de l'outil ──
+              Prêts, retours et pertes dans une seule frise. Les pertes en
+              étaient absentes : l'outil partait et revenait sans jamais
+              disparaître, alors que c'est souvent ainsi qu'il finit. Un bloc
+              « Pertes » séparé aurait fait un quatrième pavé à replier pour
+              une information qui appartient à la même chronologie. */}
           <div className="mt-5 border-t pt-4">
             <button
               type="button"
@@ -773,30 +801,50 @@ export default function EquipmentManageModal({
                 ) : (
                   <ul className="divide-y rounded-lg border">
                     {history.map((h) => {
+                      // Une perte n'est ni un départ ni un retour : l'outil ne
+                      // revient pas. Elle a donc sa propre marque, et porte son
+                      // motif à la place d'un nom de technicien.
+                      const isLoss =
+                        h.movement_type === "exit_anonymous" || h.movement_type === "exit_loss";
                       const isOut = h.movement_type === "assign_equipment";
                       return (
                         <li key={h.id} className="flex items-center gap-2 px-3 py-2">
                           <span
                             className={cn(
                               "flex size-6 shrink-0 items-center justify-center rounded-full text-sm font-bold",
-                              isOut
-                                ? "bg-attention/15 text-attention"
-                                : "bg-standard/15 text-standard"
+                              isLoss
+                                ? "bg-critique/15 text-critique"
+                                : isOut
+                                  ? "bg-attention/15 text-attention"
+                                  : "bg-standard/15 text-standard"
                             )}
-                            title={isOut ? "Assigné" : "Rendu"}
+                            title={isLoss ? "Perte" : isOut ? "Assigné" : "Rendu"}
                           >
-                            {isOut ? "↑" : "↓"}
+                            {isLoss ? "×" : isOut ? "↑" : "↓"}
                           </span>
                           <span className="min-w-0 flex-1 truncate text-sm">
-                            <span className="font-medium">
-                              {h.technician
-                                ? `${h.technician.first_name} ${h.technician.last_name}`
-                                : "Technicien supprimé"}
-                            </span>
-                            <span className="text-muted-foreground">
-                              {isOut ? " a reçu " : " a rendu "}
-                            </span>
-                            <span className="font-medium tabular-nums">{h.quantity}</span>
+                            {isLoss ? (
+                              <>
+                                <span className="font-medium">Perdu</span>
+                                <span className="text-muted-foreground"> · </span>
+                                <span className="font-medium tabular-nums">{h.quantity}</span>
+                                {h.note && (
+                                  <span className="text-muted-foreground"> — {h.note}</span>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <span className="font-medium">
+                                  {h.technician
+                                    ? `${h.technician.first_name} ${h.technician.last_name}`
+                                    : "Technicien supprimé"}
+                                </span>
+                                <span className="text-muted-foreground">
+                                  {isOut ? " a reçu " : " a rendu "}
+                                </span>
+                                <span className="font-medium tabular-nums">{h.quantity}</span>
+                              </>
+                            )}
                           </span>
                           <span className="text-sm text-muted-foreground tabular-nums shrink-0">
                             {h.created_at ? formatAssignedAt(h.created_at) : "—"}
