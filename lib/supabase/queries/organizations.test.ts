@@ -330,7 +330,37 @@ describe("getUserOrganizations", () => {
       slug: "my-org",
       logo_url: null,
       role: "owner",
+      // Une societe dont la colonne remonte nulle — creee avant l'ajout du
+      // statut — doit rester utilisable : le defaut est « active ».
+      is_active: true,
     });
+  });
+
+  it("respecte une societe desactivee", async () => {
+    mockClient.auth.getUser = vi.fn().mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+    mockClient._setResult({
+      data: [
+        {
+          role: "owner",
+          is_default: true,
+          organization: {
+            id: "org-2",
+            name: "Ancienne",
+            slug: "ancienne",
+            logo_url: null,
+            is_active: false,
+          },
+        },
+      ],
+      error: null,
+    });
+
+    const result = await getUserOrganizations();
+
+    expect(result[0].is_active).toBe(false);
   });
 
   it("returns empty array when not authenticated", async () => {
