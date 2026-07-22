@@ -9,6 +9,8 @@ import {
   LogOut,
   MoreHorizontal,
   Plus,
+  Power,
+  PowerOff,
   Trash2,
   Users,
   Crown,
@@ -142,6 +144,19 @@ export default function OrganizationsPage() {
   const openDeleteDialog = (org: Organization) => {
     setOrgToDelete(org);
     setIsDeleteDialogOpen(true);
+  };
+
+  // Desactiver plutot que supprimer : les donnees restent, la societe sort
+  // seulement des selecteurs et des ecrans de saisie.
+  const toggleActive = (org: Organization) => {
+    const next = org.is_active === false;
+    updateMutation.mutate(
+      { id: org.id, data: { is_active: next } },
+      {
+        onSuccess: () => toast.success(next ? `${org.name} réactivée` : `${org.name} désactivée`),
+        onError: (err) => toast.error(err instanceof Error ? err.message : "Erreur"),
+      }
+    );
   };
 
   // Le slug ne se saisit plus : c'est un identifiant technique, derive du nom.
@@ -410,9 +425,18 @@ export default function OrganizationsPage() {
                           <div>
                             <div className="flex items-center gap-2">
                               <span className="font-medium">{org.name}</span>
+                              {/* Deux etats distincts, qui etaient confondus
+                                  sous un seul mot « Active » : la societe
+                                  selectionnee pour les saisies, et la societe
+                                  en activite. */}
                               {isCurrent && (
                                 <Badge variant="secondary" className="text-xs">
-                                  Active
+                                  Sélectionnée
+                                </Badge>
+                              )}
+                              {org.is_active === false && (
+                                <Badge variant="outline" className="text-xs text-muted-foreground">
+                                  Désactivée
                                 </Badge>
                               )}
                             </div>
@@ -447,6 +471,27 @@ export default function OrganizationsPage() {
                                 <DropdownMenuItem onClick={() => openEditDialog(org)}>
                                   <Edit2 className="mr-2 size-4" />
                                   Modifier
+                                </DropdownMenuItem>
+                                {/* Desactiver plutot que supprimer : les
+                                    donnees restent, la societe disparait
+                                    seulement des selecteurs et des ecrans de
+                                    saisie. On ne peut pas desactiver celle que
+                                    l'on est en train d'utiliser. */}
+                                <DropdownMenuItem
+                                  disabled={isCurrent && org.is_active !== false}
+                                  onClick={() => toggleActive(org)}
+                                >
+                                  {org.is_active === false ? (
+                                    <>
+                                      <Power className="mr-2 size-4" />
+                                      Réactiver
+                                    </>
+                                  ) : (
+                                    <>
+                                      <PowerOff className="mr-2 size-4" />
+                                      Désactiver
+                                    </>
+                                  )}
                                 </DropdownMenuItem>
                                 {!isCurrent && (
                                   <DropdownMenuItem

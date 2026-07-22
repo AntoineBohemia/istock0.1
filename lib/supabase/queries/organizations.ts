@@ -45,7 +45,7 @@ export async function getUserOrganizations(): Promise<Organization[]> {
       `
       role,
       is_default,
-      organization:organizations(id, name, slug, logo_url)
+      organization:organizations(id, name, slug, logo_url, is_active)
     `
     )
     .eq("user_id", user.id)
@@ -63,8 +63,21 @@ export async function getUserOrganizations(): Promise<Organization[]> {
       slug: org?.slug || "",
       logo_url: org?.logo_url || null,
       role: item.role as "owner" | "admin" | "member",
+      // Defaut a true : une societe creee avant l'ajout de la colonne, ou dont
+      // la valeur remonterait nulle, doit rester utilisable.
+      is_active: org?.is_active ?? true,
     };
   });
+}
+
+/**
+ * Societes utilisables : celles ou l'on peut selectionner, filtrer, saisir.
+ *
+ * Les ecrans de reglages, eux, affichent tout le monde — c'est de la qu'on
+ * reactive une societe mise en sommeil.
+ */
+export function activeOrganizations(orgs: Organization[]): Organization[] {
+  return orgs.filter((o) => o.is_active !== false);
 }
 
 /**
@@ -511,7 +524,7 @@ export async function createOrganization(
  */
 export async function updateOrganization(
   organizationId: string,
-  data: { name?: string; slug?: string; logo_url?: string | null }
+  data: { name?: string; slug?: string; logo_url?: string | null; is_active?: boolean }
 ): Promise<void> {
   const supabase = createClient();
 

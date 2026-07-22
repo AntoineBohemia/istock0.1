@@ -36,7 +36,7 @@ export function useUpdateOrganization() {
       data,
     }: {
       id: string;
-      data: { name?: string; slug?: string; logo_url?: string | null };
+      data: { name?: string; slug?: string; logo_url?: string | null; is_active?: boolean };
     }) => updateOrganization(id, data),
     onMutate: async ({ id, data }) => {
       const key = queryKeys.organizations.list();

@@ -22,6 +22,7 @@ import TechnicianPhotoInput from "./technician-photo-input";
 import TechnicianVehicleSelect from "./technician-vehicle-select";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useOrganizations } from "@/hooks/queries";
+import { activeOrganizations } from "@/lib/supabase/queries/organizations";
 import { CLOTHING_SIZES_TOP, CLOTHING_SIZES_BOTTOM } from "@/lib/constants/clothing-sizes";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
@@ -51,7 +52,9 @@ export default function CreateTechnicianDialog({
 }: CreateTechnicianDialogProps) {
   const router = useRouter();
   const { currentOrganization } = useOrganizationStore();
-  const { data: userOrgs } = useOrganizations();
+  const { data: allOrgs } = useOrganizations();
+  // Saisie : on ne propose que des societes en activite.
+  const userOrgs = activeOrganizations(allOrgs ?? []);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [vehicleId, setVehicleId] = useState("");

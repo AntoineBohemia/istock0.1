@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useOrganizations, useVehicles } from "@/hooks/queries";
+import { activeOrganizations } from "@/lib/supabase/queries/organizations";
 import { useUpdateTechnician } from "@/hooks/mutations";
 import { setTechnicianVehicle } from "@/lib/supabase/queries/vehicles";
 import TechnicianVehicleSelect from "@/app/(protected)/techniciens/technician-vehicle-select";
@@ -42,7 +43,9 @@ export default function EditTechnicianModal({
   onOpenChange,
 }: EditTechnicianModalProps) {
   const { currentOrganization } = useOrganizationStore();
-  const { data: userOrgs } = useOrganizations();
+  const { data: allOrgs } = useOrganizations();
+  // Saisie : on ne propose que des societes en activite.
+  const userOrgs = activeOrganizations(allOrgs ?? []);
   const updateMutation = useUpdateTechnician();
   const queryClient = useQueryClient();
   const isMultiOrg = (userOrgs?.length ?? 0) > 1;

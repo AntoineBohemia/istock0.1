@@ -13,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from "@/component
 import { Input } from "@/components/ui/input";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProducts, useOrganizations } from "@/hooks/queries";
+import { activeOrganizations } from "@/lib/supabase/queries/organizations";
 import { useCreateStockEntry } from "@/hooks/mutations";
 import { linkMovementToInvoice } from "@/lib/supabase/queries/stock-movements";
 import { toEntryTimestamp } from "@/lib/utils/entry-date";
@@ -49,7 +50,9 @@ interface StockEntryModalProps {
 
 export default function StockEntryModal({ open, onClose, productId }: StockEntryModalProps) {
   const { currentOrganization } = useOrganizationStore();
-  const { data: userOrgs } = useOrganizations();
+  const { data: allOrgs } = useOrganizations();
+  // Saisie : on ne propose que des societes en activite.
+  const userOrgs = activeOrganizations(allOrgs ?? []);
   // L'outillage s'achete comme le reste : il doit figurer dans la liste
   // des produits, meme s'il ne comptera pas dans les totaux.
   const { data: productsResult } = useProducts({

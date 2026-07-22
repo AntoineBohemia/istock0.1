@@ -9,6 +9,9 @@ export interface Organization {
   slug: string;
   logo_url: string | null;
   role: Role;
+  /** Societe en activite. A false, elle disparait des selecteurs et des ecrans
+   *  de saisie ; ses donnees restent consultables. */
+  is_active?: boolean;
 }
 
 interface OrganizationStore {
