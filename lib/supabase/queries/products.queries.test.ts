@@ -279,6 +279,31 @@ describe("getProducts", () => {
     expect(products[0].stock_current).toBe(0);
   });
 
+  // Les ecrans de consultation veulent le total tout en transmettant une
+  // societe — celle-ci conditionne le declenchement de la requete cote hook.
+  // Confondre les deux roles avait desactive la liste produits.
+  it("expose le total quand stockScope vaut all", async () => {
+    mockClient._setResult({
+      data: [
+        {
+          id: "p1",
+          product_type: "consumable",
+          stock_current: 1830,
+          product_organization_stock: [
+            { organization_id: "org-1", stock_current: 44 },
+            { organization_id: "org-2", stock_current: 1786 },
+          ],
+        },
+      ],
+      error: null,
+      count: 1,
+    });
+
+    const { products } = await getProducts({ organizationId: "org-1", stockScope: "all" });
+
+    expect(products[0].stock_current).toBe(1830);
+  });
+
   // L'outillage est volontairement hors ventilation par societe : ses lignes
   // par societe ont ete supprimees, substituer le mettrait a zero.
   it("laisse le stock de l'outillage au total", async () => {

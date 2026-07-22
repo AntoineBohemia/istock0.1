@@ -47,7 +47,24 @@ export interface ProductWithRelations extends Product {
 }
 
 export interface ProductFilters {
+  /**
+   * Societe consultee.
+   *
+   * Deux roles distincts, a ne pas confondre : elle conditionne le
+   * declenchement de la requete (les hooks attendent qu'une societe soit
+   * connue) et elle designe le stock a exposer. Elle ne filtre plus les
+   * fiches — le catalogue est commun.
+   */
   organizationId?: string;
+  /**
+   * Quel stock afficher.
+   *
+   * « organization » (defaut) : le stock de la societe consultee — pour les
+   * ecrans qui font agir, ou le nombre annonce doit etre celui dans lequel on
+   * puise reellement.
+   * « all » : le total toutes societes — pour les ecrans de consultation.
+   */
+  stockScope?: "organization" | "all";
   search?: string;
   categoryId?: string;
   minPrice?: number;
@@ -102,8 +119,16 @@ export function generateSKU(name: string): string {
  */
 export async function getProducts(filters: ProductFilters = {}): Promise<ProductsResult> {
   const supabase = createClient();
-  const { organizationId, search, categoryId, minPrice, maxPrice, stockStatus, includeEquipment } =
-    filters;
+  const {
+    organizationId,
+    stockScope = "organization",
+    search,
+    categoryId,
+    minPrice,
+    maxPrice,
+    stockStatus,
+    includeEquipment,
+  } = filters;
 
   // Construire la requête de base
   // count: "exact" — le catalogue (53 references, environ 4 par mois) est loin
@@ -174,7 +199,7 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
   // L'outillage est laisse tel quel : il est volontairement hors ventilation
   // par societe (migration 20260721900000), ses lignes par societe ont ete
   // supprimees et le remplacer le mettrait a zero.
-  if (organizationId) {
+  if (organizationId && stockScope === "organization") {
     products = products.map((p) => {
       if (p.product_type === "equipment") return p;
       const own = p.product_organization_stock?.find(

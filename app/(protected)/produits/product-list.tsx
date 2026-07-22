@@ -117,12 +117,15 @@ export default function ProductList() {
     isError,
     refetch,
   } = useProducts({
-    // Pas de societe : le catalogue est une vue consolidee, le chiffre est le
-    // total des societes — comme sur la fiche produit, ou l'on atterrit en
-    // cliquant une ligne. La ventilation sous le chiffre dit qui detient quoi.
-    //
-    // Les ecrans qui font agir passent, eux, une societe : le stock qu'ils
-    // annoncent doit etre celui dans lequel on va reellement puiser.
+    // La societe reste transmise : elle conditionne le declenchement de la
+    // requete. L'omettre desactivait le hook, la liste restait vide et bloquee
+    // en chargement.
+    organizationId: currentOrganization?.id,
+    // Vue consolidee : le chiffre est le total des societes, comme sur la
+    // fiche produit ou l'on atterrit en cliquant une ligne. La ventilation
+    // sous le chiffre dit qui detient quoi. Les ecrans qui font agir gardent
+    // le stock de la societe : leur nombre borne ce qu'on peut saisir.
+    stockScope: "all",
     search: debouncedSearch || undefined,
   });
 
