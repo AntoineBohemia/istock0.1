@@ -7,6 +7,8 @@ import {
   Car,
   FileText,
   Fuel,
+  Gauge,
+  Hash,
   Image as ImageIcon,
   Loader2,
   Pencil,
@@ -15,6 +17,7 @@ import {
   User,
   Wrench,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -37,6 +40,7 @@ import { useVehicle } from "@/hooks/queries/use-vehicles";
 import { useDeleteVehicle } from "@/hooks/mutations/use-vehicle-mutations";
 import EditVehicleDialog from "@/app/(protected)/parametres/vehicules/edit-vehicle-dialog";
 import DocumentList from "./document-list";
+import PhotoGallery from "./photo-gallery";
 import { useRouter } from "next/navigation";
 
 const FUEL_LABELS: Record<string, string> = {
@@ -45,6 +49,27 @@ const FUEL_LABELS: Record<string, string> = {
   electrique: "Électrique",
   hybride: "Hybride",
 };
+
+/** Une caracteristique : son intitule au-dessus, sa valeur en dessous. */
+function Field({
+  icon: Icon,
+  label,
+  children,
+}: {
+  icon: LucideIcon;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="min-w-0">
+      <dt className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <Icon className="size-3.5" />
+        {label}
+      </dt>
+      <dd className="mt-1 truncate text-sm font-medium">{children}</dd>
+    </div>
+  );
+}
 
 export default function VehicleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -116,50 +141,68 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
           }
         />
 
-        {/* Metadata grid */}
-        <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground ml-11">
+        {/* Caracteristiques.
+            C'etait une phrase de valeurs grises separees par des espaces, sans
+            intitules et decalee d'un `ml-11` cale sur la fleche de retour : on
+            lisait « 128 000 km » sans savoir si c'etait le kilometrage ou autre
+            chose, et « Diesel » collait a la marque. Chaque donnee porte
+            desormais son nom, et les valeurs ressortent. */}
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 border-t pt-4 sm:grid-cols-3 lg:grid-cols-4">
           {vehicle.brand && (
-            <span>
-              <Car className="size-3.5 inline mr-1 -mt-0.5" />
+            <Field icon={Car} label="Modèle">
               {vehicle.brand}
               {vehicle.model ? ` ${vehicle.model}` : ""}
               {vehicle.year ? ` (${vehicle.year})` : ""}
-            </span>
+            </Field>
           )}
           {vehicle.fuel_type && (
-            <span>
-              <Fuel className="size-3.5 inline mr-1 -mt-0.5" />
+            <Field icon={Fuel} label="Carburant">
               {FUEL_LABELS[vehicle.fuel_type] ?? vehicle.fuel_type}
-            </span>
+            </Field>
           )}
           {vehicle.mileage != null && vehicle.mileage > 0 && (
-            <span className="tabular-nums">{vehicle.mileage.toLocaleString("fr-FR")} km</span>
+            <Field icon={Gauge} label="Kilométrage">
+              <span className="tabular-nums">{vehicle.mileage.toLocaleString("fr-FR")} km</span>
+            </Field>
           )}
-          {vehicle.vin && <span className="font-mono text-xs">VIN: {vehicle.vin}</span>}
+          {vehicle.vin && (
+            <Field icon={Hash} label="VIN">
+              <span className="font-mono text-sm">{vehicle.vin}</span>
+            </Field>
+          )}
           {vehicle.technician && (
-            <Link
-              href={`/techniciens/${vehicle.technician.id}`}
-              className="inline-flex items-center gap-1.5 hover:underline underline-offset-2"
-            >
-              <Avatar className="size-5">
-                {vehicle.technician.photo_url && (
-                  <AvatarImage
-                    src={vehicle.technician.photo_url}
-                    alt={`${vehicle.technician.first_name} ${vehicle.technician.last_name}`}
-                  />
-                )}
-                <AvatarFallback className="text-[8px] font-bold uppercase">
-                  {vehicle.technician.first_name.charAt(0)}
-                  {vehicle.technician.last_name.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-              {vehicle.technician.first_name} {vehicle.technician.last_name}
-            </Link>
+            <Field icon={User} label="Technicien">
+              <Link
+                href={`/techniciens/${vehicle.technician.id}`}
+                className="inline-flex items-center gap-2 hover:underline underline-offset-2"
+              >
+                <Avatar className="size-5">
+                  {vehicle.technician.photo_url && (
+                    <AvatarImage
+                      src={vehicle.technician.photo_url}
+                      alt={`${vehicle.technician.first_name} ${vehicle.technician.last_name}`}
+                    />
+                  )}
+                  <AvatarFallback className="text-[8px] font-bold uppercase">
+                    {vehicle.technician.first_name.charAt(0)}
+                    {vehicle.technician.last_name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                {vehicle.technician.first_name} {vehicle.technician.last_name}
+              </Link>
+            </Field>
           )}
-        </div>
+        </dl>
 
+        {/* Les notes sortent de l'italique : c'est du texte a lire, pas une
+            citation. */}
         {vehicle.notes && (
-          <p className="text-sm text-muted-foreground ml-11 italic">{vehicle.notes}</p>
+          <div className="border-t pt-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Notes
+            </p>
+            <p className="mt-1.5 text-sm whitespace-pre-wrap">{vehicle.notes}</p>
+          </div>
         )}
       </div>
 
@@ -206,11 +249,8 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
             />
           </TabsContent>
           <TabsContent value="photo">
-            <DocumentList
-              vehicleId={id}
-              organizationId={vehicle.organization_id}
-              documentType="photo"
-            />
+            {/* Galerie et non liste de fichiers : une photo se regarde. */}
+            <PhotoGallery vehicleId={id} organizationId={vehicle.organization_id} />
           </TabsContent>
         </div>
       </Tabs>
