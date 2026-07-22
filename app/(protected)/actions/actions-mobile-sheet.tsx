@@ -1545,12 +1545,21 @@ export default function ActionsMobileSheet() {
                           oriente vers un transfert quand le stock local est
                           court, sans laisser croire qu'on peut le prendre. */}
                       {(product.other_org_stock?.length ?? 0) > 0 && (
-                        <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-2.5">
+                        <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
                           <span className="text-sm text-muted-foreground">Ailleurs</span>
-                          <span className="text-sm tabular-nums text-muted-foreground">
-                            {product.other_org_stock
-                              ?.map((o) => `${o.name} ${o.stock}`)
-                              .join(" · ")}
+                          <span className="flex items-baseline gap-3">
+                            {product.other_org_stock?.map((o) => (
+                              <span key={o.name} className="flex items-baseline gap-1.5">
+                                <span className="text-sm text-muted-foreground">{o.name}</span>
+                                {/* Le chiffre reprend le poids du reste de
+                                    l'ecran : en gris clair il se lisait comme
+                                    une note de bas de page, alors que c'est lui
+                                    qui declenche un transfert. */}
+                                <span className="font-heading text-lg font-bold tabular-nums">
+                                  {o.stock}
+                                </span>
+                              </span>
+                            ))}
                           </span>
                         </div>
                       )}
