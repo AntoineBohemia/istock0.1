@@ -57,6 +57,7 @@ import { Badge } from "@/components/ui/badge";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProducts, useTechnicians, useSuppliers } from "@/hooks/queries";
 import { useCreateStockEntry, useCreateStockExit } from "@/hooks/mutations";
+import { maxSingleOrgStock, pickExitSource, type OrgStock } from "@/lib/utils/exit-source";
 
 interface QuickStockMovementModalProps {
   open: boolean;
@@ -73,6 +74,14 @@ interface Product {
   stock_current: number | null;
   price: number | null;
   supplier_id: string | null;
+  /**
+   * Ce que detient chaque societe.
+   *
+   * Une sortie puise chez celle qui en a le moins ; le choix depend de la
+   * quantite demandee, qui change encore apres la selection du produit. On
+   * transporte donc la ventilation, pas une societe deja designee.
+   */
+  org_stock: OrgStock[];
 }
 
 interface Technician {
@@ -103,7 +112,7 @@ export default function QuickStockMovementModal({
   defaultDirection = "entry",
 }: QuickStockMovementModalProps) {
   const shouldReduceMotion = useReducedMotion();
-  const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
+  const { currentOrganization, organizations, isLoading: isOrgLoading } = useOrganizationStore();
   const { data: productsResult, isLoading: isLoadingProducts } = useProducts({
     organizationId: currentOrganization?.id,
   });
@@ -122,6 +131,12 @@ export default function QuickStockMovementModal({
     stock_current: p.stock_current,
     price: p.price,
     supplier_id: p.supplier_id,
+    // Limite aux societes de l'application : la base garde des organisations
+    // de test qui ne doivent jamais pouvoir etre designees comme source.
+    org_stock: organizations.flatMap((org) => {
+      const row = p.product_organization_stock?.find((x) => x.organization_id === org.id);
+      return row ? [{ id: org.id, name: org.name, stock: row.stock_current }] : [];
+    }),
   }));
   const technicians: Technician[] = techniciansData.map((t) => ({
     id: t.id,
@@ -146,6 +161,32 @@ export default function QuickStockMovementModal({
 
   const direction = form.watch("direction");
   const exitType = form.watch("exit_type");
+  const quantity = form.watch("quantity");
+
+  // ─── Societe debitee par une sortie ─────────────────────
+  // Regle metier : on puise chez celle qui en a le moins. Une entree, elle,
+  // reste rattachee a la societe courante — c'est un choix, pas une deduction.
+  //
+  // L'outillage n'a pas de ventilation par societe : sans ligne a comparer, on
+  // retombe sur la societe courante.
+  const exitSource =
+    direction === "exit" && product
+      ? (pickExitSource(product.org_stock, quantity || 1) ??
+        (currentOrganization
+          ? {
+              id: currentOrganization.id,
+              name: currentOrganization.name,
+              stock: product.stock_current ?? 0,
+            }
+          : null))
+      : null;
+
+  // Ce que la sortie peut prendre : le stock d'une seule societe, jamais le
+  // cumul — une sortie ne se decoupe pas entre les deux.
+  const exitCeiling =
+    product && product.org_stock.length > 0
+      ? maxSingleOrgStock(product.org_stock)
+      : (product?.stock_current ?? 0);
 
   // Handle modal open/close and product selection
   useEffect(() => {
@@ -209,8 +250,13 @@ export default function QuickStockMovementModal({
     } else {
       const exitTypeValue = data.exit_type || "exit_anonymous";
 
-      if (data.quantity > (product.stock_current ?? 0)) {
-        toast.error(`Stock insuffisant. Disponible: ${product.stock_current}`);
+      if (!exitSource) {
+        toast.error(`Aucun stock disponible pour ${product.name}`);
+        return;
+      }
+
+      if (data.quantity > exitSource.stock) {
+        toast.error(`${exitSource.name} n'en a que ${exitSource.stock}`);
         return;
       }
 
@@ -221,7 +267,7 @@ export default function QuickStockMovementModal({
 
       createExitMutation.mutate(
         {
-          organizationId: currentOrganization.id,
+          organizationId: exitSource.id,
           productId: product.id,
           quantity: data.quantity,
           type: exitTypeValue,
@@ -229,7 +275,9 @@ export default function QuickStockMovementModal({
         },
         {
           onSuccess: () => {
-            toast.success(`-${data.quantity} ${product.name} retiré(s) du stock`);
+            // La societe est nommee : elle n'a pas ete choisie, la regle l'a
+            // designee.
+            toast.success(`-${data.quantity} ${product.name} — ${exitSource.name}`);
             onClose();
           },
           onError: (error) => {
@@ -482,13 +530,25 @@ export default function QuickStockMovementModal({
                       <Input
                         type="number"
                         min={1}
-                        max={direction === "exit" ? (product.stock_current ?? 0) : undefined}
+                        max={direction === "exit" ? exitCeiling : undefined}
                         {...field}
                         onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
                       />
                     </FormControl>
-                    {direction === "exit" && (
-                      <FormDescription>Maximum disponible: {product.stock_current}</FormDescription>
+                    {/* La societe debitee est nommee : l'utilisateur ne l'a pas
+                        choisie, c'est la regle du « moins fourni ». Sans elle,
+                        le maximum affiche n'aurait pas d'explication. */}
+                    {direction === "exit" && exitSource && (
+                      <FormDescription>
+                        Sortie de {exitSource.name} — {exitSource.stock} disponible
+                        {exitSource.stock > 1 ? "s" : ""}
+                        {product.org_stock.length > 1 && (
+                          <span className="text-muted-foreground">
+                            {" · "}
+                            {product.org_stock.map((o) => `${o.name} ${o.stock}`).join(" · ")}
+                          </span>
+                        )}
+                      </FormDescription>
                     )}
                     <FormMessage />
                   </FormItem>

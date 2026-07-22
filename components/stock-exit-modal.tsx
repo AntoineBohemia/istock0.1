@@ -25,6 +25,7 @@ import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProducts, useTechnicians } from "@/hooks/queries";
 import { useCreateStockExit } from "@/hooks/mutations";
 import ProductIconDisplay from "@/components/product-icon-display";
+import { maxSingleOrgStock, pickExitSource, type OrgStock } from "@/lib/utils/exit-source";
 import { cn } from "@/lib/utils";
 
 const ExitSchema = z.object({
@@ -43,8 +44,15 @@ interface StockExitModalProps {
 }
 
 export default function StockExitModal({ open, onClose, productId }: StockExitModalProps) {
-  const { currentOrganization } = useOrganizationStore();
-  const { data: productsResult } = useProducts({ organizationId: currentOrganization?.id });
+  const { currentOrganization, organizations } = useOrganizationStore();
+  // Le stock montre est le cumul : la sortie ne part plus de la societe
+  // affichee en haut de l'application mais de celle qui en a le moins. Afficher
+  // le stock d'une seule societe ferait donc mentir la ligne « 4 » sur un
+  // produit dont l'autre detient douze unites.
+  const { data: productsResult } = useProducts({
+    organizationId: currentOrganization?.id,
+    stockScope: "all",
+  });
   const { data: technicians = [] } = useTechnicians(currentOrganization?.id);
   const products = productsResult?.products || [];
   const createExit = useCreateStockExit();
@@ -68,7 +76,39 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
   const exitType = form.watch("exit_type");
   const quantity = form.watch("quantity");
   const selectedProduct = products.find((p) => p.id === watchedProductId);
-  const stockAvailable = selectedProduct?.stock_current ?? 0;
+
+  // ─── Societe debitee ────────────────────────────────────
+  // Regle metier : on puise chez celle qui en a le moins. Elle se recalcule a
+  // chaque unite — passer de 4 a 8 peut faire basculer la sortie sur l'autre
+  // societe, une sortie ne se decoupant jamais entre les deux.
+  const orgStock: OrgStock[] = useMemo(() => {
+    if (!selectedProduct) return [];
+    return organizations.flatMap((org) => {
+      const row = selectedProduct.product_organization_stock?.find(
+        (x) => x.organization_id === org.id
+      );
+      return row ? [{ id: org.id, name: org.name, stock: row.stock_current }] : [];
+    });
+  }, [selectedProduct, organizations]);
+
+  // L'outillage n'a pas de ventilation par societe : sans ligne a comparer, la
+  // regle ne s'applique pas et l'on retombe sur la societe courante.
+  const exitSource = useMemo(() => {
+    const picked = pickExitSource(orgStock, quantity || 1);
+    if (picked) return picked;
+    if (!currentOrganization) return null;
+    return {
+      id: currentOrganization.id,
+      name: currentOrganization.name,
+      stock: selectedProduct?.stock_current ?? 0,
+    };
+  }, [orgStock, quantity, currentOrganization, selectedProduct]);
+
+  // Le stock de la societe debitee, et non le cumul : c'est lui qui borne la
+  // saisie. Le cumul laisserait demander dix unites reparties six et quatre,
+  // qu'aucune societe ne peut fournir seule.
+  const stockAvailable = exitSource?.stock ?? 0;
+  const stockCeiling = orgStock.length > 0 ? maxSingleOrgStock(orgStock) : stockAvailable;
   const stockAfter = stockAvailable - (quantity || 0);
 
   useEffect(() => {
@@ -102,10 +142,10 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
   }, [products, productSearch]);
 
   const onSubmit = (data: ExitValues) => {
-    if (!currentOrganization) return;
+    if (!exitSource) return;
 
-    if (selectedProduct && data.quantity > stockAvailable) {
-      toast.error(`Stock insuffisant (${stockAvailable} disponible)`);
+    if (selectedProduct && data.quantity > exitSource.stock) {
+      toast.error(`${exitSource.name} n'en a que ${exitSource.stock}`);
       return;
     }
 
@@ -116,7 +156,7 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
 
     createExit.mutate(
       {
-        organizationId: currentOrganization.id,
+        organizationId: exitSource.id,
         productId: data.product_id,
         quantity: data.quantity,
         type: data.exit_type,
@@ -124,7 +164,11 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
       },
       {
         onSuccess: () => {
-          toast.success(`−${data.quantity} ${selectedProduct?.name ?? "produit"} sorti du stock`);
+          // La societe est nommee : elle n'a pas ete choisie, c'est la regle
+          // qui l'a designee.
+          toast.success(
+            `−${data.quantity} ${selectedProduct?.name ?? "produit"} — ${exitSource.name}`
+          );
           onClose();
         },
         onError: (err) => {
@@ -292,14 +336,17 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium truncate">{selectedProduct.name}</p>
                             </div>
+                            {/* Le cumul des deux societes : c'est ce que l'on
+                                possede. La societe qui fournira est dite juste
+                                en dessous, elle n'a pas sa place ici. */}
                             <div className="text-right shrink-0">
                               <p
                                 className={cn(
                                   "text-sm font-semibold tabular-nums",
-                                  stockAvailable === 0 && "text-destructive"
+                                  (selectedProduct.stock_current ?? 0) === 0 && "text-destructive"
                                 )}
                               >
-                                {stockAvailable}
+                                {selectedProduct.stock_current ?? 0}
                               </p>
                             </div>
                           </>
@@ -366,6 +413,24 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
                       </div>
                     </PopoverContent>
                   </Popover>
+
+                  {/* Qui est debite. L'utilisateur ne l'a pas choisi : la regle
+                      l'a designe. Le taire reviendrait a modifier un stock sans
+                      dire lequel — et le sélecteur de societe en haut de page
+                      ferait croire que c'est lui qui decide. */}
+                  {selectedProduct && exitSource && orgStock.length > 0 && (
+                    <div className="mt-2 flex items-baseline justify-between gap-3 rounded-md bg-muted/40 px-3 py-2">
+                      <span className="text-xs text-muted-foreground">
+                        Sortie de{" "}
+                        <span className="font-medium text-foreground">{exitSource.name}</span>
+                        <span className="text-muted-foreground"> — celle qui en a le moins</span>
+                      </span>
+                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                        {orgStock.map((o) => `${o.name} ${o.stock}`).join(" · ")}
+                      </span>
+                    </div>
+                  )}
+
                   <FormMessage />
                 </FormItem>
               )}
@@ -389,12 +454,12 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
                       <Input
                         type="number"
                         min={1}
-                        max={stockAvailable || undefined}
+                        max={stockCeiling || undefined}
                         className="w-20 h-12 text-center text-2xl font-semibold bg-white dark:bg-card focus-visible:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         {...field}
                         onChange={(e) =>
                           field.onChange(
-                            Math.min(parseInt(e.target.value) || 1, stockAvailable || 9999)
+                            Math.min(parseInt(e.target.value) || 1, stockCeiling || 9999)
                           )
                         }
                       />
@@ -402,16 +467,20 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
                     <button
                       type="button"
                       onClick={() =>
-                        field.onChange(Math.min((field.value || 1) + 1, stockAvailable || 9999))
+                        field.onChange(Math.min((field.value || 1) + 1, stockCeiling || 9999))
                       }
                       className="flex size-10 items-center justify-center rounded-full border bg-white dark:bg-card hover:bg-muted transition-colors"
                     >
                       <Plus className="size-4" />
                     </button>
                   </div>
-                  {/* Stock impact */}
+                  {/* Stock impact — celui de la societe debitee, pas le cumul :
+                      c'est le seul qui bouge. */}
                   {selectedProduct && (
                     <p className="text-center text-xs text-muted-foreground tabular-nums mt-1">
+                      {orgStock.length > 0 && exitSource && (
+                        <span className="mr-1.5 tracking-wide">{exitSource.name}</span>
+                      )}
                       {stockAvailable}
                       <ArrowRight className="inline size-3 mx-1" />
                       <span
@@ -437,7 +506,7 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
             <div className="px-5 pt-2 pb-5">
               <Button
                 type="submit"
-                disabled={createExit.isPending || stockAvailable === 0}
+                disabled={createExit.isPending || stockCeiling === 0}
                 variant="default"
                 className="w-full h-10 rounded-lg"
               >
