@@ -59,35 +59,60 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Popup> & {
   showCloseButton?: boolean;
 }) {
+  return (
+    <DialogPortal>
+      <DialogOverlay />
+      <DialogPopup className={className} showCloseButton={showCloseButton} {...props}>
+        {children}
+      </DialogPopup>
+    </DialogPortal>
+  );
+}
+
+/**
+ * Le corps de la modale, inscrit dans la pile des couches.
+ *
+ * Cette inscription doit vivre SOUS le portail. `DialogContent` est monte meme
+ * quand la modale est fermee — c'est le portail, a l'interieur, qui ne rend
+ * rien. Inscrire depuis `DialogContent` faisait donc compter les modales
+ * fermees presentes dans l'arbre, et comme elles s'inscrivaient en dernier
+ * elles prenaient le premier plan : la modale reellement visible passait
+ * derriere et s'affichait floutee.
+ */
+function DialogPopup({
+  className,
+  children,
+  showCloseButton = true,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Popup> & {
+  showCloseButton?: boolean;
+}) {
   // Une modale ouverte par-dessus celle-ci la fait reculer : sans cela, deux
   // cadres identiques se superposent et l'on ne sait plus lequel repond.
   const isBehind = useIsBehindDialog();
 
   return (
-    <DialogPortal>
-      <DialogOverlay />
-      <DialogPrimitive.Popup
-        data-slot="dialog-content"
-        data-behind={isBehind || undefined}
-        className={cn(
-          "bg-background data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg",
-          isBehind && BEHIND_DIALOG_CLASSES,
-          className
-        )}
-        {...props}
-      >
-        {children}
-        {showCloseButton && (
-          <DialogPrimitive.Close
-            data-slot="dialog-close"
-            className="cursor-pointer ring-offset-background focus:ring-ring data-open:bg-accent data-open:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
-          >
-            <XIcon />
-            <span className="sr-only">Close</span>
-          </DialogPrimitive.Close>
-        )}
-      </DialogPrimitive.Popup>
-    </DialogPortal>
+    <DialogPrimitive.Popup
+      data-slot="dialog-content"
+      data-behind={isBehind || undefined}
+      className={cn(
+        "bg-background data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg",
+        isBehind && BEHIND_DIALOG_CLASSES,
+        className
+      )}
+      {...props}
+    >
+      {children}
+      {showCloseButton && (
+        <DialogPrimitive.Close
+          data-slot="dialog-close"
+          className="cursor-pointer ring-offset-background focus:ring-ring data-open:bg-accent data-open:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+        >
+          <XIcon />
+          <span className="sr-only">Close</span>
+        </DialogPrimitive.Close>
+      )}
+    </DialogPrimitive.Popup>
   );
 }
 
