@@ -338,6 +338,7 @@ export default function EquipmentManageModal({
               productName={p.name}
               assignedCount={p.total_assigned}
               stockCount={stock}
+              orgStock={p.product_organization_stock ?? []}
               isArchived={p.archived_at !== null}
               onArchived={() => onOpenChange(false)}
             />
