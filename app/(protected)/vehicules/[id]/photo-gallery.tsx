@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Camera, Loader2, Trash2, Upload } from "lucide-react";
+import { Camera, Download, Loader2, Trash2, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -43,6 +43,53 @@ function formatUploadDate(iso: string): string {
 
 function formatUploadTime(iso: string): string {
   return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
+
+/**
+ * Nom de fichier au telechargement : la date d'abord.
+ *
+ * Les photos arrivent du telephone avec des noms comme « IMG_4821.jpg ».
+ * Telechargees en serie, elles deviennent impossibles a distinguer. Prefixer
+ * par la date les range dans l'ordre chronologique dans le dossier.
+ */
+function downloadName(photo: VehicleDocument): string {
+  const ext = photo.file_name.match(/\.[^.]+$/)?.[0] ?? ".jpg";
+  const d = new Date(photo.created_at);
+  const stamp = [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, "0"),
+    String(d.getDate()).padStart(2, "0"),
+  ].join("-");
+  return `photo-vehicule-${stamp}${ext}`;
+}
+
+/**
+ * Telechargement force.
+ *
+ * L'attribut `download` d'une balise <a> est ignore quand le fichier vient
+ * d'une autre origine — ici le stockage Supabase. Le clic ouvrait donc un
+ * onglet au lieu d'enregistrer. On recupere le fichier puis on declenche le
+ * telechargement depuis une URL locale, ou l'attribut est respecte.
+ */
+async function downloadPhoto(photo: VehicleDocument) {
+  try {
+    const response = await fetch(photo.file_url);
+    if (!response.ok) throw new Error(String(response.status));
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = downloadName(photo);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch {
+    // Echec du telechargement : on ouvre la photo plutot que de ne rien faire,
+    // l'utilisateur peut toujours l'enregistrer a la main.
+    toast.error("Téléchargement impossible, la photo s'ouvre dans un onglet");
+    window.open(photo.file_url, "_blank", "noopener");
+  }
 }
 
 export default function PhotoGallery({
@@ -130,16 +177,33 @@ export default function PhotoGallery({
                     className="size-full object-cover"
                   />
                 </span>
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setToDelete(photo);
-                  }}
-                  role="button"
-                  aria-label="Supprimer la photo"
-                  className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-lg bg-black/55 text-white opacity-0 transition-opacity group-hover:opacity-100"
-                >
-                  <Trash2 className="size-4" />
+                {/* Telecharger et supprimer, au survol. Le telechargement
+                    etait relegue a l'apercu : il fallait ouvrir la photo pour
+                    l'enregistrer, alors que c'est souvent tout ce qu'on veut
+                    en faire. */}
+                <span className="absolute right-2 top-2 flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      downloadPhoto(photo);
+                    }}
+                    role="button"
+                    aria-label="Télécharger la photo"
+                    className="flex size-8 items-center justify-center rounded-lg bg-black/55 text-white hover:bg-black/75"
+                  >
+                    <Download className="size-4" />
+                  </span>
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setToDelete(photo);
+                    }}
+                    role="button"
+                    aria-label="Supprimer la photo"
+                    className="flex size-8 items-center justify-center rounded-lg bg-black/55 text-white hover:bg-black/75"
+                  >
+                    <Trash2 className="size-4" />
+                  </span>
                 </span>
               </button>
 
@@ -179,10 +243,9 @@ export default function PhotoGallery({
               />
               <div className="flex items-center justify-between gap-3 px-5 py-3">
                 <span className="truncate text-sm text-muted-foreground">{preview.file_name}</span>
-                <Button variant="outline" size="sm" asChild>
-                  <a href={preview.file_url} target="_blank" rel="noopener noreferrer" download>
-                    Télécharger
-                  </a>
+                <Button variant="outline" size="sm" onClick={() => downloadPhoto(preview)}>
+                  <Download className="mr-1.5 size-4" />
+                  Télécharger
                 </Button>
               </div>
             </>
