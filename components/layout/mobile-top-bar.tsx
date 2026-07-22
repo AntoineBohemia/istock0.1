@@ -25,8 +25,13 @@ export default function MobileTopBar() {
 
   // Le logo de l'organisation a ete retire : sur mobile on ne change pas de
   // societe, l'afficher n'informait de rien et concurrencait le titre.
+  //
+  // Meme matiere que la barre des ecrans pousses : translucide, bordure
+  // adoucie, contenu qui passe dessous. Elle etait opaque alors que l'autre
+  // ne l'est pas — deux barres de navigation dans la meme application, avec
+  // deux matieres differentes.
   return (
-    <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background px-4 md:hidden">
+    <header className="sticky top-0 z-20 flex h-12 shrink-0 items-center gap-2 border-b border-border/50 bg-background/80 px-4 backdrop-blur-xl backdrop-saturate-150 md:hidden">
       <img src="/logo/istock-app.svg" alt="iStock" className="size-7" />
       <h1 className="text-base font-semibold truncate">{title}</h1>
     </header>

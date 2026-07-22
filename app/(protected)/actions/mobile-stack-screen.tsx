@@ -13,6 +13,39 @@ import { ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
+ * ─── Systeme visuel du mobile ────────────────────────────────────────────
+ *
+ * Deux echelles distinctes, a ne pas melanger.
+ *
+ * TEXTE — quatre tailles, toutes en rem pour suivre le reglage du telephone.
+ *   text-sm    secondaire, intitules de section, notes
+ *   text-base  corps, libelles de ligne, boutons
+ *   text-lg    titres d'ecran et de ligne
+ *   text-2xl   titre d'une carte de choix
+ *
+ * NOMBRES — les chiffres portent l'information, ils ont droit a plus de
+ * presence que le texte qui les entoure.
+ *   text-xl    dans une liste (stock d'un produit, quantite au panier)
+ *   text-3xl   valeur en cours de reglage
+ *   text-6xl   la quantite, sujet unique de son ecran
+ *
+ * RAYONS
+ *   rounded-full  pastilles, avatars, boutons ronds
+ *   rounded-lg    badge pose sur une image
+ *   rounded-xl    groupes de liste, champs
+ *   rounded-2xl   cartes produit, boutons pleine largeur
+ *   rounded-3xl   grandes cartes de choix (accueil, nature de la sortie)
+ *
+ * MATIERES — les barres de navigation et d'action sont translucides
+ * (bg-background/80 + backdrop-blur-xl + backdrop-saturate-150), le contenu
+ * passe dessous. Un bandeau opaque rogne l'ecran, une couche flottante non.
+ *
+ * MOUVEMENT — ressorts et jamais de keyframe des qu'un doigt peut intervenir :
+ * une keyframe ne se saisit pas en vol. bounce 0 par defaut, bounce > 0
+ * seulement si un elan a precede.
+ */
+
+/**
  * Ou s'arrete un geste lance, d'apres sa vitesse au relachement.
  *
  * On ne decide pas au point ou le doigt quitte l'ecran mais la ou l'elan

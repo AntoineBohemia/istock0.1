@@ -14,7 +14,6 @@ import {
   Minus,
   Plus,
   Trash2,
-  ChevronLeft,
   PackagePlus,
   Check,
   Clock,
@@ -50,6 +49,7 @@ import {
   SwipeToActionRow,
 } from "./mobile-stack-screen";
 import { MobileSplash, shouldShowSplash } from "./mobile-splash";
+import { organizationLogo } from "@/lib/utils/org-logo";
 import {
   MobileHistorySheet,
   movementToHistoryEntry,
@@ -88,6 +88,14 @@ interface CartItem {
 interface SessionEntry {
   localId: string;
   movementType: MovementKind;
+  /**
+   * Societe dans laquelle le mouvement a ete ecrit.
+   *
+   * Une entree peut viser une autre societe que la societe courante :
+   * l'annulation doit revenir sur celle-la, sinon elle sortirait du stock
+   * d'une societe qui n'a jamais rien recu.
+   */
+  organizationId: string;
   productId: string;
   productName: string;
   quantity: number;
@@ -168,6 +176,20 @@ function useTodayString() {
 // ═════════════════════════════════════════════════════════════
 export default function ActionsMobileSheet() {
   const orgId = useOrganizationStore((s) => s.currentOrganization?.id);
+  const organizations = useOrganizationStore((s) => s.organizations);
+
+  // ─── Societe qui recoit l'entree ───────────────────────
+  // Le catalogue est commun ; ce choix dit seulement a qui le stock est
+  // affecte. Il se pose avant la liste plutot que sur chaque fiche : une
+  // livraison arrive pour une societe, on enchaine ensuite les produits.
+  // Le redemander a chaque article multiplierait les occasions de se
+  // tromper sur la seule information qui ne se voit pas apres coup.
+  const [entryOrgId, setEntryOrgId] = useState<string | undefined>(orgId);
+  const entryOrg = useMemo(
+    () => organizations.find((o) => o.id === entryOrgId),
+    [organizations, entryOrgId]
+  );
+  const multiOrg = organizations.length > 1;
 
   // ─── Today (recalculates every 60s) ─────────────────────
   const today = useTodayString();
@@ -178,9 +200,9 @@ export default function ActionsMobileSheet() {
   const [actionMode, setActionMode] = useState<ActionMode | null>(null);
 
   // ─── Drawer inner navigation ────────────────────────────
-  // Entree : "products" → "detail"
+  // Entree : ("organization") → "products" → "detail"
   // Sortie : "reason" → ("technicians") → "products" → "cart"
-  type DrawerStep = "reason" | "technicians" | "products" | "detail" | "cart";
+  type DrawerStep = "organization" | "reason" | "technicians" | "products" | "detail" | "cart";
   const [drawerStep, setDrawerStep] = useState<DrawerStep>("products");
 
   // ─── Search ─────────────────────────────────────────────
@@ -230,6 +252,12 @@ export default function ActionsMobileSheet() {
   const [isBatchSubmitting, setIsBatchSubmitting] = useState(false);
 
   // ─── Data ───────────────────────────────────────────────
+  // Le catalogue est commun aux societes : la meme peinture existe pour SMPR
+  // comme pour SEIREN, seul le stock est tenu separement dans
+  // product_organization_stock. La societe choisie a l'entree dit donc ou le
+  // stock atterrit, pas quels produits sont proposes — filtrer la liste
+  // dessus la viderait pour toute societe qui n'est pas proprietaire des
+  // fiches.
   const { data: productsResult, isLoading: isSearching } = useProducts({
     organizationId: orgId,
     search: debouncedSearch || undefined,
@@ -318,22 +346,43 @@ export default function ActionsMobileSheet() {
   }, [actionMode, quantity]);
 
   // ─── Open drawer for a given action ────────────────────
-  const openDrawer = useCallback((mode: ActionMode) => {
-    setActionMode(mode);
-    setSearchQuery("");
-    setProduct(null);
-    setQuantity(1);
-    setUnitPrice("");
-    setInvoiceRef("");
-    setEntryDate(todayDate);
-    setCart([]);
-    setTechnicianId("");
-    setExitReason(null);
+  const openDrawer = useCallback(
+    (mode: ActionMode) => {
+      setActionMode(mode);
+      setSearchQuery("");
+      setProduct(null);
+      setQuantity(1);
+      setUnitPrice("");
+      setInvoiceRef("");
+      setEntryDate(todayDate);
+      setCart([]);
+      setTechnicianId("");
+      setExitReason(null);
 
-    // Une sortie demande d'abord ou part le stock : sans cette reponse le
-    // mouvement ne peut pas etre qualifie.
-    setDrawerStep(mode === "exit" ? "reason" : "products");
-    setDrawerOpen(true);
+      if (mode === "exit") {
+        // Une sortie demande d'abord ou part le stock : sans cette reponse le
+        // mouvement ne peut pas etre qualifie.
+        setDrawerStep("reason");
+      } else if (multiOrg) {
+        // Une seule societe : l'ecran n'offrirait aucun choix, ce serait un
+        // appui a payer pour rien. On ne le montre que s'il decide.
+        setEntryOrgId(undefined);
+        setDrawerStep("organization");
+      } else {
+        setEntryOrgId(orgId);
+        setDrawerStep("products");
+      }
+      setDrawerOpen(true);
+    },
+    [multiOrg, orgId, todayDate]
+  );
+
+  // ─── Choix de la societe qui recoit l'entree ──────────
+  const selectEntryOrg = useCallback((id: string) => {
+    navigator.vibrate?.(10);
+    setEntryOrgId(id);
+    setSearchQuery("");
+    setDrawerStep("products");
   }, []);
 
   // ─── Close drawer (resets state) ───────────────────────
@@ -561,17 +610,26 @@ export default function ActionsMobileSheet() {
       } else {
         clearExitReason();
       }
+    } else if (drawerStep === "products" && actionMode === "entry" && multiOrg) {
+      setEntryOrgId(undefined);
+      setDrawerStep("organization");
+      setSearchQuery("");
     } else if (drawerStep === "technicians") {
       clearExitReason();
     }
-  }, [drawerStep, actionMode, exitReason, clearExitReason]);
+  }, [drawerStep, actionMode, exitReason, clearExitReason, multiOrg]);
 
   // ─── Submit single (entry / exit_anonymous) ───────────
   const handleSubmit = useCallback(() => {
-    if (!product || !orgId || isSubmitting || !actionMode) return;
+    if (!product || isSubmitting || !actionMode) return;
     if (quantity < 1) return;
 
     const isEntry = actionMode === "entry";
+    // Une entree va dans la societe choisie a l'etape precedente, une sortie
+    // dans la societe courante. Se tromper fausserait deux stocks a la fois :
+    // celui qui recoit et celui qui aurait du recevoir.
+    const writeOrgId = isEntry ? entryOrgId : orgId;
+    if (!writeOrgId) return;
 
     if (!isEntry && quantity > product.stock_current) {
       toast.error(`Stock insuffisant - disponible : ${product.stock_current}`);
@@ -590,6 +648,7 @@ export default function ActionsMobileSheet() {
         {
           localId,
           movementType: isEntry ? "entry" : exitMovementType,
+          organizationId: writeOrgId,
           productId: product.id,
           productName: product.name,
           quantity,
@@ -618,7 +677,7 @@ export default function ActionsMobileSheet() {
       const parsedPrice = unitPrice ? parseFloat(unitPrice) : undefined;
       createEntry.mutate(
         {
-          organizationId: orgId,
+          organizationId: writeOrgId,
           productId: product.id,
           quantity,
           supplierId: product.supplier_id ?? undefined,
@@ -634,7 +693,7 @@ export default function ActionsMobileSheet() {
     } else {
       createExit.mutate(
         {
-          organizationId: orgId,
+          organizationId: writeOrgId,
           productId: product.id,
           quantity,
           type: exitMovementType,
@@ -657,6 +716,9 @@ export default function ActionsMobileSheet() {
     exitMovementType,
     exitReason,
     technicianId,
+    // Sans cette dependance, une entree validee apres un changement de
+    // societe serait ecrite dans la precedente.
+    entryOrgId,
   ]);
 
   // ─── Submit batch (exit_technician) ───────────────────
@@ -689,6 +751,7 @@ export default function ActionsMobileSheet() {
           {
             localId: crypto.randomUUID(),
             movementType: exitMovementType,
+            organizationId: orgId,
             productId: item.product.id,
             productName: item.product.name,
             quantity: item.quantity,
@@ -767,7 +830,7 @@ export default function ActionsMobileSheet() {
       if (isEntryRevert) {
         createExit.mutate(
           {
-            organizationId: orgId,
+            organizationId: entry.organizationId,
             productId: entry.productId,
             quantity: entry.quantity,
             type: "exit_anonymous",
@@ -777,7 +840,7 @@ export default function ActionsMobileSheet() {
       } else {
         createEntry.mutate(
           {
-            organizationId: orgId,
+            organizationId: entry.organizationId,
             productId: entry.productId,
             quantity: entry.quantity,
           },
@@ -837,12 +900,16 @@ export default function ActionsMobileSheet() {
     return exitReason === "loss" ? "Erreur de stock" : "Sortie technicien";
   }, [actionMode, exitReason, drawerStep]);
 
+  // La societe recue accompagne toute l'entree : c'est elle qui recevra le
+  // stock et portera l'achat.
+  const stackSubtitleEntry = drawerStep === "organization" ? undefined : entryOrg?.name;
+
   // ─── Pile : peut-on remonter d'un cran ? ──────────────
   const canGoBack =
     drawerStep === "detail" ||
     drawerStep === "cart" ||
     drawerStep === "technicians" ||
-    (drawerStep === "products" && actionMode === "exit");
+    (drawerStep === "products" && (actionMode === "exit" || multiOrg));
 
   // ─── Barre d'action de l'etape courante ───────────────
   // Une seule barre a la fois : l'etape decide ce qu'elle propose.
@@ -997,9 +1064,11 @@ export default function ActionsMobileSheet() {
         subtitle={
           // Pas avant que la destination soit reellement connue : sur l'ecran
           // de choix du technicien, exitDestination est encore vide.
-          actionMode === "exit" && drawerStep !== "reason" && drawerStep !== "technicians"
-            ? exitDestination || undefined
-            : undefined
+          actionMode === "entry"
+            ? stackSubtitleEntry
+            : drawerStep !== "reason" && drawerStep !== "technicians"
+              ? exitDestination || undefined
+              : undefined
         }
         onBack={canGoBack ? drawerGoBack : undefined}
         onClose={closeDrawer}
@@ -1071,11 +1140,47 @@ export default function ActionsMobileSheet() {
           <div
             className={cn(
               "flex-1 min-h-0 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]",
-              drawerStep === "reason"
+              drawerStep === "reason" || drawerStep === "organization"
                 ? "flex flex-col overflow-hidden overscroll-none"
                 : "overflow-y-auto"
             )}
           >
+            {/* ═══ SOCIETE QUI RECOIT L'ENTREE ═══
+                Memes cartes que partout : le choix engage tout le reste du
+                parcours, il merite le meme poids que « entrée ou sortie ». */}
+            {drawerStep === "organization" && (
+              <div className="flex-1 min-h-0 flex flex-col gap-3 py-2">
+                {organizations.map((org) => {
+                  const logo = organizationLogo(org);
+                  return (
+                    <button
+                      key={org.id}
+                      onClick={() => selectEntryOrg(org.id)}
+                      className="w-full flex-1 min-h-0 flex flex-col items-center justify-center gap-3 rounded-3xl border bg-white dark:bg-card px-5 active:scale-[0.98] transition-transform"
+                    >
+                      {/* Le logo est ce qui identifie la societe d'un coup d'oeil :
+                        il porte la carte, le nom ne fait que confirmer. */}
+                      {logo ? (
+                        <img src={logo} alt="" className="size-32 object-contain" />
+                      ) : (
+                        <span className="size-32 rounded-3xl bg-muted flex items-center justify-center font-heading text-4xl font-bold">
+                          {org.name.slice(0, 2).toUpperCase()}
+                        </span>
+                      )}
+                      <span className="text-center">
+                        <span className="block font-heading font-semibold text-2xl leading-none">
+                          {org.name}
+                        </span>
+                        <span className="block text-sm text-muted-foreground leading-tight mt-1.5">
+                          Le stock entre chez {org.name}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             {/* ═══ NATURE DE LA SORTIE (etape 2) ═══
                 Memes cartes qu'a l'accueil : un choix binaire se presente
                 partout de la meme facon dans cette application, sinon rien
@@ -1694,47 +1799,55 @@ export default function ActionsMobileSheet() {
           </DrawerHeader>
 
           {scannedProduct && (
-            <>
-              {/* Product info */}
-              <div className="flex items-center gap-3 mx-4 mb-3 px-1">
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-base truncate">{scannedProduct.name}</p>
-                  {scannedProduct.sku && (
-                    <p className="text-sm text-muted-foreground font-mono">{scannedProduct.sku}</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="font-heading font-bold text-lg tabular-nums">
-                    {scannedProduct.stock_current}
-                  </span>
-                  <StatusPill
-                    status={getStockBadgeVariant(
-                      calculateStockScore(scannedProduct.stock_current, scannedProduct.stock_min)
+            /* Cet ecran imitait InsetGroup et InsetRow a la main : meme cadre,
+               memes separateurs, ecrits en double. Il les utilise desormais,
+               donc un changement du systeme l'atteint aussi. */
+            <div className="mx-4 mb-4 space-y-4">
+              <InsetGroup header="Produit scanné">
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-base font-medium">{scannedProduct.name}</p>
+                    {scannedProduct.sku && (
+                      <p className="font-mono text-sm text-muted-foreground">
+                        {scannedProduct.sku}
+                      </p>
                     )}
-                  />
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="font-heading text-xl font-bold tabular-nums">
+                      {scannedProduct.stock_current}
+                    </span>
+                    <StatusPill
+                      status={getStockBadgeVariant(
+                        calculateStockScore(scannedProduct.stock_current, scannedProduct.stock_min)
+                      )}
+                      className="whitespace-nowrap"
+                    />
+                  </div>
                 </div>
-              </div>
+              </InsetGroup>
 
-              {/* Action buttons — iOS-style list */}
-              <div className="mx-4 mb-4 rounded-xl border divide-y overflow-hidden">
-                {ACTION_OPTIONS.map(({ mode, label, hint, icon: ActionIcon, accent }) => (
-                  <button
+              <InsetGroup header="Que faire ?">
+                {ACTION_OPTIONS.map(({ mode, label, hint, icon: ActionIcon, accent, tint }) => (
+                  <InsetRow
                     key={mode}
                     onClick={() => handleScanAction(mode)}
-                    className="w-full flex items-center gap-3 px-4 py-3.5 min-h-[48px] text-left active:bg-muted/60 transition-colors"
-                  >
-                    <ActionIcon className={cn("size-[18px] shrink-0", accent)} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-medium text-base leading-tight">{label}</span>
-                      <span className="block text-sm text-muted-foreground leading-tight">
-                        {hint}
+                    title={label}
+                    subtitle={hint}
+                    leading={
+                      <span
+                        className={cn(
+                          "flex size-9 shrink-0 items-center justify-center rounded-full",
+                          tint
+                        )}
+                      >
+                        <ActionIcon className={cn("size-4", accent)} />
                       </span>
-                    </span>
-                    <ChevronLeft className="size-4 text-muted-foreground/40 shrink-0 rotate-180" />
-                  </button>
+                    }
+                  />
                 ))}
-              </div>
-            </>
+              </InsetGroup>
+            </div>
           )}
         </DrawerContent>
       </Drawer>
