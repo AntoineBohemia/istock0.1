@@ -12,7 +12,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUp, Building2, ChevronLeft, ChevronRight, Plus, UserPlus } from "lucide-react";
+import { ArrowUp, Building2, ChevronLeft, ChevronRight, UserPlus } from "lucide-react";
 import { SearchInput } from "@/components/search-input";
 import { FilterChip } from "@/components/filter-chip";
 import { QueryError } from "@/components/query-error";
@@ -28,7 +28,6 @@ import { useTechnicians, useVehicles, useOrganizations } from "@/hooks/queries";
 import { TableColumnToggle } from "@/components/table-column-toggle";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { cn } from "@/lib/utils";
-import RestockDialog from "./[id]/restock-dialog";
 import CreateTechnicianDialog from "./create-technician-dialog";
 import { formatPhone, phoneHref } from "@/lib/utils/phone";
 
@@ -118,7 +117,6 @@ export default function TechniciansList() {
   const setSearchQuery = (value: string) => setFilters({ search: value || null });
   const debouncedSearch = useDebouncedValue(searchQuery, 300);
   const [filterOrgs, setFilterOrgs] = useState<Set<string>>(new Set());
-  const [restockTechId, setRestockTechId] = useState<string | null>(null);
 
   const toggleSet = (prev: Set<string>, value: string) => {
     const next = new Set(prev);
@@ -369,28 +367,6 @@ export default function TechniciansList() {
           <span className="text-[15px] text-muted-foreground">—</span>
         ),
     },
-    {
-      id: "actions",
-      enableSorting: false,
-      enableHiding: false,
-      header: () => null,
-      cell: ({ row }) => (
-        <div className="flex justify-end">
-          <Button
-            size="sm"
-            className="h-7 px-2.5 text-xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              setRestockTechId(row.original.id);
-            }}
-          >
-            <Plus className="size-3.5" />
-            Réappro
-          </Button>
-        </div>
-      ),
-      meta: { align: "right" },
-    },
   ];
 
   const table = useReactTable({
@@ -416,13 +392,13 @@ export default function TechniciansList() {
         </div>
         {/* Le squelette doit avoir autant de colonnes que le tableau reel,
             sinon la mise en page saute au moment ou les donnees arrivent.
-            7 visibles : Technicien, Reappro, Unites, Outillage, Vehicule,
-            Departement, action. */}
+            6 visibles : Technicien, Reappro, Unites, Outillage, Vehicule,
+            Departement. */}
         <div className="rounded-xl border bg-card overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b">
-                {[20, 20, 16, 16, 20, 14, 10].map((w, i) => (
+                {[20, 20, 16, 16, 20, 14].map((w, i) => (
                   <th key={i} className="h-11 px-5 text-left">
                     <Skeleton className="h-3" style={{ width: `${w * 4}px` }} />
                   </th>
@@ -452,9 +428,6 @@ export default function TechniciansList() {
                   </td>
                   <td className="px-5 py-4">
                     <Skeleton className="h-4 w-16" />
-                  </td>
-                  <td className="px-5 py-4">
-                    <Skeleton className="h-7 w-20 rounded-md ml-auto" />
                   </td>
                 </tr>
               ))}
@@ -623,15 +596,6 @@ export default function TechniciansList() {
             technicien{totalCount > 1 ? "s" : ""}
           </p>
         </div>
-      )}
-
-      {restockTechId && (
-        <RestockDialog
-          technicianId={restockTechId}
-          open={!!restockTechId}
-          onOpenChange={(open) => !open && setRestockTechId(null)}
-          onSuccess={() => setRestockTechId(null)}
-        />
       )}
 
       <CreateTechnicianDialog open={createOpen} onOpenChange={setCreateOpen} />

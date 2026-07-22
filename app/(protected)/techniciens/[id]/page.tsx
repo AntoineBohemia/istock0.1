@@ -10,6 +10,8 @@ import { createClient } from "@/lib/supabase/server";
 import TechnicianInventory from "./technician-inventory";
 import TechnicianHistory from "./technician-history";
 import TechnicianEquipment from "./technician-equipment";
+import VehicleAssignmentHistory from "@/components/vehicle-assignment-history";
+import type { VehicleAssignment } from "@/lib/supabase/queries/vehicles";
 import ArchiveTechnicianButton from "./archive-technician-button";
 import EditTechnicianButton from "./edit-technician-button";
 import TechnicianRestockButton from "./restock-button";
@@ -54,34 +56,46 @@ async function getTechnician(id: string, year: number) {
   // technician_inventory et le comptage des réappros ont été retirés : leurs
   // résultats (inventory_count, total_restocks) n'étaient rendus nulle part,
   // soit deux allers-retours réseau par ouverture de fiche pour rien.
-  const [lastMovementResult, yearMovementsResult, equipmentResult, vehicleResult] =
-    await Promise.all([
-      supabase
-        .from("stock_movements")
-        .select("created_at")
-        .eq("technician_id", id)
-        .eq("movement_type", "exit_technician")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single(),
-      supabase
-        .from("stock_movements")
-        .select("id, product_id, quantity, created_at, product:products(id, name, sku, image_url)")
-        .eq("technician_id", id)
-        .eq("movement_type", "exit_technician")
-        .gte("created_at", yearStart)
-        .lt("created_at", yearEnd)
-        .order("created_at", { ascending: false }),
-      supabase.from("equipment_assignments").select("quantity").eq("technician_id", id),
-      // Véhicule assigné (table vehicles — source de vérité)
-      supabase
-        .from("vehicles")
-        .select("id, name, license_plate")
-        .eq("technician_id", id)
-        .is("archived_at", null)
-        .limit(1)
-        .maybeSingle(),
-    ]);
+  const [
+    lastMovementResult,
+    yearMovementsResult,
+    equipmentResult,
+    vehicleResult,
+    vehicleHistoryResult,
+  ] = await Promise.all([
+    supabase
+      .from("stock_movements")
+      .select("created_at")
+      .eq("technician_id", id)
+      .eq("movement_type", "exit_technician")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single(),
+    supabase
+      .from("stock_movements")
+      .select("id, product_id, quantity, created_at, product:products(id, name, sku, image_url)")
+      .eq("technician_id", id)
+      .eq("movement_type", "exit_technician")
+      .gte("created_at", yearStart)
+      .lt("created_at", yearEnd)
+      .order("created_at", { ascending: false }),
+    supabase.from("equipment_assignments").select("quantity").eq("technician_id", id),
+    // Véhicule assigné (table vehicles — source de vérité)
+    supabase
+      .from("vehicles")
+      .select("id, name, license_plate")
+      .eq("technician_id", id)
+      .is("archived_at", null)
+      .limit(1)
+      .maybeSingle(),
+    // Historique de detention : toutes annees confondues, une periode
+    // traverse souvent le 31 decembre.
+    supabase
+      .from("vehicle_assignments")
+      .select("*, vehicle:vehicles(id, name, license_plate, photo_url)")
+      .eq("technician_id", id)
+      .order("assigned_at", { ascending: false }),
+  ]);
 
   const equipmentCount = equipmentResult.data?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
@@ -128,10 +142,16 @@ async function getTechnician(id: string, year: number) {
   const orgData = technician.organization as { name: string } | { name: string }[] | null;
   const organizationName = Array.isArray(orgData) ? orgData[0]?.name : orgData?.name;
 
+  const vehicleHistory = (vehicleHistoryResult.data ?? []).map((row) => ({
+    ...row,
+    vehicle: Array.isArray(row.vehicle) ? (row.vehicle[0] ?? null) : row.vehicle,
+  })) as unknown as VehicleAssignment[];
+
   return {
     ...technician,
     organization_name: organizationName ?? null,
     vehicle: vehicleResult.data ?? null,
+    vehicle_history: vehicleHistory,
     yearly_product_totals: yearlyProductTotals,
     year_movements: yearMovements,
     last_restock_at: lastMovementResult.data?.created_at || null,
@@ -160,7 +180,7 @@ export default async function TechnicianDetailPage({
   const { year: yearParam, tab: tabParam } = await searchParams;
   // L'onglet est pilotable par l'URL : la liste peut ainsi pointer directement
   // sur l'outillage d'un technicien. Valeur inconnue → onglet par defaut.
-  const TABS = ["inventory", "history", "equipment"];
+  const TABS = ["inventory", "history", "equipment", "vehicles"];
   const activeTab = tabParam && TABS.includes(tabParam) ? tabParam : "inventory";
   const currentYear = new Date().getFullYear();
   const selectedYear = yearParam ? parseInt(yearParam, 10) : currentYear;
@@ -305,6 +325,10 @@ export default async function TechnicianDetailPage({
                   </span>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="vehicles">
+                <Car className="size-4 mr-1.5" />
+                Véhicules
+              </TabsTrigger>
             </TabsList>
             <YearSelector
               currentYear={currentYear}
@@ -329,6 +353,14 @@ export default async function TechnicianDetailPage({
               <TechnicianEquipment
                 technicianId={id}
                 technicianName={`${technician.first_name} ${technician.last_name.charAt(0)}.`}
+              />
+            </TabsContent>
+            {/* Les vehicules detenus ne dependent pas de l'annee selectionnee :
+                une periode de detention traverse souvent le 31 decembre. */}
+            <TabsContent value="vehicles">
+              <VehicleAssignmentHistory
+                assignments={technician.vehicle_history}
+                subject="vehicle"
               />
             </TabsContent>
           </div>
