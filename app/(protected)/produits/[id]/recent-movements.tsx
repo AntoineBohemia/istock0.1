@@ -20,16 +20,15 @@ const fmtPrice = (n: number) => n.toLocaleString("fr-FR", { style: "currency", c
  * citer, ni comparer deux mouvements sans compter sur ses doigts. Et la meme
  * ligne changeait de libelle d'un jour a l'autre.
  *
- * L'annee est omise quand c'est l'annee en cours : elle n'apprend rien et
- * allonge chaque ligne.
+ * L'annee est toujours ecrite. L'omettre pour l'annee en cours economisait
+ * quatre caracteres au prix d'une ambiguite : sur un tableau qui melange les
+ * exercices, une ligne sans annee se lit comme une ligne de cette annee.
  */
 function formatMovementDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  const sameYear = date.getFullYear() === new Date().getFullYear();
-  return date.toLocaleDateString("fr-FR", {
+  return new Date(dateStr).toLocaleDateString("fr-FR", {
     day: "2-digit",
     month: "2-digit",
-    ...(sameYear ? {} : { year: "numeric" }),
+    year: "numeric",
   });
 }
 
