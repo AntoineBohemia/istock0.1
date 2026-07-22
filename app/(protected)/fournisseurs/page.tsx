@@ -12,6 +12,7 @@ import ProductIconDisplay from "@/components/product-icon-display";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useSuppliersWithStats } from "@/hooks/queries/use-suppliers";
+import { formatPhone } from "@/lib/utils/phone";
 import { calculateStockScore, getStockBadgeVariant } from "@/lib/utils/stock";
 import type { SupplierProduct, SupplierWithStats } from "@/lib/supabase/queries/suppliers";
 import AddNewSupplier from "@/components/add-new-supplier";
@@ -129,7 +130,7 @@ function SupplierCard({ supplier }: { supplier: SupplierWithStats }) {
             {supplier.phone && (
               <span className="flex items-center gap-1 shrink-0">
                 <Phone className="size-3" />
-                {supplier.phone}
+                {formatPhone(supplier.phone)}
               </span>
             )}
             {supplier.website_url && (

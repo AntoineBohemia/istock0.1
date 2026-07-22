@@ -36,6 +36,7 @@ import {
 } from "@/hooks/queries/use-suppliers";
 import { useDeleteSupplier } from "@/hooks/mutations";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
+import { formatPhone, phoneHref } from "@/lib/utils/phone";
 import { calculateStockScore, getStockBadgeVariant } from "@/lib/utils/stock";
 import { Skeleton } from "@/components/ui/skeleton";
 import EditSupplierModal from "@/components/edit-supplier-modal";
@@ -170,11 +171,11 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
               )}
               {supplier.phone && (
                 <a
-                  href={`tel:${supplier.phone.replace(/\s/g, "")}`}
+                  href={`tel:${phoneHref(supplier.phone)}`}
                   className="flex items-center gap-1.5 hover:text-foreground transition-colors"
                 >
                   <Phone className="size-3.5" />
-                  {supplier.phone}
+                  {formatPhone(supplier.phone)}
                 </a>
               )}
               {supplier.website_url && (

@@ -425,15 +425,11 @@ export default function OrganizationsPage() {
                           <div>
                             <div className="flex items-center gap-2">
                               <span className="font-medium">{org.name}</span>
-                              {/* Deux etats distincts, qui etaient confondus
-                                  sous un seul mot « Active » : la societe
-                                  selectionnee pour les saisies, et la societe
-                                  en activite. */}
-                              {isCurrent && (
-                                <Badge variant="secondary" className="text-xs">
-                                  Sélectionnée
-                                </Badge>
-                              )}
+                              {/* Aucun marqueur sur la societe « courante ».
+                                  SMPR et SEIREN sont a egalite : aucune n'est
+                                  mise en avant, on travaille sur les deux. Le
+                                  seul etat qui merite d'etre signale est
+                                  l'arret d'activite. */}
                               {org.is_active === false && (
                                 <Badge variant="outline" className="text-xs text-muted-foreground">
                                   Désactivée

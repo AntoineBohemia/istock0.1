@@ -30,6 +30,7 @@ import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { cn } from "@/lib/utils";
 import RestockDialog from "./[id]/restock-dialog";
 import CreateTechnicianDialog from "./create-technician-dialog";
+import { formatPhone, phoneHref } from "@/lib/utils/phone";
 
 // ─── Sort header button ────────────────────────────────────
 function SortHeader({
@@ -329,11 +330,11 @@ export default function TechniciansList() {
       cell: ({ row }) =>
         row.original.phone ? (
           <a
-            href={`tel:${row.original.phone.replace(/\s/g, "")}`}
+            href={`tel:${phoneHref(row.original.phone)}`}
             onClick={(e) => e.stopPropagation()}
             className="text-[15px] tabular-nums hover:underline underline-offset-2"
           >
-            {row.original.phone}
+            {formatPhone(row.original.phone)}
           </a>
         ) : (
           <span className="text-[15px] text-muted-foreground">—</span>

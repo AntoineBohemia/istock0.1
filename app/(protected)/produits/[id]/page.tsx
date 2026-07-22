@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { phoneHref } from "@/lib/utils/phone";
 import { calculateStockScore, getStockBadgeVariant, getStockScoreColor } from "@/lib/utils/stock";
 import dynamic from "next/dynamic";
 import ArchiveProductButton from "./archive-product-button";
@@ -343,7 +344,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                   )}
                   {supplier?.phone && (
                     <Button variant="outline" size="sm" className="h-8 text-xs" asChild>
-                      <a href={`tel:${supplier.phone.replace(/\s/g, "")}`}>
+                      <a href={`tel:${phoneHref(supplier.phone)}`}>
                         <Phone className="size-3.5" />
                         Appeler
                       </a>
