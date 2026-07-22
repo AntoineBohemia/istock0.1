@@ -78,6 +78,15 @@ interface ConsoleProduct {
   image_url?: string | null;
   supplier_id?: string | null;
   supplier_name?: string | null;
+  /**
+   * Ce que detiennent les autres societes.
+   *
+   * Non actionnable dans le mouvement en cours — une sortie SEIREN ne peut pas
+   * puiser chez SMPR — mais utile a l'ecran de quantite : quand le stock local
+   * est court, savoir qu'il y en a ailleurs oriente vers un transfert plutot
+   * qu'une commande.
+   */
+  other_org_stock?: { name: string; stock: number }[];
 }
 
 interface CartItem {
@@ -319,6 +328,19 @@ export default function ActionsMobileSheet() {
     [todayResult, pageLoadTime]
   );
 
+  // Ventilation chez les autres societes, deja chargee avec le produit :
+  // aucune requete supplementaire.
+  const otherOrgStock = useCallback(
+    (pos?: { organization_id: string; stock_current: number }[] | null) =>
+      (pos ?? [])
+        .filter((x) => x.organization_id !== stockOrgId && x.stock_current > 0)
+        .map((x) => ({
+          name: organizations.find((o) => o.id === x.organization_id)?.name ?? "Autre",
+          stock: x.stock_current,
+        })),
+    [stockOrgId, organizations]
+  );
+
   // ─── Mutations ─────────────────────────────────────────
   const createEntry = useCreateStockEntry();
   const createExit = useCreateStockExit();
@@ -500,6 +522,7 @@ export default function ActionsMobileSheet() {
         image_url: found.image_url,
         supplier_id: found.supplier_id ?? null,
         supplier_name: found.supplier?.name ?? null,
+        other_org_stock: otherOrgStock(found.product_organization_stock),
       };
       setProduct(consoleP);
       setQuantity(1);
@@ -1161,9 +1184,9 @@ export default function ActionsMobileSheet() {
                       {/* Le logo est ce qui identifie la societe d'un coup d'oeil :
                         il porte la carte, le nom ne fait que confirmer. */}
                       {logo ? (
-                        <img src={logo} alt="" className="size-32 object-contain" />
+                        <img src={logo} alt="" className="size-24 object-contain" />
                       ) : (
-                        <span className="size-32 rounded-3xl bg-muted flex items-center justify-center font-heading text-4xl font-bold">
+                        <span className="size-24 rounded-3xl bg-muted flex items-center justify-center font-heading text-3xl font-bold">
                           {org.name.slice(0, 2).toUpperCase()}
                         </span>
                       )}
@@ -1303,6 +1326,7 @@ export default function ActionsMobileSheet() {
                         image_url: p.image_url,
                         supplier_id: p.supplier_id,
                         supplier_name: p.supplier?.name ?? null,
+                        other_org_stock: otherOrgStock(p.product_organization_stock),
                       };
 
                       return (
@@ -1515,6 +1539,21 @@ export default function ActionsMobileSheet() {
                           : undefined
                       }
                     >
+                      {/* « Ailleurs » et non « disponible » : ce stock existe
+                          mais n'est pas mobilisable dans ce mouvement — une
+                          sortie ne puise que dans la societe choisie. Le dire
+                          oriente vers un transfert quand le stock local est
+                          court, sans laisser croire qu'on peut le prendre. */}
+                      {(product.other_org_stock?.length ?? 0) > 0 && (
+                        <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-2.5">
+                          <span className="text-sm text-muted-foreground">Ailleurs</span>
+                          <span className="text-sm tabular-nums text-muted-foreground">
+                            {product.other_org_stock
+                              ?.map((o) => `${o.name} ${o.stock}`)
+                              .join(" · ")}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between gap-3 px-4 py-3">
                         <span className="text-base">Stock après</span>
                         <div className="flex items-center gap-2">

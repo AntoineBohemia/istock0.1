@@ -52,12 +52,22 @@ function createCloneableURL(pathname: string, searchParams: Record<string, strin
   return url;
 }
 
-function createMockRequest(pathname: string, searchParams: Record<string, string> = {}) {
+const DESKTOP_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
+const MOBILE_UA =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+
+function createMockRequest(
+  pathname: string,
+  searchParams: Record<string, string> = {},
+  userAgent: string = DESKTOP_UA
+) {
   const url = createCloneableURL(pathname, searchParams);
 
   return {
     url: url.toString(),
     nextUrl: url,
+    headers: new Headers({ "user-agent": userAgent }),
     cookies: {
       getAll: () => [],
       set: vi.fn(),
@@ -106,6 +116,32 @@ describe("proxy middleware", () => {
     expect(mockRedirect).toHaveBeenCalled();
     const redirectUrl = mockRedirect.mock.calls[0][0] as URL;
     expect(redirectUrl.pathname).toBe("/produits");
+  });
+
+  it("redirects an authenticated mobile user on /login to /actions", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+
+    const req = createMockRequest("/login", {}, MOBILE_UA);
+    await proxy(req);
+
+    const redirectUrl = mockRedirect.mock.calls[0][0] as URL;
+    expect(redirectUrl.pathname).toBe("/actions");
+  });
+
+  it("redirects an authenticated mobile user on / to /actions", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+
+    const req = createMockRequest("/", {}, MOBILE_UA);
+    await proxy(req);
+
+    const redirectUrl = mockRedirect.mock.calls[0][0] as URL;
+    expect(redirectUrl.pathname).toBe("/actions");
   });
 
   it("redirects authenticated user on / to the default route", async () => {

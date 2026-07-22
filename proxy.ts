@@ -20,8 +20,18 @@ const PROTECTED_ROUTES = [
 // Routes d'authentification (accessibles uniquement si NON connecté)
 const AUTH_ROUTES = ["/login", "/register", "/forgot-password"];
 
-// Page par défaut après connexion
+// Page par défaut après connexion.
+// Sur mobile l'app se résume aux Actions rapides : on y va directement,
+// sinon MobileRouteGuard afficherait /produits une fraction de seconde avant de rediriger.
 const DEFAULT_AUTHENTICATED_ROUTE = "/produits";
+const DEFAULT_MOBILE_ROUTE = "/actions";
+
+const MOBILE_UA = /Android|iPhone|iPad|iPod|Windows Phone|Mobile Safari/i;
+
+function defaultRouteFor(request: NextRequest): string {
+  const ua = request.headers.get("user-agent") ?? "";
+  return MOBILE_UA.test(ua) ? DEFAULT_MOBILE_ROUTE : DEFAULT_AUTHENTICATED_ROUTE;
+}
 
 // Page de connexion
 const LOGIN_ROUTE = "/login";
@@ -105,14 +115,14 @@ export async function proxy(request: NextRequest) {
   // 1. Utilisateur connecté sur page d'accueil → rediriger vers dashboard
   if (user && isHomePage) {
     const url = request.nextUrl.clone();
-    url.pathname = DEFAULT_AUTHENTICATED_ROUTE;
+    url.pathname = defaultRouteFor(request);
     return NextResponse.redirect(url);
   }
 
   // 2. Utilisateur connecté sur route d'auth → rediriger vers dashboard
   if (user && isAuthRoute) {
     const url = request.nextUrl.clone();
-    url.pathname = DEFAULT_AUTHENTICATED_ROUTE;
+    url.pathname = defaultRouteFor(request);
     return NextResponse.redirect(url);
   }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -12,7 +12,15 @@ import { createClient } from "@/lib/supabase/client";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
+// Sur mobile l'app se résume aux Actions rapides : y aller directement,
+// sinon MobileRouteGuard fait clignoter /produits avant de rediriger.
 const DEFAULT_REDIRECT = "/produits";
+const DEFAULT_MOBILE_REDIRECT = "/actions";
+
+function defaultRedirect(): string {
+  const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+  return isMobile ? DEFAULT_MOBILE_REDIRECT : DEFAULT_REDIRECT;
+}
 
 function isInternalPath(url: string): boolean {
   try {
@@ -33,9 +41,13 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const supabase = createClient();
 
-  // Récupère l'URL de redirection depuis les paramètres ou utilise la valeur par défaut
-  const rawRedirect = searchParams.get("redirectTo") || DEFAULT_REDIRECT;
-  const redirectTo = isInternalPath(rawRedirect) ? rawRedirect : DEFAULT_REDIRECT;
+  // Récupère l'URL de redirection depuis les paramètres ou utilise la valeur par défaut.
+  // Résolu à la navigation, pas au rendu : la valeur par défaut dépend de la taille d'écran.
+  const requestedRedirect = searchParams.get("redirectTo");
+  const resolveRedirect = useCallback(() => {
+    const raw = requestedRedirect || defaultRedirect();
+    return isInternalPath(raw) ? raw : defaultRedirect();
+  }, [requestedRedirect]);
 
   // Détecte la session issue d'un magic link (token dans le hash de l'URL)
   useEffect(() => {
@@ -43,13 +55,13 @@ function LoginForm() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN") {
-        router.push(redirectTo);
+        router.push(resolveRedirect());
         router.refresh();
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [supabase, router, redirectTo]);
+  }, [supabase, router, resolveRedirect]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,7 +80,7 @@ function LoginForm() {
     }
 
     // Redirige vers la page demandée ou la page par défaut
-    router.push(redirectTo);
+    router.push(resolveRedirect());
     router.refresh();
   };
 

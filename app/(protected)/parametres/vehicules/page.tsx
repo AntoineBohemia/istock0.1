@@ -76,17 +76,21 @@ export default function VehiclesPage() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="rounded-xl border bg-card p-4 flex flex-col gap-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="space-y-2 min-w-0 flex-1">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-3 w-44" />
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="rounded-xl border bg-card overflow-hidden flex flex-col">
+              <Skeleton className="aspect-[4/3] w-full rounded-none" />
+              <div className="p-3 space-y-2">
+                <Skeleton className="h-3.5 w-2/3" />
+                <div className="flex items-center justify-between gap-2">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-3 w-10" />
                 </div>
-                <Skeleton className="h-5 w-20 rounded-full" />
               </div>
-              <Skeleton className="h-3 w-24" />
+              <div className="border-t px-3 py-2.5 flex items-center gap-2">
+                <Skeleton className="size-6 rounded-full shrink-0" />
+                <Skeleton className="h-3 w-24" />
+              </div>
             </div>
           ))}
         </div>
@@ -138,48 +142,50 @@ export default function VehiclesPage() {
           )}
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {filtered.map((vehicle) => (
             <div
               key={vehicle.id}
-              className="group rounded-xl border bg-card overflow-hidden flex flex-col transition-all hover:border-primary/40 hover:shadow-md"
+              className="group rounded-xl border bg-card overflow-hidden flex flex-col transition-colors hover:border-primary/40"
             >
-              <Link href={`/vehicules/${vehicle.id}`} className="block active:scale-[0.99]">
+              <Link href={`/vehicules/${vehicle.id}`} className="block">
                 {/* Photo — repère visuel principal */}
-                <div className="relative aspect-[16/10] w-full bg-muted overflow-hidden">
+                <div className="relative aspect-[4/3] w-full bg-muted overflow-hidden">
                   {vehicle.photo_url ? (
                     <Image
                       src={vehicle.photo_url}
                       alt={vehicle.name}
                       fill
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                      className="object-cover"
+                      sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
                     />
                   ) : (
                     <span className="absolute inset-0 flex items-center justify-center">
-                      <Car className="size-10 text-muted-foreground/30" />
+                      <Car className="size-8 text-muted-foreground/25" />
                     </span>
                   )}
                   {vehicle.fuel_type && (
-                    <span className="absolute top-2 right-2 flex items-center gap-1 text-[11px] font-medium rounded-full bg-background/90 backdrop-blur px-2 py-0.5 shadow-sm">
-                      <Fuel className="size-3" />
+                    <span className="absolute top-1.5 right-1.5 flex items-center gap-1 text-[10px] font-medium rounded-full bg-background/90 backdrop-blur px-1.5 py-0.5">
+                      <Fuel className="size-2.5" />
                       {FUEL_LABELS[vehicle.fuel_type] ?? vehicle.fuel_type}
                     </span>
                   )}
                 </div>
 
-                <div className="p-4">
-                  <h3 className="font-heading font-semibold text-[15px] truncate group-hover:text-primary transition-colors">
+                <div className="p-3">
+                  <h3 className="font-heading font-semibold text-sm truncate group-hover:text-primary transition-colors">
                     {vehicle.name}
                   </h3>
-                  <p className="text-sm font-mono tracking-wide mt-1">{vehicle.license_plate}</p>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
-                    {vehicle.year && <span className="tabular-nums">{vehicle.year}</span>}
-                    {vehicle.mileage != null && vehicle.mileage > 0 && (
-                      <span className="tabular-nums">
-                        {vehicle.mileage.toLocaleString("fr-FR")} km
-                      </span>
-                    )}
+                  <div className="flex items-baseline justify-between gap-2 mt-1">
+                    <span className="text-xs font-mono tracking-wide truncate">
+                      {vehicle.license_plate}
+                    </span>
+                    <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground tabular-nums shrink-0">
+                      {vehicle.year && <span>{vehicle.year}</span>}
+                      {vehicle.mileage != null && vehicle.mileage > 0 && (
+                        <span>{vehicle.mileage.toLocaleString("fr-FR")} km</span>
+                      )}
+                    </span>
                   </div>
                 </div>
               </Link>
@@ -194,7 +200,7 @@ export default function VehiclesPage() {
                     : "Assigner un technicien à ce véhicule"
                 }
                 className={cn(
-                  "mt-auto flex items-center gap-2.5 border-t px-4 py-3 text-left transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+                  "mt-auto flex items-center gap-2 border-t px-3 py-2.5 text-left transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
                   vehicle.technician
                     ? "hover:bg-muted/60"
                     : "bg-primary/[0.04] hover:bg-primary/[0.09]"
@@ -202,37 +208,32 @@ export default function VehiclesPage() {
               >
                 {vehicle.technician ? (
                   <>
-                    <Avatar className="size-7 shrink-0">
+                    <Avatar className="size-6 shrink-0">
                       {vehicle.technician.photo_url && (
                         <AvatarImage
                           src={vehicle.technician.photo_url}
                           alt={`${vehicle.technician.first_name} ${vehicle.technician.last_name}`}
                         />
                       )}
-                      <AvatarFallback className="text-[10px] font-bold uppercase">
+                      <AvatarFallback className="text-[9px] font-bold uppercase">
                         {vehicle.technician.first_name.charAt(0)}
                         {vehicle.technician.last_name.charAt(0)}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[10px] uppercase tracking-wider text-muted-foreground leading-none">
-                        Technicien
-                      </span>
-                      <span className="block truncate text-sm font-medium mt-0.5">
-                        {vehicle.technician.first_name} {vehicle.technician.last_name}
-                      </span>
+                    <span className="min-w-0 flex-1 truncate text-xs font-medium">
+                      {vehicle.technician.first_name} {vehicle.technician.last_name}
                     </span>
-                    <Pencil className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                    <Pencil className="size-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                   </>
                 ) : (
                   <>
-                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-primary/40">
-                      <Plus className="size-3.5 text-primary" />
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full border border-dashed border-primary/40">
+                      <Plus className="size-3 text-primary" />
                     </span>
-                    <span className="flex-1 text-sm font-medium text-primary">
-                      Assigner un technicien
+                    <span className="flex-1 truncate text-xs font-medium text-primary">
+                      Assigner
                     </span>
-                    <ChevronRight className="size-4 shrink-0 text-primary/60" />
+                    <ChevronRight className="size-3.5 shrink-0 text-primary/60" />
                   </>
                 )}
               </button>
