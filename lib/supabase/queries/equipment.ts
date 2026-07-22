@@ -326,6 +326,16 @@ export interface EquipmentPurchase {
   created_at: string | null;
   supplier: { id: string; name: string } | null;
   invoice_reference: string | null;
+  /**
+   * Societe qui a paye cet achat.
+   *
+   * Un meme outil peut etre rachete par l'autre societe : chaque achat porte
+   * donc la sienne, exactement comme un consommable. La fiche ne montrait que
+   * le fournisseur et le prix, ce qui laissait croire a un outil sans
+   * proprietaire.
+   */
+  organization_id: string | null;
+  organization: { id: string; name: string } | null;
 }
 
 /**
@@ -341,8 +351,9 @@ export async function getEquipmentPurchases(productId: string): Promise<Equipmen
   const { data, error } = await supabase
     .from("stock_movements")
     .select(
-      `id, quantity, unit_price, created_at, invoice_reference,
-       supplier:suppliers(id, name)`
+      `id, quantity, unit_price, created_at, invoice_reference, organization_id,
+       supplier:suppliers(id, name),
+       organization:organizations(id, name)`
     )
     .eq("product_id", productId)
     .eq("movement_type", "entry")
@@ -359,5 +370,34 @@ export async function getEquipmentPurchases(productId: string): Promise<Equipmen
     // Supabase renvoie une relation to-one comme un tableau quand la cle
     // etrangere n'est pas unique : on normalise.
     supplier: Array.isArray(row.supplier) ? row.supplier[0] : row.supplier,
+    organization: Array.isArray(row.organization) ? row.organization[0] : row.organization,
   })) as unknown as EquipmentPurchase[];
+}
+
+/**
+ * Corrige la societe portee par un achat d'outil.
+ *
+ * Reserve a l'outillage. Un consommable ne peut pas etre deplace ainsi : son
+ * stock est ventile par societe (`product_organization_stock`), et changer
+ * l'etiquette du mouvement sans deplacer les unites ferait diverger les deux.
+ * L'outillage, lui, se suit globalement — la societe n'y est qu'une mention
+ * d'achat, sans quantite attachee.
+ *
+ * On ne touche pas au mouvement lui-meme : quantite, prix et date restent ce
+ * qu'ils etaient. Seul le nom du payeur change.
+ */
+export async function updateEquipmentPurchaseOrganization(
+  movementId: string,
+  organizationId: string
+): Promise<void> {
+  const supabase = createClient();
+
+  const { error } = await supabase
+    .from("stock_movements")
+    .update({ organization_id: organizationId })
+    .eq("id", movementId);
+
+  if (error) {
+    throw new Error(`Erreur lors du changement de société: ${error.message}`);
+  }
 }

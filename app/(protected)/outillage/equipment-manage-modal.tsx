@@ -24,9 +24,16 @@ import {
   useEquipmentProduct,
   useEquipmentHistory,
   useEquipmentPurchases,
+  useOrganizations,
 } from "@/hooks/queries";
 import { useAssignEquipment, useUnassignEquipment } from "@/hooks/mutations";
-import { EquipmentProduct } from "@/lib/supabase/queries/equipment";
+import {
+  EquipmentProduct,
+  updateEquipmentPurchaseOrganization,
+} from "@/lib/supabase/queries/equipment";
+import { activeOrganizations } from "@/lib/supabase/queries/organizations";
+import { queryKeys } from "@/lib/query-keys";
+import { useQueryClient } from "@tanstack/react-query";
 import ProductIconDisplay from "@/components/product-icon-display";
 import ArchiveEquipmentButton from "./archive-equipment-button";
 import StockEntryModal from "@/components/stock-entry-modal";
@@ -114,6 +121,35 @@ export default function EquipmentManageModal({
   );
   /** Quantité à rendre, par technicien (défaut : tout ce qu'il détient) */
   const [returnQty, setReturnQty] = useState<Record<string, number>>({});
+
+  // ── Société d'un achat, corrigeable ──
+  // Se tromper de société à la saisie est une faute d'étiquette, pas une
+  // erreur de stock : la corriger ne devrait pas obliger à annuler l'achat
+  // puis à le ressaisir, ce qui laisserait deux lignes de correction dans
+  // l'historique pour rien.
+  const queryClient = useQueryClient();
+  const { data: allOrgs } = useOrganizations();
+  const userOrgs = activeOrganizations(allOrgs ?? []);
+  const [movingOrgFor, setMovingOrgFor] = useState<string | null>(null);
+
+  const changePurchaseOrg = async (movementId: string, organizationId: string) => {
+    setMovingOrgFor(movementId);
+    try {
+      await updateEquipmentPurchaseOrganization(movementId, organizationId);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.equipment.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.movements.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.products.all }),
+      ]);
+      toast.success(
+        `Achat attribué à ${userOrgs.find((o) => o.id === organizationId)?.name ?? "la société"}`
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setMovingOrgFor(null);
+    }
+  };
 
   // Use live data when available, fallback to prop for initial render
   const p = liveProduct ?? product;
@@ -601,6 +637,40 @@ export default function EquipmentManageModal({
                           ) : (
                             <span className="text-[11px] text-muted-foreground/60 shrink-0">
                               Sans n&deg; de facture
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Qui a paye — et la correction au meme endroit.
+                            Un outil rachete par l'autre societe fait deux
+                            lignes, chacune avec la sienne : c'est ce qui
+                            permet de lire « SMPR en a pris 2, SEIREN 1 ». */}
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <span className="text-[11px] text-muted-foreground shrink-0">
+                            Payé par
+                          </span>
+                          {userOrgs.length > 1 ? (
+                            <select
+                              value={pu.organization_id ?? ""}
+                              disabled={movingOrgFor === pu.id}
+                              onChange={(e) => changePurchaseOrg(pu.id, e.target.value)}
+                              className="border-input bg-white dark:bg-card h-7 rounded-md border px-2 text-[11px] font-medium outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px] disabled:opacity-50"
+                            >
+                              {!pu.organization_id && <option value="">Non renseignée</option>}
+                              {userOrgs.map((org) => (
+                                <option key={org.id} value={org.id}>
+                                  {org.name}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="text-[11px] font-medium">
+                              {pu.organization?.name ?? "Non renseignée"}
+                            </span>
+                          )}
+                          {movingOrgFor === pu.id && (
+                            <span className="text-[11px] text-muted-foreground">
+                              Enregistrement&hellip;
                             </span>
                           )}
                         </div>
