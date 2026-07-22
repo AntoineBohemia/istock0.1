@@ -32,6 +32,35 @@ export interface VehicleWithTechnician extends Vehicle {
   } | null;
 }
 
+/**
+ * Une periode de detention : ce technicien a eu ce vehicule de telle date a
+ * telle date. `released_at` null = detention en cours.
+ */
+export interface VehicleAssignment {
+  id: string;
+  organization_id: string;
+  vehicle_id: string;
+  technician_id: string | null;
+  assigned_at: string;
+  released_at: string | null;
+  mileage_start: number | null;
+  mileage_end: number | null;
+  notes: string | null;
+  created_at: string;
+  technician?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    photo_url: string | null;
+  } | null;
+  vehicle?: {
+    id: string;
+    name: string;
+    license_plate: string;
+    photo_url: string | null;
+  } | null;
+}
+
 export interface VehicleDocument {
   id: string;
   vehicle_id: string;
@@ -210,6 +239,94 @@ export async function updateVehicle(
   }
 
   return data as unknown as Vehicle;
+}
+
+// ---------------------------------------------------------------------------
+// Historique de detention
+// ---------------------------------------------------------------------------
+
+/** Prend le premier element si Supabase a renvoye un tableau pour une relation. */
+function firstOf<T>(value: unknown): T | null {
+  if (Array.isArray(value)) return (value[0] ?? null) as T | null;
+  return (value ?? null) as T | null;
+}
+
+/** Qui a detenu ce vehicule, de la periode en cours a la plus ancienne. */
+export async function getVehicleAssignments(vehicleId: string): Promise<VehicleAssignment[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("vehicle_assignments")
+    .select("*, technician:technicians(id, first_name, last_name, photo_url)")
+    .eq("vehicle_id", vehicleId)
+    .order("assigned_at", { ascending: false });
+
+  if (error) {
+    throw new Error(`Erreur lors de la recuperation de l'historique: ${error.message}`);
+  }
+
+  return (data ?? []).map((row) => ({
+    ...(row as unknown as VehicleAssignment),
+    technician: firstOf<NonNullable<VehicleAssignment["technician"]>>(
+      (row as Record<string, unknown>).technician
+    ),
+  }));
+}
+
+/** Quels vehicules ce technicien a detenus, du plus recent au plus ancien. */
+export async function getTechnicianVehicleHistory(
+  technicianId: string
+): Promise<VehicleAssignment[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("vehicle_assignments")
+    .select("*, vehicle:vehicles(id, name, license_plate, photo_url)")
+    .eq("technician_id", technicianId)
+    .order("assigned_at", { ascending: false });
+
+  if (error) {
+    throw new Error(`Erreur lors de la recuperation de l'historique: ${error.message}`);
+  }
+
+  return (data ?? []).map((row) => ({
+    ...(row as unknown as VehicleAssignment),
+    vehicle: firstOf<NonNullable<VehicleAssignment["vehicle"]>>(
+      (row as Record<string, unknown>).vehicle
+    ),
+  }));
+}
+
+/**
+ * Change le detenteur d'un vehicule en enregistrant la passation.
+ *
+ * Tout se joue cote base (fonction assign_vehicle) : fermer la periode en
+ * cours, ouvrir la suivante et mettre a jour le vehicule doivent aboutir
+ * ensemble ou pas du tout. Fait en trois requetes depuis le client, une
+ * coupure reseau laisserait un vehicule sans detenteur mais avec une periode
+ * encore ouverte.
+ *
+ * @param technicianId null pour retirer l'assignation sans en creer de nouvelle.
+ * @param mileage Releve du compteur a la passation. Met aussi a jour le vehicule.
+ */
+export async function assignVehicle(
+  vehicleId: string,
+  technicianId: string | null,
+  mileage?: number | null,
+  notes?: string | null
+): Promise<void> {
+  const supabase = createClient();
+
+  const { error } = await supabase.rpc("assign_vehicle", {
+    p_vehicle_id: vehicleId,
+    p_technician_id: technicianId,
+    p_mileage: mileage ?? null,
+    p_notes: notes?.trim() || null,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 /**

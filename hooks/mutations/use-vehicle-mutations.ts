@@ -8,6 +8,7 @@ import {
   deleteVehicle,
   uploadVehicleDocument,
   deleteVehicleDocument,
+  assignVehicle,
   type DocumentType,
 } from "@/lib/supabase/queries/vehicles";
 
@@ -62,6 +63,33 @@ export function useUpdateVehicle() {
     }) => updateVehicle(id, fields),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.vehicles.all });
+    },
+  });
+}
+
+/**
+ * Passation d'un vehicule : ferme la detention en cours et ouvre la suivante.
+ * A preferer a useUpdateVehicle({ technician_id }) partout ou l'utilisateur
+ * peut relever le compteur ou expliquer le changement.
+ */
+export function useAssignVehicle() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      vehicleId,
+      technicianId,
+      mileage,
+      notes,
+    }: {
+      vehicleId: string;
+      technicianId: string | null;
+      mileage?: number | null;
+      notes?: string | null;
+    }) => assignVehicle(vehicleId, technicianId, mileage, notes),
+    onSettled: () => {
+      // L'historique des techniciens change aussi : on invalide tout l'arbre.
+      qc.invalidateQueries({ queryKey: queryKeys.vehicles.all });
+      qc.invalidateQueries({ queryKey: queryKeys.technicians.all });
     },
   });
 }

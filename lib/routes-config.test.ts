@@ -30,6 +30,7 @@ describe("filterRoutesByRole — owner/admin (full access)", () => {
     expect(hrefs).toContain("/fournisseurs");
     expect(hrefs).toContain("/achats");
     expect(hrefs).toContain("/techniciens");
+    expect(hrefs).toContain("/vehicules");
     expect(hrefs).toContain("/mouvements");
   });
 });

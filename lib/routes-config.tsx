@@ -43,6 +43,11 @@ export const page_routes: PageRoutesType[] = [
         href: "/techniciens",
         icon: "HardHat",
       },
+      {
+        title: "Véhicules",
+        href: "/vehicules",
+        icon: "Car",
+      },
     ],
   },
   {

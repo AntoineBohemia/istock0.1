@@ -7,6 +7,8 @@ import {
   getVehicles,
   getVehicle,
   getVehicleDocuments,
+  getVehicleAssignments,
+  getTechnicianVehicleHistory,
   type DocumentType,
   type VehicleDocument,
 } from "@/lib/supabase/queries/vehicles";
@@ -25,6 +27,26 @@ export function useVehicle(id?: string) {
     queryKey: queryKeys.vehicles.detail(id!),
     queryFn: () => getVehicle(id!),
     enabled: !!id,
+    staleTime: STALE_TIME.SLOW,
+  });
+}
+
+/** Qui a detenu ce vehicule, periode en cours comprise. */
+export function useVehicleAssignments(vehicleId?: string) {
+  return useQuery({
+    queryKey: queryKeys.vehicles.assignments(vehicleId!),
+    queryFn: () => getVehicleAssignments(vehicleId!),
+    enabled: !!vehicleId,
+    staleTime: STALE_TIME.SLOW,
+  });
+}
+
+/** Quels vehicules ce technicien a detenus. */
+export function useTechnicianVehicleHistory(technicianId?: string) {
+  return useQuery({
+    queryKey: queryKeys.vehicles.technicianHistory(technicianId!),
+    queryFn: () => getTechnicianVehicleHistory(technicianId!),
+    enabled: !!technicianId,
     staleTime: STALE_TIME.SLOW,
   });
 }

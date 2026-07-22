@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
 import { Car, ChevronRight, Fuel, Loader2, Pencil, Plus } from "lucide-react";
@@ -38,7 +37,7 @@ const FUEL_LABELS: Record<string, string> = {
   hybride: "Hybride",
 };
 
-export default function VehiclesPage() {
+export default function VehicleList() {
   const orgId = useOrganizationStore((s) => s.currentOrganization?.id);
   const { data: vehicles = [], isLoading } = useVehicles(orgId);
   const deleteMutation = useDeleteVehicle();
@@ -73,9 +72,21 @@ export default function VehiclesPage() {
     });
   };
 
+  // La page n'est plus un onglet des paramètres : elle porte son propre titre
+  // et son propre bouton d'ajout, comme Produits ou Outillage.
+  const header = (
+    <div className="flex items-center justify-between">
+      <h1 className="text-2xl font-bold tracking-tight">Véhicules</h1>
+      <Button variant="outline-contrast" onClick={() => setCreateOpen(true)}>
+        <Plus /> Ajouter un véhicule
+      </Button>
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="space-y-4">
+        {header}
         <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {[...Array(8)].map((_, i) => (
             <div key={i} className="rounded-xl border bg-card overflow-hidden flex flex-col">
@@ -98,19 +109,9 @@ export default function VehiclesPage() {
     );
   }
 
-  const actionSlot =
-    typeof document !== "undefined" ? document.getElementById("settings-action-slot") : null;
-
   return (
     <div className="space-y-4">
-      {actionSlot &&
-        createPortal(
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="mr-2 size-4" />
-            Ajouter un véhicule
-          </Button>,
-          actionSlot
-        )}
+      {header}
 
       {vehicles.length > 3 && (
         <SearchInput

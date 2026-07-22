@@ -7,9 +7,10 @@ import dynamic from "next/dynamic";
 
 const MembersPage = dynamic(() => import("./equipe/page"), { ssr: false });
 const OrganizationsPage = dynamic(() => import("./organisations/page"), { ssr: false });
-const VehiclesPage = dynamic(() => import("./vehicules/page"), { ssr: false });
 
-const TAB_VALUES = ["team", "organizations", "vehicles"] as const;
+// Les véhicules ont quitté les paramètres pour le menu principal : ils se
+// gèrent au quotidien, ce n'est pas de la configuration.
+const TAB_VALUES = ["team", "organizations"] as const;
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useQueryState(
@@ -23,7 +24,6 @@ export default function SettingsPage() {
         <TabsList>
           <TabsTrigger value="team">Équipe</TabsTrigger>
           <TabsTrigger value="organizations">Organisations</TabsTrigger>
-          <TabsTrigger value="vehicles">Véhicules</TabsTrigger>
         </TabsList>
         <div id="settings-action-slot" />
       </div>
@@ -32,9 +32,6 @@ export default function SettingsPage() {
       </TabsContent>
       <TabsContent value="organizations" className="mt-6">
         <OrganizationsPage />
-      </TabsContent>
-      <TabsContent value="vehicles" className="mt-6">
-        <VehiclesPage />
       </TabsContent>
     </Tabs>
   );

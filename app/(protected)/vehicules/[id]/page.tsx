@@ -9,6 +9,7 @@ import {
   Fuel,
   Gauge,
   Hash,
+  History,
   Image as ImageIcon,
   Loader2,
   Pencil,
@@ -36,9 +37,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/lib/toast";
 
-import { useVehicle } from "@/hooks/queries/use-vehicles";
+import { useVehicle, useVehicleAssignments } from "@/hooks/queries/use-vehicles";
+import VehicleAssignmentHistory from "@/components/vehicle-assignment-history";
 import { useDeleteVehicle } from "@/hooks/mutations/use-vehicle-mutations";
-import EditVehicleDialog from "@/app/(protected)/parametres/vehicules/edit-vehicle-dialog";
+import EditVehicleDialog from "../edit-vehicle-dialog";
 import DocumentList from "./document-list";
 import PhotoGallery from "./photo-gallery";
 import { useRouter } from "next/navigation";
@@ -49,6 +51,18 @@ const FUEL_LABELS: Record<string, string> = {
   electrique: "Électrique",
   hybride: "Hybride",
 };
+
+/** « depuis 3 mois » — la duree de detention en cours, en clair. */
+function formatHeldFor(assignedAt: string): string {
+  const days = Math.max(0, Math.floor((Date.now() - new Date(assignedAt).getTime()) / 86_400_000));
+  if (days === 0) return "aujourd'hui";
+  if (days === 1) return "1 jour";
+  if (days < 31) return `${days} jours`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} mois`;
+  const years = Math.floor(months / 12);
+  return `${years} an${years > 1 ? "s" : ""}`;
+}
 
 /** Une caracteristique : son intitule au-dessus, sa valeur en dessous. */
 function Field({
@@ -75,6 +89,7 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
   const { id } = use(params);
   const router = useRouter();
   const { data: vehicle, isLoading } = useVehicle(id);
+  const { data: assignments = [], isLoading: isHistoryLoading } = useVehicleAssignments(id);
   const deleteMutation = useDeleteVehicle();
 
   const [editOpen, setEditOpen] = useState(false);
@@ -99,11 +114,14 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
 
   if (!vehicle) return notFound();
 
+  // Detention en cours : c'est elle qui donne le « depuis quand ».
+  const currentHolding = assignments.find((a) => a.released_at === null);
+
   const handleDelete = () => {
     deleteMutation.mutate(vehicle.id, {
       onSuccess: () => {
         toast.success("Véhicule supprimé");
-        router.push("/parametres?tab=vehicles");
+        router.push("/vehicules");
       },
       onError: (err) => {
         toast.error(err instanceof Error ? err.message : "Erreur");
@@ -190,6 +208,11 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
                 </Avatar>
                 {vehicle.technician.first_name} {vehicle.technician.last_name}
               </Link>
+              {currentHolding && (
+                <span className="block text-xs font-normal text-muted-foreground mt-0.5">
+                  depuis {formatHeldFor(currentHolding.assigned_at)}
+                </span>
+              )}
             </Field>
           )}
         </dl>
@@ -225,6 +248,10 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
             <ImageIcon className="size-4 mr-1.5" />
             Photos
           </TabsTrigger>
+          <TabsTrigger value="holders">
+            <History className="size-4 mr-1.5" />
+            Détenteurs
+          </TabsTrigger>
         </TabsList>
         <div className="mt-4">
           <TabsContent value="contract">
@@ -251,6 +278,13 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
           <TabsContent value="photo">
             {/* Galerie et non liste de fichiers : une photo se regarde. */}
             <PhotoGallery vehicleId={id} organizationId={vehicle.organization_id} />
+          </TabsContent>
+          <TabsContent value="holders">
+            <VehicleAssignmentHistory
+              assignments={assignments}
+              isLoading={isHistoryLoading}
+              subject="technician"
+            />
           </TabsContent>
         </div>
       </Tabs>
