@@ -372,6 +372,7 @@ export type Database = {
       };
       products: {
         Row: {
+          archive_reason: string | null;
           archived_at: string | null;
           category_id: string | null;
           created_at: string | null;
@@ -392,6 +393,7 @@ export type Database = {
           updated_at: string | null;
         };
         Insert: {
+          archive_reason?: string | null;
           archived_at?: string | null;
           category_id?: string | null;
           created_at?: string | null;
@@ -412,6 +414,7 @@ export type Database = {
           updated_at?: string | null;
         };
         Update: {
+          archive_reason?: string | null;
           archived_at?: string | null;
           category_id?: string | null;
           created_at?: string | null;
@@ -462,6 +465,7 @@ export type Database = {
           invoice_id: string | null;
           invoice_reference: string | null;
           movement_type: Database["public"]["Enums"]["stock_movement_type"];
+          note: string | null;
           organization_id: string | null;
           product_id: string;
           quantity: number;
@@ -478,6 +482,7 @@ export type Database = {
           invoice_id?: string | null;
           invoice_reference?: string | null;
           movement_type: Database["public"]["Enums"]["stock_movement_type"];
+          note?: string | null;
           organization_id?: string | null;
           product_id: string;
           quantity: number;
@@ -491,6 +496,7 @@ export type Database = {
           invoice_id?: string | null;
           invoice_reference?: string | null;
           movement_type?: Database["public"]["Enums"]["stock_movement_type"];
+          note?: string | null;
           organization_id?: string | null;
           product_id?: string;
           quantity?: number;
@@ -766,6 +772,67 @@ export type Database = {
           },
         ];
       };
+      vehicle_assignments: {
+        Row: {
+          assigned_at: string;
+          created_at: string;
+          id: string;
+          mileage_end: number | null;
+          mileage_start: number | null;
+          notes: string | null;
+          organization_id: string;
+          released_at: string | null;
+          technician_id: string | null;
+          vehicle_id: string;
+        };
+        Insert: {
+          assigned_at?: string;
+          created_at?: string;
+          id?: string;
+          mileage_end?: number | null;
+          mileage_start?: number | null;
+          notes?: string | null;
+          organization_id: string;
+          released_at?: string | null;
+          technician_id?: string | null;
+          vehicle_id: string;
+        };
+        Update: {
+          assigned_at?: string;
+          created_at?: string;
+          id?: string;
+          mileage_end?: number | null;
+          mileage_start?: number | null;
+          notes?: string | null;
+          organization_id?: string;
+          released_at?: string | null;
+          technician_id?: string | null;
+          vehicle_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_assignments_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "vehicle_assignments_technician_id_fkey";
+            columns: ["technician_id"];
+            isOneToOne: false;
+            referencedRelation: "technicians";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "vehicle_assignments_vehicle_id_fkey";
+            columns: ["vehicle_id"];
+            isOneToOne: false;
+            referencedRelation: "vehicles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       vehicle_documents: {
         Row: {
           created_at: string;
@@ -937,6 +1004,15 @@ export type Database = {
           p_technician_id: string;
         };
         Returns: Json;
+      };
+      assign_vehicle: {
+        Args: {
+          p_mileage?: number | null;
+          p_notes?: string | null;
+          p_technician_id?: string | null;
+          p_vehicle_id: string;
+        };
+        Returns: string | null;
       };
       create_organization_with_owner: {
         Args: { org_logo_url?: string; org_name: string; org_slug: string };

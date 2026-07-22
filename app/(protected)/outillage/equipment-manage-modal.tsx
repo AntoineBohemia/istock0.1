@@ -36,6 +36,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { useQueryClient } from "@tanstack/react-query";
 import ProductIconDisplay from "@/components/product-icon-display";
 import ArchiveEquipmentButton from "./archive-equipment-button";
+import RetireEquipmentUnitsButton from "./retire-equipment-units-button";
 import StockEntryModal from "@/components/stock-entry-modal";
 import { cn } from "@/lib/utils";
 
@@ -273,6 +274,18 @@ export default function EquipmentManageModal({
                 <Pencil className="size-3.5" />
                 Modifier
               </Button>
+              {/* Retirer quelques exemplaires n'est pas archiver la
+                  reference : l'un sort deux outils casses, l'autre sort les
+                  quinze du catalogue. Les deux gestes voisinent ici, nommes
+                  distinctement. */}
+              {!p.archived_at && (
+                <RetireEquipmentUnitsButton
+                  productId={p.id}
+                  productName={p.name}
+                  availableStock={stock}
+                  orgStock={p.product_organization_stock ?? []}
+                />
+              )}
               <ArchiveEquipmentButton
                 productId={p.id}
                 productName={p.name}

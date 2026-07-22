@@ -20,6 +20,13 @@ export interface StockMovement {
   unit_price: number | null;
   /** Numero de facture saisi a l'entree : une note, pas un objet a part */
   invoice_reference?: string | null;
+  /**
+   * Motif libre du mouvement.
+   *
+   * « Erreur de stock » nomme la nature du mouvement, pas sa cause. Sans ce
+   * champ, une ligne de moins deux unites ne s'explique plus six mois apres.
+   */
+  note?: string | null;
   reverses_movement_id?: string | null;
   /** Quantite deja corrigee sur ce mouvement (quantite reelle = quantity - reversed_quantity) */
   reversed_quantity?: number;
@@ -32,6 +39,13 @@ export interface StockMovement {
     supplier_id: string | null;
     /** L'outillage ne compte pas dans les totaux d'achats */
     product_type?: "consumable" | "equipment";
+    /**
+     * Le produit a-t-il quitte le catalogue depuis ce mouvement ? Le mouvement
+     * reste vrai, mais la ligne doit le signaler : sans ca on lit un nom sans
+     * savoir que la fiche n'existe plus.
+     */
+    archived_at?: string | null;
+    archive_reason?: string | null;
   };
   technician?: {
     id: string;
@@ -187,7 +201,7 @@ export async function getStockMovements(
   let query = supabase.from("stock_movements").select(
     `
       *,
-      product:products(id, name, sku, image_url, supplier_id, product_type),
+      product:products(id, name, sku, image_url, supplier_id, product_type, archived_at, archive_reason),
       technician:technicians(id, first_name, last_name),
       supplier:suppliers(id, name),
       organization:organizations(id, name)
@@ -394,7 +408,9 @@ export async function createExit(
   productId: string,
   quantity: number,
   type: "exit_technician" | "exit_anonymous" | "exit_loss",
-  technicianId?: string
+  technicianId?: string,
+  /** Motif libre : casse, perte, vol. Ce que le type de mouvement ne dit pas. */
+  note?: string
 ): Promise<StockMovement> {
   const supabase = createClient();
 
@@ -404,6 +420,7 @@ export async function createExit(
     p_quantity: quantity,
     p_type: type,
     p_technician_id: technicianId || undefined,
+    p_note: note?.trim() || undefined,
   });
 
   if (error) {

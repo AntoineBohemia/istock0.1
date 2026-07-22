@@ -272,6 +272,15 @@ export default async function OutcomeDetailPage({ params }: { params: Promise<{ 
               {totalValue.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
             </span>
           </div>
+          {/* Le motif, quand il a été saisi. « Erreur de stock » nomme la
+              nature du mouvement, jamais sa cause : sans cette ligne, une
+              sortie de deux unités ne s'explique plus six mois après. */}
+          {movement.note && (
+            <div className="flex justify-between gap-6 px-5 py-2.5">
+              <span className="shrink-0 text-muted-foreground">Motif</span>
+              <span className="text-right font-medium whitespace-pre-line">{movement.note}</span>
+            </div>
+          )}
         </div>
       </div>
 

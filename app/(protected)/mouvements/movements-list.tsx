@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useDebouncedValue } from "@/hooks/use-debounce";
 import { ColumnDef, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import {
+  Archive,
   History,
   CalendarDays,
   Building2,
@@ -566,8 +567,26 @@ export default function MovementsList() {
             <div className="flex items-center gap-4">
               <ProductIconDisplay imageUrl={product?.image_url} size="md" />
               <div className="min-w-0">
-                <div className="font-semibold text-[15px] leading-tight">
-                  {product?.name || "Produit inconnu"}
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-[15px] leading-tight">
+                    {product?.name || "Produit inconnu"}
+                  </span>
+                  {/* Le mouvement reste vrai, mais le produit a quitte le
+                      catalogue : sans ce reperage on lit un nom sans savoir
+                      que sa fiche n'existe plus. Le motif est en infobulle. */}
+                  {product?.archived_at && (
+                    <span
+                      title={
+                        product.archive_reason
+                          ? `Archivé — ${product.archive_reason}`
+                          : "Archivé, sans motif enregistré"
+                      }
+                      className="shrink-0 inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+                    >
+                      <Archive className="size-2.5" />
+                      Archivé
+                    </span>
+                  )}
                 </div>
                 {product?.sku && (
                   <div className="text-xs text-muted-foreground mt-0.5 font-mono">
@@ -692,6 +711,24 @@ export default function MovementsList() {
           const reference = row.original.invoice_reference;
           if (!reference) return <span className="text-muted-foreground">—</span>;
           return <span className="text-[15px]">{reference}</span>;
+        },
+      },
+      {
+        // Le motif d'une sortie. Le type dit « Erreur stock », jamais pourquoi
+        // — cassé, perdu, volé. Colonne masquable comme les autres : elle ne
+        // concerne qu'une partie des lignes.
+        id: "note",
+        meta: { label: "Motif" },
+        accessorFn: (row) => row.note ?? "",
+        header: () => <ColHeader label="Motif" />,
+        cell: ({ row }) => {
+          const note = row.original.note;
+          if (!note) return <span className="text-muted-foreground">—</span>;
+          return (
+            <span className="block max-w-[220px] truncate text-[15px]" title={note}>
+              {note}
+            </span>
+          );
         },
       },
     ],

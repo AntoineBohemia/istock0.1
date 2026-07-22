@@ -48,6 +48,14 @@ export interface EquipmentProduct {
   supplier?: { id: string; name: string } | null;
   assignments: EquipmentAssignment[];
   total_assigned: number;
+  /**
+   * Ce que detient chaque societe.
+   *
+   * Necessaire pour retirer des unites : une sortie puise dans une seule
+   * societe, celle qui en a le moins. Sans la ventilation, la fiche ne
+   * saurait pas ou prendre.
+   */
+  product_organization_stock?: { organization_id: string; stock_current: number }[] | null;
 }
 
 export interface EquipmentFilters {
@@ -145,7 +153,8 @@ export async function getEquipmentProduct(id: string): Promise<EquipmentProduct 
     .select(
       `
       *,
-      supplier:suppliers(id, name)
+      supplier:suppliers(id, name),
+      product_organization_stock(organization_id, stock_current)
     `
     )
     .eq("id", id)

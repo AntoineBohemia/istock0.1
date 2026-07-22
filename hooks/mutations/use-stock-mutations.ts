@@ -20,6 +20,8 @@ interface CreateExitParams {
   quantity: number;
   type: "exit_technician" | "exit_anonymous" | "exit_loss";
   technicianId?: string;
+  /** Motif libre : casse, perte, vol. Ce que le type de mouvement ne dit pas. */
+  note?: string;
 }
 
 export function useCreateStockEntry() {
@@ -73,7 +75,8 @@ export function useCreateStockExit() {
         params.productId,
         params.quantity,
         params.type,
-        params.technicianId
+        params.technicianId,
+        params.note
       ),
     onMutate: async (params) => {
       await qc.cancelQueries({

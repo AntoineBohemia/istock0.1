@@ -159,8 +159,43 @@ describe("useCreateStockExit", () => {
       });
     });
 
-    // Cinq arguments : un sixieme figurait ici, disparu de la signature.
-    expect(mockCreateExit).toHaveBeenCalledWith("org-1", "p1", 3, "exit_anonymous", undefined);
+    // Six arguments depuis l'ajout du motif : technicien puis note, tous deux
+    // absents ici. L'ordre compte — createExit prend des arguments positionnels.
+    expect(mockCreateExit).toHaveBeenCalledWith(
+      "org-1",
+      "p1",
+      3,
+      "exit_anonymous",
+      undefined,
+      undefined
+    );
+  });
+
+  it("transmet le motif de la sortie", async () => {
+    // Le motif est ce qui distingue « erreur de stock » de « cassé sur le
+    // chantier de Nantes ». S'il se perdait entre le formulaire et la base,
+    // rien ne le signalerait : la sortie serait enregistree sans lui.
+    const wrapper = createWrapper();
+    const { result } = renderHook(() => useCreateStockExit(), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        organizationId: "org-1",
+        productId: "p1",
+        quantity: 2,
+        type: "exit_anonymous",
+        note: "Cassé sur le chantier de Nantes",
+      });
+    });
+
+    expect(mockCreateExit).toHaveBeenCalledWith(
+      "org-1",
+      "p1",
+      2,
+      "exit_anonymous",
+      undefined,
+      "Cassé sur le chantier de Nantes"
+    );
   });
 
   it("performs optimistic update: -quantity on product detail", async () => {
