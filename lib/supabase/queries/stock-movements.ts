@@ -710,6 +710,64 @@ export interface PriceHistoryEntry {
   effective_from: string;
 }
 
+/** Un achat reel : ce qu'on a paye, a qui, et quand. */
+export interface PurchasePriceEntry {
+  id: string;
+  price: number;
+  quantity: number;
+  purchased_at: string;
+  supplier_name: string | null;
+  organization_name: string | null;
+}
+
+/**
+ * Prix reellement payes pour un produit, achat par achat.
+ *
+ * product_price_history ne suit que le prix catalogue et ne porte aucun
+ * fournisseur : elle ne repond donc pas a « a combien je l'ai, et chez qui ».
+ * Cette information vit dans les entrees de stock, qui enregistrent le prix
+ * unitaire paye et le fournisseur.
+ *
+ * Les corrections sont ecartees : une annulation d'entree n'est pas un achat,
+ * elle ferait apparaitre un prix qui n'a jamais ete paye.
+ */
+export async function getProductPurchasePrices(
+  productId: string,
+  limit: number = 20
+): Promise<PurchasePriceEntry[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("stock_movements")
+    .select(
+      "id, quantity, unit_price, created_at, supplier:suppliers(name), organization:organizations(name)"
+    )
+    .eq("product_id", productId)
+    .eq("movement_type", "entry")
+    .is("reverses_movement_id", null)
+    .not("unit_price", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw new Error(`Erreur récupération des prix d'achat: ${error.message}`);
+  }
+
+  return (data ?? []).map((m) => {
+    // PostgREST rend un tableau pour une relation qu'il ne sait pas unique.
+    const supplier = Array.isArray(m.supplier) ? m.supplier[0] : m.supplier;
+    const organization = Array.isArray(m.organization) ? m.organization[0] : m.organization;
+    return {
+      id: m.id as string,
+      price: Number(m.unit_price),
+      quantity: m.quantity as number,
+      purchased_at: m.created_at as string,
+      supplier_name: (supplier as { name?: string } | null)?.name ?? null,
+      organization_name: (organization as { name?: string } | null)?.name ?? null,
+    };
+  });
+}
+
 export async function getProductPriceHistory(productId: string): Promise<PriceHistoryEntry[]> {
   const supabase = createClient();
 

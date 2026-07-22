@@ -13,6 +13,7 @@ import {
   getYearlyEntryQtyByProduct,
   getYearlyPurchases,
   getProductPriceHistory,
+  getProductPurchasePrices,
   type StockMovementFilters,
 } from "@/lib/supabase/queries/stock-movements";
 
@@ -74,6 +75,16 @@ export function useYearlyEntryQtyByProduct(year?: number) {
     queryKey: queryKeys.movements.yearlyEntryQtyByProduct(targetYear),
     queryFn: () => getYearlyEntryQtyByProduct(targetYear),
     staleTime: STALE_TIME.MODERATE,
+  });
+}
+
+/** Prix reellement payes, avec leur fournisseur. */
+export function useProductPurchasePrices(productId: string) {
+  return useQuery({
+    queryKey: queryKeys.movements.purchasePrices(productId),
+    queryFn: () => getProductPurchasePrices(productId),
+    enabled: !!productId,
+    staleTime: STALE_TIME.SLOW,
   });
 }
 
