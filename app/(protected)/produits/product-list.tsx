@@ -117,7 +117,12 @@ export default function ProductList() {
     isError,
     refetch,
   } = useProducts({
-    organizationId: currentOrganization?.id,
+    // Pas de societe : le catalogue est une vue consolidee, le chiffre est le
+    // total des societes — comme sur la fiche produit, ou l'on atterrit en
+    // cliquant une ligne. La ventilation sous le chiffre dit qui detient quoi.
+    //
+    // Les ecrans qui font agir passent, eux, une societe : le stock qu'ils
+    // annoncent doit etre celui dans lequel on va reellement puiser.
     search: debouncedSearch || undefined,
   });
 
@@ -214,10 +219,11 @@ export default function ProductList() {
                 />
               </div>
             )}
-            {/* Ventilation toujours visible : le gros chiffre est celui de la
-                societe consultee, cette ligne dit qui detient quoi. Elle etait
-                masquee des qu'un filtre societe etait actif, c'est-a-dire
-                justement quand la comparaison est utile. */}
+            {/* Ventilation toujours visible : le gros chiffre est le total des
+                societes, cette ligne le detaille. Sans elle on ne saurait pas
+                qu'une societe est a sec derriere un total confortable. Elle
+                etait masquee des qu'un filtre societe etait actif, c'est-a-dire
+                justement quand la comparaison sert. */}
             {isMultiOrg && product.product_type !== "equipment" && (
               <p className="text-[10px] text-muted-foreground tabular-nums">
                 {(userOrgs ?? [])
