@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { AlertCircle, ImageIcon, Loader2, X } from "lucide-react";
 import { toast } from "@/lib/toast";
 
@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useCreateProduct } from "@/hooks/mutations";
-import { useSuppliers } from "@/hooks/queries";
+import { useSuppliers, useOrganizations } from "@/hooks/queries";
+import { activeOrganizations } from "@/lib/supabase/queries/organizations";
 import { generateSKU, uploadProductImage } from "@/lib/supabase/queries/products";
 import { createEntry } from "@/lib/supabase/queries/stock-movements";
 import { toEntryTimestamp } from "@/lib/utils/entry-date";
@@ -26,6 +27,10 @@ interface CreateEquipmentDialogProps {
 export default function CreateEquipmentDialog({ open, onOpenChange }: CreateEquipmentDialogProps) {
   const { currentOrganization } = useOrganizationStore();
   const { data: suppliers = [] } = useSuppliers(currentOrganization?.id);
+  const { data: allOrgs } = useOrganizations();
+  // Saisie : on ne propose que des societes en activite.
+  const userOrgs = activeOrganizations(allOrgs ?? []);
+  const isMultiOrg = userOrgs.length > 1;
   const createMutation = useCreateProduct();
 
   const [prevOpen, setPrevOpen] = useState(open);
@@ -39,6 +44,15 @@ export default function CreateEquipmentDialog({ open, onOpenChange }: CreateEqui
   const [entryDate, setEntryDate] = useState("");
   // Numero de facture : une note portee par l'entree en stock.
   const [invoiceRef, setInvoiceRef] = useState("");
+  /**
+   * Societe qui achete l'outil.
+   *
+   * Elle etait prise dans le selecteur en haut de page, sans que rien ne le
+   * dise : creer un outil depuis SMPR l'attribuait a SMPR meme s'il avait ete
+   * paye par SEIREN. Les deux societes sont a egalite, le choix se fait donc
+   * ici, devant les yeux.
+   */
+  const [entryOrgId, setEntryOrgId] = useState("");
   const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
 
@@ -67,13 +81,20 @@ export default function CreateEquipmentDialog({ open, onOpenChange }: CreateEqui
     setSupplierId("");
     setEntryDate("");
     setInvoiceRef("");
+    // Une seule societe : rien a choisir, on la prend. Plusieurs : le champ
+    // reste vide, pour que le choix soit fait et non subi.
+    setEntryOrgId(isMultiOrg ? "" : (userOrgs[0]?.id ?? ""));
     clearFiles();
   }
   if (open !== prevOpen) setPrevOpen(open);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !currentOrganization?.id) return;
+    if (!name.trim()) return;
+    if (!entryOrgId) {
+      toast.error("Choisissez la société qui achète cet outil");
+      return;
+    }
 
     let imageUrl: string | undefined;
     if (files.length > 0 && files[0].file instanceof File) {
@@ -91,7 +112,7 @@ export default function CreateEquipmentDialog({ open, onOpenChange }: CreateEqui
 
     createMutation.mutate(
       {
-        organization_id: currentOrganization.id,
+        organization_id: entryOrgId,
         name: name.trim(),
         sku: generateSKU(name),
         description: description.trim() || null,
@@ -111,7 +132,7 @@ export default function CreateEquipmentDialog({ open, onOpenChange }: CreateEqui
           if (stockCurrent > 0) {
             try {
               await createEntry(
-                currentOrganization.id,
+                entryOrgId,
                 product.id,
                 stockCurrent,
                 supplierId || undefined,
@@ -190,6 +211,30 @@ export default function CreateEquipmentDialog({ open, onOpenChange }: CreateEqui
                 </p>
               )}
             </div>
+
+            {/* Societe acheteuse — en tete du formulaire : c'est elle qui
+                portera l'achat, tout ce qui suit s'y rattache. Masquee quand il
+                n'y en a qu'une : un choix unique n'est pas un choix. */}
+            {isMultiOrg && (
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                  Société *
+                </label>
+                <select
+                  value={entryOrgId}
+                  onChange={(e) => setEntryOrgId(e.target.value)}
+                  required
+                  className="border-input bg-white dark:bg-card text-sm flex h-9 w-full rounded-md border px-3 py-1.5 outline-none focus:border-foreground/30 focus:ring-foreground/10 focus:ring-[3px]"
+                >
+                  <option value="">Choisir…</option>
+                  {userOrgs.map((org) => (
+                    <option key={org.id} value={org.id}>
+                      {org.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Nom *</label>
