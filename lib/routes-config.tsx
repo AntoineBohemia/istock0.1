@@ -20,16 +20,6 @@ export type PageRoutesItemType = {
 
 export const page_routes: PageRoutesType[] = [
   {
-    title: "",
-    items: [
-      {
-        title: "Actions rapides",
-        href: "/actions",
-        icon: "LayoutDashboard",
-      },
-    ],
-  },
-  {
     title: "Inventaire",
     allowedRoles: ["owner", "admin"],
     items: [

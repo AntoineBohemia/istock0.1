@@ -52,10 +52,7 @@ function createCloneableURL(pathname: string, searchParams: Record<string, strin
   return url;
 }
 
-function createMockRequest(
-  pathname: string,
-  searchParams: Record<string, string> = {}
-) {
+function createMockRequest(pathname: string, searchParams: Record<string, string> = {}) {
   const url = createCloneableURL(pathname, searchParams);
 
   return {
@@ -97,7 +94,7 @@ describe("proxy middleware", () => {
   });
 
   // ─── Auth routes ────────────────────────────────────────────────
-  it("redirects authenticated user on /login to /global", async () => {
+  it("redirects authenticated user on /login to the default route", async () => {
     mockGetUser.mockResolvedValue({
       data: { user: { id: "user-1" } },
       error: null,
@@ -108,10 +105,10 @@ describe("proxy middleware", () => {
 
     expect(mockRedirect).toHaveBeenCalled();
     const redirectUrl = mockRedirect.mock.calls[0][0] as URL;
-    expect(redirectUrl.pathname).toBe("/actions");
+    expect(redirectUrl.pathname).toBe("/produits");
   });
 
-  it("redirects authenticated user on / to /global", async () => {
+  it("redirects authenticated user on / to the default route", async () => {
     mockGetUser.mockResolvedValue({
       data: { user: { id: "user-1" } },
       error: null,

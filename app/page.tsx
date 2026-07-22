@@ -39,10 +39,10 @@ const publicRoutes = [
 
 const protectedRoutes = [
   {
-    title: "Actions rapides",
+    title: "Actions rapides (mobile uniquement)",
     href: "/actions",
     icon: LayoutDashboard,
-    description: "Mouvements de stock rapides",
+    description: "Mouvements de stock rapides — ecran mobile, redirige vers /produits sur desktop",
   },
   /*{
     title: "Calendrier",
@@ -103,7 +103,7 @@ const errorRoutes = [
 
 export default function DevPage() {
   if (process.env.NODE_ENV !== "development") {
-    redirect("/actions");
+    redirect("/produits");
   }
 
   return (

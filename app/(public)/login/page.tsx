@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-const DEFAULT_REDIRECT = "/actions";
+const DEFAULT_REDIRECT = "/produits";
 
 function isInternalPath(url: string): boolean {
   try {

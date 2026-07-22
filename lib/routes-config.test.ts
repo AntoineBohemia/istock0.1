@@ -25,7 +25,6 @@ describe("filterRoutesByRole — owner/admin (full access)", () => {
   it.each(["owner", "admin"] as const)("shows all routes for %s", (role) => {
     const filtered = filterRoutesByRole(page_routes, role);
     const hrefs = filtered.flatMap((s) => s.items.map((i) => i.href));
-    expect(hrefs).toContain("/actions");
     expect(hrefs).toContain("/produits");
     expect(hrefs).toContain("/outillage");
     expect(hrefs).toContain("/fournisseurs");
@@ -35,31 +34,26 @@ describe("filterRoutesByRole — owner/admin (full access)", () => {
   });
 });
 
-describe("filterRoutesByRole — member (restricted to /actions)", () => {
+describe("page_routes — /actions est un écran mobile, hors menu desktop", () => {
+  it("n'expose aucune entrée vers /actions", () => {
+    const hrefs = page_routes.flatMap((s) => s.items.map((i) => i.href));
+    expect(hrefs).not.toContain("/actions");
+  });
+});
+
+describe("filterRoutesByRole — member (aucun accès au menu desktop)", () => {
   const filtered = filterRoutesByRole(page_routes, "member");
   const hrefs = filtered.flatMap((s) => s.items.map((i) => i.href));
 
-  it("shows /actions", () => {
-    expect(hrefs).toContain("/actions");
-  });
-
-  it("does NOT show other routes", () => {
-    expect(hrefs).not.toContain("/produits");
-    expect(hrefs).not.toContain("/outillage");
-    expect(hrefs).not.toContain("/fournisseurs");
-    expect(hrefs).not.toContain("/achats");
-    expect(hrefs).not.toContain("/techniciens");
-    expect(hrefs).not.toContain("/mouvements");
+  it("ne montre aucune route", () => {
+    expect(hrefs).toHaveLength(0);
   });
 });
 
 describe("filterRoutesByRole — undefined role", () => {
-  it("only shows unrestricted items", () => {
+  it("ne montre aucune route", () => {
     const filtered = filterRoutesByRole(page_routes, undefined);
     const hrefs = filtered.flatMap((s) => s.items.map((i) => i.href));
-    // /actions has no allowedRoles restriction, so it shows
-    expect(hrefs).toContain("/actions");
-    // restricted routes should be hidden
-    expect(hrefs).not.toContain("/produits");
+    expect(hrefs).toHaveLength(0);
   });
 });

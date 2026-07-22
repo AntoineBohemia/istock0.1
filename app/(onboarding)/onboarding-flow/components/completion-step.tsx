@@ -79,11 +79,6 @@ export function CompletionStep() {
     doSaveProgress();
   }, []);
 
-  const handleGoToDashboard = () => {
-    reset();
-    router.push("/actions");
-  };
-
   const handleGoToProducts = () => {
     reset();
     router.push("/produits");
@@ -107,17 +102,19 @@ export function CompletionStep() {
     {
       icon: FolderTree,
       label: "Categories",
-      value: categoriesCount > 0
-        ? `${categoriesCount} categorie${categoriesCount > 1 ? "s" : ""} creee${categoriesCount > 1 ? "s" : ""}`
-        : "Aucune categorie",
+      value:
+        categoriesCount > 0
+          ? `${categoriesCount} categorie${categoriesCount > 1 ? "s" : ""} creee${categoriesCount > 1 ? "s" : ""}`
+          : "Aucune categorie",
       created: categoriesCount > 0,
     },
     {
       icon: Package,
       label: "Produits",
-      value: productsCount > 0
-        ? `${productsCount} produit${productsCount > 1 ? "s" : ""} cree${productsCount > 1 ? "s" : ""}`
-        : "Aucun produit",
+      value:
+        productsCount > 0
+          ? `${productsCount} produit${productsCount > 1 ? "s" : ""} cree${productsCount > 1 ? "s" : ""}`
+          : "Aucun produit",
       created: productsCount > 0,
     },
     {
@@ -138,8 +135,8 @@ export function CompletionStep() {
         </div>
         <h1 className="text-3xl font-bold">Configuration terminee !</h1>
         <p className="text-muted-foreground text-lg max-w-md mx-auto">
-          Votre espace iStock est pret. Vous pouvez maintenant commencer a gerer
-          votre stock efficacement.
+          Votre espace iStock est pret. Vous pouvez maintenant commencer a gerer votre stock
+          efficacement.
         </p>
       </div>
 
@@ -158,9 +155,7 @@ export function CompletionStep() {
                 <div
                   className={cn(
                     "p-2 rounded-lg",
-                    item.created
-                      ? "bg-green-100 dark:bg-green-900/30"
-                      : "bg-muted"
+                    item.created ? "bg-green-100 dark:bg-green-900/30" : "bg-muted"
                   )}
                 >
                   <item.icon
@@ -175,9 +170,7 @@ export function CompletionStep() {
                   <p className="font-medium">{item.value}</p>
                 </div>
               </div>
-              {item.created && (
-                <CheckCircle2 className="size-5 text-green-600" />
-              )}
+              {item.created && <CheckCircle2 className="size-5 text-green-600" />}
             </div>
           ))}
         </div>
@@ -187,15 +180,7 @@ export function CompletionStep() {
         <p className="text-sm text-muted-foreground text-center">
           Que souhaitez-vous faire maintenant ?
         </p>
-        <div className="grid gap-3 md:grid-cols-3">
-          <Button
-            variant="outline"
-            className="h-auto py-4 flex-col gap-2"
-            onClick={handleGoToDashboard}
-          >
-            <Sparkles className="size-5" />
-            <span>Voir le dashboard</span>
-          </Button>
+        <div className="grid gap-3 md:grid-cols-2">
           <Button
             variant="outline"
             className="h-auto py-4 flex-col gap-2"
@@ -216,8 +201,8 @@ export function CompletionStep() {
       </div>
 
       <div className="flex justify-center pt-4">
-        <Button size="lg" onClick={handleGoToDashboard} className="gap-2">
-          Acceder au dashboard
+        <Button size="lg" onClick={handleGoToProducts} className="gap-2">
+          Acceder a iStock
           <ArrowRight className="size-4" />
         </Button>
       </div>

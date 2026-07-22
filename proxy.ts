@@ -21,7 +21,7 @@ const PROTECTED_ROUTES = [
 const AUTH_ROUTES = ["/login", "/register", "/forgot-password"];
 
 // Page par défaut après connexion
-const DEFAULT_AUTHENTICATED_ROUTE = "/actions";
+const DEFAULT_AUTHENTICATED_ROUTE = "/produits";
 
 // Page de connexion
 const LOGIN_ROUTE = "/login";
