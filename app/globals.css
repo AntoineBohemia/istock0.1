@@ -166,6 +166,16 @@
   }
 }
 
+/* Sur mobile l'application tient dans un ecran : rien ne doit defiler, et le
+   rebond elastique d'iOS laissait croire le contraire en decollant la page du
+   haut. Reserve au mobile — sur ordinateur les pages defilent normalement. */
+@media (max-width: 767px) {
+  html,
+  body {
+    overscroll-behavior-y: none;
+  }
+}
+
 /* CTA rebond animation (opt-in via .btn-pop) */
 @keyframes btn-pop {
   0% {

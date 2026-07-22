@@ -133,7 +133,9 @@ const EXIT_REASON_OPTIONS: {
 }[] = [
   {
     reason: "technician",
-    label: "Sortie technicien",
+    // « Sortie » est deja dans la barre de navigation : le repeter mangerait
+    // la largeur sans rien apprendre.
+    label: "Technicien",
     hint: "Le stock part chez quelqu'un",
     icon: PackagePlus,
     accent: "text-primary",
@@ -913,8 +915,13 @@ export default function ActionsMobileSheet() {
       {/* Hauteur exacte, pas une estimation : 3rem de barre du haut et les 2rem
           de padding du layout. Une valeur approchee laissait du vide en bas et
           l'historique flottait au milieu de nulle part. */}
+      {/* overflow-hidden : rien ne doit deborder, donc rien a faire defiler.
+          overscroll-none coupe le rebond elastique d'iOS, qui donnait
+          l'impression d'un ecran mobile alors qu'il n'y avait rien dessous.
+          Les deux cartes se partagent ce qui reste, quelle que soit la
+          hauteur de l'appareil. */}
       <div
-        className="flex flex-col gap-3"
+        className="flex flex-col gap-3 overflow-hidden overscroll-none"
         style={{ height: "calc(100dvh - 5rem - env(safe-area-inset-bottom))" }}
       >
         <div className="flex-1 min-h-0 flex flex-col gap-3">
@@ -1058,36 +1065,45 @@ export default function ActionsMobileSheet() {
             )}
           </div>
 
-          {/* ── Drawer body (scrollable) ── */}
-          <div className="flex-1 overflow-y-auto min-h-0 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+          {/* ── Drawer body ── */}
+          {/* L'etape « nature » remplit l'ecran sans defiler, comme l'accueil ;
+              les autres ont des listes qui peuvent depasser. */}
+          <div
+            className={cn(
+              "flex-1 min-h-0 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]",
+              drawerStep === "reason"
+                ? "flex flex-col overflow-hidden overscroll-none"
+                : "overflow-y-auto"
+            )}
+          >
             {/* ═══ NATURE DE LA SORTIE (etape 2) ═══
-                Deux cartes, comme a l'accueil : un choix binaire se presente
-                partout de la meme facon dans cette application. */}
+                Memes cartes qu'a l'accueil : un choix binaire se presente
+                partout de la meme facon dans cette application, sinon rien
+                n'indique qu'on repond a une question de meme nature. */}
             {drawerStep === "reason" && (
-              <div className="flex flex-col gap-3 pt-2">
+              <div className="flex-1 min-h-0 flex flex-col gap-3 py-2">
                 {EXIT_REASON_OPTIONS.map(({ reason, label, hint, icon: Icon, accent, tint }) => (
                   <button
                     key={reason}
                     onClick={() => selectExitReason(reason)}
-                    className="w-full flex items-center gap-4 rounded-2xl border bg-white dark:bg-card px-4 py-5 text-left active:scale-[0.98] transition-transform"
+                    className="w-full flex-1 min-h-0 flex flex-col items-center justify-center gap-3 rounded-3xl border bg-white dark:bg-card px-5 active:scale-[0.98] transition-transform"
                   >
                     <span
                       className={cn(
-                        "size-14 rounded-2xl flex items-center justify-center shrink-0",
+                        "size-20 rounded-2xl flex items-center justify-center shrink-0",
                         tint
                       )}
                     >
-                      <Icon className={cn("size-7", accent)} />
+                      <Icon className={cn("size-10", accent)} />
                     </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-heading font-semibold text-lg leading-tight">
+                    <span className="text-center">
+                      <span className="block font-heading font-semibold text-2xl leading-none">
                         {label}
                       </span>
-                      <span className="block text-sm text-muted-foreground leading-tight mt-0.5">
+                      <span className="block text-sm text-muted-foreground leading-tight mt-1.5">
                         {hint}
                       </span>
                     </span>
-                    <ChevronLeft className="size-4 shrink-0 rotate-180 text-muted-foreground/40" />
                   </button>
                 ))}
               </div>
