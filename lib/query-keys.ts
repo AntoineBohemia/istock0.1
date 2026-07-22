@@ -76,6 +76,8 @@ export const queryKeys = {
     withProducts: (orgId: string) => [...queryKeys.suppliers.all, "withProducts", orgId] as const,
     withStats: (orgId: string) => [...queryKeys.suppliers.all, "withStats", orgId] as const,
     detail: (id: string) => [...queryKeys.suppliers.all, "detail", id] as const,
+    /** Factures d'achat rattachees a un fournisseur */
+    invoices: (supplierId: string) => [...queryKeys.suppliers.all, "invoices", supplierId] as const,
   },
 
   organizations: {

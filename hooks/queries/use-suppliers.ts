@@ -9,6 +9,7 @@ import {
   getSuppliersWithStats,
   getSupplier,
 } from "@/lib/supabase/queries/suppliers";
+import { getSupplierInvoices } from "@/lib/supabase/queries/purchase-invoices";
 
 export function useSuppliers(orgId?: string) {
   return useQuery({
@@ -42,6 +43,16 @@ export function useSupplier(id?: string) {
     queryKey: queryKeys.suppliers.detail(id!),
     queryFn: () => getSupplier(id!),
     enabled: !!id,
+    staleTime: STALE_TIME.SLOW,
+  });
+}
+
+/** Factures d'achat d'un fournisseur. */
+export function useSupplierInvoices(supplierId?: string) {
+  return useQuery({
+    queryKey: queryKeys.suppliers.invoices(supplierId!),
+    queryFn: () => getSupplierInvoices(supplierId!),
+    enabled: !!supplierId,
     staleTime: STALE_TIME.SLOW,
   });
 }

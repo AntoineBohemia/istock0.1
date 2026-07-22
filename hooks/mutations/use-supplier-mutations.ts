@@ -3,6 +3,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { createSupplier, updateSupplier, deleteSupplier } from "@/lib/supabase/queries/suppliers";
+import {
+  createPurchaseInvoice,
+  deletePurchaseInvoice,
+  type PurchaseInvoiceInput,
+} from "@/lib/supabase/queries/purchase-invoices";
 
 export function useCreateSupplier() {
   const qc = useQueryClient();
@@ -37,6 +42,42 @@ export function useUpdateSupplier() {
     // se desynchronise a chaque nouveau champ, qui est alors perdu en silence.
     mutationFn: ({ id, data }: { id: string; data: Parameters<typeof updateSupplier>[1] }) =>
       updateSupplier(id, data),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.suppliers.all });
+    },
+  });
+}
+
+/**
+ * Enregistre une facture d'achat sur un fournisseur.
+ *
+ * Invalide tout l'arbre `suppliers` et pas seulement la liste des factures :
+ * le compteur de factures de la fiche vient d'une RPC de statistiques, il
+ * resterait sinon a l'ancienne valeur.
+ */
+export function useCreatePurchaseInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      organizationId,
+      supplierId,
+      input,
+    }: {
+      organizationId: string;
+      supplierId: string;
+      input: PurchaseInvoiceInput;
+    }) => createPurchaseInvoice(organizationId, supplierId, input),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.suppliers.all });
+    },
+  });
+}
+
+export function useDeletePurchaseInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, filePath }: { id: string; filePath: string | null }) =>
+      deletePurchaseInvoice(id, filePath),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.suppliers.all });
     },
