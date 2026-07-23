@@ -55,7 +55,7 @@ export default function Page() {
   const onSubmit = async (data: RegisterFormValues) => {
     setError(null);
 
-    const { error } = await supabase.auth.signUp({
+    const { data: signUpData, error } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
       options: {
@@ -71,6 +71,22 @@ export default function Page() {
 
     if (error) {
       setError(error.message);
+      return;
+    }
+
+    // Deux cas selon le reglage Supabase :
+    //
+    // - Confirmation d'email desactivee (usage interne) : signUp renvoie deja
+    //   une session. L'utilisateur est connecte, on l'envoie droit dans l'appli
+    //   — ou sur l'invitation qu'il etait en train d'accepter. Pas d'ecran
+    //   « verifiez vos emails » qui n'aurait aucun email a attendre.
+    // - Confirmation active : pas de session, il faut cliquer le lien recu.
+    //
+    // Navigation dure plutot que router.push : le cookie de session vient
+    // d'etre pose cote client, une navigation complete garantit que le serveur
+    // le voit et laisse passer vers les pages protegees.
+    if (signUpData.session) {
+      window.location.assign(returnUrl || "/produits");
       return;
     }
 
