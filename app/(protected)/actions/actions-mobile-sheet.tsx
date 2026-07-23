@@ -307,6 +307,11 @@ export default function ActionsMobileSheet() {
   const [exitReason, setExitReason] = useState<ExitReason | null>(null);
   const [technicianId, setTechnicianId] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
+  // ─── Motif d'une erreur de stock ────────────────────────
+  // Une perte n'est jamais anodine : casse, vol, oubli. Sans le motif, le
+  // journal ne dit que « -1 » sans dire pourquoi le stock a fondu. Obligatoire
+  // avant de valider une erreur de stock (outil comme consommable).
+  const [lossNote, setLossNote] = useState("");
 
   // ─── Ecran de lancement ────────────────────────────────
   // Rejoue au plus une fois par quart d'heure. Les etapes se posant par-dessus
@@ -494,6 +499,7 @@ export default function ActionsMobileSheet() {
       setCart([]);
       setTechnicianId("");
       setExitReason(null);
+      setLossNote("");
       setItemKind(null);
 
       if (mode === "exit") {
@@ -552,6 +558,7 @@ export default function ActionsMobileSheet() {
       setCart([]);
       setTechnicianId("");
       setExitReason(null);
+      setLossNote("");
       setItemKind(null);
     }, 300);
   }, []);
@@ -717,6 +724,7 @@ export default function ActionsMobileSheet() {
     setExitReason(null);
     setTechnicianId("");
     setCart([]);
+    setLossNote("");
     setDrawerStep("reason");
     setSearchQuery("");
   }, []);
@@ -924,6 +932,12 @@ export default function ActionsMobileSheet() {
     if (!orgId || !exitReason || cart.length === 0 || isBatchSubmitting) return;
     // Une sortie technicien sans technicien n'est pas tracable : on refuse.
     if (exitReason === "technician" && !technicianId) return;
+    // Une erreur de stock sans motif ne dit pas pourquoi le stock a fondu : on
+    // refuse aussi. Le bouton est deja desactive, ceci est la ceinture.
+    if (exitReason === "loss" && !lossNote.trim()) {
+      toast.error("Indiquez le motif de l'erreur de stock");
+      return;
+    }
 
     // La societe se decide ligne par ligne : dans un meme panier, un produit
     // peut venir de SMPR et le suivant de SEIREN. Le controle passe donc par
@@ -971,6 +985,9 @@ export default function ActionsMobileSheet() {
             quantity: item.quantity,
             type: exitMovementType,
             technicianId: exitReason === "technician" ? technicianId : undefined,
+            // Le motif accompagne chaque ligne de perte : le journal dira
+            // « -2 — casse » et non « -2 » tout court.
+            note: exitReason === "loss" ? lossNote.trim() : undefined,
           });
           const stockAfter = source.stock - item.quantity;
           setSession((prev) => [
@@ -1024,6 +1041,7 @@ export default function ActionsMobileSheet() {
     exitReason,
     exitMovementType,
     exitSourceFor,
+    lossNote,
   ]);
 
   // ─── Revert session entry ─────────────────────────────
@@ -1182,7 +1200,7 @@ export default function ActionsMobileSheet() {
     stackFooter = (
       <Button
         onClick={handleBatchSubmit}
-        disabled={isSubmitting}
+        disabled={isSubmitting || (exitReason === "loss" && !lossNote.trim())}
         className="w-full h-12 text-base active:scale-[0.97]"
       >
         {isBatchSubmitting ? (
@@ -1994,6 +2012,25 @@ export default function ActionsMobileSheet() {
                     </span>
                   </div>
                 </InsetGroup>
+
+                {/* Motif — obligatoire pour une erreur de stock. Une perte sans
+                    raison ne se relit pas : le journal doit dire pourquoi le
+                    stock a baisse, pas seulement de combien. */}
+                {exitReason === "loss" && (
+                  <InsetGroup
+                    header="Motif de l'erreur"
+                    footer="Obligatoire — ex. : casse, vol, égaré, écart d'inventaire."
+                  >
+                    <div className="px-4 py-3">
+                      <Input
+                        value={lossNote}
+                        onChange={(e) => setLossNote(e.target.value)}
+                        placeholder="Pourquoi ce retrait ?"
+                        className="h-11 rounded-xl border-0 bg-muted/50 text-base"
+                      />
+                    </div>
+                  </InsetGroup>
+                )}
 
                 {/* Le detail. Le bouton d'ajout vit dans l'en-tete du groupe :
                     c'est la meme famille d'action que la liste elle-meme. */}
