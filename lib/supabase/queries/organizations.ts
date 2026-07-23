@@ -260,32 +260,43 @@ export async function inviteUserToOrganization(
   const inviterName =
     user?.user_metadata?.full_name || user?.user_metadata?.first_name || user?.email || "Quelqu'un";
 
-  // Envoyer l'email via Edge Function
-  let emailSent = false;
-  try {
-    const { data: emailResult, error: emailError } = await supabase.functions.invoke(
-      "send-invitation-email",
-      {
-        body: {
-          email: email.toLowerCase(),
-          token: data.token,
-          organization_name: org?.name || "Organisation",
-          role,
-          invited_by_name: inviterName,
-        },
-      }
-    );
-
-    if (emailError) {
-      console.error("Erreur envoi email invitation:", emailError);
-    } else {
-      emailSent = emailResult?.success === true && !emailResult?.skipped;
-    }
-  } catch (emailError) {
-    console.error("Erreur envoi email invitation:", emailError);
-  }
+  const emailSent = await sendInvitationEmail({
+    email: email.toLowerCase(),
+    token: data.token,
+    organization_name: org?.name || "Organisation",
+    role,
+    invited_by_name: inviterName,
+  });
 
   return { invitation: data, emailSent };
+}
+
+/**
+ * Envoie l'email d'invitation via la route interne (Resend).
+ *
+ * Un envoi rate ne remonte jamais en exception : l'invitation existe deja en
+ * base, l'appelant proposera le lien a partager. On renvoie simplement si
+ * l'email est bien parti, pour que l'interface le dise.
+ */
+async function sendInvitationEmail(body: {
+  email: string;
+  token: string;
+  organization_name: string;
+  role?: "admin" | "member";
+  invited_by_name?: string;
+}): Promise<boolean> {
+  try {
+    const res = await fetch("/api/send-invitation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const result = await res.json();
+    return result?.success === true && !result?.skipped;
+  } catch (err) {
+    console.error("Erreur envoi email invitation:", err);
+    return false;
+  }
 }
 
 /**
@@ -406,26 +417,13 @@ export async function resendInvitation(
   const inviterName =
     user?.user_metadata?.full_name || user?.user_metadata?.first_name || user?.email || "Quelqu'un";
 
-  let emailSent = false;
-  try {
-    const { data: emailResult, error: emailError } = await supabase.functions.invoke(
-      "send-invitation-email",
-      {
-        body: {
-          email: invitation.email,
-          token: newToken,
-          organization_name: org?.name || "Organisation",
-          role: invitation.role,
-          invited_by_name: inviterName,
-        },
-      }
-    );
-    if (!emailError) {
-      emailSent = emailResult?.success === true && !emailResult?.skipped;
-    }
-  } catch {
-    // best-effort
-  }
+  const emailSent = await sendInvitationEmail({
+    email: invitation.email,
+    token: newToken,
+    organization_name: org?.name || "Organisation",
+    role: invitation.role === "admin" ? "admin" : "member",
+    invited_by_name: inviterName,
+  });
 
   return { emailSent };
 }

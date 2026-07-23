@@ -111,6 +111,10 @@ export default function MembersPage() {
   // Form states
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "member">("member");
+  // Lien de secours, affiché quand l'email n'est pas parti : un lien qu'on doit
+  // partager a la main ne doit pas vivre seulement dans un toast qui disparait.
+  const [fallbackLink, setFallbackLink] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<MemberWithEmail | null>(null);
   const [memberToTransfer, setMemberToTransfer] = useState<MemberWithEmail | null>(null);
   const [transferConfirmName, setTransferConfirmName] = useState("");
@@ -159,23 +163,22 @@ export default function MembersPage() {
       {
         onSuccess: (result) => {
           const link = `${window.location.origin}/invite/${result.invitation.token}`;
-          navigator.clipboard.writeText(link);
           if (result.emailSent) {
-            toast.success(
-              `Invitation envoyée par email ! Lien aussi copié dans le presse-papier.`,
-              {
-                duration: 5000,
-              }
-            );
+            // L'email est parti : rien a partager a la main, on referme.
+            navigator.clipboard.writeText(link);
+            toast.success("Invitation envoyée par email à " + inviteEmail.trim(), {
+              duration: 5000,
+            });
+            setIsInviteDialogOpen(false);
+            setInviteEmail("");
+            setInviteRole("member");
           } else {
-            toast.warning(
-              `Invitation créée mais l'email n'a pas pu être envoyé. Le lien a été copié dans le presse-papier — partagez-le manuellement.`,
-              { duration: 8000 }
-            );
+            // Email non configuré ou en echec : on garde la fenetre ouverte et on
+            // montre le lien, plutot que de le cacher dans un toast.
+            setFallbackLink(link);
+            setLinkCopied(false);
+            navigator.clipboard.writeText(link).then(() => setLinkCopied(true));
           }
-          setIsInviteDialogOpen(false);
-          setInviteEmail("");
-          setInviteRole("member");
         },
         onError: (error) => {
           toast.error(error instanceof Error ? error.message : "Erreur lors de l'invitation");
@@ -601,7 +604,19 @@ export default function MembersPage() {
       )}
 
       {/* Invite Dialog */}
-      <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
+      <Dialog
+        open={isInviteDialogOpen}
+        onOpenChange={(o) => {
+          setIsInviteDialogOpen(o);
+          // Fermer la fenetre efface le lien de secours : il appartient a
+          // l'invitation qu'on vient d'envoyer, pas a la suivante.
+          if (!o) {
+            setFallbackLink(null);
+            setInviteEmail("");
+            setInviteRole("member");
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Inviter un membre</DialogTitle>
@@ -638,6 +653,36 @@ export default function MembersPage() {
                   : "Accès restreint : peut uniquement utiliser les Actions rapides (entrées/sorties stock)."}
               </p>
             </div>
+
+            {/* Lien de secours : l'invitation est créée, mais l'email n'est pas
+                parti (envoi non configuré ou en échec). On donne le lien à
+                partager soi-même plutôt que de renvoyer sur un email absent. */}
+            {fallbackLink && (
+              <div className="rounded-lg border border-attention/30 bg-attention-bg/40 p-3">
+                <p className="text-sm font-medium">
+                  Invitation créée, mais l&apos;email n&apos;a pas pu être envoyé.
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Copiez ce lien et transmettez-le à {inviteEmail.trim()} vous-même. Il devra se
+                  connecter avec cette adresse.
+                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <Input readOnly value={fallbackLink} className="h-8 text-xs" />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-8 shrink-0"
+                    onClick={() => {
+                      navigator.clipboard.writeText(fallbackLink);
+                      setLinkCopied(true);
+                    }}
+                  >
+                    {linkCopied ? "Copié !" : "Copier"}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button
@@ -645,12 +690,14 @@ export default function MembersPage() {
               onClick={() => setIsInviteDialogOpen(false)}
               disabled={isSubmitting}
             >
-              Annuler
+              {fallbackLink ? "Fermer" : "Annuler"}
             </Button>
-            <Button onClick={handleInvite} disabled={isSubmitting || !inviteEmail.trim()}>
-              {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
-              Envoyer l'invitation
-            </Button>
+            {!fallbackLink && (
+              <Button onClick={handleInvite} disabled={isSubmitting || !inviteEmail.trim()}>
+                {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
+                Envoyer l'invitation
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
