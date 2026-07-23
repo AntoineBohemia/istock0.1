@@ -20,13 +20,21 @@ import {
 import type { VehicleWithTechnician } from "@/lib/supabase/queries/vehicles";
 import { MobileStackScreen, InsetGroup, InsetField } from "./mobile-stack-screen";
 
-// Du meilleur au pire : le degrade porte le sens, on n'a pas a lire pour
+// Du meilleur au pire : la couleur porte le sens, on n'a pas a lire pour
 // comprendre. Vert franc pour « neuf », rouge pour « mauvais ».
-const RATING_STYLE: Record<InspectionRating, string> = {
-  neuf: "bg-emerald-500 text-white",
-  bon: "bg-green-500 text-white",
-  correct: "bg-amber-500 text-white",
-  mauvais: "bg-red-500 text-white",
+const RATING_BG: Record<InspectionRating, string> = {
+  neuf: "bg-emerald-500",
+  bon: "bg-green-500",
+  correct: "bg-amber-500",
+  mauvais: "bg-red-500",
+};
+
+// Rappel discret de la note sur le pourtour de la carte, une fois choisie.
+const RATING_RING: Record<InspectionRating, string> = {
+  neuf: "ring-emerald-500/40",
+  bon: "ring-green-500/40",
+  correct: "ring-amber-500/40",
+  mauvais: "ring-red-500/50",
 };
 
 type Draft = Record<string, { rating: InspectionRating | null; comment: string }>;
@@ -170,17 +178,29 @@ export function MobileVehicleInspection({
       footer={footer}
     >
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-3">
-        {/* Progression — on voit d'un coup ce qu'il reste a faire. */}
-        <div className="mb-4">
-          <div className="mb-1.5 flex items-baseline justify-between">
+        {/* Progression — on voit d'un coup ce qu'il reste a faire. Passe au
+            vert quand tout est note : le geste suivant est de valider. */}
+        <div className="mb-5 rounded-2xl border bg-white p-3.5 dark:bg-card">
+          <div className="mb-2 flex items-center justify-between">
             <span className="font-heading text-lg font-semibold">État des lieux</span>
-            <span className="text-sm tabular-nums text-muted-foreground">
-              {ratedCount}/{INSPECTION_ITEMS.length} vérifiés
+            <span
+              className={cn(
+                "flex items-center gap-1 text-sm font-medium tabular-nums",
+                allRated ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"
+              )}
+            >
+              {allRated ? (
+                <>
+                  <Check className="size-4" /> Terminé
+                </>
+              ) : (
+                `${ratedCount}/${INSPECTION_ITEMS.length} vérifiés`
+              )}
             </span>
           </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+          <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
             <motion.div
-              className="h-full rounded-full bg-primary"
+              className={cn("h-full rounded-full", allRated ? "bg-emerald-500" : "bg-primary")}
               initial={false}
               animate={{ width: `${(ratedCount / INSPECTION_ITEMS.length) * 100}%` }}
               transition={{ type: "spring", bounce: 0, duration: 0.4 }}
@@ -212,46 +232,64 @@ export function MobileVehicleInspection({
           </InsetField>
         </InsetGroup>
 
-        {/* La grille. Un point = un intitule + quatre notes. La note choisie se
-            remplit de sa couleur ; un commentaire se glisse dessous. */}
-        <div className="mt-5 space-y-2.5">
+        {/* La grille. Un point = un intitule + quatre notes, facon segmented
+            control iOS : un surligneur colore glisse d'une note a l'autre. La
+            carte s'entoure discretement de la couleur choisie ; le commentaire
+            se glisse dessous. */}
+        <div className="mt-1 space-y-2.5">
           {INSPECTION_ITEMS.map((it) => {
             const current = draft[it.key];
+            const rated = current?.rating ?? null;
             return (
-              <div key={it.key} className="rounded-2xl border bg-white p-3 dark:bg-card">
+              <div
+                key={it.key}
+                className={cn(
+                  "rounded-2xl border bg-white p-3 transition-shadow dark:bg-card",
+                  rated && cn("ring-1", RATING_RING[rated])
+                )}
+              >
                 <p className="mb-2.5 text-base font-medium">{it.label}</p>
-                <div className="flex gap-1.5">
+                <div className="flex gap-1 rounded-2xl bg-muted/50 p-1">
                   {RATING_ORDER.map((r) => {
-                    const active = current?.rating === r;
+                    const active = rated === r;
                     return (
                       <button
                         key={r}
                         onClick={() => setRating(it.key, r)}
-                        className={cn(
-                          "relative flex-1 rounded-xl py-2.5 text-sm font-semibold transition-colors active:scale-95",
-                          active ? RATING_STYLE[r] : "bg-muted/60 text-muted-foreground"
-                        )}
+                        className="relative flex-1 rounded-xl py-2.5 text-center transition-transform active:scale-[0.96]"
                       >
-                        {RATING_LABELS[r]}
                         {active && (
                           <motion.span
-                            layoutId={`check-${it.key}`}
-                            className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-white shadow"
-                          >
-                            <Check className="size-3 text-emerald-600" />
-                          </motion.span>
+                            layoutId={`hl-${it.key}`}
+                            className={cn("absolute inset-0 rounded-xl shadow-sm", RATING_BG[r])}
+                            transition={{ type: "spring", bounce: 0.18, duration: 0.35 }}
+                          />
                         )}
+                        <span
+                          className={cn(
+                            "relative z-10 text-sm font-semibold transition-colors",
+                            active ? "text-white" : "text-muted-foreground"
+                          )}
+                        >
+                          {RATING_LABELS[r]}
+                        </span>
                       </button>
                     );
                   })}
                 </div>
-                {current?.rating && (
-                  <Input
-                    value={current.comment}
-                    onChange={(e) => setComment(it.key, e.target.value)}
-                    placeholder="Commentaire (facultatif)"
-                    className="mt-2 h-10 rounded-xl border-0 bg-muted/50 text-sm"
-                  />
+                {rated && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Input
+                      value={current?.comment ?? ""}
+                      onChange={(e) => setComment(it.key, e.target.value)}
+                      placeholder="Commentaire (facultatif)"
+                      className="mt-2 h-10 rounded-xl border-0 bg-muted/50 text-sm"
+                    />
+                  </motion.div>
                 )}
               </div>
             );
