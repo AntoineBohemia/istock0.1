@@ -335,7 +335,6 @@ export default function EquipmentManageModal({
               productId={p.id}
               productName={p.name}
               availableStock={stock}
-              orgStock={p.product_organization_stock ?? []}
               onDone={() => onOpenChange(false)}
             />
           )}

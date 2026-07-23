@@ -19,40 +19,37 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useOrganizations } from "@/hooks/queries";
-import { activeOrganizations } from "@/lib/supabase/queries/organizations";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { archiveProduct } from "@/lib/supabase/queries/products";
 import { createExit } from "@/lib/supabase/queries/stock-movements";
-import { allocateLoss, type OrgStock } from "@/lib/utils/exit-source";
 import { queryKeys } from "@/lib/query-keys";
 
 interface DeclareLossButtonProps {
   productId: string;
   productName: string;
-  /** Unités en stock, prêts non compris */
+  /** Stock global disponible (prêts non compris). */
   availableStock: number;
-  orgStock: { organization_id: string; stock_current: number }[];
   onDone: () => void;
 }
 
 /**
  * Déclarer une perte : cassé, perdu, volé.
  *
- * Deux boutons se partageaient ce geste — « Retirer » et « Archiver » — et
- * personne ne savait lequel prendre. Leur difference tenait pourtant en un mot :
- * une partie du stock, ou tout. Mais ce mot n'etait ecrit nulle part, et les
- * deux libelles decrivaient le mecanisme interne plutot que la situation vecue.
+ * L'outillage se suit globalement, sans ventilation par société : la perte est
+ * une seule sortie, imputée à la société courante, plafonnée au stock global
+ * disponible. (Auparavant on répartissait la perte sur des lignes par société
+ * qui n'ont pas de sens pour l'outillage — ce qui pouvait rendre le stock
+ * incohérent.)
  *
- * Il n'y a donc plus qu'une action, qui pose les questions qu'on se pose deja :
- * combien, et pourquoi. La sortie du catalogue devient une consequence qu'on
- * accepte — une case a cocher, proposee au seul moment ou elle a un sens :
- * quand il ne reste plus rien.
+ * Il n'y a qu'une action, qui pose les questions qu'on se pose déjà : combien,
+ * et pourquoi. La sortie du catalogue devient une conséquence qu'on accepte —
+ * une case à cocher, proposée au seul moment où elle a un sens : quand il ne
+ * reste plus rien.
  */
 export default function DeclareLossButton({
   productId,
   productName,
   availableStock,
-  orgStock,
   onDone,
 }: DeclareLossButtonProps) {
   const [open, setOpen] = useState(false);
@@ -61,20 +58,15 @@ export default function DeclareLossButton({
   const [alsoArchive, setAlsoArchive] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const queryClient = useQueryClient();
-  const { data: allOrgs } = useOrganizations();
-  const userOrgs = activeOrganizations(allOrgs ?? []);
+  const currentOrgId = useOrganizationStore((s) => s.currentOrganization?.id);
 
-  // Ventilation nommée, limitée aux sociétés de l'application : la base garde
-  // des organisations de test qui ne doivent jamais être débitées.
-  const named: OrgStock[] = userOrgs.flatMap((org) => {
-    const row = orgStock.find((x) => x.organization_id === org.id);
-    return row ? [{ id: org.id, name: org.name, stock: row.stock_current }] : [];
-  });
-
-  const ventilated = named.reduce((s, o) => s + o.stock, 0);
-  const allocation = allocateLoss(named, quantity);
-  const losingEverything = quantity >= ventilated && ventilated > 0;
-  const canSubmit = reason.trim().length > 0 && allocation.length > 0 && !isPending;
+  const losingEverything = quantity >= availableStock && availableStock > 0;
+  const canSubmit =
+    reason.trim().length > 0 &&
+    quantity >= 1 &&
+    quantity <= availableStock &&
+    !!currentOrgId &&
+    !isPending;
 
   const reset = () => {
     setQuantity(1);
@@ -83,15 +75,13 @@ export default function DeclareLossButton({
   };
 
   const handleSubmit = async () => {
-    if (!canSubmit) return;
+    if (!canSubmit || !currentOrgId) return;
     setIsPending(true);
     try {
-      // Les sorties d'abord, l'archivage ensuite : si une sortie échoue, la
-      // fiche reste au catalogue avec son stock — un état cohérent, qu'on peut
+      // La sortie d'abord, l'archivage ensuite : si la sortie échoue, la fiche
+      // reste au catalogue avec son stock — un état cohérent, qu'on peut
       // reprendre. L'inverse laisserait une fiche archivée au stock intact.
-      for (const part of allocation) {
-        await createExit(part.id, productId, part.quantity, "exit_anonymous", undefined, reason);
-      }
+      await createExit(currentOrgId, productId, quantity, "exit_anonymous", undefined, reason);
       if (alsoArchive && losingEverything) {
         await archiveProduct(productId, { reason });
       }
@@ -158,34 +148,26 @@ export default function DeclareLossButton({
               <Input
                 type="number"
                 min={1}
-                max={ventilated}
+                max={availableStock}
                 value={quantity}
                 onChange={(e) =>
-                  setQuantity(Math.max(1, Math.min(parseInt(e.target.value) || 1, ventilated)))
+                  setQuantity(Math.max(1, Math.min(parseInt(e.target.value) || 1, availableStock)))
                 }
                 className="h-12 w-20 bg-white text-center font-heading text-2xl font-semibold tabular-nums dark:bg-card [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
               <button
                 type="button"
-                onClick={() => setQuantity((q) => Math.min(q + 1, ventilated))}
-                disabled={quantity >= ventilated}
+                onClick={() => setQuantity((q) => Math.min(q + 1, availableStock))}
+                disabled={quantity >= availableStock}
                 aria-label="Un de plus"
                 className="flex size-10 items-center justify-center rounded-full border bg-card transition-colors hover:bg-muted disabled:opacity-30"
               >
                 <Plus className="size-4" />
               </button>
               <span className="text-sm text-muted-foreground tabular-nums">
-                sur {ventilated} en stock
+                sur {availableStock} en stock
               </span>
             </div>
-
-            {/* D'où sortent-ils. L'utilisateur ne l'a pas choisi : la règle du
-                « moins fourni » l'a désigné, comme pour toute sortie. */}
-            {allocation.length > 0 && named.length > 1 && (
-              <p className="text-sm text-muted-foreground">
-                Pris chez {allocation.map((a) => `${a.name} (${a.quantity})`).join(" puis ")}
-              </p>
-            )}
           </div>
 
           {/* Pourquoi. */}
