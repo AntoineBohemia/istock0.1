@@ -8,6 +8,7 @@ import {
   getUserOrganizations,
   getDefaultOrganization,
   setDefaultOrganization,
+  getMyPendingInvitations,
 } from "@/lib/supabase/queries/organizations";
 import { createClient } from "@/lib/supabase/client";
 import { Loader2 } from "lucide-react";
@@ -53,9 +54,23 @@ export default function OrganizationProvider({ children }: OrganizationProviderP
 
         setOrganizations(orgs);
 
-        // Si pas d'organisation et pas deja sur onboarding, rediriger
+        // Aucune organisation : deux cas tres differents.
+        //
+        // - On a ete invite : une invitation attend d'etre acceptee. On y va,
+        //   pas dans l'onboarding « creez votre organisation » — un collegue
+        //   rejoint une equipe existante, il ne fonde rien. C'est le cas normal
+        //   d'un usage interne.
+        // - Personne ne nous a invite : la seule facon d'avoir un espace est
+        //   d'en creer un, donc l'onboarding.
         if (orgs.length === 0 && !isOnboardingRoute) {
-          window.location.href = "/onboarding-flow";
+          const invitations = await getMyPendingInvitations();
+          if (cancelled) return;
+          // On envoie sur la page d'acceptation de l'invitation elle-meme
+          // (/invite/[token]) : elle ne demande pas d'organisation — c'est
+          // justement la ou l'on en gagne une — et evite la boucle qu'aurait
+          // provoquee une page protegee. A defaut, l'onboarding.
+          const token = (invitations[0] as { token?: string } | undefined)?.token;
+          window.location.href = token ? `/invite/${token}` : "/onboarding-flow";
           return;
         }
 
