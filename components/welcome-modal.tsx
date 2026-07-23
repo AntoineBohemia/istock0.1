@@ -14,18 +14,17 @@ import {
 } from "@/components/ui/dialog";
 
 /**
- * Mot d'accueil affiche une seule fois, a la premiere arrivee dans l'appli.
+ * Mot d'accueil affiche une seule fois, definitivement.
  *
- * « Vu » est memorise par compte dans le navigateur (une cle par user id) :
- * aucun champ en base n'est necessaire, et deux comptes sur le meme poste
- * voient chacun leur accueil. Un nouvel appareil le reaffichera une fois — ce
- * qui, pour un simple mot de bienvenue, est sans consequence.
+ * « Vu » est memorise dans les metadonnees du compte (auth.users), pas dans le
+ * navigateur : c'est lie au compte, pas a l'appareil, donc la modale
+ * n'apparait qu'a la toute premiere arrivee sur istock — jamais sur un second
+ * poste ni apres vidage du cache. Aucun champ ajoute au schema : on ecrit dans
+ * raw_user_meta_data via updateUser, que l'utilisateur a le droit de modifier
+ * pour lui-meme.
  */
-const SEEN_PREFIX = "istock-welcome-seen:";
-
 export function WelcomeModal() {
   const [open, setOpen] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,9 +36,7 @@ export function WelcomeModal() {
       } = await supabase.auth.getUser();
       if (cancelled || !user) return;
 
-      const alreadySeen = localStorage.getItem(SEEN_PREFIX + user.id);
-      if (!alreadySeen) {
-        setUserId(user.id);
+      if (!user.user_metadata?.welcomed) {
         setOpen(true);
       }
     })();
@@ -50,16 +47,19 @@ export function WelcomeModal() {
   }, []);
 
   const dismiss = () => {
-    if (userId) localStorage.setItem(SEEN_PREFIX + userId, "1");
+    // Fermeture immediate : on n'attend pas le reseau pour retirer la modale.
     setOpen(false);
+    const supabase = createClient();
+    // Marque le compte comme accueilli. En cas d'echec reseau, la modale
+    // pourra reapparaitre une fois — sans consequence pour un simple accueil.
+    void supabase.auth.updateUser({ data: { welcomed: true } });
   };
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        // Fermer par la croix, l'exterieur ou Echap vaut « j'ai vu » : on ne
-        // veut pas le repressenter au prochain chargement.
+        // Fermer par la croix, l'exterieur ou Echap vaut « j'ai vu ».
         if (!next) dismiss();
       }}
     >
