@@ -10,6 +10,7 @@ import { RoleRouteGuard } from "@/components/role-route-guard";
 import { MobileRouteGuard } from "@/components/mobile-route-guard";
 import QueryProvider from "@/components/query-provider";
 import { RealtimeSync } from "@/components/realtime-sync";
+import { WelcomeModal } from "@/components/welcome-modal";
 
 export default async function AuthLayout({
   children,
@@ -27,6 +28,7 @@ export default async function AuthLayout({
       <RealtimeSync />
       <OrganizationProvider>
         <RoleRouteGuard>
+          <WelcomeModal />
           <SidebarProvider defaultOpen={defaultOpen}>
             <Sidebar />
             <SidebarInset>
