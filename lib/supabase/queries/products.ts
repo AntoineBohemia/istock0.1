@@ -77,6 +77,13 @@ export interface ProductFilters {
    */
   includeEquipment?: boolean;
   /**
+   * Ne montrer QUE l'outillage. L'ecran mobile d'entree/sortie propose de
+   * choisir « Produit ou Outil » : sur « Outil », on veut la meme liste que la
+   * page Outillage mais dans la forme des produits, pour reutiliser tel quel
+   * l'ecran de saisie. Prime sur includeEquipment.
+   */
+  onlyEquipment?: boolean;
+  /**
    * Montrer les fiches archivees au lieu des actives.
    *
    * L'outillage avait sa vue « Archives », pas les consommables : un produit
@@ -142,6 +149,7 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
     maxPrice,
     stockStatus,
     includeEquipment,
+    onlyEquipment,
     archived = false,
   } = filters;
 
@@ -160,7 +168,11 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
   // Actifs par defaut ; la vue « archives » sert a retrouver et restaurer une
   // fiche retiree du catalogue. Outillage exclu par defaut : il a sa page.
   query = archived ? query.not("archived_at", "is", null) : query.is("archived_at", null);
-  if (!includeEquipment) {
+  if (onlyEquipment) {
+    // Flux mobile « Outil » : uniquement l'outillage, dans la forme des
+    // produits pour reutiliser l'ecran de saisie.
+    query = query.eq("product_type", "equipment");
+  } else if (!includeEquipment) {
     query = query.eq("product_type", "consumable");
   }
 

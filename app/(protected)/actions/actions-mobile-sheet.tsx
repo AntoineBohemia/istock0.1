@@ -18,6 +18,7 @@ import {
   Check,
   Clock,
   ScanLine,
+  Wrench,
 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -37,7 +38,7 @@ import {
 
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProducts, useTechnicians, useStockMovements } from "@/hooks/queries";
-import { useCreateStockEntry, useCreateStockExit } from "@/hooks/mutations";
+import { useCreateStockEntry, useCreateStockExit, useAssignEquipment } from "@/hooks/mutations";
 import { calculateStockScore, getStockBadgeVariant } from "@/lib/utils/stock";
 import { maxSingleOrgStock, pickExitSource, type OrgStock } from "@/lib/utils/exit-source";
 import { cn } from "@/lib/utils";
@@ -66,6 +67,10 @@ const QrScannerModal = dynamic(() => import("@/components/qr-scanner-modal"), { 
 type ActionMode = "entry" | "exit";
 type ExitReason = "technician" | "loss";
 type MovementKind = "entry" | "exit_technician" | "exit_anonymous" | "exit_loss";
+// Ce qui bouge : un consommable du stock, ou un outil. Meme table
+// (`product_type`), mais deux natures : l'outil se prete a un technicien
+// (affectation, retour possible) la ou le consommable, lui, se consomme.
+type ItemKind = "product" | "equipment";
 
 interface ConsoleProduct {
   id: string;
@@ -189,6 +194,35 @@ const EXIT_REASON_OPTIONS: {
   },
 ];
 
+// Choix « Produit ou Outil », pose apres la societe (entree) ou en tete
+// (sortie). Memes cartes que les autres choix binaires de l'ecran : rien ne
+// doit signaler qu'on repond a une question d'une autre nature.
+const ITEM_KIND_OPTIONS: {
+  kind: ItemKind;
+  label: string;
+  hint: string;
+  icon: React.ElementType;
+  accent: string;
+  tint: string;
+}[] = [
+  {
+    kind: "product",
+    label: "Produit",
+    hint: "Consommable du stock",
+    icon: Package,
+    accent: "text-primary",
+    tint: "bg-primary/10",
+  },
+  {
+    kind: "equipment",
+    label: "Outil",
+    hint: "Matériel prêté aux techniciens",
+    icon: Wrench,
+    accent: "text-attention",
+    tint: "bg-attention-bg",
+  },
+];
+
 // ─── Helper: today string that refreshes every 60s ──────────
 function useTodayString() {
   const [today, setToday] = useState(() => new Date().toISOString().split("T")[0]);
@@ -230,10 +264,25 @@ export default function ActionsMobileSheet() {
   const [actionMode, setActionMode] = useState<ActionMode | null>(null);
 
   // ─── Drawer inner navigation ────────────────────────────
-  // Entree : ("organization") → "products" → "detail"
-  // Sortie : "reason" → ("technicians") → "products" → "cart"
-  type DrawerStep = "organization" | "reason" | "technicians" | "products" | "detail" | "cart";
+  // Entree : ("organization") → "kind" → "products" → "detail"
+  // Sortie : "kind" → "reason" → ("technicians") → "products" → "cart"
+  type DrawerStep =
+    | "organization"
+    | "kind"
+    | "reason"
+    | "technicians"
+    | "products"
+    | "detail"
+    | "cart";
   const [drawerStep, setDrawerStep] = useState<DrawerStep>("products");
+
+  // ─── Produit ou outil ───────────────────────────────────
+  // Decide quelle liste s'affiche et comment la sortie s'ecrit : un outil
+  // remis a un technicien est une affectation (il le detient), pas une
+  // consommation.
+  const [itemKind, setItemKind] = useState<ItemKind | null>(null);
+  const onlyEquipment = itemKind === "equipment";
+  const itemNoun = itemKind === "equipment" ? "outil" : "produit";
 
   // ─── Search ─────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
@@ -299,9 +348,14 @@ export default function ActionsMobileSheet() {
     organizationId: stockOrgId,
     stockScope,
     search: debouncedSearch || undefined,
+    onlyEquipment,
   });
   // Full product list (no search filter) — used for QR scan lookup
-  const { data: allProductsResult } = useProducts({ organizationId: stockOrgId, stockScope });
+  const { data: allProductsResult } = useProducts({
+    organizationId: stockOrgId,
+    stockScope,
+    onlyEquipment,
+  });
   const allProducts = useMemo(() => allProductsResult?.products ?? [], [allProductsResult]);
 
   const { data: techniciansData = [] } = useTechnicians(orgId);
@@ -402,7 +456,9 @@ export default function ActionsMobileSheet() {
   // ─── Mutations ─────────────────────────────────────────
   const createEntry = useCreateStockEntry();
   const createExit = useCreateStockExit();
-  const isSubmitting = createEntry.isPending || createExit.isPending || isBatchSubmitting;
+  const assignEquip = useAssignEquipment();
+  const isSubmitting =
+    createEntry.isPending || createExit.isPending || assignEquip.isPending || isBatchSubmitting;
 
   // ─── Derived ───────────────────────────────────────────
   const selectedTech = useMemo(
@@ -438,19 +494,21 @@ export default function ActionsMobileSheet() {
       setCart([]);
       setTechnicianId("");
       setExitReason(null);
+      setItemKind(null);
 
       if (mode === "exit") {
-        // Une sortie demande d'abord ou part le stock : sans cette reponse le
-        // mouvement ne peut pas etre qualifie.
-        setDrawerStep("reason");
+        // Une sortie commence par « produit ou outil » : la nature decide de
+        // tout le reste (une sortie d'outil vers un technicien est une
+        // affectation, pas une consommation).
+        setDrawerStep("kind");
       } else if (multiOrg) {
-        // Une seule societe : l'ecran n'offrirait aucun choix, ce serait un
-        // appui a payer pour rien. On ne le montre que s'il decide.
+        // Entree : d'abord la societe qui recoit. Une seule societe : l'ecran
+        // n'offrirait aucun choix, ce serait un appui a payer pour rien.
         setEntryOrgId(undefined);
         setDrawerStep("organization");
       } else {
         setEntryOrgId(orgId);
-        setDrawerStep("products");
+        setDrawerStep("kind");
       }
       setDrawerOpen(true);
     },
@@ -462,8 +520,21 @@ export default function ActionsMobileSheet() {
     navigator.vibrate?.(10);
     setEntryOrgId(id);
     setSearchQuery("");
-    setDrawerStep("products");
+    setDrawerStep("kind");
   }, []);
+
+  // ─── Produit ou outil ─────────────────────────────────
+  // En entree, on enchaine sur la liste. En sortie, il reste a dire ou part le
+  // stock (technicien ou erreur) : la nature choisie ici en change le sens.
+  const selectItemKind = useCallback(
+    (kind: ItemKind) => {
+      navigator.vibrate?.(10);
+      setItemKind(kind);
+      setSearchQuery("");
+      setDrawerStep(actionMode === "exit" ? "reason" : "products");
+    },
+    [actionMode]
+  );
 
   // ─── Close drawer (resets state) ───────────────────────
   const closeDrawer = useCallback(() => {
@@ -481,6 +552,7 @@ export default function ActionsMobileSheet() {
       setCart([]);
       setTechnicianId("");
       setExitReason(null);
+      setItemKind(null);
     }, 300);
   }, []);
 
@@ -685,23 +757,36 @@ export default function ActionsMobileSheet() {
       setUnitPrice("");
       setDrawerStep("products");
       setSearchQuery("");
-    } else if (drawerStep === "products" && actionMode === "exit") {
-      // On remonte d'un seul cran : vers la liste des techniciens si l'on en
-      // vient, vers la nature de la sortie sinon.
-      if (exitReason === "technician") {
-        setTechnicianId("");
-        setCart([]);
-        setDrawerStep("technicians");
-        setSearchQuery("");
+    } else if (drawerStep === "products") {
+      if (actionMode === "exit") {
+        // On remonte d'un seul cran : vers la liste des techniciens si l'on en
+        // vient, vers la nature de la sortie sinon.
+        if (exitReason === "technician") {
+          setTechnicianId("");
+          setCart([]);
+          setDrawerStep("technicians");
+          setSearchQuery("");
+        } else {
+          clearExitReason();
+        }
       } else {
-        clearExitReason();
+        // Entree : la liste vient du choix « produit ou outil ».
+        setItemKind(null);
+        setDrawerStep("kind");
+        setSearchQuery("");
       }
-    } else if (drawerStep === "products" && actionMode === "entry" && multiOrg) {
+    } else if (drawerStep === "technicians") {
+      clearExitReason();
+    } else if (drawerStep === "reason") {
+      // La nature de la sortie decoule du choix « produit ou outil ».
+      setItemKind(null);
+      setDrawerStep("kind");
+      setSearchQuery("");
+    } else if (drawerStep === "kind" && actionMode === "entry" && multiOrg) {
+      setItemKind(null);
       setEntryOrgId(undefined);
       setDrawerStep("organization");
       setSearchQuery("");
-    } else if (drawerStep === "technicians") {
-      clearExitReason();
     }
   }, [drawerStep, actionMode, exitReason, clearExitReason, multiOrg]);
 
@@ -860,32 +945,49 @@ export default function ActionsMobileSheet() {
 
     setIsBatchSubmitting(true);
 
+    // Un outil remis a un technicien n'est pas consomme : il lui est affecte
+    // (il le detient, retour possible). C'est un autre mouvement — une
+    // affectation, pas une sortie.
+    const isEquipAssign = itemKind === "equipment" && exitReason === "technician";
+
     let successCount = 0;
     for (const item of cart) {
       const source = sources.get(item.product.id)!;
       try {
-        await createExit.mutateAsync({
-          organizationId: source.id,
-          productId: item.product.id,
-          quantity: item.quantity,
-          type: exitMovementType,
-          technicianId: exitReason === "technician" ? technicianId : undefined,
-        });
-        const stockAfter = source.stock - item.quantity;
-        setSession((prev) => [
-          {
-            localId: crypto.randomUUID(),
-            movementType: exitMovementType,
+        if (isEquipAssign) {
+          await assignEquip.mutateAsync({
             organizationId: source.id,
             productId: item.product.id,
-            productName: item.product.name,
+            technicianId,
             quantity: item.quantity,
-            stockAfter,
-            technicianName: exitReason === "technician" ? techFullName : undefined,
-            createdAt: new Date().toISOString(),
-          },
-          ...prev,
-        ]);
+          });
+          // Volontairement pas de ligne annulable : une affectation se defait
+          // par un retour d'outil (page Outillage), pas par l'annulation d'une
+          // sortie de stock.
+        } else {
+          await createExit.mutateAsync({
+            organizationId: source.id,
+            productId: item.product.id,
+            quantity: item.quantity,
+            type: exitMovementType,
+            technicianId: exitReason === "technician" ? technicianId : undefined,
+          });
+          const stockAfter = source.stock - item.quantity;
+          setSession((prev) => [
+            {
+              localId: crypto.randomUUID(),
+              movementType: exitMovementType,
+              organizationId: source.id,
+              productId: item.product.id,
+              productName: item.product.name,
+              quantity: item.quantity,
+              stockAfter,
+              technicianName: exitReason === "technician" ? techFullName : undefined,
+              createdAt: new Date().toISOString(),
+            },
+            ...prev,
+          ]);
+        }
         successCount++;
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Erreur inconnue";
@@ -898,10 +1000,13 @@ export default function ActionsMobileSheet() {
     if (successCount > 0) {
       navigator.vibrate?.(10);
       const s = successCount > 1 ? "s" : "";
+      const noun = itemKind === "equipment" ? "outil" : "produit";
       toast.success(
         exitReason === "technician"
-          ? `${successCount} produit${s} sorti${s} vers ${techFullName}`
-          : `${successCount} produit${s} retiré${s} — erreur de stock`
+          ? isEquipAssign
+            ? `${successCount} ${noun}${s} affecté${s} à ${techFullName}`
+            : `${successCount} ${noun}${s} sorti${s} vers ${techFullName}`
+          : `${successCount} ${noun}${s} retiré${s} — erreur de stock`
       );
       setCart([]);
       setSearchQuery("");
@@ -914,6 +1019,8 @@ export default function ActionsMobileSheet() {
     isBatchSubmitting,
     techFullName,
     createExit,
+    assignEquip,
+    itemKind,
     exitReason,
     exitMovementType,
     exitSourceFor,
@@ -1027,15 +1134,23 @@ export default function ActionsMobileSheet() {
   }, [actionMode, exitReason, drawerStep]);
 
   // La societe recue accompagne toute l'entree : c'est elle qui recevra le
-  // stock et portera l'achat.
-  const stackSubtitleEntry = drawerStep === "organization" ? undefined : entryOrg?.name;
+  // stock et portera l'achat. Une fois la nature choisie, on l'ajoute :
+  // « SMPR · Outils » dit d'un coup d'oeil ou l'on est.
+  const kindLabel =
+    itemKind === "equipment" ? "Outils" : itemKind === "product" ? "Produits" : undefined;
+  const stackSubtitleEntry =
+    drawerStep === "organization"
+      ? undefined
+      : [entryOrg?.name, kindLabel].filter(Boolean).join(" · ") || undefined;
 
   // ─── Pile : peut-on remonter d'un cran ? ──────────────
   const canGoBack =
     drawerStep === "detail" ||
     drawerStep === "cart" ||
     drawerStep === "technicians" ||
-    (drawerStep === "products" && (actionMode === "exit" || multiOrg));
+    drawerStep === "reason" ||
+    drawerStep === "products" ||
+    (drawerStep === "kind" && actionMode === "entry" && multiOrg);
 
   // ─── Barre d'action de l'etape courante ───────────────
   // Une seule barre a la fois : l'etape decide ce qu'elle propose.
@@ -1219,7 +1334,7 @@ export default function ActionsMobileSheet() {
                 "Valider la sortie" et les deux se disputaient l'ecran. La
                 teinte reste franchement visible tout en disant "action
                 secondaire". */}
-            {drawerStep === "products" && (
+            {drawerStep === "products" && itemKind !== "equipment" && (
               <button
                 onClick={() => setBatchScanOpen(true)}
                 className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-primary/10 border border-primary/20 text-primary py-4 active:bg-primary/20 active:scale-[0.98] transition-all"
@@ -1239,8 +1354,8 @@ export default function ActionsMobileSheet() {
                     drawerStep === "technicians"
                       ? "Rechercher un technicien\u2026"
                       : exitDestination
-                        ? `Ajouter un produit \u2014 ${exitDestination}\u2026`
-                        : "Rechercher un produit\u2026"
+                        ? `Ajouter un ${itemNoun} \u2014 ${exitDestination}\u2026`
+                        : `Rechercher un ${itemNoun}\u2026`
                   }
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -1275,7 +1390,7 @@ export default function ActionsMobileSheet() {
           <div
             className={cn(
               "flex-1 min-h-0 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]",
-              drawerStep === "reason" || drawerStep === "organization"
+              drawerStep === "reason" || drawerStep === "organization" || drawerStep === "kind"
                 ? "flex flex-col overflow-hidden overscroll-none"
                 : // La quantite tient dans l'ecran par construction : rien n'y
                   // defile. Le defilement reste malgre tout autorise, sans
@@ -1320,6 +1435,38 @@ export default function ActionsMobileSheet() {
                     </button>
                   );
                 })}
+              </div>
+            )}
+
+            {/* ═══ PRODUIT OU OUTIL ═══
+                Memes cartes que partout : un choix binaire garde le meme poids
+                d'un bout a l'autre du parcours. */}
+            {drawerStep === "kind" && (
+              <div className="flex-1 min-h-0 flex flex-col gap-3 py-2">
+                {ITEM_KIND_OPTIONS.map(({ kind, label, hint, icon: Icon, accent, tint }) => (
+                  <button
+                    key={kind}
+                    onClick={() => selectItemKind(kind)}
+                    className="w-full flex-1 min-h-0 flex flex-col items-center justify-center gap-3 rounded-3xl border bg-white dark:bg-card px-5 active:scale-[0.98] transition-transform"
+                  >
+                    <span
+                      className={cn(
+                        "size-20 rounded-2xl flex items-center justify-center shrink-0",
+                        tint
+                      )}
+                    >
+                      <Icon className={cn("size-10", accent)} />
+                    </span>
+                    <span className="text-center">
+                      <span className="block font-heading font-semibold text-2xl leading-none">
+                        {label}
+                      </span>
+                      <span className="block text-sm text-muted-foreground leading-tight mt-1.5">
+                        {hint}
+                      </span>
+                    </span>
+                  </button>
+                ))}
               </div>
             )}
 
@@ -1532,7 +1679,7 @@ export default function ActionsMobileSheet() {
                         fait que constater l'echec. */}
                     {debouncedSearch ? (
                       <>
-                        <p className="text-base font-medium">Aucun produit ne correspond</p>
+                        <p className="text-base font-medium">Aucun {itemNoun} ne correspond</p>
                         <p className="text-sm text-muted-foreground">
                           Vérifiez l&apos;orthographe, ou effacez la recherche pour revoir toute la
                           liste.
@@ -1546,9 +1693,11 @@ export default function ActionsMobileSheet() {
                       </>
                     ) : (
                       <>
-                        <p className="text-base font-medium">Aucun produit</p>
+                        <p className="text-base font-medium">Aucun {itemNoun}</p>
                         <p className="text-sm text-muted-foreground">
-                          Les produits se créent depuis l&apos;ordinateur, dans Produits.
+                          {itemKind === "equipment"
+                            ? "Les outils se créent depuis l'ordinateur, dans Outillage."
+                            : "Les produits se créent depuis l'ordinateur, dans Produits."}
                         </p>
                       </>
                     )}
