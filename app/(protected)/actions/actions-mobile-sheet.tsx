@@ -1143,13 +1143,24 @@ export default function ActionsMobileSheet() {
           stock_current: found.stock_current ?? 0,
           stock_min: found.stock_min,
           price: found.price ?? null,
+          // Sans la ventilation par societe, une sortie declenchee par un scan
+          // a l'appareil photo retomberait sur la societe courante au lieu de
+          // puiser chez la moins fournie — contrairement au scan in-app. On la
+          // fournit donc ici aussi, avec le fournisseur pour une entree.
+          supplier_id: found.supplier_id ?? null,
+          supplier_name: found.supplier?.name ?? null,
+          icon_name: found.icon_name,
+          icon_color: found.icon_color,
+          image_url: found.image_url,
+          other_org_stock: otherOrgStock(found.product_organization_stock),
+          org_stock: orgStockOf(found.product_organization_stock),
         });
         setScanActionSheetOpen(true);
       });
     } else {
       queueMicrotask(() => toast.error("Produit non reconnu dans cette organisation"));
     }
-  }, [allProducts]);
+  }, [allProducts, orgStockOf, otherOrgStock]);
 
   // ─── Drawer title (for accessibility) ─────────────────
   const drawerTitle = useMemo(() => {

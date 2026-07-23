@@ -152,10 +152,14 @@ export async function proxy(request: NextRequest) {
       }
     }
 
-    // Redirection normale vers login
+    // Redirection normale vers login.
+    // On garde le chemin ET sa query dans redirectTo : un lien profond comme
+    // /actions?product=<id> (QR scanne a l'appareil photo par un utilisateur
+    // deconnecte) doit ramener sur le bon produit apres connexion, pas sur un
+    // /actions vide.
     const url = request.nextUrl.clone();
     url.pathname = LOGIN_ROUTE;
-    url.searchParams.set("redirectTo", pathname);
+    url.searchParams.set("redirectTo", `${pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(url);
   }
 
