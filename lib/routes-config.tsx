@@ -18,9 +18,17 @@ export type PageRoutesItemType = {
   allowedRoles?: Role[];
 }[];
 
+// Trois groupes par nature, plutot que deux dont le premier melangeait tout.
+//
+// « Inventaire » reunissait ce qu'on stocke (produits, outillage) et les
+// acteurs autour (un fournisseur externe, des techniciens, des vehicules) —
+// des entites qui ne sont pas des articles de stock et n'avaient rien a y
+// faire. Le decoupage suit maintenant la nature des choses : les biens, ce qui
+// leur arrive, et les tiers.
 export const page_routes: PageRoutesType[] = [
   {
-    title: "Inventaire",
+    // Ce qu'on detient et qu'on suit en quantite.
+    title: "Stock",
     allowedRoles: ["owner", "admin"],
     items: [
       {
@@ -33,6 +41,30 @@ export const page_routes: PageRoutesType[] = [
         href: "/outillage",
         icon: "Wrench",
       },
+    ],
+  },
+  {
+    // Ce qui arrive au stock, dans le temps.
+    title: "Activité",
+    allowedRoles: ["owner", "admin"],
+    items: [
+      {
+        title: "Mouvements",
+        href: "/mouvements",
+        icon: "ArrowLeftRight",
+      },
+      {
+        title: "Achats",
+        href: "/achats",
+        icon: "ShoppingCart",
+      },
+    ],
+  },
+  {
+    // Les tiers autour du stock : chez qui on achete, qui detient quoi.
+    title: "Répertoire",
+    allowedRoles: ["owner", "admin"],
+    items: [
       {
         title: "Fournisseurs",
         href: "/fournisseurs",
@@ -47,22 +79,6 @@ export const page_routes: PageRoutesType[] = [
         title: "Véhicules",
         href: "/vehicules",
         icon: "Car",
-      },
-    ],
-  },
-  {
-    title: "Activité",
-    allowedRoles: ["owner", "admin"],
-    items: [
-      {
-        title: "Mouvements",
-        href: "/mouvements",
-        icon: "ArrowLeftRight",
-      },
-      {
-        title: "Achats",
-        href: "/achats",
-        icon: "ShoppingCart",
       },
     ],
   },
