@@ -42,6 +42,14 @@ interface ArchiveButtonProps {
   reasonPlaceholder?: string;
   /** Avertissement affiché avant de valider (stock restant, prêts en cours…) */
   warning?: React.ReactNode;
+  /**
+   * Empêche l'archivage, avec la raison.
+   *
+   * Certaines entités ne peuvent quitter le catalogue que dans un état précis —
+   * un produit doit être à zéro en stock. Plutôt qu'un avertissement qu'on peut
+   * ignorer, le bouton se désactive et dit ce qu'il reste à faire.
+   */
+  blockedReason?: string | null;
 }
 
 export default function ArchiveButton({
@@ -52,6 +60,7 @@ export default function ArchiveButton({
   requireReason = false,
   reasonPlaceholder,
   warning,
+  blockedReason,
 }: ArchiveButtonProps) {
   const router = useRouter();
   const [isArchiving, setIsArchiving] = useState(false);
@@ -75,6 +84,17 @@ export default function ArchiveButton({
       setOpen(false);
     }
   };
+
+  // Bloqué : le bouton reste visible mais inerte, et dit pourquoi. Le cacher
+  // laisserait croire qu'archiver n'existe pas ; le désactiver montre que c'est
+  // possible, une fois la condition remplie.
+  if (blockedReason) {
+    return (
+      <Button variant="ghost" disabled title={blockedReason} className="text-muted-foreground">
+        Archiver
+      </Button>
+    );
+  }
 
   return (
     <AlertDialog

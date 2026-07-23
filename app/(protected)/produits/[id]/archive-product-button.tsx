@@ -13,10 +13,13 @@ interface ArchiveProductButtonProps {
 /**
  * Archivage d'un produit, avec son motif.
  *
- * Le motif etait demande pour un outil mais pas pour un consommable, sans
- * qu'aucune raison ne le justifie : les deux quittent le catalogue de la meme
- * facon, et dans les deux cas la question posee six mois plus tard est la
- * meme — pourquoi cette fiche n'est-elle plus la ?
+ * On n'archive qu'a stock nul. Archiver ne vide pas le stock : le permettre
+ * avec des unites restantes sortait la fiche du catalogue en laissant ses
+ * unites comptees dans les totaux, sans plus aucun ecran pour les voir ni les
+ * corriger. Videz d'abord (sortie ou perte), puis archivez.
+ *
+ * Le motif est demande dans les deux cas — la question posee six mois plus tard
+ * est la meme : pourquoi cette fiche n'est-elle plus la ?
  */
 export default function ArchiveProductButton({
   productId,
@@ -29,12 +32,9 @@ export default function ArchiveProductButton({
       entityName={productName}
       requireReason
       reasonPlaceholder="Référence remplacée, fournisseur arrêté, plus utilisé sur nos chantiers…"
-      // Archiver ne vide pas le stock : les unités restent comptées alors que
-      // la fiche quitte le catalogue. Le dire avant plutôt que de le laisser
-      // découvrir dans un total.
-      warning={
+      blockedReason={
         stockCount > 0
-          ? `Il reste ${stockCount} unité${stockCount > 1 ? "s" : ""} en stock : elles resteront comptées.`
+          ? `Impossible d'archiver : il reste ${stockCount} unité${stockCount > 1 ? "s" : ""} en stock. Videz-le d'abord (sortie ou perte).`
           : undefined
       }
       onArchive={(reason) => archiveProduct(productId, { reason })}

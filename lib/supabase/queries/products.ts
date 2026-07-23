@@ -394,6 +394,22 @@ export async function archiveProduct(
 
   const { reason, organizationId } = options ?? {};
 
+  // Garde-fou : on n'archive qu'a stock nul. L'interface bloque deja le geste,
+  // mais la regle vit ici aussi — un lien direct, un script ou une version
+  // future de l'ecran ne doit pas pouvoir sortir du catalogue une fiche dont
+  // les unites resteraient comptees sans plus aucun ecran pour les voir.
+  const { data: current } = await supabase
+    .from("products")
+    .select("stock_current")
+    .eq("id", id)
+    .single();
+
+  if (current && (current.stock_current ?? 0) > 0) {
+    throw new Error(
+      `Impossible d'archiver : il reste ${current.stock_current} unité(s) en stock. Videz le stock d'abord.`
+    );
+  }
+
   let query = supabase
     .from("products")
     .update({
