@@ -849,7 +849,10 @@ export default function ActionsMobileSheet() {
     if (exitReason === "technician" && !technicianId) return;
     // Une erreur de stock sans motif ne dit pas pourquoi le stock a fondu : on
     // refuse aussi. Le bouton est deja desactive, ceci est la ceinture.
-    if (exitReason === "loss" && !lossNote.trim()) {
+    // Le motif n'est exige que pour un OUTIL : un outil qui disparait, on veut
+    // savoir pourquoi (casse, vol, egare). Un consommable en erreur de stock se
+    // retire sans justification.
+    if (itemKind === "equipment" && exitReason === "loss" && !lossNote.trim()) {
       toast.error("Indiquez le motif de l'erreur de stock");
       return;
     }
@@ -897,9 +900,9 @@ export default function ActionsMobileSheet() {
             quantity: item.quantity,
             type: exitMovementType,
             technicianId: exitReason === "technician" ? technicianId : undefined,
-            // Le motif accompagne chaque ligne de perte : le journal dira
-            // « -2 — casse » et non « -2 » tout court.
-            note: exitReason === "loss" ? lossNote.trim() : undefined,
+            // Le motif accompagne la perte d'un outil : le journal dira
+            // « -2 — casse » et non « -2 » tout court. Rien pour un consommable.
+            note: itemKind === "equipment" && exitReason === "loss" ? lossNote.trim() : undefined,
           });
         }
         successCount++;
@@ -1050,7 +1053,9 @@ export default function ActionsMobileSheet() {
     stackFooter = (
       <Button
         onClick={handleBatchSubmit}
-        disabled={isSubmitting || (exitReason === "loss" && !lossNote.trim())}
+        disabled={
+          isSubmitting || (itemKind === "equipment" && exitReason === "loss" && !lossNote.trim())
+        }
         className="w-full h-12 text-base active:scale-[0.97]"
       >
         {isBatchSubmitting ? (
@@ -1869,10 +1874,11 @@ export default function ActionsMobileSheet() {
                   </div>
                 </InsetGroup>
 
-                {/* Motif — obligatoire pour une erreur de stock. Une perte sans
-                    raison ne se relit pas : le journal doit dire pourquoi le
-                    stock a baisse, pas seulement de combien. */}
-                {exitReason === "loss" && (
+                {/* Motif — uniquement pour la perte d'un OUTIL, et alors
+                    obligatoire : un outil qui disparait, on veut savoir
+                    pourquoi. Un consommable en erreur de stock se retire sans
+                    justification. */}
+                {itemKind === "equipment" && exitReason === "loss" && (
                   <InsetGroup
                     header="Motif de l'erreur"
                     footer="Obligatoire — ex. : casse, vol, égaré, écart d'inventaire."
