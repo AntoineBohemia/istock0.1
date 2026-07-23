@@ -336,7 +336,7 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
                       </div>
                     </div>
                     {priceOverridden && !priceEditing && (
-                      <p className="text-right text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+                      <p className="text-right text-[11px] text-attention mt-1">
                         Prix ajusté pour cette entrée uniquement
                       </p>
                     )}
@@ -401,7 +401,7 @@ export default function StockEntryModal({ open, onClose, productId }: StockEntry
                       />
                     </div>
                     {field.value && field.value !== todayStr && (
-                      <p className="text-right text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+                      <p className="text-right text-[11px] text-attention mt-1">
                         Date antérieure à aujourd'hui
                       </p>
                     )}

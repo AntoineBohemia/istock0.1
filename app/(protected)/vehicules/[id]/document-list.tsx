@@ -183,7 +183,7 @@ export default function DocumentList({
                           expired
                             ? "text-destructive font-medium"
                             : expiring
-                              ? "text-orange-500 font-medium"
+                              ? "text-attention font-medium"
                               : ""
                         }
                       >

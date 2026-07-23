@@ -14,28 +14,12 @@ import {
   INSPECTION_ITEMS,
   RATING_ORDER,
   RATING_LABELS,
+  RATING_COLORS,
   type InspectionItem,
   type InspectionRating,
 } from "@/lib/supabase/queries/vehicle-inspections";
 import type { VehicleWithTechnician } from "@/lib/supabase/queries/vehicles";
 import { MobileStackScreen, InsetGroup, InsetField } from "./mobile-stack-screen";
-
-// Du meilleur au pire : la couleur porte le sens, on n'a pas a lire pour
-// comprendre. Vert franc pour « neuf », rouge pour « mauvais ».
-const RATING_BG: Record<InspectionRating, string> = {
-  neuf: "bg-emerald-500",
-  bon: "bg-green-500",
-  correct: "bg-amber-500",
-  mauvais: "bg-red-500",
-};
-
-// Rappel discret de la note sur le pourtour de la carte, une fois choisie.
-const RATING_RING: Record<InspectionRating, string> = {
-  neuf: "ring-emerald-500/40",
-  bon: "ring-green-500/40",
-  correct: "ring-amber-500/40",
-  mauvais: "ring-red-500/50",
-};
 
 type Draft = Record<string, { rating: InspectionRating | null; comment: string }>;
 
@@ -245,7 +229,7 @@ export function MobileVehicleInspection({
                 key={it.key}
                 className={cn(
                   "rounded-2xl border bg-white p-3 transition-shadow dark:bg-card",
-                  rated && cn("ring-1", RATING_RING[rated])
+                  rated && cn("ring-1", RATING_COLORS[rated].ring)
                 )}
               >
                 <p className="mb-2.5 text-base font-medium">{it.label}</p>
@@ -256,12 +240,17 @@ export function MobileVehicleInspection({
                       <button
                         key={r}
                         onClick={() => setRating(it.key, r)}
+                        aria-pressed={active}
+                        aria-label={`${it.label} : ${RATING_LABELS[r]}`}
                         className="relative flex-1 rounded-xl py-2.5 text-center transition-transform active:scale-[0.96]"
                       >
                         {active && (
                           <motion.span
                             layoutId={`hl-${it.key}`}
-                            className={cn("absolute inset-0 rounded-xl shadow-sm", RATING_BG[r])}
+                            className={cn(
+                              "absolute inset-0 rounded-xl shadow-sm",
+                              RATING_COLORS[r].solid
+                            )}
                             transition={{ type: "spring", bounce: 0.18, duration: 0.35 }}
                           />
                         )}

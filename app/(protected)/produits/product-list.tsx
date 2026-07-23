@@ -652,7 +652,7 @@ export default function ProductList() {
         </div>
       </div>
 
-      <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="rounded-xl border bg-card overflow-x-auto">
         <table className="w-full">
           {/* Header */}
           <thead>

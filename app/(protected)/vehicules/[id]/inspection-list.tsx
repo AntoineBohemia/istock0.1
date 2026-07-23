@@ -30,17 +30,10 @@ import {
 import { useVehicleInspections, useDeleteVehicleInspection } from "@/hooks/queries";
 import {
   RATING_LABELS,
-  type InspectionRating,
+  RATING_COLORS,
   type VehicleInspection,
 } from "@/lib/supabase/queries/vehicle-inspections";
 import EditInspectionDialog from "./edit-inspection-dialog";
-
-const RATING_BADGE: Record<InspectionRating, string> = {
-  neuf: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
-  bon: "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400",
-  correct: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
-  mauvais: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400",
-};
 
 function formatDateTime(iso: string): { date: string; time: string } {
   const d = new Date(iso);
@@ -189,7 +182,7 @@ function InspectionCard({
                   <span
                     className={cn(
                       "shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold",
-                      RATING_BADGE[item.rating]
+                      RATING_COLORS[item.rating].badge
                     )}
                   >
                     {RATING_LABELS[item.rating]}

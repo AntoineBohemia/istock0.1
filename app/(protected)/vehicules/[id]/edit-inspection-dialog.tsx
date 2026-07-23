@@ -20,18 +20,12 @@ import { useUpdateVehicleInspection } from "@/hooks/queries";
 import {
   RATING_ORDER,
   RATING_LABELS,
+  RATING_COLORS,
   uploadInspectionPhoto,
   type InspectionItem,
   type InspectionRating,
   type VehicleInspection,
 } from "@/lib/supabase/queries/vehicle-inspections";
-
-const RATING_STYLE: Record<InspectionRating, string> = {
-  neuf: "bg-emerald-500 text-white border-emerald-500",
-  bon: "bg-green-500 text-white border-green-500",
-  correct: "bg-amber-500 text-white border-amber-500",
-  mauvais: "bg-red-500 text-white border-red-500",
-};
 
 export default function EditInspectionDialog({
   inspection,
@@ -150,10 +144,12 @@ export default function EditInspectionDialog({
                         key={r}
                         type="button"
                         onClick={() => setRating(item.key, r)}
+                        aria-pressed={active}
+                        aria-label={`${item.label} : ${RATING_LABELS[r]}`}
                         className={cn(
                           "rounded-lg border px-3 py-1.5 text-sm font-semibold transition-colors",
                           active
-                            ? RATING_STYLE[r]
+                            ? RATING_COLORS[r].solid
                             : "border-transparent bg-muted/60 text-muted-foreground hover:bg-muted"
                         )}
                       >

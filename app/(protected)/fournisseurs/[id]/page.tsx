@@ -236,7 +236,11 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
         <div className="flex items-start gap-4">
           <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-muted">
             {supplier.logo_url ? (
-              <img src={supplier.logo_url} alt="" className="size-full object-contain" />
+              <img
+                src={supplier.logo_url}
+                alt={supplier.name}
+                className="size-full object-contain"
+              />
             ) : (
               <Truck className="size-6 text-muted-foreground" />
             )}

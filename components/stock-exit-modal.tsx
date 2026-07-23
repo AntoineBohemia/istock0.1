@@ -499,7 +499,7 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
                           stockAfter <= 0
                             ? "text-destructive"
                             : stockAfter <= (selectedProduct.stock_min ?? 0)
-                              ? "text-orange-500"
+                              ? "text-attention"
                               : "text-foreground"
                         )}
                       >

@@ -109,7 +109,7 @@ function SupplierCard({ supplier }: { supplier: SupplierWithStats }) {
         {/* Logo, ou l'initiale a defaut : un carre vide ferait un trou visuel */}
         <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted">
           {supplier.logo_url ? (
-            <img src={supplier.logo_url} alt="" className="size-full object-contain" />
+            <img src={supplier.logo_url} alt={supplier.name} className="size-full object-contain" />
           ) : (
             <span className="font-heading text-xs font-bold text-muted-foreground">
               {supplier.name.charAt(0).toUpperCase()}
