@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProducts, useTechnicians } from "@/hooks/queries";
 import { useCreateStockExit } from "@/hooks/mutations";
@@ -33,6 +34,10 @@ const ExitSchema = z.object({
   product_id: z.string().min(1, "Sélectionnez un produit"),
   technician_id: z.string().optional(),
   quantity: z.number().min(1, "Minimum 1"),
+  // Motif d'une erreur de stock : casse, perte, vol. « Erreur stock » nomme la
+  // nature, jamais la cause — sans lui, la ligne ne s'explique plus, et rien ne
+  // s'affiche sur le detail du mouvement.
+  note: z.string().optional(),
 });
 
 type ExitValues = z.infer<typeof ExitSchema>;
@@ -69,6 +74,7 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
       product_id: productId || "",
       technician_id: "",
       quantity: 1,
+      note: "",
     },
   });
 
@@ -121,6 +127,7 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
         product_id: productId || "",
         technician_id: "",
         quantity: 1,
+        note: "",
       });
     }
   }, [open]);
@@ -161,6 +168,9 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
         quantity: data.quantity,
         type: data.exit_type,
         technicianId: data.exit_type === "exit_technician" ? data.technician_id : undefined,
+        // Le motif ne concerne que l'erreur de stock : une sortie technicien a
+        // deja son destinataire pour explication.
+        note: data.exit_type === "exit_anonymous" ? data.note?.trim() || undefined : undefined,
       },
       {
         onSuccess: () => {
@@ -501,6 +511,31 @@ export default function StockExitModal({ open, onClose, productId }: StockExitMo
                 </FormItem>
               )}
             />
+
+            {/* Motif — seulement pour une erreur de stock. Une sortie technicien
+                s'explique par son destinataire ; une casse, une perte, un vol
+                n'ont pas d'autre trace que ce champ, et c'est lui qu'on relit
+                sur le detail du mouvement. */}
+            {exitType === "exit_anonymous" && (
+              <FormField
+                control={form.control}
+                name="note"
+                render={({ field }) => (
+                  <FormItem className="border-t px-5 py-3">
+                    <span className="text-sm font-medium">Motif</span>
+                    <FormControl>
+                      <Textarea
+                        rows={2}
+                        placeholder="Cassé, perdu, volé, erreur de saisie…"
+                        className="mt-1 bg-white dark:bg-card"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             {/* Submit */}
             <div className="px-5 pt-2 pb-5">

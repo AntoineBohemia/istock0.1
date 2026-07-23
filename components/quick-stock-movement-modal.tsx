@@ -45,6 +45,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -101,6 +102,8 @@ const FormSchema = z.object({
   invoice_reference: z.string().optional(),
   entry_date: z.string().optional(),
   quantity: z.number().min(1, "La quantité doit être au moins 1"),
+  // Motif d'une erreur de stock : ce qu'on relit sur le detail du mouvement.
+  note: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof FormSchema>;
@@ -216,6 +219,7 @@ export default function QuickStockMovementModal({
       invoice_reference: "",
       entry_date: "",
       quantity: 1,
+      note: "",
     });
   }, [productId, open, allProducts.length, defaultDirection]);
 
@@ -272,6 +276,7 @@ export default function QuickStockMovementModal({
           quantity: data.quantity,
           type: exitTypeValue,
           technicianId: exitTypeValue === "exit_technician" ? data.technician_id : undefined,
+          note: exitTypeValue === "exit_anonymous" ? data.note?.trim() || undefined : undefined,
         },
         {
           onSuccess: () => {
@@ -513,6 +518,25 @@ export default function QuickStockMovementModal({
                           ))}
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {/* Motif — seulement pour une erreur de stock. C'est ce qui
+                  s'affiche sur le detail du mouvement ; une sortie technicien
+                  s'explique deja par son destinataire. */}
+              {direction === "exit" && exitType === "exit_anonymous" && (
+                <FormField
+                  control={form.control}
+                  name="note"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Motif</FormLabel>
+                      <FormControl>
+                        <Textarea rows={2} placeholder="Cassé, perdu, volé…" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
