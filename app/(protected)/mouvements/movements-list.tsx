@@ -526,24 +526,11 @@ export default function MovementsList() {
         accessorKey: "movement_type",
         meta: { label: "Type" },
         header: () => <ColHeader label="Type" />,
-        // Le motif tient sous la pastille plutôt que dans une colonne à lui.
-        // Isolé, il obligeait à faire l'aller-retour entre deux colonnes pour
-        // reconstituer une phrase — « Perte » d'un côté, « cassée sur le
-        // chantier » de l'autre — et restait vide sur la plupart des lignes.
-        // Ici, il achève le type au lieu de le compléter.
-        cell: ({ row }) => (
-          <div className="min-w-0">
-            <MovementTypePill type={row.original.movement_type} />
-            {row.original.note && (
-              <p
-                className="mt-1 max-w-[220px] truncate text-[13px] text-muted-foreground"
-                title={row.original.note}
-              >
-                {row.original.note}
-              </p>
-            )}
-          </div>
-        ),
+        // Le motif ne s'affiche plus dans la liste : le journal se parcourt du
+        // regard, la phrase « cassée sur le chantier de Nantes » sous chaque
+        // ligne l'alourdissait sans qu'on la lise vraiment. Il se lit quand on
+        // vient chercher le pourquoi — sur le detail du mouvement, en cliquant.
+        cell: ({ row }) => <MovementTypePill type={row.original.movement_type} />,
       },
       {
         // Un mouvement de correction ressemble a un mouvement ordinaire :
