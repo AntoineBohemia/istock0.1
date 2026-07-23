@@ -12,7 +12,6 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import {
-  ArrowUp,
   ArrowDownToLine,
   ArrowUpFromLine,
   Package,
@@ -23,10 +22,13 @@ import {
   Plus,
   Archive,
   RotateCcw,
+  ArrowDownUp,
+  Check,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { SearchInput } from "@/components/search-input";
 import { QueryError } from "@/components/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -57,49 +59,51 @@ const STATUS_OPTIONS = [
   { id: "standard", label: "Bon" },
 ];
 
-// ─── Sort header button ────────────────────────────────────
-function SortHeader({
-  label,
-  column,
-  className,
-}: {
-  label: string;
-  column: { toggleSorting: (asc: boolean) => void; getIsSorted: () => false | "asc" | "desc" };
-  className?: string;
-}) {
-  const sorted = column.getIsSorted();
+// ─── En-tete de colonne, sans tri ──────────────────────────
+//
+// Le tri se faisait en cliquant les en-tetes, avec une fleche par colonne. Il
+// vit maintenant dans un menu unique « Trier », comme sur Mouvements et Achats
+// dont les fleches ont ete retirees : une seule facon de trier, annoncee, plutot
+// qu'une possibilite cachee derriere chaque titre.
+function ColHeader({ label, className }: { label: string; className?: string }) {
   return (
-    <button
-      type="button"
-      onClick={() => column.toggleSorting(sorted === "asc")}
+    <span
       className={cn(
-        "inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/50 hover:text-foreground transition-colors select-none",
+        "inline-flex items-center text-xs font-semibold uppercase tracking-wider text-foreground/50 select-none",
         className
       )}
     >
       {label}
-      {/* La fleche n'apparait que sur la colonne effectivement triee. En
-          permanence sur chaque en-tete, six fleches grises encombraient la
-          ligne sans rien dire — elles signalaient une possibilite, pas un
-          etat. Ici elle porte une information : c'est par la que le tableau
-          est trie, et dans quel sens. */}
-      {sorted && (
-        <ArrowUp
-          className={cn(
-            "size-3 text-foreground transition-transform",
-            sorted === "desc" && "rotate-180"
-          )}
-        />
-      )}
-    </button>
+    </span>
   );
 }
+
+// ─── Options de tri ─────────────────────────────────────────
+//
+// Defaut : Nom A→Z. Une liste ou l'on cherche un produit doit etre previsible —
+// on sait toujours ou regarder. Trier par stock la fait bouger a chaque
+// mouvement, deroutant quand on cherche une reference precise ; c'est utile,
+// mais c'est un choix, pas le defaut. « Stock croissant » vient juste apres :
+// c'est la reponse a « qu'est-ce que je dois recommander ? ».
+const SORT_OPTIONS: { id: string; label: string; sorting: SortingState }[] = [
+  { id: "name-asc", label: "Nom (A → Z)", sorting: [{ id: "name", desc: false }] },
+  { id: "name-desc", label: "Nom (Z → A)", sorting: [{ id: "name", desc: true }] },
+  { id: "stock-asc", label: "Stock (croissant)", sorting: [{ id: "stock_current", desc: false }] },
+  {
+    id: "stock-desc",
+    label: "Stock (décroissant)",
+    sorting: [{ id: "stock_current", desc: true }],
+  },
+  { id: "price-desc", label: "Prix (élevé → bas)", sorting: [{ id: "price", desc: true }] },
+  { id: "price-asc", label: "Prix (bas → élevé)", sorting: [{ id: "price", desc: false }] },
+];
 
 // ─── Main component ────────────────────────────────────────
 export default function ProductList() {
   const router = useRouter();
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
-  const [sorting, setSorting] = useState<SortingState>([]);
+  // Defaut : Nom A→Z. Voir SORT_OPTIONS pour le raisonnement.
+  const [sorting, setSorting] = useState<SortingState>(SORT_OPTIONS[0].sorting);
   const [filters, setFilters] = useQueryStates({
     search: parseAsString.withDefault(""),
   });
@@ -138,6 +142,14 @@ export default function ProductList() {
   };
 
   const debouncedSearch = useDebouncedValue(searchQuery, 300);
+
+  // Option de tri active, deduite de l'etat plutot que tenue en double : le
+  // menu et le tableau ne peuvent pas diverger. Un tri par colonne inconnu du
+  // menu (aucun aujourd'hui) laisse simplement le libelle par defaut.
+  const current = sorting[0];
+  const activeSortId =
+    SORT_OPTIONS.find((o) => o.sorting[0].id === current?.id && o.sorting[0].desc === current?.desc)
+      ?.id ?? SORT_OPTIONS[0].id;
 
   const { data: categories = [] } = useCategories(currentOrganization?.id);
   const { data: userOrgs } = useOrganizations();
@@ -233,7 +245,7 @@ export default function ProductList() {
     {
       accessorKey: "name",
       enableHiding: false,
-      header: ({ column }) => <SortHeader label="Produit" column={column} />,
+      header: () => <ColHeader label="Produit" />,
       cell: ({ row }) => {
         const product = row.original;
         return (
@@ -256,7 +268,7 @@ export default function ProductList() {
     },
     {
       accessorKey: "stock_current",
-      header: ({ column }) => <SortHeader label="Stock" column={column} />,
+      header: () => <ColHeader label="Stock" />,
       cell: ({ row }) => {
         const product = row.original;
 
@@ -321,7 +333,7 @@ export default function ProductList() {
     },
     {
       accessorKey: "price",
-      header: ({ column }) => <SortHeader label="Prix HT" column={column} />,
+      header: () => <ColHeader label="Prix HT" />,
       cell: ({ row }) => {
         const price = row.original.price;
         if (price == null) return <span className="text-muted-foreground">—</span>;
@@ -332,7 +344,7 @@ export default function ProductList() {
     {
       id: "category",
       accessorFn: (row) => row.category?.name ?? "",
-      header: ({ column }) => <SortHeader label="Catégorie" column={column} />,
+      header: () => <ColHeader label="Catégorie" />,
       cell: ({ row }) => {
         const category = row.original.category;
         if (!category) return <span className="text-muted-foreground">—</span>;
@@ -347,7 +359,7 @@ export default function ProductList() {
     {
       id: "supplier",
       accessorFn: (row) => row.supplier?.name ?? "",
-      header: ({ column }) => <SortHeader label="Fournisseur" column={column} />,
+      header: () => <ColHeader label="Fournisseur" />,
       cell: ({ row }) => {
         const supplier = row.original.supplier;
         if (!supplier) return <span className="text-muted-foreground">—</span>;
@@ -589,6 +601,37 @@ export default function ProductList() {
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
+          {/* Tri : un menu unique, plutôt que des flèches semées sur chaque
+              en-tête. Le libellé porte le tri actif — on lit d'un coup dans
+              quel ordre la liste est rangée. */}
+          <Popover>
+            <PopoverTrigger className="inline-flex h-9 shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-full bg-foreground/[0.06] px-4 text-[13px] font-semibold text-foreground/70 outline-none transition-all hover:bg-foreground/[0.10] focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97]">
+              <ArrowDownUp className="size-3.5" />
+              {SORT_OPTIONS.find((o) => o.id === activeSortId)?.label ?? "Trier"}
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-52 p-1 rounded-xl">
+              {SORT_OPTIONS.map((opt) => {
+                const active = opt.id === activeSortId;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setSorting(opt.sorting)}
+                    className={cn(
+                      "flex w-full items-center justify-between gap-2 rounded-lg px-3 py-1.5 text-[13px] transition-colors",
+                      active
+                        ? "bg-primary/10 font-medium text-foreground"
+                        : "text-foreground/70 hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    {opt.label}
+                    {active && <Check className="size-3.5 shrink-0 text-primary" />}
+                  </button>
+                );
+              })}
+            </PopoverContent>
+          </Popover>
+
           {/* Bascule vers les fiches retirées du catalogue. Poussée à droite,
               à l'écart des filtres du quotidien : ce n'est pas une facette de
               plus, c'est une autre vue. */}
