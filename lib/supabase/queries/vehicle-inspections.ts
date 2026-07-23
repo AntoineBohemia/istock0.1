@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import type { Json } from "@/lib/supabase/database.types";
 
 // ─── Grille de controle ─────────────────────────────────────
 // Extensible : ajouter un point ici suffit, aucune migration. Chaque etat des
@@ -122,6 +123,53 @@ export async function createVehicleInspection(params: {
   }
 
   return data as string;
+}
+
+/**
+ * Corrige un etat des lieux existant.
+ *
+ * Ecriture directe sur la ligne (le RLS reserve deja la modification a
+ * owner/admin). Contrairement a la creation, on ne retouche pas le kilometrage
+ * du vehicule : il a ete pose au moment du controle, corriger la fiche a
+ * posteriori ne doit pas le faire bouger tout seul.
+ */
+export async function updateVehicleInspection(
+  id: string,
+  params: {
+    driverName?: string | null;
+    mileage?: number | null;
+    items: InspectionItem[];
+    photoUrls: string[];
+    note?: string | null;
+  }
+): Promise<void> {
+  const supabase = createClient();
+
+  const { error } = await supabase
+    .from("vehicle_inspections")
+    .update({
+      driver_name: params.driverName ?? null,
+      mileage: params.mileage ?? null,
+      items: params.items as unknown as Json,
+      photo_urls: params.photoUrls,
+      note: params.note ?? null,
+    })
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(`Erreur lors de la mise à jour de l'état des lieux: ${error.message}`);
+  }
+}
+
+/** Supprime un etat des lieux. Reserve a owner/admin par le RLS. */
+export async function deleteVehicleInspection(id: string): Promise<void> {
+  const supabase = createClient();
+
+  const { error } = await supabase.from("vehicle_inspections").delete().eq("id", id);
+
+  if (error) {
+    throw new Error(`Erreur lors de la suppression de l'état des lieux: ${error.message}`);
+  }
 }
 
 /**

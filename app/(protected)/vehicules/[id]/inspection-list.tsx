@@ -1,16 +1,38 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, ChevronDown, ClipboardCheck, Gauge, User } from "lucide-react";
+import {
+  Calendar,
+  ChevronDown,
+  ClipboardCheck,
+  Gauge,
+  Loader2,
+  Pencil,
+  Trash2,
+  User,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { toast } from "@/lib/toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useVehicleInspections } from "@/hooks/queries";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useVehicleInspections, useDeleteVehicleInspection } from "@/hooks/queries";
 import {
   RATING_LABELS,
   type InspectionRating,
   type VehicleInspection,
 } from "@/lib/supabase/queries/vehicle-inspections";
+import EditInspectionDialog from "./edit-inspection-dialog";
 
 const RATING_BADGE: Record<InspectionRating, string> = {
   neuf: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
@@ -39,14 +61,32 @@ function badCount(inspection: VehicleInspection): number {
 
 function InspectionCard({
   inspection,
+  vehicleId,
   defaultOpen,
 }: {
   inspection: VehicleInspection;
+  vehicleId: string;
   defaultOpen: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const deleteMutation = useDeleteVehicleInspection();
   const { date, time } = formatDateTime(inspection.inspected_at);
   const bad = badCount(inspection);
+
+  const handleDelete = () => {
+    deleteMutation.mutate(
+      { id: inspection.id, vehicleId },
+      {
+        onSuccess: () => {
+          toast.success("État des lieux supprimé");
+          setDeleteOpen(false);
+        },
+        onError: (err) => toast.error(err instanceof Error ? err.message : "Erreur"),
+      }
+    );
+  };
 
   return (
     <div className="overflow-hidden rounded-xl border bg-card">
@@ -151,8 +191,57 @@ function InspectionCard({
               <p className="whitespace-pre-wrap text-sm">{inspection.note}</p>
             </div>
           )}
+
+          {/* Modifier / supprimer : une correction reste possible apres coup. */}
+          <div className="flex justify-end gap-2 border-t pt-3">
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+              <Pencil className="mr-1.5 size-4" />
+              Modifier
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteOpen(true)}
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 className="mr-1.5 size-4" />
+              Supprimer
+            </Button>
+          </div>
         </div>
       )}
+
+      {editOpen && (
+        <EditInspectionDialog
+          inspection={inspection}
+          vehicleId={vehicleId}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+        />
+      )}
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cet état des lieux</AlertDialogTitle>
+            <AlertDialogDescription>
+              Le contrôle du {date} à {time} sera définitivement supprimé. Cette action est
+              irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleteMutation.isPending}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -184,9 +273,14 @@ export default function InspectionList({ vehicleId }: { vehicleId: string }) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {inspections.map((inspection, i) => (
-        <InspectionCard key={inspection.id} inspection={inspection} defaultOpen={i === 0} />
+        <InspectionCard
+          key={inspection.id}
+          inspection={inspection}
+          vehicleId={vehicleId}
+          defaultOpen={i === 0}
+        />
       ))}
     </div>
   );
