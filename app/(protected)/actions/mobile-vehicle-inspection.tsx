@@ -188,15 +188,14 @@ export function MobileVehicleInspection({
           </div>
         </div>
 
-        {/* Contexte : qui conduit, combien de km. Pre-rempli, modifiable. */}
+        {/* Contexte : qui conduit, combien de km. Le conducteur n'est pas
+            modifiable ici — il vaut le detenteur du vehicule ; sa correction se
+            fait sur l'ordinateur. Le kilometrage, lui, se releve sur place. */}
         <InsetGroup header="Contexte">
           <InsetField label="Conducteur">
-            <Input
-              value={driverName}
-              onChange={(e) => setDriverName(e.target.value)}
-              placeholder="Nom du conducteur"
-              className="h-auto w-full border-0 bg-transparent p-0 text-right text-base shadow-none focus-visible:ring-0"
-            />
+            <span className={cn("text-base", !driverName && "text-muted-foreground")}>
+              {driverName || "Aucun détenteur"}
+            </span>
           </InsetField>
           <InsetField label="Kilométrage">
             <div className="flex items-center justify-end gap-1">

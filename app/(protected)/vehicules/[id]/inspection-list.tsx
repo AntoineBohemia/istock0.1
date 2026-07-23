@@ -5,6 +5,7 @@ import {
   Calendar,
   ChevronDown,
   ClipboardCheck,
+  Download,
   Gauge,
   Loader2,
   Pencil,
@@ -57,6 +58,44 @@ function formatDateTime(iso: string): { date: string; time: string } {
 /** Nombre de points « Mauvais » — le signal qui merite l'oeil en premier. */
 function badCount(inspection: VehicleInspection): number {
   return inspection.items.filter((i) => i.rating === "mauvais").length;
+}
+
+/**
+ * Force le telechargement d'une photo.
+ *
+ * L'attribut `download` d'un lien est ignore pour une URL d'un autre domaine
+ * (le stockage Supabase) : le navigateur ouvre l'image au lieu de l'enregistrer.
+ * On recupere donc l'image en blob, puis on declenche le telechargement depuis
+ * une URL locale, ce qui respecte le nom de fichier voulu.
+ */
+async function downloadPhoto(url: string, filename: string) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  } catch {
+    // A defaut (blocage CORS...), on ouvre l'image : l'utilisateur peut
+    // l'enregistrer a la main plutot que de rester bloque.
+    window.open(url, "_blank", "noopener");
+  }
+}
+
+/** Base du nom de fichier d'une photo : « etat-des-lieux-2026-07-24 ». */
+function photoBaseName(iso: string): string {
+  return `etat-des-lieux-${new Date(iso).toISOString().slice(0, 10)}`;
+}
+
+/** Extension deduite de l'URL, jpg par defaut. */
+function photoExt(url: string): string {
+  const m = url.split("?")[0].match(/\.([a-z0-9]{3,4})$/i);
+  return m ? m[1] : "jpg";
 }
 
 function InspectionCard({
@@ -164,20 +203,51 @@ function InspectionCard({
 
           {inspection.photo_urls.length > 0 && (
             <div>
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Photos
-              </p>
-              <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
-                {inspection.photo_urls.map((url) => (
-                  <a
-                    key={url}
-                    href={url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="aspect-square overflow-hidden rounded-lg border"
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Photos
+                </p>
+                {inspection.photo_urls.length > 1 && (
+                  <button
+                    onClick={() =>
+                      inspection.photo_urls.forEach((url, i) =>
+                        downloadPhoto(
+                          url,
+                          `${photoBaseName(inspection.inspected_at)}-${i + 1}.${photoExt(url)}`
+                        )
+                      )
+                    }
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
                   >
-                    <img src={url} alt="" className="size-full object-cover" />
-                  </a>
+                    <Download className="size-3.5" />
+                    Tout télécharger
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+                {inspection.photo_urls.map((url, i) => (
+                  <div
+                    key={url}
+                    className="group relative aspect-square overflow-hidden rounded-lg border"
+                  >
+                    {/* Clic sur l'image = agrandir dans un onglet ; le bouton
+                        dans le coin = telecharger le fichier. */}
+                    <a href={url} target="_blank" rel="noreferrer" className="block size-full">
+                      <img src={url} alt="" className="size-full object-cover" />
+                    </a>
+                    <button
+                      onClick={() =>
+                        downloadPhoto(
+                          url,
+                          `${photoBaseName(inspection.inspected_at)}-${i + 1}.${photoExt(url)}`
+                        )
+                      }
+                      className="absolute right-1 top-1 flex size-7 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity hover:bg-black/80 group-hover:opacity-100"
+                      aria-label="Télécharger la photo"
+                    >
+                      <Download className="size-4" />
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>
