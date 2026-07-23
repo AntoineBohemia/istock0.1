@@ -3,17 +3,10 @@
 import { startTransition, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDebouncedValue } from "@/hooks/use-debounce";
-import {
-  ColumnDef,
-  SortingState,
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import { ArrowUpDown, Package, ChevronDown, Building2, Check, Wrench, X } from "lucide-react";
+import { ColumnDef, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { Package, ChevronDown, Building2, Wrench, Truck } from "lucide-react";
 import { SearchInput } from "@/components/search-input";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { FilterChip } from "@/components/filter-chip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProductWithRelations } from "@/lib/supabase/queries/products";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
@@ -26,35 +19,38 @@ import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { cn } from "@/lib/utils";
 import { useAchatsYear } from "./achats-year-context";
 
-// ─── Sort header button ────────────────────────────────────
-function SortHeader({
-  label,
-  column,
-  className,
-}: {
-  label: string;
-  column: { toggleSorting: (asc: boolean) => void; getIsSorted: () => false | "asc" | "desc" };
-  className?: string;
-}) {
-  const sorted = column.getIsSorted();
+// ─── En-tete de colonne, sans tri ──────────────────────────
+//
+// Le tableau se triait colonne par colonne. Mais un historique d'achats se lit
+// du plus recent au plus ancien — le trier par prix ou par valeur en fait une
+// liste de chiffres qui ne raconte plus rien. L'ordre est desormais fixe, et
+// les filtres repondent aux questions que le tri servait a poser.
+function ColHeader({ label, className }: { label: string; className?: string }) {
   return (
-    <button
-      type="button"
-      onClick={() => column.toggleSorting(sorted === "asc")}
+    <span
       className={cn(
-        "inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/50 hover:text-foreground transition-colors select-none",
+        "inline-flex items-center text-xs font-semibold uppercase tracking-wider text-foreground/50 select-none",
         className
       )}
     >
       {label}
-      <ArrowUpDown
-        className={cn(
-          "size-3 transition-colors",
-          sorted ? "text-foreground" : "text-foreground/25"
-        )}
-      />
-    </button>
+    </span>
   );
+}
+
+/**
+ * Fournisseurs qui apparaissent dans les achats d'un produit.
+ *
+ * Ils ne figurent que dans le detail par societe : on les agrege ici. Fonction
+ * de module, pas de closure — un rendu ne la recree pas, et les useMemo qui s'en
+ * servent n'ont pas a la lister en dependance.
+ */
+function suppliersOf(p: { byOrg: Record<string, OrgEntryDetail> }): Set<string> {
+  const names = new Set<string>();
+  for (const orgId of Object.keys(p.byOrg)) {
+    for (const s of p.byOrg[orgId].suppliers) names.add(s.name);
+  }
+  return names;
 }
 
 // ─── Collapsible org detail cards ─────────────────────────
@@ -139,9 +135,6 @@ function OrgDetailCards({
 export default function AchatsList() {
   const router = useRouter();
   const { currentOrganization, isLoading: isOrgLoading } = useOrganizationStore();
-  // Dernier achat en tete : la question qu'on se pose en ouvrant la page est
-  // « qu'ai-je achete recemment ? », pas « quel poste pese le plus ».
-  const [sorting, setSorting] = useState<SortingState>([{ id: "lastPurchase", desc: true }]);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [columnVisibility, setColumnVisibility] = useColumnVisibility("achats");
 
@@ -149,6 +142,8 @@ export default function AchatsList() {
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebouncedValue(searchInput, 300);
   const [filterOrgs, setFilterOrgs] = useState<Set<string>>(new Set());
+  const [filterTypes, setFilterTypes] = useState<Set<string>>(new Set());
+  const [filterSuppliers, setFilterSuppliers] = useState<Set<string>>(new Set());
 
   const toggleSet = (prev: Set<string>, value: string) => {
     const next = new Set(prev);
@@ -176,33 +171,49 @@ export default function AchatsList() {
     return map;
   }, [purchases]);
 
+  const supplierOptions = useMemo(() => {
+    const names = new Set<string>();
+    for (const p of purchases) for (const n of suppliersOf(p)) names.add(n);
+    return [...names].sort((a, b) => a.localeCompare(b, "fr")).map((n) => ({ id: n, label: n }));
+  }, [purchases]);
+
   const products = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase();
-    return purchases
-      .filter((p) => {
-        if (filterOrgs.size > 0 && ![...filterOrgs].some((orgId) => p.byOrg[orgId])) return false;
-        if (!q) return true;
-        return (
-          p.product_name.toLowerCase().includes(q) ||
-          (p.product_sku ?? "").toLowerCase().includes(q)
-        );
-      })
-      .map(
-        (p) =>
-          ({
-            id: p.product_id,
-            name: p.product_name,
-            sku: p.product_sku,
-            image_url: p.product_image_url,
-            icon_name: p.product_icon_name,
-            icon_color: p.product_icon_color,
-            price: p.product_price,
-            product_type: p.product_type,
-            is_archived: p.is_archived,
-            last_purchase_at: p.lastPurchaseAt,
-          }) as unknown as ProductWithRelations & { is_archived: boolean }
-      );
-  }, [purchases, filterOrgs, debouncedSearch]);
+    return (
+      purchases
+        .filter((p) => {
+          if (filterOrgs.size > 0 && ![...filterOrgs].some((orgId) => p.byOrg[orgId])) return false;
+          if (filterTypes.size > 0 && !filterTypes.has(p.product_type)) return false;
+          if (filterSuppliers.size > 0) {
+            const sup = suppliersOf(p);
+            if (![...filterSuppliers].some((n) => sup.has(n))) return false;
+          }
+          if (!q) return true;
+          return (
+            p.product_name.toLowerCase().includes(q) ||
+            (p.product_sku ?? "").toLowerCase().includes(q)
+          );
+        })
+        // Ordre fixe, du dernier achat au plus ancien : c'est le tri par colonne
+        // qui a été retiré, l'ordre doit donc être posé ici.
+        .sort((a, b) => (b.lastPurchaseAt ?? "").localeCompare(a.lastPurchaseAt ?? ""))
+        .map(
+          (p) =>
+            ({
+              id: p.product_id,
+              name: p.product_name,
+              sku: p.product_sku,
+              image_url: p.product_image_url,
+              icon_name: p.product_icon_name,
+              icon_color: p.product_icon_color,
+              price: p.product_price,
+              product_type: p.product_type,
+              is_archived: p.is_archived,
+              last_purchase_at: p.lastPurchaseAt,
+            }) as unknown as ProductWithRelations & { is_archived: boolean }
+        )
+    );
+  }, [purchases, filterOrgs, filterTypes, filterSuppliers, debouncedSearch]);
 
   const orgNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -280,7 +291,7 @@ export default function AchatsList() {
       {
         accessorKey: "name",
         enableHiding: false,
-        header: ({ column }) => <SortHeader label="Produit" column={column} />,
+        header: () => <ColHeader label="Produit" />,
         cell: ({ row }) => {
           const product = row.original;
           return (
@@ -328,7 +339,7 @@ export default function AchatsList() {
       },
       {
         accessorKey: "price",
-        header: ({ column }) => <SortHeader label="Prix HT" column={column} />,
+        header: () => <ColHeader label="Prix HT" />,
         cell: ({ row }) => {
           const price = row.original.price;
           const data = entryQtyByProduct?.[row.original.id];
@@ -359,7 +370,7 @@ export default function AchatsList() {
         id: "lastPurchase",
         accessorFn: (row) =>
           (row as unknown as { last_purchase_at?: string }).last_purchase_at ?? "",
-        header: ({ column }) => <SortHeader label="Dernier achat" column={column} />,
+        header: () => <ColHeader label="Dernier achat" />,
         cell: ({ row }) => {
           const at = (row.original as unknown as { last_purchase_at?: string | null })
             .last_purchase_at;
@@ -386,7 +397,7 @@ export default function AchatsList() {
           if (!data) return 0;
           return Object.values(data).reduce((sum, d) => sum + d.qty, 0);
         },
-        header: ({ column }) => <SortHeader label={`Entrées ${currentYear}`} column={column} />,
+        header: () => <ColHeader label={`Entrées ${currentYear}`} />,
         cell: ({ row }) => {
           const data = entryQtyByProduct?.[row.original.id];
           const total = data ? Object.values(data).reduce((sum, d) => sum + d.qty, 0) : 0;
@@ -412,7 +423,7 @@ export default function AchatsList() {
           const orgIds = Object.keys(data);
           return orgIds.map((id) => orgNameById.get(id) ?? id).join(", ");
         },
-        header: ({ column }) => <SortHeader label="Entreprise" column={column} />,
+        header: () => <ColHeader label="Entreprise" />,
         cell: ({ row }) => {
           const data = entryQtyByProduct?.[row.original.id];
           if (!data) return <span className="text-muted-foreground">—</span>;
@@ -436,7 +447,7 @@ export default function AchatsList() {
           if (names.size === 0 && row.supplier?.name) names.add(row.supplier.name);
           return Array.from(names).join(", ");
         },
-        header: ({ column }) => <SortHeader label="Fournisseur" column={column} />,
+        header: () => <ColHeader label="Fournisseur" />,
         cell: ({ row }) => {
           const data = entryQtyByProduct?.[row.original.id];
           const names = new Set<string>();
@@ -462,7 +473,7 @@ export default function AchatsList() {
             0
           );
         },
-        header: ({ column }) => <SortHeader label="Valeur achats HT" column={column} />,
+        header: () => <ColHeader label="Valeur achats HT" />,
         cell: ({ row }) => {
           const data = entryQtyByProduct?.[row.original.id];
           if (!data) return <span className="text-muted-foreground">—</span>;
@@ -508,11 +519,9 @@ export default function AchatsList() {
   const table = useReactTable({
     data: products,
     columns,
-    onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    state: { sorting, columnVisibility },
+    state: { columnVisibility },
   });
 
   if (isLoading || isEntriesLoading || isOrgLoading || !currentOrganization) {
@@ -577,83 +586,59 @@ export default function AchatsList() {
 
   return (
     <div className="space-y-3">
-      {/* Search + filters on same line */}
-      <div className="flex items-center gap-2">
+      {/* Recherche compacte, filtres mis en avant : sur cette page on cherche
+          rarement un produit precis, on reduit un ensemble — par type, par
+          fournisseur, par societe. */}
+      <div className="flex flex-wrap items-center gap-2">
         <SearchInput
           value={searchInput}
           onChange={setSearchInput}
-          placeholder="Rechercher un produit..."
-          className="bg-white dark:bg-card"
-          wrapperClassName="flex-1 min-w-0"
+          placeholder="Rechercher…"
+          className="bg-white dark:bg-card h-9"
+          wrapperClassName="w-full sm:w-52 shrink-0"
+        />
+
+        {/* Type : la seule facette qui change ce qui compte. L'outillage figure
+            dans le tableau mais reste hors des totaux — pouvoir l'isoler, ou au
+            contraire ne voir que les consommables, repond a une vraie question. */}
+        <FilterChip
+          label="Type"
+          icon={Wrench}
+          options={[
+            { id: "consumable", label: "Consommable" },
+            { id: "equipment", label: "Outillage" },
+          ]}
+          selected={filterTypes}
+          onToggle={(id) => startTransition(() => setFilterTypes((prev) => toggleSet(prev, id)))}
+          onClear={() => startTransition(() => setFilterTypes(new Set()))}
+        />
+
+        <FilterChip
+          label="Fournisseur"
+          icon={Truck}
+          options={supplierOptions}
+          selected={filterSuppliers}
+          onToggle={(id) =>
+            startTransition(() => setFilterSuppliers((prev) => toggleSet(prev, id)))
+          }
+          onClear={() => startTransition(() => setFilterSuppliers(new Set()))}
+          hideWhenEmpty
         />
 
         {(userOrgs?.length ?? 0) > 1 && (
-          <Popover>
-            <PopoverTrigger
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all select-none cursor-pointer",
-                filterOrgs.size > 0
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
-              )}
-            >
-              <Building2 className="size-3" />
-              Societe
-              {filterOrgs.size > 0 && (
-                <>
-                  <span className="opacity-80 tabular-nums font-heading">{filterOrgs.size}</span>
-                  <span
-                    role="button"
-                    className="ml-0.5 rounded-full hover:bg-white/20 p-0.5 -mr-1"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      startTransition(() => setFilterOrgs(new Set()));
-                    }}
-                  >
-                    <X className="size-3" />
-                  </span>
-                </>
-              )}
-            </PopoverTrigger>
-            <PopoverContent
-              align="start"
-              className="w-auto min-w-[180px] p-1 rounded-xl overflow-hidden"
-            >
-              <div className="flex flex-col gap-0.5 max-h-[280px] overflow-y-auto">
-                {userOrgs?.map((org) => {
-                  const selected = filterOrgs.has(org.id);
-                  return (
-                    <button
-                      key={org.id}
-                      type="button"
-                      className={cn(
-                        "flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-lg transition-colors",
-                        selected
-                          ? "bg-primary/10 text-foreground font-medium"
-                          : "text-foreground/70 hover:bg-muted hover:text-foreground"
-                      )}
-                      onClick={() =>
-                        startTransition(() => setFilterOrgs((prev) => toggleSet(prev, org.id)))
-                      }
-                    >
-                      <span
-                        className={cn(
-                          "size-3.5 flex items-center justify-center",
-                          !selected && "opacity-0"
-                        )}
-                      >
-                        <Check className="size-3.5" />
-                      </span>
-                      {org.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </PopoverContent>
-          </Popover>
+          <FilterChip
+            label="Société"
+            icon={Building2}
+            options={(userOrgs ?? []).map((o) => ({ id: o.id, label: o.name }))}
+            selected={filterOrgs}
+            onToggle={(id) => startTransition(() => setFilterOrgs((prev) => toggleSet(prev, id)))}
+            onClear={() => startTransition(() => setFilterOrgs(new Set()))}
+          />
         )}
 
-        <TableColumnToggle table={table} />
+        <div className="ml-auto shrink-0">
+          <TableColumnToggle table={table} />
+        </div>
       </div>
 
       <div className="rounded-xl border bg-card overflow-hidden">
@@ -761,8 +746,11 @@ export default function AchatsList() {
                     </div>
                     <h3 className="text-lg font-semibold">Aucun produit</h3>
                     <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-                      {debouncedSearch || filterOrgs.size > 0
-                        ? "Aucun produit ne correspond à cette recherche."
+                      {debouncedSearch ||
+                      filterOrgs.size > 0 ||
+                      filterTypes.size > 0 ||
+                      filterSuppliers.size > 0
+                        ? "Aucun achat ne correspond à ces filtres."
                         : "Aucun achat enregistré cette année."}
                     </p>
                   </div>
