@@ -19,6 +19,7 @@ import {
   Clock,
   ScanLine,
   Wrench,
+  Car,
 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -37,7 +38,7 @@ import {
 } from "@/components/ui/drawer";
 
 import { useOrganizationStore } from "@/lib/stores/organization-store";
-import { useProducts, useTechnicians, useStockMovements } from "@/hooks/queries";
+import { useProducts, useTechnicians, useStockMovements, useVehicles } from "@/hooks/queries";
 import { useCreateStockEntry, useCreateStockExit, useAssignEquipment } from "@/hooks/mutations";
 import { calculateStockScore, getStockBadgeVariant } from "@/lib/utils/stock";
 import { maxSingleOrgStock, pickExitSource, type OrgStock } from "@/lib/utils/exit-source";
@@ -57,6 +58,7 @@ import {
   movementToHistoryEntry,
   type HistoryEntry,
 } from "./mobile-history-sheet";
+import { MobileVehicleSheet } from "./mobile-vehicle-sheet";
 
 const QrScannerModal = dynamic(() => import("@/components/qr-scanner-modal"), { ssr: false });
 
@@ -323,6 +325,10 @@ export default function ActionsMobileSheet() {
   // ─── Historique du jour (tiroir) ───────────────────────
   const [historyOpen, setHistoryOpen] = useState(false);
 
+  // ─── Vehicules (tiroir) ─────────────────────────────────
+  // Point d'entree du suivi d'etat des vehicules. Pour l'instant : la liste.
+  const [vehicleOpen, setVehicleOpen] = useState(false);
+
   // ─── QR Scanner ────────────────────────────────────────
   // Le scan vit dans l'etape produits, la ou l'on designe ce qui bouge — pas
   // a l'accueil, ou l'on n'a pas encore dit si ca rentre ou si ca sort.
@@ -364,6 +370,7 @@ export default function ActionsMobileSheet() {
   const allProducts = useMemo(() => allProductsResult?.products ?? [], [allProductsResult]);
 
   const { data: techniciansData = [] } = useTechnicians(orgId);
+  const { data: vehicles = [], isLoading: isLoadingVehicles } = useVehicles(orgId);
   const searchResults = useMemo(() => productsResult?.products ?? [], [productsResult]);
 
   const sortedProducts = useMemo(() => {
@@ -1282,9 +1289,9 @@ export default function ActionsMobileSheet() {
           ))}
         </div>
 
-        {/* Pied d'ecran : l'historique seul, colle en bas. La zone sure est
-            deja retiree de la hauteur du conteneur. */}
-        <div className="shrink-0">
+        {/* Pied d'ecran : historique puis vehicules, colles en bas. La zone
+            sure est deja retiree de la hauteur du conteneur. */}
+        <div className="shrink-0 flex flex-col gap-2">
           <button
             onClick={() => setHistoryOpen(true)}
             className="w-full flex items-center justify-center gap-2 rounded-2xl border bg-white dark:bg-card py-3.5 active:scale-[0.97] transition-transform"
@@ -1294,6 +1301,18 @@ export default function ActionsMobileSheet() {
               Historique
               {todayCount > 0 && (
                 <span className="text-muted-foreground font-normal"> · {todayCount}</span>
+              )}
+            </span>
+          </button>
+          <button
+            onClick={() => setVehicleOpen(true)}
+            className="w-full flex items-center justify-center gap-2 rounded-2xl border bg-white dark:bg-card py-3.5 active:scale-[0.97] transition-transform"
+          >
+            <Car className="size-[18px] text-muted-foreground" />
+            <span className="font-semibold text-base">
+              Véhicules
+              {vehicles.length > 0 && (
+                <span className="text-muted-foreground font-normal"> · {vehicles.length}</span>
               )}
             </span>
           </button>
@@ -1312,6 +1331,14 @@ export default function ActionsMobileSheet() {
           const entry = session.find((e) => e.localId === key);
           if (entry) handleRevert(entry);
         }}
+      />
+
+      {/* ═══ VEHICULES ═══ */}
+      <MobileVehicleSheet
+        open={vehicleOpen}
+        onOpenChange={setVehicleOpen}
+        vehicles={vehicles}
+        isLoading={isLoadingVehicles}
       />
 
       {/* ═══════════════════════════════════════════════════════ */}
