@@ -16,7 +16,6 @@ import {
   Trash2,
   PackagePlus,
   Check,
-  Clock,
   ScanLine,
   Wrench,
   Car,
@@ -38,7 +37,7 @@ import {
 } from "@/components/ui/drawer";
 
 import { useOrganizationStore } from "@/lib/stores/organization-store";
-import { useProducts, useTechnicians, useStockMovements, useVehicles } from "@/hooks/queries";
+import { useProducts, useTechnicians, useVehicles } from "@/hooks/queries";
 import { useCreateStockEntry, useCreateStockExit, useAssignEquipment } from "@/hooks/mutations";
 import { calculateStockScore, getStockBadgeVariant } from "@/lib/utils/stock";
 import { maxSingleOrgStock, pickExitSource, type OrgStock } from "@/lib/utils/exit-source";
@@ -53,11 +52,6 @@ import {
 } from "./mobile-stack-screen";
 import { MobileSplash, shouldShowSplash } from "./mobile-splash";
 import { organizationLogo } from "@/lib/utils/org-logo";
-import {
-  MobileHistorySheet,
-  movementToHistoryEntry,
-  type HistoryEntry,
-} from "./mobile-history-sheet";
 import { MobileVehicleSheet } from "./mobile-vehicle-sheet";
 import { MobileVehicleInspection } from "./mobile-vehicle-inspection";
 import type { VehicleWithTechnician } from "@/lib/supabase/queries/vehicles";
@@ -122,25 +116,6 @@ interface CartItem {
  */
 function exitCeiling(p: ConsoleProduct): number {
   return p.org_stock && p.org_stock.length > 0 ? maxSingleOrgStock(p.org_stock) : p.stock_current;
-}
-
-interface SessionEntry {
-  localId: string;
-  movementType: MovementKind;
-  /**
-   * Societe dans laquelle le mouvement a ete ecrit.
-   *
-   * Une entree peut viser une autre societe que la societe courante :
-   * l'annulation doit revenir sur celle-la, sinon elle sortirait du stock
-   * d'une societe qui n'a jamais rien recu.
-   */
-  organizationId: string;
-  productId: string;
-  productName: string;
-  quantity: number;
-  stockAfter: number;
-  technicianName?: string;
-  createdAt: string;
 }
 
 // ─── Constants ──────────────────────────────────────────────
@@ -227,18 +202,6 @@ const ITEM_KIND_OPTIONS: {
   },
 ];
 
-// ─── Helper: today string that refreshes every 60s ──────────
-function useTodayString() {
-  const [today, setToday] = useState(() => new Date().toISOString().split("T")[0]);
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setToday(new Date().toISOString().split("T")[0]);
-    }, 60_000);
-    return () => clearInterval(interval);
-  }, []);
-  return today;
-}
-
 // ═════════════════════════════════════════════════════════════
 // Main Component
 // ═════════════════════════════════════════════════════════════
@@ -258,10 +221,6 @@ export default function ActionsMobileSheet() {
     [organizations, entryOrgId]
   );
   const multiOrg = organizations.length > 1;
-
-  // ─── Today (recalculates every 60s) ─────────────────────
-  const today = useTodayString();
-  const [pageLoadTime] = useState(() => new Date().toISOString());
 
   // ─── Drawer state ───────────────────────────────────────
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -324,9 +283,6 @@ export default function ActionsMobileSheet() {
   // ferait apparaitre le logo apres coup, en plein ecran deja affiche.
   const [splashDone, setSplashDone] = useState(() => !shouldShowSplash());
 
-  // ─── Historique du jour (tiroir) ───────────────────────
-  const [historyOpen, setHistoryOpen] = useState(false);
-
   // ─── Vehicules (tiroir) ─────────────────────────────────
   // La liste des vehicules, puis l'etat des lieux du vehicule choisi.
   const [vehicleOpen, setVehicleOpen] = useState(false);
@@ -339,9 +295,6 @@ export default function ActionsMobileSheet() {
   const [scannedProduct, setScannedProduct] = useState<ConsoleProduct | null>(null);
   const [scanActionSheetOpen, setScanActionSheetOpen] = useState(false);
 
-  // ─── Session journal ────────────────────────────────────
-  const [session, setSession] = useState<SessionEntry[]>([]);
-  const [revertingIds, setRevertingIds] = useState<Set<string>>(new Set());
   const [isBatchSubmitting, setIsBatchSubmitting] = useState(false);
 
   // ─── Data ───────────────────────────────────────────────
@@ -391,40 +344,6 @@ export default function ActionsMobileSheet() {
       `${t.first_name} ${t.last_name}`.toLowerCase().includes(q)
     );
   }, [techniciansData, debouncedSearch]);
-
-  // ─── Today's movements ─────────────────────────────────
-  const { data: todayResult, isLoading: isLoadingToday } = useStockMovements({
-    organizationId: orgId,
-    startDate: today,
-  });
-  const olderMovements = (todayResult?.movements ?? []).filter(
-    (m) => m.created_at && m.created_at < pageLoadTime
-  );
-  // Compteur du pied d'ecran : sans lui, rien n'indique qu'il y a quelque
-  // chose derriere le bouton.
-  const todayCount = session.length + olderMovements.length;
-
-  // ─── Lignes d'historique ───────────────────────────────
-  // Deux origines, une seule forme : ce que l'on vient d'enregistrer (encore
-  // annulable) et ce qui existait avant l'ouverture de la page.
-  const sessionEntries: HistoryEntry[] = useMemo(
-    () =>
-      session.map((e) => ({
-        key: e.localId,
-        movementType: e.movementType,
-        productName: e.productName,
-        quantity: e.quantity,
-        who: e.technicianName,
-        at: e.createdAt,
-        undoable: true,
-      })),
-    [session]
-  );
-  const olderEntries: HistoryEntry[] = useMemo(
-    () => olderMovements.map(movementToHistoryEntry),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [todayResult, pageLoadTime]
-  );
 
   // Ventilation chez les autres societes, deja chargee avec le produit :
   // aucune requete supplementaire.
@@ -833,7 +752,6 @@ export default function ActionsMobileSheet() {
     // cumul : c'est lui qui a bouge.
     const sourceStock = source?.stock ?? product.stock_current;
     const stockAfter = isEntry ? product.stock_current + quantity : sourceStock - quantity;
-    const localId = crypto.randomUUID();
 
     const onSuccess = () => {
       navigator.vibrate?.(10);
@@ -852,19 +770,6 @@ export default function ActionsMobileSheet() {
           ),
         };
       });
-      setSession((prev) => [
-        {
-          localId,
-          movementType: isEntry ? "entry" : exitMovementType,
-          organizationId: writeOrgId,
-          productId: product.id,
-          productName: product.name,
-          quantity,
-          stockAfter,
-          createdAt: new Date().toISOString(),
-        },
-        ...prev,
-      ]);
       const sign = isEntry ? "+" : "-";
       // La societe est nommee en sortie : l'utilisateur ne l'a pas choisie,
       // c'est la regle qui l'a designee. Ne pas la dire laisserait un doute
@@ -985,9 +890,6 @@ export default function ActionsMobileSheet() {
             technicianId,
             quantity: item.quantity,
           });
-          // Volontairement pas de ligne annulable : une affectation se defait
-          // par un retour d'outil (page Outillage), pas par l'annulation d'une
-          // sortie de stock.
         } else {
           await createExit.mutateAsync({
             organizationId: source.id,
@@ -999,21 +901,6 @@ export default function ActionsMobileSheet() {
             // « -2 — casse » et non « -2 » tout court.
             note: exitReason === "loss" ? lossNote.trim() : undefined,
           });
-          const stockAfter = source.stock - item.quantity;
-          setSession((prev) => [
-            {
-              localId: crypto.randomUUID(),
-              movementType: exitMovementType,
-              organizationId: source.id,
-              productId: item.product.id,
-              productName: item.product.name,
-              quantity: item.quantity,
-              stockAfter,
-              technicianName: exitReason === "technician" ? techFullName : undefined,
-              createdAt: new Date().toISOString(),
-            },
-            ...prev,
-          ]);
         }
         successCount++;
       } catch (err) {
@@ -1053,64 +940,6 @@ export default function ActionsMobileSheet() {
     exitSourceFor,
     lossNote,
   ]);
-
-  // ─── Revert session entry ─────────────────────────────
-  const handleRevert = useCallback(
-    (entry: SessionEntry) => {
-      if (!orgId || revertingIds.has(entry.localId)) return;
-      setRevertingIds((prev) => new Set([...prev, entry.localId]));
-
-      const isEntryRevert = entry.movementType === "entry";
-      const revertedStock = isEntryRevert
-        ? entry.stockAfter - entry.quantity
-        : entry.stockAfter + entry.quantity;
-
-      const onSuccess = () => {
-        setSession((prev) => prev.filter((e) => e.localId !== entry.localId));
-        setRevertingIds((prev) => {
-          const n = new Set(prev);
-          n.delete(entry.localId);
-          return n;
-        });
-        setProduct((prev) =>
-          prev?.id === entry.productId ? { ...prev, stock_current: revertedStock } : prev
-        );
-        toast.success(
-          `Annule - ${isEntryRevert ? "-" : "+"}${entry.quantity} ${entry.productName}`
-        );
-      };
-      const onError = () => {
-        setRevertingIds((prev) => {
-          const n = new Set(prev);
-          n.delete(entry.localId);
-          return n;
-        });
-        toast.error("Impossible d'annuler");
-      };
-
-      if (isEntryRevert) {
-        createExit.mutate(
-          {
-            organizationId: entry.organizationId,
-            productId: entry.productId,
-            quantity: entry.quantity,
-            type: "exit_anonymous",
-          },
-          { onSuccess, onError }
-        );
-      } else {
-        createEntry.mutate(
-          {
-            organizationId: entry.organizationId,
-            productId: entry.productId,
-            quantity: entry.quantity,
-          },
-          { onSuccess, onError }
-        );
-      }
-    },
-    [orgId, revertingIds, createEntry, createExit]
-  );
 
   // ─── URL params (invited redirect + QR deep link) ────
   useEffect(() => {
@@ -1303,21 +1132,9 @@ export default function ActionsMobileSheet() {
           ))}
         </div>
 
-        {/* Pied d'ecran : historique puis vehicules, colles en bas. La zone
-            sure est deja retiree de la hauteur du conteneur. */}
-        <div className="shrink-0 flex flex-col gap-2">
-          <button
-            onClick={() => setHistoryOpen(true)}
-            className="w-full flex items-center justify-center gap-2 rounded-2xl border bg-white dark:bg-card py-3.5 active:scale-[0.97] transition-transform"
-          >
-            <Clock className="size-[18px] text-muted-foreground" />
-            <span className="font-semibold text-base">
-              Historique
-              {todayCount > 0 && (
-                <span className="text-muted-foreground font-normal"> · {todayCount}</span>
-              )}
-            </span>
-          </button>
+        {/* Pied d'ecran : les vehicules, colles en bas. La zone sure est deja
+            retiree de la hauteur du conteneur. */}
+        <div className="shrink-0">
           <button
             onClick={() => setVehicleOpen(true)}
             className="w-full flex items-center justify-center gap-2 rounded-2xl border bg-white dark:bg-card py-3.5 active:scale-[0.97] transition-transform"
@@ -1332,20 +1149,6 @@ export default function ActionsMobileSheet() {
           </button>
         </div>
       </div>
-
-      {/* ═══ HISTORIQUE DU JOUR ═══ */}
-      <MobileHistorySheet
-        open={historyOpen}
-        onOpenChange={setHistoryOpen}
-        session={sessionEntries}
-        older={olderEntries}
-        isLoading={isLoadingToday}
-        revertingKeys={revertingIds}
-        onUndo={(key) => {
-          const entry = session.find((e) => e.localId === key);
-          if (entry) handleRevert(entry);
-        }}
-      />
 
       {/* ═══ VEHICULES ═══ */}
       <MobileVehicleSheet
