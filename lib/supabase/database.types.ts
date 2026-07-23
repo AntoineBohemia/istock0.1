@@ -1034,7 +1034,7 @@ export type Database = {
         Returns: Json;
       };
       get_suppliers_with_stats: {
-        Args: { p_organization_id: string };
+        Args: { p_organization_id?: string };
         Returns: {
           id: string;
           name: string;

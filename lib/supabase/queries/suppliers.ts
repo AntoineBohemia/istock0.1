@@ -40,14 +40,13 @@ export interface SupplierWithStats extends SupplierWithProducts, SupplierStats {
 /**
  * Récupère tous les fournisseurs
  */
-export async function getSuppliers(organizationId?: string): Promise<Supplier[]> {
+export async function getSuppliers(_organizationId?: string): Promise<Supplier[]> {
   const supabase = createClient();
 
-  let query = supabase.from("suppliers").select("*").order("name", { ascending: true });
-
-  if (organizationId) {
-    query = query.eq("organization_id", organizationId);
-  }
+  // Pas de filtre sur la société courante : tout le monde voit les mêmes
+  // fournisseurs. Le RLS borne déjà à SMPR + SEIREN, dont chaque admin est
+  // membre. Filtrer dessus faisait diverger deux comptes selon leur sélecteur.
+  const query = supabase.from("suppliers").select("*").order("name", { ascending: true });
 
   const { data, error } = await query;
 
@@ -62,16 +61,17 @@ export async function getSuppliers(organizationId?: string): Promise<Supplier[]>
  * Récupère tous les fournisseurs avec leurs produits liés
  */
 export async function getSuppliersWithProducts(
-  organizationId: string
+  _organizationId?: string
 ): Promise<SupplierWithProducts[]> {
   const supabase = createClient();
 
+  // Cumul, pas la société courante : tout le monde voit les mêmes fournisseurs
+  // (RLS = SMPR + SEIREN, dont chaque admin est membre).
   const { data, error } = await supabase
     .from("suppliers")
     .select(
       "*, products:products(id, name, stock_current, stock_min, icon_name, icon_color, image_url, archived_at)"
     )
-    .eq("organization_id", organizationId)
     .order("name", { ascending: true });
 
   if (error) {
@@ -93,12 +93,16 @@ export async function getSuppliersWithProducts(
  * achat, alertes) mais ne peut pas renvoyer proprement la liste imbriquée des
  * produits, dont on a besoin pour les icônes des cartes.
  */
-export async function getSuppliersWithStats(organizationId: string): Promise<SupplierWithStats[]> {
+export async function getSuppliersWithStats(
+  _organizationId?: string
+): Promise<SupplierWithStats[]> {
   const supabase = createClient();
 
+  // p_organization_id: null → cumul de toutes les sociétés de l'utilisateur.
+  // Tout le monde voit la même liste, quel que soit le sélecteur de société.
   const [withProducts, statsResult] = await Promise.all([
-    getSuppliersWithProducts(organizationId),
-    supabase.rpc("get_suppliers_with_stats", { p_organization_id: organizationId }),
+    getSuppliersWithProducts(),
+    supabase.rpc("get_suppliers_with_stats", { p_organization_id: undefined }),
   ]);
 
   if (statsResult.error) {

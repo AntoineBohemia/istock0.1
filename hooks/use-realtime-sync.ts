@@ -43,6 +43,37 @@ const WATCHED: { table: string; invalidates: readonly (readonly string[])[] }[] 
     table: "equipment_assignments",
     invalidates: [queryKeys.equipment.all, queryKeys.technicians.all],
   },
+  // Véhicules : une affectation, un relevé de compteur ou une création par un
+  // compte doit apparaître chez les autres. La fiche technicien montre aussi le
+  // véhicule détenu, d'où l'invalidation des techniciens.
+  {
+    table: "vehicles",
+    invalidates: [queryKeys.vehicles.all, queryKeys.technicians.all],
+  },
+  {
+    table: "vehicle_assignments",
+    invalidates: [queryKeys.vehicles.all, queryKeys.technicians.all],
+  },
+  // Facture d'achat : déjà publiée, il ne manquait que l'écoute. Touche la
+  // fiche fournisseur (nombre de factures) et les achats.
+  {
+    table: "purchase_invoices",
+    invalidates: [queryKeys.suppliers.all, queryKeys.movements.all],
+  },
+  // Édition de fiches : un renommage de fournisseur, de technicien ou de
+  // catégorie doit se refléter partout où le nom est affiché.
+  {
+    table: "suppliers",
+    invalidates: [queryKeys.suppliers.all, queryKeys.products.all],
+  },
+  {
+    table: "technicians",
+    invalidates: [queryKeys.technicians.all, queryKeys.equipment.all],
+  },
+  {
+    table: "categories",
+    invalidates: [queryKeys.categories.all, queryKeys.products.all],
+  },
 ];
 
 /**

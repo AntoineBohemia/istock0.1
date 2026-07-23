@@ -106,18 +106,23 @@ export async function uploadVehiclePhoto(file: File, vehicleId: string): Promise
 // Vehicle queries
 // ---------------------------------------------------------------------------
 
-export async function getVehicles(organizationId?: string): Promise<VehicleWithTechnician[]> {
+/**
+ * Liste des véhicules.
+ *
+ * Pas de filtre sur la société courante : tous les administrateurs sont membres
+ * de SMPR ET SEIREN et doivent voir exactement le même parc, quel que soit le
+ * sélecteur de société de leur navigateur. Filtrer dessus faisait diverger deux
+ * comptes réglés différemment. Le RLS borne déjà la lecture aux sociétés de
+ * l'utilisateur ; `organizationId` ne sert plus qu'à conditionner le hook.
+ */
+export async function getVehicles(_organizationId?: string): Promise<VehicleWithTechnician[]> {
   const supabase = createClient();
 
-  let query = supabase
+  const query = supabase
     .from("vehicles")
     .select("*, technician:technicians(id, first_name, last_name, photo_url)")
     .is("archived_at", null)
     .order("name", { ascending: true });
-
-  if (organizationId) {
-    query = query.eq("organization_id", organizationId);
-  }
 
   const { data, error } = await query;
 
