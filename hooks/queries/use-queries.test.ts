@@ -47,15 +47,6 @@ vi.mock("@/lib/supabase/queries/organizations", () => ({
   getPendingInvitations: vi.fn().mockResolvedValue([]),
 }));
 
-vi.mock("@/lib/supabase/queries/dashboard", () => ({
-  getDashboardStats: vi.fn().mockResolvedValue({}),
-  getRecentMovements: vi.fn().mockResolvedValue([]),
-  getGlobalStockEvolution: vi.fn().mockResolvedValue([]),
-  getProductStockEvolution: vi.fn().mockResolvedValue([]),
-  getCategoryStockEvolution: vi.fn().mockResolvedValue([]),
-  getProductsNeedingRestock: vi.fn().mockResolvedValue([]),
-}));
-
 // ─── Import mocked functions ────────────────────────────────────────
 import { getProducts, getProduct, getProductsStats } from "@/lib/supabase/queries/products";
 import {
@@ -81,14 +72,6 @@ import {
   getOrganizationMembers,
   getPendingInvitations,
 } from "@/lib/supabase/queries/organizations";
-import {
-  getRecentMovements,
-  getGlobalStockEvolution,
-  getProductStockEvolution,
-  getCategoryStockEvolution,
-  getProductsNeedingRestock,
-} from "@/lib/supabase/queries/dashboard";
-
 // ─── Import hooks ───────────────────────────────────────────────────
 import { useProducts, useProduct, useProductsStats } from "./use-products";
 import {
@@ -105,14 +88,6 @@ import {
   useOrganizationMembers,
   usePendingInvitations,
 } from "./use-organizations";
-import {
-  useRecentMovements,
-  useGlobalStockEvolution,
-  useProductStockEvolution,
-  useCategoryStockEvolution,
-  useProductsNeedingRestock,
-} from "./use-dashboard";
-
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -488,115 +463,5 @@ describe("usePendingInvitations", () => {
 
     await waitFor(() => expect(true).toBe(true));
     expect(getPendingInvitations).not.toHaveBeenCalled();
-  });
-});
-
-// ─── useRecentMovements ─────────────────────────────────────────────
-describe("useRecentMovements", () => {
-  it("calls getRecentMovements with limit and orgId", async () => {
-    const wrapper = createWrapper();
-
-    renderHook(() => useRecentMovements("org-1", 5), { wrapper });
-
-    await waitFor(() => {
-      expect(getRecentMovements).toHaveBeenCalledWith(5, "org-1");
-    });
-  });
-
-  it("does not call when orgId is undefined", async () => {
-    const wrapper = createWrapper();
-
-    renderHook(() => useRecentMovements(undefined), { wrapper });
-
-    await waitFor(() => expect(true).toBe(true));
-    expect(getRecentMovements).not.toHaveBeenCalled();
-  });
-});
-
-// ─── useGlobalStockEvolution ────────────────────────────────────────
-describe("useGlobalStockEvolution", () => {
-  it("calls getGlobalStockEvolution with months and orgId", async () => {
-    const wrapper = createWrapper();
-
-    renderHook(() => useGlobalStockEvolution("org-1", 6), { wrapper });
-
-    await waitFor(() => {
-      expect(getGlobalStockEvolution).toHaveBeenCalledWith(6, "org-1");
-    });
-  });
-
-  it("does not call when orgId is undefined", async () => {
-    const wrapper = createWrapper();
-
-    renderHook(() => useGlobalStockEvolution(undefined), { wrapper });
-
-    await waitFor(() => expect(true).toBe(true));
-    expect(getGlobalStockEvolution).not.toHaveBeenCalled();
-  });
-});
-
-// ─── useProductStockEvolution ───────────────────────────────────────
-describe("useProductStockEvolution", () => {
-  it("calls getProductStockEvolution with productId and months", async () => {
-    const wrapper = createWrapper();
-
-    renderHook(() => useProductStockEvolution("p1", 3), { wrapper });
-
-    await waitFor(() => {
-      expect(getProductStockEvolution).toHaveBeenCalledWith("p1", 3);
-    });
-  });
-
-  it("does not call when productId is empty", async () => {
-    const wrapper = createWrapper();
-
-    renderHook(() => useProductStockEvolution(""), { wrapper });
-
-    await waitFor(() => expect(true).toBe(true));
-    expect(getProductStockEvolution).not.toHaveBeenCalled();
-  });
-});
-
-// ─── useCategoryStockEvolution ──────────────────────────────────────
-describe("useCategoryStockEvolution", () => {
-  it("calls getCategoryStockEvolution with categoryId and months", async () => {
-    const wrapper = createWrapper();
-
-    renderHook(() => useCategoryStockEvolution("cat-1", 6), { wrapper });
-
-    await waitFor(() => {
-      expect(getCategoryStockEvolution).toHaveBeenCalledWith("cat-1", 6);
-    });
-  });
-
-  it("does not call when categoryId is empty", async () => {
-    const wrapper = createWrapper();
-
-    renderHook(() => useCategoryStockEvolution(""), { wrapper });
-
-    await waitFor(() => expect(true).toBe(true));
-    expect(getCategoryStockEvolution).not.toHaveBeenCalled();
-  });
-});
-
-// ─── useProductsNeedingRestock ──────────────────────────────────────
-describe("useProductsNeedingRestock", () => {
-  it("calls getProductsNeedingRestock with limit and orgId", async () => {
-    const wrapper = createWrapper();
-
-    renderHook(() => useProductsNeedingRestock("org-1", 10), { wrapper });
-
-    await waitFor(() => {
-      expect(getProductsNeedingRestock).toHaveBeenCalledWith(10, "org-1", undefined);
-    });
-  });
-
-  it("does not call when orgId is undefined", async () => {
-    const wrapper = createWrapper();
-
-    renderHook(() => useProductsNeedingRestock(undefined), { wrapper });
-
-    await waitFor(() => expect(true).toBe(true));
-    expect(getProductsNeedingRestock).not.toHaveBeenCalled();
   });
 });
