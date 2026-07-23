@@ -21,6 +21,8 @@ import {
   Activity,
   Tag,
   Plus,
+  Archive,
+  RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -39,6 +41,8 @@ import { calculateStockScore, getStockScoreColor, getStockBadgeVariant } from "@
 import { StatusPill } from "@/components/ui/status-pill";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import { useProducts, useCategories, useOrganizations } from "@/hooks/queries";
+import { useUnarchiveProduct } from "@/hooks/mutations";
+import { toast } from "@/lib/toast";
 import ProductIconDisplay from "@/components/product-icon-display";
 import { TableColumnToggle } from "@/components/table-column-toggle";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
@@ -111,6 +115,18 @@ export default function ProductList() {
   const [filterStatuses, setFilterStatuses] = useState<Set<string>>(new Set());
   const [filterOrgs, setFilterOrgs] = useState<Set<string>>(new Set());
 
+  // Vue « archives » : un produit retiré du catalogue disparaissait sans
+  // recours. Comme pour l'outillage, elle sert à le retrouver et le restaurer.
+  const [showArchived, setShowArchived] = useState(false);
+  const unarchive = useUnarchiveProduct();
+
+  const handleRestore = (id: string, name: string) => {
+    unarchive.mutate(id, {
+      onSuccess: () => toast.success(`${name} remis au catalogue`),
+      onError: (err) => toast.error(err instanceof Error ? err.message : "Erreur"),
+    });
+  };
+
   const searchQuery = filters.search;
   const setSearchQuery = (value: string) => setFilters({ search: value });
 
@@ -143,6 +159,7 @@ export default function ProductList() {
     // le stock de la societe : leur nombre borne ce qu'on peut saisir.
     stockScope: "all",
     search: debouncedSearch || undefined,
+    archived: showArchived,
   });
 
   // Memoise : sans cela le `|| []` cree un tableau neuf a chaque rendu, et
@@ -342,11 +359,21 @@ export default function ProductList() {
       id: "status",
       header: () => (
         <span className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
-          Statut
+          {showArchived ? "Motif" : "Statut"}
         </span>
       ),
       cell: ({ row }) => {
         const product = row.original;
+        // En archives, l'état de stock ne dit plus rien — la fiche n'est plus
+        // au catalogue. Ce qu'on vient lire, c'est pourquoi elle en est sortie.
+        if (showArchived) {
+          const p = product as ProductWithRelations & { archive_reason?: string | null };
+          return p.archive_reason ? (
+            <span className="line-clamp-2 max-w-[280px] text-sm">{p.archive_reason}</span>
+          ) : (
+            <span className="text-sm italic text-muted-foreground/70">Aucun motif</span>
+          );
+        }
         const score = calculateStockScore(product.stock_current, product.stock_min);
         return <StatusPill status={getStockBadgeVariant(score)} />;
       },
@@ -358,6 +385,27 @@ export default function ProductList() {
       header: () => null,
       cell: ({ row }) => {
         const product = row.original;
+        // Entrer ou sortir du stock n'a pas de sens sur une fiche hors
+        // catalogue : le seul geste utile est de la remettre en service.
+        if (showArchived) {
+          return (
+            <div className="flex items-center justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2.5 text-xs"
+                disabled={unarchive.isPending}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRestore(product.id, product.name);
+                }}
+              >
+                <RotateCcw className="size-3.5" />
+                Restaurer
+              </Button>
+            </div>
+          );
+        }
         return (
           <div className="flex items-center justify-end gap-1.5">
             <Button
@@ -540,7 +588,23 @@ export default function ProductList() {
           )}
         </div>
 
-        <div className="ml-auto shrink-0">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          {/* Bascule vers les fiches retirées du catalogue. Poussée à droite,
+              à l'écart des filtres du quotidien : ce n'est pas une facette de
+              plus, c'est une autre vue. */}
+          <button
+            type="button"
+            onClick={() => setShowArchived((v) => !v)}
+            className={cn(
+              "inline-flex h-9 shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-full px-4 text-[13px] font-semibold outline-none transition-all focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97]",
+              showArchived
+                ? "bg-primary text-primary-foreground"
+                : "bg-foreground/[0.06] text-foreground/70 hover:bg-foreground/[0.10]"
+            )}
+          >
+            <Archive className="size-3.5" />
+            Archivés
+          </button>
           <TableColumnToggle table={table} />
         </div>
       </div>
@@ -604,18 +668,41 @@ export default function ProductList() {
                 <td colSpan={columns.length}>
                   <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
                     <div className="flex size-16 items-center justify-center rounded-2xl bg-muted mb-4">
-                      <Package className="size-7 text-muted-foreground" />
+                      {showArchived ? (
+                        <Archive className="size-7 text-muted-foreground" />
+                      ) : (
+                        <Package className="size-7 text-muted-foreground" />
+                      )}
                     </div>
-                    <h3 className="text-lg font-semibold">Aucun produit</h3>
+                    {/* Un état vide parle de l'endroit où l'on se trouve : dans
+                        les archives, proposer « Ajoutez un produit » n'aurait
+                        aucun rapport avec ce qu'on y cherche. */}
+                    <h3 className="text-lg font-semibold">
+                      {showArchived ? "Aucun produit archivé" : "Aucun produit"}
+                    </h3>
                     <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-                      {hasActiveFilter
-                        ? "Aucun produit ne correspond à cette recherche."
-                        : "Ajoutez vos produits pour commencer à gérer votre stock."}
+                      {showArchived
+                        ? hasActiveFilter
+                          ? "Aucun produit archivé ne correspond à cette recherche."
+                          : "Les produits retirés du catalogue apparaîtront ici, avec leur motif. Ils restent restaurables."
+                        : hasActiveFilter
+                          ? "Aucun produit ne correspond à cette recherche."
+                          : "Ajoutez vos produits pour commencer à gérer votre stock."}
                     </p>
-                    {!hasActiveFilter && (
-                      <Button asChild className="mt-5">
-                        <Link href="/produits/nouveau">Ajouter un produit</Link>
+                    {showArchived ? (
+                      <Button
+                        variant="outline"
+                        className="mt-5"
+                        onClick={() => setShowArchived(false)}
+                      >
+                        Revenir au catalogue
                       </Button>
+                    ) : (
+                      !hasActiveFilter && (
+                        <Button asChild className="mt-5">
+                          <Link href="/produits/nouveau">Ajouter un produit</Link>
+                        </Button>
+                      )
                     )}
                   </div>
                 </td>

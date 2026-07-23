@@ -6,6 +6,7 @@ import {
   createProduct,
   updateProduct,
   archiveProduct,
+  unarchiveProduct,
   type CreateProductData,
   type UpdateProductData,
   type ProductsResult,
@@ -62,6 +63,52 @@ export function useArchiveProduct() {
       const previousLists: [readonly unknown[], ProductsResult | undefined][] = [];
 
       // Snapshot and optimistically remove from all product list caches
+      qc.getQueriesData<ProductsResult>({ queryKey: queryKeys.products.lists() }).forEach(
+        ([key, data]) => {
+          if (data) {
+            previousLists.push([key, data]);
+            qc.setQueryData(key, {
+              ...data,
+              products: data.products.filter((p) => p.id !== id),
+              total: data.total - 1,
+            });
+          }
+        }
+      );
+
+      return { previousLists };
+    },
+    onError: (_err, _id, context) => {
+      context?.previousLists?.forEach(([key, data]) => {
+        qc.setQueryData(key, data);
+      });
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.products.lists() });
+      qc.invalidateQueries({ queryKey: queryKeys.products.stats() });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      qc.invalidateQueries({ queryKey: queryKeys.equipment.all });
+    },
+  });
+}
+
+/**
+ * Remet un produit au catalogue.
+ *
+ * Symetrique de useArchiveProduct : la fiche disparait de la vue « archives »
+ * des le clic, et reparait dans le catalogue actif. La requete efface aussi le
+ * motif — il decrit une sortie du catalogue, il n'a plus de sens au retour.
+ */
+export function useUnarchiveProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => unarchiveProduct(id),
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: queryKeys.products.lists() });
+      const previousLists: [readonly unknown[], ProductsResult | undefined][] = [];
+
+      // Retrait optimiste de toutes les listes affichees : celle des archives
+      // est la seule ou la fiche figure, elle en sort aussitot.
       qc.getQueriesData<ProductsResult>({ queryKey: queryKeys.products.lists() }).forEach(
         ([key, data]) => {
           if (data) {

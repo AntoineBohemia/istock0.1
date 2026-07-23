@@ -254,6 +254,25 @@ describe("getProducts", () => {
     expect(mockClient.eq).not.toHaveBeenCalledWith("organization_id", "org-1");
   });
 
+  it("n'expose que les fiches actives par defaut", async () => {
+    mockClient._setResult({ data: [], error: null, count: 0 });
+
+    await getProducts({ organizationId: "org-1" });
+
+    expect(mockClient.is).toHaveBeenCalledWith("archived_at", null);
+  });
+
+  it("inverse le critere en vue archives", async () => {
+    // La vue « archives » sert a retrouver et restaurer une fiche retiree du
+    // catalogue : elle doit montrer l'exact complement des actives.
+    mockClient._setResult({ data: [], error: null, count: 0 });
+
+    await getProducts({ organizationId: "org-1", archived: true });
+
+    expect(mockClient.not).toHaveBeenCalledWith("archived_at", "is", null);
+    expect(mockClient.is).not.toHaveBeenCalledWith("archived_at", null);
+  });
+
   it("expose le stock de la societe demandee, pas le total", async () => {
     mockClient._setResult({
       data: [

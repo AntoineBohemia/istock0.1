@@ -76,6 +76,14 @@ export interface ProductFilters {
    * achats doivent pouvoir le traiter.
    */
   includeEquipment?: boolean;
+  /**
+   * Montrer les fiches archivees au lieu des actives.
+   *
+   * L'outillage avait sa vue « Archives », pas les consommables : un produit
+   * retire du catalogue disparaissait sans recours, motif compris. Meme role
+   * ici — retrouver et restaurer une fiche sortie du catalogue.
+   */
+  archived?: boolean;
 }
 
 export interface ProductsResult {
@@ -134,6 +142,7 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
     maxPrice,
     stockStatus,
     includeEquipment,
+    archived = false,
   } = filters;
 
   // Construire la requête de base
@@ -148,8 +157,9 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
       { count: "exact" }
     );
 
-  // Archives toujours exclus. Outillage exclu par defaut : il a sa page.
-  query = query.is("archived_at", null);
+  // Actifs par defaut ; la vue « archives » sert a retrouver et restaurer une
+  // fiche retiree du catalogue. Outillage exclu par defaut : il a sa page.
+  query = archived ? query.not("archived_at", "is", null) : query.is("archived_at", null);
   if (!includeEquipment) {
     query = query.eq("product_type", "consumable");
   }
