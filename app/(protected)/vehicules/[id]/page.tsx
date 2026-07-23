@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
   Car,
+  ClipboardCheck,
   FileText,
   Fuel,
   Gauge,
@@ -43,6 +44,7 @@ import { useDeleteVehicle } from "@/hooks/mutations/use-vehicle-mutations";
 import EditVehicleDialog from "../edit-vehicle-dialog";
 import DocumentList from "./document-list";
 import PhotoGallery from "./photo-gallery";
+import InspectionList from "./inspection-list";
 import { useRouter } from "next/navigation";
 
 const FUEL_LABELS: Record<string, string> = {
@@ -252,6 +254,10 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
             <History className="size-4 mr-1.5" />
             Détenteurs
           </TabsTrigger>
+          <TabsTrigger value="inspections">
+            <ClipboardCheck className="size-4 mr-1.5" />
+            États des lieux
+          </TabsTrigger>
         </TabsList>
         <div className="mt-4">
           <TabsContent value="contract">
@@ -285,6 +291,9 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
               isLoading={isHistoryLoading}
               subject="technician"
             />
+          </TabsContent>
+          <TabsContent value="inspections">
+            <InspectionList vehicleId={id} />
           </TabsContent>
         </div>
       </Tabs>

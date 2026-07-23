@@ -59,6 +59,8 @@ import {
   type HistoryEntry,
 } from "./mobile-history-sheet";
 import { MobileVehicleSheet } from "./mobile-vehicle-sheet";
+import { MobileVehicleInspection } from "./mobile-vehicle-inspection";
+import type { VehicleWithTechnician } from "@/lib/supabase/queries/vehicles";
 
 const QrScannerModal = dynamic(() => import("@/components/qr-scanner-modal"), { ssr: false });
 
@@ -326,8 +328,9 @@ export default function ActionsMobileSheet() {
   const [historyOpen, setHistoryOpen] = useState(false);
 
   // ─── Vehicules (tiroir) ─────────────────────────────────
-  // Point d'entree du suivi d'etat des vehicules. Pour l'instant : la liste.
+  // La liste des vehicules, puis l'etat des lieux du vehicule choisi.
   const [vehicleOpen, setVehicleOpen] = useState(false);
+  const [inspectionVehicle, setInspectionVehicle] = useState<VehicleWithTechnician | null>(null);
 
   // ─── QR Scanner ────────────────────────────────────────
   // Le scan vit dans l'etape produits, la ou l'on designe ce qui bouge — pas
@@ -1339,6 +1342,18 @@ export default function ActionsMobileSheet() {
         onOpenChange={setVehicleOpen}
         vehicles={vehicles}
         isLoading={isLoadingVehicles}
+        onSelect={(v) => {
+          // On ferme la liste et on pousse l'etat des lieux du vehicule choisi.
+          setVehicleOpen(false);
+          setInspectionVehicle(v);
+        }}
+      />
+
+      {/* ═══ ETAT DES LIEUX ═══ */}
+      <MobileVehicleInspection
+        vehicle={inspectionVehicle}
+        open={!!inspectionVehicle}
+        onClose={() => setInspectionVehicle(null)}
       />
 
       {/* ═══════════════════════════════════════════════════════ */}

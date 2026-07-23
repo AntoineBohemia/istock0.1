@@ -775,6 +775,63 @@ export type Database = {
           },
         ];
       };
+      vehicle_inspections: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          driver_name: string | null;
+          id: string;
+          inspected_at: string;
+          items: Json;
+          mileage: number | null;
+          note: string | null;
+          organization_id: string;
+          photo_urls: string[];
+          vehicle_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          driver_name?: string | null;
+          id?: string;
+          inspected_at?: string;
+          items?: Json;
+          mileage?: number | null;
+          note?: string | null;
+          organization_id: string;
+          photo_urls?: string[];
+          vehicle_id: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          driver_name?: string | null;
+          id?: string;
+          inspected_at?: string;
+          items?: Json;
+          mileage?: number | null;
+          note?: string | null;
+          organization_id?: string;
+          photo_urls?: string[];
+          vehicle_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_inspections_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "vehicle_inspections_vehicle_id_fkey";
+            columns: ["vehicle_id"];
+            isOneToOne: false;
+            referencedRelation: "vehicles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       vehicle_assignments: {
         Row: {
           assigned_at: string;
@@ -1016,6 +1073,17 @@ export type Database = {
           p_vehicle_id: string;
         };
         Returns: string | null;
+      };
+      create_vehicle_inspection: {
+        Args: {
+          p_vehicle_id: string;
+          p_driver_name?: string | null;
+          p_mileage?: number | null;
+          p_items?: Json;
+          p_photo_urls?: string[];
+          p_note?: string | null;
+        };
+        Returns: string;
       };
       create_organization_with_owner: {
         Args: { org_logo_url?: string; org_name: string; org_slug: string };

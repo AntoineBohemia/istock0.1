@@ -54,6 +54,12 @@ const WATCHED: { table: string; invalidates: readonly (readonly string[])[] }[] 
     table: "vehicle_assignments",
     invalidates: [queryKeys.vehicles.all, queryKeys.technicians.all],
   },
+  // Etat des lieux valide sur le telephone : il doit apparaitre sur l'ordinateur
+  // sans rechargement (la cle des etats des lieux vit sous vehicles.all).
+  {
+    table: "vehicle_inspections",
+    invalidates: [queryKeys.vehicles.all],
+  },
   // Facture d'achat : déjà publiée, il ne manquait que l'écoute. Touche la
   // fiche fournisseur (nombre de factures) et les achats.
   {

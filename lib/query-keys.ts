@@ -120,5 +120,8 @@ export const queryKeys = {
     /** Vehicules qu'un technicien a detenus, dans le temps */
     technicianHistory: (technicianId: string) =>
       [...queryKeys.vehicles.all, "technician-history", technicianId] as const,
+    /** Etats des lieux d'un vehicule */
+    inspections: (vehicleId: string) =>
+      [...queryKeys.vehicles.all, "inspections", vehicleId] as const,
   },
 };
