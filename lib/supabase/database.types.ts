@@ -461,6 +461,7 @@ export type Database = {
       stock_movements: {
         Row: {
           created_at: string | null;
+          created_by: string | null;
           id: string;
           invoice_id: string | null;
           invoice_reference: string | null;
@@ -478,6 +479,7 @@ export type Database = {
         };
         Insert: {
           created_at?: string | null;
+          created_by?: string | null;
           id?: string;
           invoice_id?: string | null;
           invoice_reference?: string | null;
@@ -492,6 +494,7 @@ export type Database = {
         };
         Update: {
           created_at?: string | null;
+          created_by?: string | null;
           id?: string;
           invoice_id?: string | null;
           invoice_reference?: string | null;

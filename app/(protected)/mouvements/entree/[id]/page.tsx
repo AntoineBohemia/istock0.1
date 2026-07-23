@@ -11,6 +11,7 @@ import {
   Image01,
   ArrowRight,
   File06,
+  User01,
 } from "@untitled-ui/icons-react";
 import { generateMeta } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
@@ -59,12 +60,32 @@ async function getMovement(id: string) {
   const product = Array.isArray(movement.product) ? movement.product[0] : movement.product;
   const orgRaw = (movement as Record<string, unknown>).organization;
   const organization = (Array.isArray(orgRaw) ? orgRaw[0] : orgRaw) as { name: string } | null;
-  return { ...movement, product, organization, alreadyReversed } as typeof movement & {
+
+  // Qui a saisi l'entree — le nom vit dans la vue des membres, cote auth.
+  const author = await resolveAuthor(supabase, movement.created_by as string | null);
+
+  return { ...movement, product, organization, author, alreadyReversed } as typeof movement & {
     product: typeof product;
     organization: typeof organization;
+    author: { display_name: string | null; email: string | null } | null;
     invoice_reference: string | null;
     alreadyReversed: number;
   };
+}
+
+/** Nom d'un auteur de mouvement, ou null si non enregistre (mouvement ancien). */
+async function resolveAuthor(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string | null
+) {
+  if (!userId) return null;
+  const { data } = await supabase
+    .from("organization_members_view")
+    .select("display_name, email")
+    .eq("user_id", userId)
+    .limit(1)
+    .maybeSingle();
+  return data ?? null;
 }
 
 export default async function EntryDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -208,6 +229,17 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
               <span className="font-medium">{movement.invoice_reference}</span>
             </div>
           )}
+          {/* Qui a saisi l'entree. Une correction ou une erreur doit pouvoir se
+              remonter a quelqu'un ; l'ancien journal ne le permettait pas. */}
+          <div className="flex justify-between px-5 py-2.5">
+            <span className="text-muted-foreground flex items-center gap-1.5">
+              <User01 className="size-3.5" />
+              Réalisé par
+            </span>
+            <span className="font-medium">
+              {movement.author?.display_name || movement.author?.email || "Non enregistré"}
+            </span>
+          </div>
         </div>
       </div>
 

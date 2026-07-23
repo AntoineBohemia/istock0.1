@@ -9,6 +9,12 @@ export type MovementType =
   | "assign_equipment"
   | "unassign_equipment";
 
+/** Auteur d'un mouvement : un membre de l'organisation, pas un technicien. */
+export interface MovementAuthor {
+  display_name: string | null;
+  email: string | null;
+}
+
 export interface StockMovement {
   id: string;
   product_id: string;
@@ -27,6 +33,10 @@ export interface StockMovement {
    * champ, une ligne de moins deux unites ne s'explique plus six mois apres.
    */
   note?: string | null;
+  /** Membre de l'organisation qui a saisi le mouvement. Null avant le suivi. */
+  created_by?: string | null;
+  /** Nom de l'auteur, resolu depuis organization_members_view. */
+  author?: MovementAuthor | null;
   reverses_movement_id?: string | null;
   /** Quantite deja corrigee sur ce mouvement (quantite reelle = quantity - reversed_quantity) */
   reversed_quantity?: number;
@@ -304,13 +314,53 @@ export async function getStockMovements(
 
   const total = count ?? 0;
 
+  const movements = await attachAuthors(supabase, (data as StockMovement[]) || []);
+
   return {
-    movements: (data as StockMovement[]) || [],
+    movements,
     total,
     page,
     pageSize,
     totalPages: Math.ceil(total / pageSize),
   };
+}
+
+/**
+ * Attache le nom de l'auteur a une liste de mouvements.
+ *
+ * `created_by` ne porte qu'un identifiant ; le nom vit dans
+ * `organization_members_view`, cote auth. PostgREST ne sait pas embarquer une
+ * vue faute de relation declaree — on resout donc en une requete, sur le seul
+ * ensemble des auteurs presents dans la page. Un mouvement anterieur au suivi
+ * de l'auteur reste sans nom, ce qui est la verite : personne n'etait enregistre.
+ */
+export async function attachAuthors<T extends { created_by?: string | null }>(
+  supabase: ReturnType<typeof createClient>,
+  rows: T[]
+): Promise<(T & { author: MovementAuthor | null })[]> {
+  const ids = [...new Set(rows.map((r) => r.created_by).filter(Boolean))] as string[];
+  if (ids.length === 0) {
+    return rows.map((r) => ({ ...r, author: null }));
+  }
+
+  const { data } = await supabase
+    .from("organization_members_view")
+    .select("user_id, display_name, email")
+    .in("user_id", ids);
+
+  // Un membre peut appartenir a plusieurs societes : la vue renvoie une ligne
+  // par appartenance, on ne garde que la premiere — le nom ne varie pas.
+  const byId = new Map<string, MovementAuthor>();
+  for (const m of data ?? []) {
+    if (m.user_id && !byId.has(m.user_id)) {
+      byId.set(m.user_id, { display_name: m.display_name, email: m.email });
+    }
+  }
+
+  return rows.map((r) => ({
+    ...r,
+    author: r.created_by ? (byId.get(r.created_by) ?? null) : null,
+  }));
 }
 
 /**
@@ -340,7 +390,7 @@ export async function getProductMovements(
     throw new Error(`Erreur lors de la récupération des mouvements: ${error.message}`);
   }
 
-  return data || [];
+  return attachAuthors(supabase, (data as StockMovement[]) || []);
 }
 
 /**

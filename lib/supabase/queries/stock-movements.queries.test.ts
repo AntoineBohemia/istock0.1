@@ -87,9 +87,9 @@ describe("createExit", () => {
   it("throws on RPC error", async () => {
     mockClient._setResult({ data: null, error: { message: "Stock insuffisant" } });
 
-    await expect(
-      createExit("org-1", "prod-1", 10, "exit_anonymous")
-    ).rejects.toThrow("Erreur lors de la création du mouvement: Stock insuffisant");
+    await expect(createExit("org-1", "prod-1", 10, "exit_anonymous")).rejects.toThrow(
+      "Erreur lors de la création du mouvement: Stock insuffisant"
+    );
   });
 });
 
@@ -101,7 +101,9 @@ describe("getStockMovements", () => {
 
     const result = await getStockMovements();
 
-    expect(result.movements).toEqual(movements);
+    // Chaque mouvement porte desormais son auteur. Sans created_by (donnees de
+    // test), il reste null : aucune requete de resolution n'est meme emise.
+    expect(result.movements).toEqual(movements.map((m) => ({ ...m, author: null })));
     expect(result.total).toBe(1);
     expect(result.page).toBe(1);
     expect(result.pageSize).toBe(20);
@@ -152,7 +154,7 @@ describe("getProductMovements", () => {
 
     const result = await getProductMovements("prod-1");
 
-    expect(result).toEqual(movements);
+    expect(result).toEqual(movements.map((m) => ({ ...m, author: null })));
     expect(mockClient.eq).toHaveBeenCalledWith("product_id", "prod-1");
   });
 
@@ -248,9 +250,6 @@ describe("getMovementsSummary", () => {
 
     await getMovementsSummary();
 
-    expect(mockClient.eq).not.toHaveBeenCalledWith(
-      "organization_id",
-      expect.anything()
-    );
+    expect(mockClient.eq).not.toHaveBeenCalledWith("organization_id", expect.anything());
   });
 });

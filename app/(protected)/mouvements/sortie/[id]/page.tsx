@@ -117,7 +117,21 @@ async function getMovement(id: string) {
   const orgRaw = (movement as Record<string, unknown>).organization;
   const organization = (Array.isArray(orgRaw) ? orgRaw[0] : orgRaw) as { name: string } | null;
 
-  return { ...movement, product, technician, organization, alreadyReversed };
+  // Qui a saisi la sortie — un membre de l'organisation, jamais le technicien
+  // destinataire : le premier decide, le second recoit.
+  let author: { display_name: string | null; email: string | null } | null = null;
+  const createdBy = (movement as Record<string, unknown>).created_by as string | null;
+  if (createdBy) {
+    const { data } = await supabase
+      .from("organization_members_view")
+      .select("display_name, email")
+      .eq("user_id", createdBy)
+      .limit(1)
+      .maybeSingle();
+    author = data ?? null;
+  }
+
+  return { ...movement, product, technician, organization, author, alreadyReversed };
 }
 
 export default async function OutcomeDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -281,6 +295,17 @@ export default async function OutcomeDetailPage({ params }: { params: Promise<{ 
               <span className="text-right font-medium whitespace-pre-line">{movement.note}</span>
             </div>
           )}
+          {/* Qui a saisi la sortie — pas le technicien qui la reçoit. Le
+              destinataire est plus bas ; ici, c'est l'auteur du geste. */}
+          <div className="flex justify-between px-5 py-2.5">
+            <span className="text-muted-foreground flex items-center gap-1.5">
+              <User01 className="size-3.5" />
+              Réalisé par
+            </span>
+            <span className="font-medium">
+              {movement.author?.display_name || movement.author?.email || "Non enregistré"}
+            </span>
+          </div>
         </div>
       </div>
 

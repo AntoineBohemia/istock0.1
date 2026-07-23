@@ -695,6 +695,22 @@ export default function MovementsList() {
         },
       },
       {
+        // Qui a saisi le mouvement — un membre de l'organisation, pas le
+        // technicien destinataire. Une ligne fausse doit se remonter a quelqu'un,
+        // et une correction avoir un responsable. Les mouvements anterieurs au
+        // suivi n'ont pas d'auteur : c'est la verite, personne n'etait enregistre.
+        id: "author",
+        meta: { label: "Auteur" },
+        accessorFn: (row) => row.author?.display_name ?? row.author?.email ?? "",
+        header: () => <ColHeader label="Auteur" />,
+        cell: ({ row }) => {
+          const author = row.original.author;
+          const label = author?.display_name || author?.email;
+          if (!label) return <span className="text-muted-foreground">—</span>;
+          return <span className="text-[15px]">{label}</span>;
+        },
+      },
+      {
         id: "supplier",
         meta: { label: "Fournisseur" },
         accessorFn: (row) => row.supplier?.name ?? "",
