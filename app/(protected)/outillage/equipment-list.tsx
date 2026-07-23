@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useQueryStates, parseAsString } from "nuqs";
-import { Wrench, AlertTriangle, Archive, Pencil } from "lucide-react";
+import { Wrench, AlertTriangle, Archive, Pencil, Truck, HardHat, PackageCheck } from "lucide-react";
+import { FilterChip } from "@/components/filter-chip";
 
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/search-input";
@@ -80,6 +81,61 @@ export default function EquipmentList() {
   const [createOpen, setCreateOpen] = useState(false);
   const [onlyAlerts, setOnlyAlerts] = useState(false);
 
+  // Filtres du parc en service. Ils ne s'appliquent pas aux archives, ou un
+  // outil n'a ni détenteur ni stock — le bouton « Archivés » les remet à zéro.
+  const [filterSuppliers, setFilterSuppliers] = useState<Set<string>>(new Set());
+  const [filterHolders, setFilterHolders] = useState<Set<string>>(new Set());
+  const [filterAvailability, setFilterAvailability] = useState<Set<string>>(new Set());
+
+  const toggleSet = (prev: Set<string>, value: string) => {
+    const next = new Set(prev);
+    if (next.has(value)) next.delete(value);
+    else next.add(value);
+    return next;
+  };
+
+  const clearFilters = () => {
+    setOnlyAlerts(false);
+    setFilterSuppliers(new Set());
+    setFilterHolders(new Set());
+    setFilterAvailability(new Set());
+  };
+
+  // Options tirées du parc chargé : on ne propose que des valeurs qui existent.
+  const supplierOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const e of equipment) if (e.supplier?.id) seen.set(e.supplier.id, e.supplier.name);
+    return [...seen.entries()]
+      .map(([id, label]) => ({ id, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, "fr"));
+  }, [equipment]);
+
+  const holderOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const e of equipment) {
+      for (const a of e.assignments) {
+        if (a.technician) {
+          seen.set(a.technician.id, `${a.technician.first_name} ${a.technician.last_name}`);
+        }
+      }
+    }
+    return [...seen.entries()]
+      .map(([id, label]) => ({ id, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, "fr"));
+  }, [equipment]);
+
+  const AVAILABILITY_OPTIONS = [
+    { id: "available", label: "Exemplaire en réserve" },
+    { id: "all-out", label: "Tout assigné" },
+  ];
+
+  const hasActiveFilter =
+    onlyAlerts ||
+    filterSuppliers.size > 0 ||
+    filterHolders.size > 0 ||
+    filterAvailability.size > 0 ||
+    Boolean(search);
+
   // L'outil demande par l'URL peut ne pas etre encore charge : on attend la
   // liste plutot que d'ouvrir une fiche vide.
   const [openedFromUrl, setOpenedFromUrl] = useState("");
@@ -92,19 +148,36 @@ export default function EquipmentList() {
   }
 
   const sorted = useMemo(() => {
-    // Le filtre « alertes » ne s'applique jamais aux archives.
-    //
-    // Une alerte se declenche sur une assignation ancienne, or un outil ne peut
-    // pas etre archive tant qu'un technicien le detient : aucune fiche archivee
-    // n'en porte, par construction. Laisser le filtre actif vidait donc la vue
-    // — et comme la pastille « N alertes » ne s'affiche que si le compte est
-    // superieur a zero, elle disparaissait en meme temps : le filtre restait
-    // actif sans plus aucun moyen de le voir ni de le lever. La liste semblait
-    // simplement vide, et l'archivage semblait ne pas avoir fonctionne.
-    const list =
-      onlyAlerts && !showArchived ? equipment.filter((e) => getCardAlert(e) !== "none") : equipment;
+    // Aucun filtre du parc ne s'applique aux archives : un outil archivé n'a ni
+    // détenteur, ni stock, ni assignation à comparer — les y laisser actifs
+    // viderait la vue sans qu'on comprenne pourquoi. Ils sont d'ailleurs remis
+    // à zéro au passage dans les archives.
+    let list = equipment;
+    if (!showArchived) {
+      if (onlyAlerts) list = list.filter((e) => getCardAlert(e) !== "none");
+      if (filterSuppliers.size > 0)
+        list = list.filter((e) => e.supplier?.id && filterSuppliers.has(e.supplier.id));
+      if (filterHolders.size > 0) {
+        list = list.filter((e) =>
+          e.assignments.some((a) => a.technician && filterHolders.has(a.technician.id))
+        );
+      }
+      if (filterAvailability.size > 0) {
+        list = list.filter((e) => {
+          const stock = e.stock_current ?? 0;
+          // « en réserve » = au moins un exemplaire disponible ; « tout assigné »
+          // = plus rien en stock mais des exemplaires chez des techniciens.
+          const isAvailable = stock > 0;
+          const isAllOut = stock === 0 && e.total_assigned > 0;
+          return (
+            (filterAvailability.has("available") && isAvailable) ||
+            (filterAvailability.has("all-out") && isAllOut)
+          );
+        });
+      }
+    }
     return sortEquipmentByName(list);
-  }, [equipment, onlyAlerts, showArchived]);
+  }, [equipment, onlyAlerts, showArchived, filterSuppliers, filterHolders, filterAvailability]);
 
   // ── Fleet stats ──
   const stats = useMemo(() => {
@@ -154,15 +227,48 @@ export default function EquipmentList() {
 
   return (
     <div className="space-y-4">
-      {/* ── Recherche et totaux sur une seule ligne ── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      {/* ── Recherche compacte + filtres ── */}
+      <div className="flex flex-wrap items-center gap-2">
         <SearchInput
           value={search}
           onChange={(v) => setQueryStates({ search: v || null })}
-          placeholder="Rechercher un outil..."
-          className="bg-white dark:bg-card"
-          wrapperClassName="flex-1"
+          placeholder="Rechercher…"
+          className="bg-white dark:bg-card h-9"
+          wrapperClassName="w-full sm:w-52 shrink-0"
         />
+
+        {/* Filtres du parc en service seulement : dans les archives, un outil
+            n'a ni détenteur ni disponibilité à comparer. */}
+        {!showArchived && (
+          <>
+            <FilterChip
+              label="Disponibilité"
+              icon={PackageCheck}
+              options={AVAILABILITY_OPTIONS}
+              selected={filterAvailability}
+              onToggle={(id) => setFilterAvailability((prev) => toggleSet(prev, id))}
+              onClear={() => setFilterAvailability(new Set())}
+            />
+            <FilterChip
+              label="Détenteur"
+              icon={HardHat}
+              options={holderOptions}
+              selected={filterHolders}
+              onToggle={(id) => setFilterHolders((prev) => toggleSet(prev, id))}
+              onClear={() => setFilterHolders(new Set())}
+              hideWhenEmpty
+            />
+            <FilterChip
+              label="Fournisseur"
+              icon={Truck}
+              options={supplierOptions}
+              selected={filterSuppliers}
+              onToggle={(id) => setFilterSuppliers((prev) => toggleSet(prev, id))}
+              onClear={() => setFilterSuppliers(new Set())}
+              hideWhenEmpty
+            />
+          </>
+        )}
 
         <button
           type="button"
@@ -170,7 +276,7 @@ export default function EquipmentList() {
             setShowArchived((v) => !v);
             // Aucun filtre ne survit au changement de vue : on ne doit pas
             // arriver dans les archives avec une restriction posee ailleurs.
-            setOnlyAlerts(false);
+            clearFilters();
           }}
           className={cn(
             "inline-flex items-center gap-1.5 rounded-full h-9 px-4 text-[13px] font-semibold transition-all select-none cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97] shrink-0",
@@ -184,7 +290,7 @@ export default function EquipmentList() {
         </button>
 
         {totalCount > 0 && (
-          <div className="flex items-center gap-4 shrink-0">
+          <div className="ml-auto flex items-center gap-4 shrink-0">
             {/* En vue « Archivés », ce total ne compte pas le parc en service :
                 l'annoncer comme « unités » tout court le ferait passer pour le
                 stock courant, alors qu'il porte sur des fiches retirées. */}
@@ -278,9 +384,9 @@ export default function EquipmentList() {
                 ? "Aucun outil ne correspond à cette recherche."
                 : "Aucun outil ne correspond aux filtres actifs."}
             </p>
-            {onlyAlerts && (
-              <Button variant="outline" className="mt-4" onClick={() => setOnlyAlerts(false)}>
-                Retirer le filtre « alertes »
+            {hasActiveFilter && !search && (
+              <Button variant="outline" className="mt-4" onClick={clearFilters}>
+                Réinitialiser les filtres
               </Button>
             )}
           </div>
