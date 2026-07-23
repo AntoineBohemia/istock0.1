@@ -129,53 +129,52 @@ function SupplierSection({
   const hasQuantities = adjustedUnits > 0;
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="overflow-hidden rounded-xl border bg-card">
       <button
         type="button"
         onClick={() => setCollapsed(!collapsed)}
-        className="flex items-start justify-between gap-3 w-full px-4 py-3 text-left hover:bg-muted/40 transition-colors cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-muted/40 cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
       >
-        <div className="flex items-start gap-2.5 min-w-0">
-          <ChevronDown
-            className={cn(
-              "size-4 mt-0.5 shrink-0 text-muted-foreground transition-transform duration-200",
-              collapsed && "-rotate-90"
-            )}
-          />
-          <div className="min-w-0">
-            <div className="flex items-baseline gap-2">
-              <span className="font-semibold text-sm truncate">{group.supplierName}</span>
-              <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
-                {group.items.length} produit{group.items.length > 1 ? "s" : ""}
+        <ChevronDown
+          className={cn(
+            "size-4 shrink-0 text-muted-foreground transition-transform duration-200",
+            collapsed && "-rotate-90"
+          )}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="truncate font-semibold">{group.supplierName}</span>
+            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">
+              {group.items.length} réf.
+            </span>
+          </div>
+          {/* Contact — consultable sans ouvrir le groupe */}
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+            {supplierPhone && (
+              <span className="flex items-center gap-1 tabular-nums">
+                <Phone className="size-3.5 shrink-0" />
+                {supplierPhone}
               </span>
-            </div>
-            {/* Contact — consultable sans ouvrir le groupe */}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-[11px] text-muted-foreground">
-              {supplierPhone && (
-                <span className="flex items-center gap-1 tabular-nums">
-                  <Phone className="size-3 shrink-0" />
-                  {supplierPhone}
-                </span>
-              )}
-              {supplierEmail && (
-                <span className="flex items-center gap-1 min-w-0">
-                  <Mail className="size-3 shrink-0" />
-                  <span className="truncate">{supplierEmail}</span>
-                </span>
-              )}
-              {!supplierPhone && !supplierEmail && (
-                <span className="text-attention">Aucun contact renseigné</span>
-              )}
-            </div>
+            )}
+            {supplierEmail && (
+              <span className="flex min-w-0 items-center gap-1">
+                <Mail className="size-3.5 shrink-0" />
+                <span className="truncate">{supplierEmail}</span>
+              </span>
+            )}
+            {!supplierPhone && !supplierEmail && (
+              <span className="text-attention">Aucun contact renseigné</span>
+            )}
           </div>
         </div>
         {hasQuantities && (
-          <div className="text-right shrink-0">
-            <div className="font-heading font-bold text-sm tabular-nums leading-none">
-              {adjustedUnits} u.
+          <div className="shrink-0 text-right">
+            <div className="font-heading text-base font-bold leading-none tabular-nums">
+              {adjustedUnits}
+              <span className="text-xs font-medium text-muted-foreground"> u.</span>
             </div>
             {adjustedTotal > 0 && (
-              <div className="text-[11px] text-muted-foreground tabular-nums mt-1">
+              <div className="mt-0.5 text-xs text-muted-foreground tabular-nums">
                 {formatPrice(adjustedTotal)} &euro;
               </div>
             )}
@@ -184,17 +183,20 @@ function SupplierSection({
       </button>
 
       {!collapsed && (
-        <div className="border-t divide-y">
+        <div className="divide-y border-t">
           {group.items.map((item) => {
             const qty = overrides.get(item.product.id) ?? item.toOrder;
             const price = item.product.price ?? 0;
             const current = item.product.stock_current ?? 0;
             const min = item.product.stock_min ?? STOCK_DEFAULTS.MIN;
+            // Ce qui manque pour repasser au-dessus du seuil : la quantite
+            // minimale a commander pour ne plus etre en alerte.
+            const shortfall = Math.max(0, min - current);
             return (
               <div
                 key={item.product.id}
                 className={cn(
-                  "flex items-center gap-3 px-4 py-2.5 transition-colors",
+                  "flex items-center gap-3 px-4 py-3 transition-colors",
                   qty > 0 && "bg-primary/[0.04]"
                 )}
               >
@@ -202,31 +204,39 @@ function SupplierSection({
                   iconName={item.product.icon_name}
                   iconColor={item.product.icon_color}
                   imageUrl={item.product.image_url}
-                  size="sm"
+                  size="md"
                   className="shrink-0"
                 />
 
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{item.product.name}</p>
-                  <p className="text-[11px] text-muted-foreground tabular-nums mt-0.5">
-                    <span className="font-semibold text-critique">{current}</span> en stock · seuil{" "}
-                    {min}
-                  </p>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{item.product.name}</p>
+                  {/* Pourquoi ce produit est la : son stock, en evidence. */}
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                    <span className="inline-flex items-center rounded-full bg-critique/10 px-2 py-0.5 font-semibold tabular-nums text-critique">
+                      {current} en stock
+                    </span>
+                    <span className="text-muted-foreground tabular-nums">seuil {min}</span>
+                    {shortfall > 0 && (
+                      <span className="text-muted-foreground tabular-nums">
+                        · manque {shortfall}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex shrink-0 items-center gap-1">
                   <button
                     type="button"
                     onClick={() => onOverride(item.product.id, Math.max(0, qty - 1))}
                     disabled={qty === 0}
                     aria-label={`Retirer une unité de ${item.product.name}`}
-                    className="flex size-8 items-center justify-center rounded-lg border bg-background hover:bg-muted active:scale-95 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                    className="flex size-9 items-center justify-center rounded-lg border bg-background transition-all hover:bg-muted active:scale-95 cursor-pointer disabled:cursor-not-allowed disabled:opacity-30 disabled:active:scale-100 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                   >
-                    <Minus className="size-3.5" />
+                    <Minus className="size-4" />
                   </button>
                   <span
                     className={cn(
-                      "w-9 text-center text-sm font-bold tabular-nums font-heading transition-colors",
+                      "w-8 text-center font-heading text-base font-bold tabular-nums transition-colors",
                       qty === 0 ? "text-muted-foreground/40" : "text-foreground"
                     )}
                   >
@@ -236,14 +246,14 @@ function SupplierSection({
                     type="button"
                     onClick={() => onOverride(item.product.id, qty + 1)}
                     aria-label={`Ajouter une unité de ${item.product.name}`}
-                    className="flex size-8 items-center justify-center rounded-lg border bg-background hover:bg-muted active:scale-95 transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                    className="flex size-9 items-center justify-center rounded-lg border bg-background transition-all hover:bg-muted active:scale-95 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                   >
-                    <Plus className="size-3.5" />
+                    <Plus className="size-4" />
                   </button>
                 </div>
 
                 {/* Le montant n'apparaît qu'une fois une quantité saisie */}
-                <span className="w-16 text-right shrink-0 text-xs tabular-nums">
+                <span className="w-16 shrink-0 text-right text-sm tabular-nums">
                   {qty > 0 && price > 0 ? (
                     <span className="font-semibold">{formatPrice(qty * price)} &euro;</span>
                   ) : (
@@ -254,33 +264,33 @@ function SupplierSection({
             );
           })}
 
-          <div className="px-4 py-2.5 space-y-1.5">
+          <div className="space-y-2 px-4 py-3">
             <div className="flex gap-2">
               {supplierEmail && (
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8 text-xs flex-1"
+                  className="flex-1"
                   disabled={!hasQuantities}
                   onClick={() => {
                     window.location.href = generateMailtoUrl(group, overrides);
                   }}
                 >
-                  <Mail className="size-3" />
+                  <Mail className="size-4" />
                   Commander par mail
                 </Button>
               )}
               {supplierPhone && (
-                <Button variant="outline" size="sm" className="h-8 text-xs flex-1" asChild>
+                <Button variant="outline" size="sm" className="flex-1" asChild>
                   <a href={`tel:${supplierPhone.replace(/\s/g, "")}`}>
-                    <Phone className="size-3" />
+                    <Phone className="size-4" />
                     Appeler
                   </a>
                 </Button>
               )}
             </div>
             {!hasQuantities && (
-              <p className="text-[11px] text-muted-foreground text-center">
+              <p className="text-center text-xs text-muted-foreground">
                 Saisissez au moins une quantité pour commander.
               </p>
             )}
@@ -331,19 +341,19 @@ export default function ReorderRecapModal({ open, onClose, products }: ReorderRe
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg gap-0 p-0 max-h-[85vh] flex flex-col">
-        <DialogHeader className="px-5 pt-5 pb-4 shrink-0 space-y-1.5">
-          <DialogTitle className="text-base font-semibold flex items-center gap-2">
-            <ShoppingCart className="size-4" />
+        <DialogHeader className="shrink-0 space-y-2 px-5 pb-4 pt-5">
+          <DialogTitle className="flex items-center gap-2 text-lg font-semibold">
+            <ShoppingCart className="size-5" />
             Produits à commander
           </DialogTitle>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             {reorderList.length > 0 ? (
               <>
-                <span className="font-semibold text-critique tabular-nums">
+                <span className="font-semibold tabular-nums text-critique">
                   {reorderList.length}
                 </span>{" "}
                 produit{reorderList.length > 1 ? "s" : ""} sous le seuil critique. Saisissez les
-                quantités puis envoyez la commande au fournisseur.
+                quantités, puis envoyez la commande au fournisseur.
               </>
             ) : (
               "Aucun produit sous le seuil critique."
@@ -377,19 +387,19 @@ export default function ReorderRecapModal({ open, onClose, products }: ReorderRe
 
         {/* Sticky footer */}
         {grandTotalUnits > 0 && (
-          <div className="border-t px-5 py-3 shrink-0 flex items-end justify-between bg-muted/30">
+          <div className="flex shrink-0 items-end justify-between border-t bg-muted/30 px-5 py-3.5">
             <div>
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Total commande
               </p>
-              <p className="text-sm text-muted-foreground tabular-nums mt-0.5">
+              <p className="mt-0.5 text-sm tabular-nums text-muted-foreground">
                 {grandTotalUnits} unité{grandTotalUnits > 1 ? "s" : ""}
               </p>
             </div>
             {grandTotalValue > 0 && (
-              <span className="font-heading text-xl font-bold tabular-nums leading-none">
+              <span className="font-heading text-2xl font-bold leading-none tabular-nums">
                 {formatPrice(grandTotalValue)} &euro;{" "}
-                <span className="text-xs font-medium text-muted-foreground">HT</span>
+                <span className="text-sm font-medium text-muted-foreground">HT</span>
               </span>
             )}
           </div>
